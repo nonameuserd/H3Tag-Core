@@ -192,11 +192,8 @@ export class BlockBuilder {
    * @returns Promise<this> This block builder instance
    */
   async setTransactions(transactions: Transaction[]): Promise<this> {
-    const mutex = new Mutex();
+    const release = await this.mutex.acquire();
     try {
-      // Acquire lock to prevent concurrent modifications
-      await mutex.acquire();
-
       // Validate input
       if (!Array.isArray(transactions)) {
         throw new BlockError("Invalid transactions array");
@@ -277,8 +274,7 @@ export class BlockBuilder {
         error instanceof Error ? error.message : "Failed to set transactions"
       );
     } finally {
-      // Release the mutex
-      mutex.release();
+      release();
     }
   }
 
@@ -336,6 +332,7 @@ export class BlockBuilder {
 
       // Calculate final block hash
       const hash = await this.calculateHash();
+      this.header.hash = hash;
 
       // Calculate total fees and rewards
       const totalFees = this.transactions.reduce(
@@ -424,6 +421,9 @@ export class BlockBuilder {
   }
 
   public setHeight(height: number): this {
+    if (height < 0 || !Number.isInteger(height)) {
+      throw new BlockError("Invalid block height");
+    }
     this.header.height = height;
     return this;
   }
@@ -434,6 +434,25 @@ export class BlockBuilder {
   }
 
   public setTimestamp(timestamp: number): this {
+    const now = Date.now();
+    const oneHourInFuture = now + (60 * 60 * 1000);
+    const oneYearAgo = now - (365 * 24 * 60 * 60 * 1000);
+
+    // Validate timestamp is not in the future (with small tolerance)
+    if (timestamp > oneHourInFuture) {
+        throw new BlockError("Block timestamp cannot be in the future");
+    }
+
+    // Validate timestamp is not too old
+    if (timestamp < oneYearAgo) {
+        throw new BlockError("Block timestamp is too old");
+    }
+
+    // Validate timestamp is a valid number
+    if (!Number.isFinite(timestamp) || timestamp <= 0) {
+        throw new BlockError("Invalid timestamp value");
+    }
+
     this.header.timestamp = timestamp;
     return this;
   }
@@ -441,7 +460,7 @@ export class BlockBuilder {
   public async verifyHash(): Promise<boolean> {
     try {
       const calculatedHash = await this.calculateHash();
-      return calculatedHash === this.header.hash;
+      return calculatedHash === this.hash;
     } catch (error) {
       Logger.error("Hash verification failed:", error);
       return false;
