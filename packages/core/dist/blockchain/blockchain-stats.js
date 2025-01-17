@@ -414,7 +414,7 @@ class BlockchainStats {
                 const blocks = Array.from({ length: 11 }, (_, i) => this.blockchain.getBlockByHeight(this.blockchain.getHeight() - i)).filter(Boolean);
                 if (blocks.length < 1)
                     return Date.now();
-                const times = blocks.map(b => b.header.timestamp);
+                const times = blocks.map((b) => b.header.timestamp);
                 const sorted = [...times].sort((a, b) => a - b);
                 return sorted[Math.floor(sorted.length / 2)];
             }

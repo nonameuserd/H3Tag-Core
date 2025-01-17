@@ -1,4 +1,4 @@
-import { NetworkType } from '@h3tag-blockchain/shared';
+import { NetworkType } from "@h3tag-blockchain/shared";
 export declare const BLOCKCHAIN_CONSTANTS: {
     CURRENCY: {
         NAME: string;
@@ -167,8 +167,6 @@ export declare const BLOCKCHAIN_CONSTANTS: {
     };
     TRANSACTION: {
         MIN_FEE: bigint;
-        MAX_FEE: bigint;
-        BASE_FEE: bigint;
         CURRENT_VERSION: number;
         MAX_INPUTS: number;
         MAX_OUTPUTS: number;
@@ -182,11 +180,12 @@ export declare const BLOCKCHAIN_CONSTANTS: {
             MAX_SIZE: number;
             HIGH_CONGESTION_THRESHOLD: number;
             MAX_MB: number;
-            MIN_FEE_RATE: number;
+            MIN_FEE_RATE: bigint;
             FEE_RATE_MULTIPLIER: number;
             EVICTION_INTERVAL: number;
             CLEANUP_INTERVAL: number;
             MAX_MEMORY_USAGE: number;
+            MIN_SIZE: number;
         };
         PROCESSING_TIMEOUT: number;
         MAX_SIZE: number;

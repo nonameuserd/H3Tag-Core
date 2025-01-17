@@ -64,7 +64,7 @@ const controller = new mempool_controller_1.MempoolController(service);
  *       500:
  *         description: Server error
  */
-router.get('/info', controller.getMempoolInfo.bind(controller));
+router.get("/info", controller.getMempoolInfo.bind(controller));
 /**
  * @swagger
  * /api/v1/mempool/raw:
@@ -94,7 +94,7 @@ router.get('/info', controller.getMempoolInfo.bind(controller));
  *       500:
  *         description: Server error
  */
-router.get('/raw', controller.getRawMempool.bind(controller));
+router.get("/raw", controller.getRawMempool.bind(controller));
 /**
  * @swagger
  * /api/v1/mempool/entry/{txid}:
@@ -120,6 +120,6 @@ router.get('/raw', controller.getRawMempool.bind(controller));
  *       500:
  *         description: Server error
  */
-router.get('/entry/:txid', controller.getMempoolEntry.bind(controller));
+router.get("/entry/:txid", controller.getMempoolEntry.bind(controller));
 exports.default = router;
 //# sourceMappingURL=mempool.routes.js.map

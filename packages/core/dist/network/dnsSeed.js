@@ -71,7 +71,7 @@ class DNSSeeder extends events_1.EventEmitter {
             await this.loadCachedSeeds();
             await this.startDiscovery();
             this.discoveryTimer = setInterval(() => {
-                this.startDiscovery().catch(error => shared_1.Logger.error("Discovery failed:", error));
+                this.startDiscovery().catch((error) => shared_1.Logger.error("Discovery failed:", error));
             }, this.config.cacheExpiry / 2);
         }
         catch (error) {
@@ -97,7 +97,7 @@ class DNSSeeder extends events_1.EventEmitter {
     async loadCachedSeeds() {
         try {
             const cached = await this.db.getSeeds();
-            cached.forEach(seed => {
+            cached.forEach((seed) => {
                 if (this.isValidSeed(seed)) {
                     this.seedCache.set(seed.address, seed);
                 }
@@ -150,7 +150,7 @@ class DNSSeeder extends events_1.EventEmitter {
                     const addresses = await this.resolveWithRetry(seed);
                     const latency = Date.now() - startTime;
                     this.updateSeedMetrics(seed, addresses.length, latency);
-                    addresses.forEach(addr => uniquePeers.add(addr));
+                    addresses.forEach((addr) => uniquePeers.add(addr));
                 }
                 catch (error) {
                     this.handleSeedFailure(seed, error);
@@ -173,21 +173,23 @@ class DNSSeeder extends events_1.EventEmitter {
                 Promise.all([
                     this.resolve4Async(seed),
                     this.resolve6Async(seed).catch(() => []),
-                    this.lookupAsync(seed).then(result => [result.address]).catch(() => [])
+                    this.lookupAsync(seed)
+                        .then((result) => [result.address])
+                        .catch(() => []),
                 ]),
-                timeoutPromise
+                timeoutPromise,
             ]);
             const [ipv4Addresses, ipv6Addresses, lookupResult] = results;
             const uniqueAddresses = new Set([
                 ...ipv4Addresses,
                 ...ipv6Addresses,
-                ...lookupResult
+                ...lookupResult,
             ]);
             return Array.from(uniqueAddresses);
         }
         catch (error) {
             if (retryCount < this.config.maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, this.config.retryDelay));
+                await new Promise((resolve) => setTimeout(resolve, this.config.retryDelay));
                 return this.resolveWithRetry(seed, retryCount + 1);
             }
             throw error;
@@ -198,13 +200,13 @@ class DNSSeeder extends events_1.EventEmitter {
             return peers.slice(0, this.config.maxPeers);
         }
         return peers
-            .map(peer => ({
+            .map((peer) => ({
             address: peer,
-            score: this.calculatePeerScore(peer)
+            score: this.calculatePeerScore(peer),
         }))
             .sort((a, b) => b.score - a.score)
             .slice(0, this.config.maxPeers)
-            .map(p => p.address);
+            .map((p) => p.address);
     }
     calculatePeerScore(peer) {
         const info = this.seedCache.get(peer);
@@ -212,7 +214,7 @@ class DNSSeeder extends events_1.EventEmitter {
             return 0;
         let score = 100;
         // Reduce score based on failures
-        score -= (info.failures * 10);
+        score -= info.failures * 10;
         // Prefer peers with lower latency
         score -= Math.floor(info.latency / 100);
         // Prefer peers seen recently
@@ -228,7 +230,7 @@ class DNSSeeder extends events_1.EventEmitter {
             attempts: 0,
             failures: 0,
             latency: 0,
-            score: 0
+            score: 0,
         };
         info.lastSeen = Date.now();
         info.attempts++;
@@ -258,15 +260,15 @@ class DNSSeeder extends events_1.EventEmitter {
     }
     isValidSeed(seed) {
         return (seed &&
-            typeof seed.address === 'string' &&
-            typeof seed.services === 'number' &&
+            typeof seed.address === "string" &&
+            typeof seed.services === "number" &&
             seed.services >= this.config.requiredServices &&
             seed.failures < this.config.banThreshold);
     }
     formatPeerUrls(peers) {
         return peers
-            .filter(ip => this.isValidIpAddress(ip))
-            .map(ip => `https://${ip}:${this.config.port}`);
+            .filter((ip) => this.isValidIpAddress(ip))
+            .map((ip) => `https://${ip}:${this.config.port}`);
     }
     isValidIpAddress(ip) {
         const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
@@ -274,8 +276,8 @@ class DNSSeeder extends events_1.EventEmitter {
         if (!ipv4Regex.test(ip) && !ipv6Regex.test(ip))
             return false;
         if (ipv4Regex.test(ip)) {
-            const parts = ip.split('.').map(Number);
-            return parts.every(part => part >= 0 && part <= 255);
+            const parts = ip.split(".").map(Number);
+            return parts.every((part) => part >= 0 && part <= 255);
         }
         return true; // IPv6 format already validated by regex
     }
@@ -294,8 +296,8 @@ class DNSSeeder extends events_1.EventEmitter {
     }
     validateSeeds(seeds) {
         const domainRegex = /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-        return seeds.filter(seed => {
-            if (!seed || typeof seed !== 'string') {
+        return seeds.filter((seed) => {
+            if (!seed || typeof seed !== "string") {
                 shared_1.Logger.warn(`Invalid seed value: ${seed}`);
                 return false;
             }
@@ -315,18 +317,13 @@ class DNSSeeder extends events_1.EventEmitter {
         }
     }
     getPowNodeCount() {
-        return Array.from(this.seedCache.values())
-            .filter(seed => (seed.services & 1) === 1)
-            .length;
+        return Array.from(this.seedCache.values()).filter((seed) => (seed.services & 1) === 1).length;
     }
     getVotingNodeCount() {
-        return Array.from(this.seedCache.values())
-            .filter(seed => (seed.services & 2) === 2)
-            .length;
+        return Array.from(this.seedCache.values()).filter((seed) => (seed.services & 2) === 2).length;
     }
     getNetworkHashrate() {
-        return Array.from(this.seedCache.values())
-            .reduce((total, seed) => total + (seed.services & 4 ? 1 : 0), 0);
+        return Array.from(this.seedCache.values()).reduce((total, seed) => total + (seed.services & 4 ? 1 : 0), 0);
     }
     async getTagHolderCount() {
         return this.db.getTagHolderCount();

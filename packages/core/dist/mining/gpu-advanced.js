@@ -34,8 +34,8 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
         // Add currency constants
         this.CURRENCY_CONSTANTS = {
             REWARD_PRECISION: 100000000,
-            SYMBOL: 'TAG',
-            NAME: 'H3Tag'
+            SYMBOL: "TAG",
+            NAME: "H3Tag",
         };
     }
     /**
@@ -53,21 +53,21 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
         await super.initialize();
         // Add error handling for device initialization
         if (!this.device) {
-            throw new Error('GPU device not initialized');
+            throw new Error("GPU device not initialized");
         }
         // Increase buffer sizes to handle potential overflow
         this.blockBuffer = this.device.createBuffer({
             size: 8,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         this.resultBuffer = this.device.createBuffer({
             size: 8,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
         });
         // Add null check for adapter
         const adapter = await navigator.gpu.requestAdapter();
         if (!adapter)
-            throw new Error('No GPU adapter found');
+            throw new Error("No GPU adapter found");
         // Get compute capabilities
         const limits = adapter.limits;
         this.maxComputeUnits = limits.maxComputeWorkgroupsPerDimension || 16;
@@ -130,11 +130,11 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
                 }
             `;
             pipeline = this.device.createComputePipeline({
-                layout: 'auto',
+                layout: "auto",
                 compute: {
                     module: this.device.createShaderModule({ code: shader }),
-                    entryPoint: 'main'
-                }
+                    entryPoint: "main",
+                },
             });
             this.shaderCache.set(cacheKey, pipeline);
             return pipeline;
@@ -193,9 +193,9 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
      */
     createBindGroup(chunkIndex) {
         // Fix potential race condition with pipeline access
-        const pipeline = this.shaderCache.get('current_pipeline');
+        const pipeline = this.shaderCache.get("current_pipeline");
         if (!pipeline)
-            throw new Error('Pipeline not initialized');
+            throw new Error("Pipeline not initialized");
         // Add offset calculation for chunk-based mining
         const offset = chunkIndex * this.workgroupSize * this.maxComputeUnits;
         return this.device.createBindGroup({
@@ -206,18 +206,18 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
                     resource: {
                         buffer: this.blockBuffer,
                         offset: 0,
-                        size: this.blockBuffer.size
-                    }
+                        size: this.blockBuffer.size,
+                    },
                 },
                 {
                     binding: 1,
                     resource: {
                         buffer: this.resultBuffer,
                         offset: 0,
-                        size: this.resultBuffer.size
-                    }
-                }
-            ]
+                        size: this.resultBuffer.size,
+                    },
+                },
+            ],
         });
     }
     /**
@@ -231,7 +231,7 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
         // Create a buffer to read results
         const readBuffer = this.device.createBuffer({
             size: 4,
-            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
         });
         // Copy result to readable buffer
         const commandEncoder = this.device.createCommandEncoder();
@@ -255,7 +255,7 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
     async readBufferData(buffer) {
         const readBuffer = this.device.createBuffer({
             size: buffer.size,
-            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+            usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
         });
         const commandEncoder = this.device.createCommandEncoder();
         commandEncoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, buffer.size);

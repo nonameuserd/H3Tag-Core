@@ -48,7 +48,7 @@ let WalletService = class WalletService {
             this.wallets.set(wallet.getAddress(), wallet);
             return {
                 address: wallet.getAddress(),
-                publicKey: wallet.getPublicKey()
+                publicKey: wallet.getPublicKey(),
             };
         }
         const { wallet, mnemonic } = await core_1.Wallet.createWithMnemonic(createWalletDto.password);
@@ -56,7 +56,7 @@ let WalletService = class WalletService {
         return {
             address: wallet.getAddress(),
             publicKey: wallet.getPublicKey(),
-            mnemonic
+            mnemonic,
         };
     }
     /**
@@ -82,11 +82,11 @@ let WalletService = class WalletService {
     async getWallet(address) {
         const wallet = this.wallets.get(address);
         if (!wallet) {
-            throw new Error('Wallet not found');
+            throw new Error("Wallet not found");
         }
         return {
             address: wallet.getAddress(),
-            publicKey: wallet.getPublicKey()
+            publicKey: wallet.getPublicKey(),
         };
     }
     /**
@@ -126,7 +126,7 @@ let WalletService = class WalletService {
     async signTransaction(address, transaction, password) {
         const wallet = this.wallets.get(address);
         if (!wallet) {
-            throw new Error('Wallet not found');
+            throw new Error("Wallet not found");
         }
         return wallet.signTransaction(transaction, password);
     }
@@ -171,7 +171,7 @@ let WalletService = class WalletService {
     async sendToAddress(fromAddress, toAddress, amount, password) {
         const wallet = this.wallets.get(fromAddress);
         if (!wallet) {
-            throw new Error('Wallet not found');
+            throw new Error("Wallet not found");
         }
         try {
             const txId = await wallet.sendToAddress(toAddress, amount, password);
@@ -211,7 +211,7 @@ let WalletService = class WalletService {
     async getBalance(address) {
         const wallet = this.wallets.get(address);
         if (!wallet) {
-            throw new Error('Wallet not found');
+            throw new Error("Wallet not found");
         }
         return wallet.getBalance();
     }
@@ -243,7 +243,7 @@ let WalletService = class WalletService {
     async getNewAddress(address) {
         const wallet = this.wallets.get(address);
         if (!wallet) {
-            throw new Error('Wallet not found');
+            throw new Error("Wallet not found");
         }
         return wallet.getNewAddress();
     }
@@ -253,7 +253,7 @@ let WalletService = class WalletService {
             return wallet.exportPrivateKey(password);
         }
         catch (error) {
-            common_1.Logger.error('Failed to export private key:', error);
+            common_1.Logger.error("Failed to export private key:", error);
             throw new Error(`Failed to export private key: ${error.message}`);
         }
     }
@@ -263,40 +263,40 @@ let WalletService = class WalletService {
             return {
                 address: wallet.getAddress(),
                 publicKey: wallet.getPublicKey(),
-                balance: '0', // Initial balance
-                isLocked: wallet.isUnlocked()
+                balance: "0", // Initial balance
+                isLocked: wallet.isUnlocked(),
             };
         }
         catch (error) {
-            common_1.Logger.error('Failed to import private key:', error);
+            common_1.Logger.error("Failed to import private key:", error);
             throw new Error(`Failed to import private key: ${error.message}`);
         }
     }
     async listUnspent(address) {
         const wallet = this.wallets.get(address);
         if (!wallet) {
-            throw new Error('Wallet not found');
+            throw new Error("Wallet not found");
         }
         try {
             const utxos = await wallet.listUnspent();
-            return utxos.map(utxo => ({
+            return utxos.map((utxo) => ({
                 txid: utxo.txId,
                 vout: utxo.outputIndex,
                 address: utxo.address,
                 amount: utxo.amount.toString(),
                 confirmations: utxo.confirmations,
-                spendable: !utxo.spent
+                spendable: !utxo.spent,
             }));
         }
         catch (error) {
-            common_1.Logger.error('Failed to list unspent outputs:', error);
+            common_1.Logger.error("Failed to list unspent outputs:", error);
             throw error;
         }
     }
     async getTxOut(txid, n) {
         const txOut = await this.utxoSet.getTxOut(txid, n, true);
         if (!txOut) {
-            throw new Error('Transaction output not found');
+            throw new Error("Transaction output not found");
         }
         return {
             txid,
@@ -305,7 +305,8 @@ let WalletService = class WalletService {
             confirmations: txOut.confirmations,
             scriptType: txOut.scriptPubKey.type,
             address: txOut.scriptPubKey.address,
-            spendable: !txOut.coinbase || txOut.confirmations >= core_3.BLOCKCHAIN_CONSTANTS.COINBASE_MATURITY
+            spendable: !txOut.coinbase ||
+                txOut.confirmations >= core_3.BLOCKCHAIN_CONSTANTS.COINBASE_MATURITY,
         };
     }
 };

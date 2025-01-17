@@ -18,12 +18,12 @@ class MerkleTree {
     async createRoot(data) {
         try {
             if (!Array.isArray(data) || !data.length) {
-                throw new Error('Invalid input: data must be non-empty array');
+                throw new Error("Invalid input: data must be non-empty array");
             }
             // Clear previous state
             this.clearState();
             // Initialize leaves with hashed data
-            this.leaves = await Promise.all(data.map(item => this.hashData(item)));
+            this.leaves = await Promise.all(data.map((item) => this.hashData(item)));
             this.layers = [this.leaves];
             // Build tree layers until we reach the root
             while (this.layers[0].length > 1) {
@@ -34,7 +34,7 @@ class MerkleTree {
             return this.layers[0][0];
         }
         catch (error) {
-            shared_1.Logger.error('Failed to create merkle root:', error);
+            shared_1.Logger.error("Failed to create merkle root:", error);
             throw error;
         }
     }
@@ -50,7 +50,7 @@ class MerkleTree {
             return computedRoot === root;
         }
         catch (error) {
-            shared_1.Logger.error('Merkle verification failed:', error);
+            shared_1.Logger.error("Merkle verification failed:", error);
             return false;
         }
     }
@@ -62,12 +62,12 @@ class MerkleTree {
     async generateProof(index) {
         try {
             if (index < 0 || index >= this.leaves.length) {
-                throw new Error('Invalid leaf index');
+                throw new Error("Invalid leaf index");
             }
             const proof = {
                 index,
                 hash: this.leaves[index],
-                siblings: []
+                siblings: [],
             };
             let currentIndex = index;
             for (let i = this.layers.length - 1; i > 0; i--) {
@@ -82,7 +82,7 @@ class MerkleTree {
             return proof;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to generate merkle proof:', error);
+            shared_1.Logger.error("Failed to generate merkle proof:", error);
             throw error;
         }
     }
@@ -95,7 +95,10 @@ class MerkleTree {
      */
     async verifyProof(proof, data, root) {
         try {
-            if (!proof || !root || !Array.isArray(proof.siblings) || proof.siblings.length === 0) {
+            if (!proof ||
+                !root ||
+                !Array.isArray(proof.siblings) ||
+                proof.siblings.length === 0) {
                 return false;
             }
             let hash = proof.hash;
@@ -109,7 +112,7 @@ class MerkleTree {
             return hash === root;
         }
         catch (error) {
-            shared_1.Logger.error('Merkle proof verification failed:', error);
+            shared_1.Logger.error("Merkle proof verification failed:", error);
             return false;
         }
     }
@@ -134,8 +137,11 @@ class MerkleTree {
      * @returns Combined hash of both nodes
      */
     async hashPair(left, right) {
-        if (!left || !right || typeof left !== 'string' || typeof right !== 'string') {
-            throw new Error('Invalid hash pair inputs');
+        if (!left ||
+            !right ||
+            typeof left !== "string" ||
+            typeof right !== "string") {
+            throw new Error("Invalid hash pair inputs");
         }
         const key = `${left}:${right}`;
         if (this.hashCache.has(key)) {

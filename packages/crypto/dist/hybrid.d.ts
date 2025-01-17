@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /// <reference types="node" />
-import { HybridKeyPair } from './keys';
+import { HybridKeyPair } from "./keys";
 export declare class HybridError extends Error {
     constructor(message: string);
 }
@@ -14,20 +14,10 @@ export declare class HybridCrypto {
     private static readonly KEY_SIZE;
     static readonly TRADITIONAL_CURVE: any;
     private static metrics;
-    static sign(message: string, privateKey: HybridKeyPair): Promise<{
-        address: string;
-    }>;
-    static verify(message: string, signature: {
-        address: string;
-    }, publicKey: {
-        address: string;
-    }): Promise<boolean>;
-    static encrypt(message: string, publicKey: {
-        address: string;
-    }): Promise<string>;
-    static decrypt(encryptedData: string, privateKey: {
-        address: string;
-    }): Promise<string>;
+    static sign(message: string, privateKey: HybridKeyPair): Promise<string>;
+    static verify(message: string, signature: string, publicKey: string): Promise<boolean>;
+    static encrypt(message: string, publicKey: string): Promise<string>;
+    static decrypt(encryptedData: string, privateKey: string): Promise<string>;
     static generateSharedSecret(input: Buffer): Promise<string>;
     static getMetrics(): HybridMetrics;
     static resetMetrics(): void;

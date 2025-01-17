@@ -55,10 +55,10 @@ class PeerDiscovery {
         // Add feeler connection interval for testing new peers
         this.feelerInterval = setInterval(() => this.attemptFeelerConnection(), 120000);
         // Set up message handling for each peer
-        this.peers.forEach(peer => {
-            peer.eventEmitter.on('message', (message) => {
-                this.processMessage(message).catch(error => {
-                    shared_1.Logger.error('Error processing peer message:', error);
+        this.peers.forEach((peer) => {
+            peer.eventEmitter.on("message", (message) => {
+                this.processMessage(message).catch((error) => {
+                    shared_1.Logger.error("Error processing peer message:", error);
                 });
             });
         });
@@ -90,7 +90,7 @@ class PeerDiscovery {
         for (const seed of this.dnsSeeds) {
             try {
                 const addresses = await this.resolveDnsSeed(seed);
-                addresses.forEach(addr => {
+                addresses.forEach((addr) => {
                     this.addPeerAddress({
                         url: addr,
                         timestamp: Date.now(),
@@ -98,7 +98,7 @@ class PeerDiscovery {
                         attempts: 0,
                         lastSuccess: 0,
                         lastAttempt: 0,
-                        banScore: 0
+                        banScore: 0,
                     });
                 });
             }
@@ -141,8 +141,7 @@ class PeerDiscovery {
     }
     selectPeerCandidate() {
         const candidates = Array.from(this.peerAddresses.values())
-            .filter(addr => !this.peers.has(addr.url) &&
-            !this.bannedPeers.has(addr.url))
+            .filter((addr) => !this.peers.has(addr.url) && !this.bannedPeers.has(addr.url))
             .sort((a, b) => {
             // Prefer peers that have succeeded recently
             if (a.lastSuccess && !b.lastSuccess)
@@ -206,7 +205,7 @@ class PeerDiscovery {
         const updatePromises = Array.from(this.peers.values()).map(async (peer) => {
             try {
                 const info = await peer.getNodeInfo();
-                const url = peer.getInfo().url;
+                const url = (await peer.getInfo()).url;
                 // Check TAG requirements for miners
                 const isValidMiner = info.isMiner &&
                     info.tagInfo.minedBlocks >= 1 &&
@@ -223,7 +222,7 @@ class PeerDiscovery {
                 this.peerScores.set(url, (this.peerScores.get(url) || 0) + (isValidMiner ? 2 : 1));
             }
             catch (error) {
-                const url = peer.getInfo().url;
+                const url = (await peer.getInfo()).url;
                 shared_1.Logger.warn(`Failed to update peer type for ${url}:`, error);
                 this.peerScores.set(url, (this.peerScores.get(url) || 0) - 1);
                 this.miners.delete(url);
@@ -236,10 +235,10 @@ class PeerDiscovery {
         this.cleanupBannedPeers();
         this.cleanupResources();
     }
-    cleanupOldPeers() {
+    async cleanupOldPeers() {
         const now = Date.now();
         for (const [url, peer] of this.peers.entries()) {
-            if (now - peer.getInfo().lastSeen > PeerDiscovery.MAX_PEER_AGE) {
+            if (now - (await peer.getInfo()).lastSeen > PeerDiscovery.MAX_PEER_AGE) {
                 this.removePeer(url);
             }
         }
@@ -304,7 +303,7 @@ class PeerDiscovery {
     }
     async connectToPeer(url, retryCount = 0) {
         try {
-            const [address, portStr] = url.split(':');
+            const [address, portStr] = url.split(":");
             if (!address || !portStr) {
                 throw new Error(`Invalid peer URL: ${url}`);
             }
@@ -317,16 +316,16 @@ class PeerDiscovery {
             this.database);
             await peer.connect();
             // Set up message handling for the new peer
-            peer.eventEmitter.on('message', (message) => {
-                this.processMessage(message).catch(error => {
-                    shared_1.Logger.error('Error processing peer message:', error);
+            peer.eventEmitter.on("message", (message) => {
+                this.processMessage(message).catch((error) => {
+                    shared_1.Logger.error("Error processing peer message:", error);
                 });
             });
             this.peers.set(url, peer);
         }
         catch (error) {
             if (retryCount < PeerDiscovery.MAX_RECONNECT_ATTEMPTS) {
-                await new Promise(resolve => setTimeout(resolve, PeerDiscovery.RECONNECT_DELAY));
+                await new Promise((resolve) => setTimeout(resolve, PeerDiscovery.RECONNECT_DELAY));
                 return this.connectToPeer(url, retryCount + 1);
             }
             throw error;
@@ -338,7 +337,7 @@ class PeerDiscovery {
             return peerList.map((p) => p.url);
         }
         catch (error) {
-            shared_1.Logger.warn(`Failed to get peers from ${peer.getInfo().url}:`, error);
+            shared_1.Logger.warn(`Failed to get peers from ${(await peer.getInfo()).url}:`, error);
             return [];
         }
     }
@@ -387,7 +386,7 @@ class PeerDiscovery {
     }
     async resolveDnsSeed(seed) {
         try {
-            const dns = require('dns');
+            const dns = require("dns");
             const addresses = await new Promise((resolve, reject) => {
                 dns.resolve(seed, (err, addresses) => {
                     if (err)
@@ -396,7 +395,7 @@ class PeerDiscovery {
                         resolve(addresses);
                 });
             });
-            return addresses.filter(addr => this.isValidAddress(addr));
+            return addresses.filter((addr) => this.isValidAddress(addr));
         }
         catch (error) {
             shared_1.Logger.warn(`DNS resolution failed for ${seed}:`, error);
@@ -409,36 +408,34 @@ class PeerDiscovery {
             if (!address || address.length > 45)
                 return false;
             // IPv4 validation
-            if (address.includes('.')) {
-                const parts = address.split('.');
+            if (address.includes(".")) {
+                const parts = address.split(".");
                 if (parts.length !== 4)
                     return false;
-                return parts.every(part => {
+                return parts.every((part) => {
                     const num = parseInt(part);
-                    return !isNaN(num) &&
-                        num >= 0 &&
-                        num <= 255 &&
-                        part === num.toString(); // Ensures no leading zeros
+                    return (!isNaN(num) && num >= 0 && num <= 255 && part === num.toString()); // Ensures no leading zeros
                 });
             }
             // IPv6 validation
-            if (address.includes(':')) {
+            if (address.includes(":")) {
                 // Remove IPv6 zone index if present
-                const zoneIndex = address.indexOf('%');
+                const zoneIndex = address.indexOf("%");
                 if (zoneIndex !== -1) {
                     address = address.substring(0, zoneIndex);
                 }
-                const parts = address.split(':');
+                const parts = address.split(":");
                 if (parts.length > 8)
                     return false;
                 // Handle :: compression
-                const emptyGroupsCount = parts.filter(p => p === '').length;
-                if (emptyGroupsCount > 1 && !(emptyGroupsCount === 2 && parts[0] === '' && parts[1] === '')) {
+                const emptyGroupsCount = parts.filter((p) => p === "").length;
+                if (emptyGroupsCount > 1 &&
+                    !(emptyGroupsCount === 2 && parts[0] === "" && parts[1] === "")) {
                     return false;
                 }
                 // Validate each hextet
-                return parts.every(part => {
-                    if (part === '')
+                return parts.every((part) => {
+                    if (part === "")
                         return true; // Allow empty parts for ::
                     if (part.length > 4)
                         return false;
@@ -484,7 +481,7 @@ class PeerDiscovery {
             // Additional version handling logic here
         }
         catch (error) {
-            shared_1.Logger.error('Error handling version message:', error);
+            shared_1.Logger.error("Error handling version message:", error);
         }
     }
     async handleAddr(payload) {
@@ -498,22 +495,22 @@ class PeerDiscovery {
                     attempts: 0,
                     lastSuccess: 0,
                     lastAttempt: 0,
-                    banScore: 0
+                    banScore: 0,
                 });
             }
         }
         catch (error) {
-            shared_1.Logger.error('Error handling addr message:', error);
+            shared_1.Logger.error("Error handling addr message:", error);
         }
     }
     async handleInventory(payload) {
         try {
             // Handle inventory announcements (new blocks, transactions, etc)
-            shared_1.Logger.debug('Received inventory message:', payload);
-            this.eventEmitter.emit('inventory', payload);
+            shared_1.Logger.debug("Received inventory message:", payload);
+            this.eventEmitter.emit("inventory", payload);
         }
         catch (error) {
-            shared_1.Logger.error('Error handling inventory message:', error);
+            shared_1.Logger.error("Error handling inventory message:", error);
         }
     }
 }

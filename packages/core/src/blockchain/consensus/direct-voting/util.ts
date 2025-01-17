@@ -294,7 +294,7 @@ export class DirectVotingUtil {
     return await this.db.verifySignature(
       vote.voter,
       `${vote.chainVoteData.targetChainId}:${vote.timestamp}`,
-      vote.signature.address
+      vote.signature
     );
   }
 

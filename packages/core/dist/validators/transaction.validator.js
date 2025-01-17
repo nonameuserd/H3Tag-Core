@@ -37,7 +37,8 @@ class TransactionValidator {
             throw new transaction_validation_error_1.TransactionValidationError("Transaction is null or undefined", "INVALID_TRANSACTION");
         }
         // Add type validation
-        if (typeof tx.type !== 'number' || !Object.values(transaction_model_1.TransactionType).includes(tx.type)) {
+        if (typeof tx.type !== "number" ||
+            !Object.values(transaction_model_1.TransactionType).includes(tx.type)) {
             throw new transaction_validation_error_1.TransactionValidationError("Invalid transaction type", "INVALID_TYPE");
         }
         // Basic structure validation
@@ -63,7 +64,7 @@ class TransactionValidator {
     }
     static async validatePoWTransaction(tx) {
         // Validate PoW data structure
-        if (!tx.powData || typeof tx.powData !== 'object') {
+        if (!tx.powData || typeof tx.powData !== "object") {
             throw new transaction_validation_error_1.TransactionValidationError(`Invalid ${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} PoW data structure`, "INVALID_POW_DATA");
         }
         // Calculate and validate hash
@@ -90,8 +91,10 @@ class TransactionValidator {
             throw new transaction_validation_error_1.TransactionValidationError("Invalid transaction type for vote", "INVALID_VOTE_TYPE");
         }
         // Validate vote data structure
-        if (!tx.voteData || typeof tx.voteData !== 'object' ||
-            !tx.voteData.proposal || typeof tx.voteData.vote !== 'boolean') {
+        if (!tx.voteData ||
+            typeof tx.voteData !== "object" ||
+            !tx.voteData.proposal ||
+            typeof tx.voteData.vote !== "boolean") {
             throw new transaction_validation_error_1.TransactionValidationError("Invalid vote data structure", "INVALID_VOTE_DATA");
         }
         // Calculate quadratic voting power
@@ -102,13 +105,16 @@ class TransactionValidator {
         }
         // Validate cooldown period
         const [lastVoted, utxo] = await Promise.all([
-            tx.inputs[0]?.publicKey ? this.getLastVoteHeight(tx.inputs[0].publicKey) : 0,
-            utxoSet.get(tx.inputs[0].txId, tx.inputs[0].outputIndex)
+            tx.inputs[0]?.publicKey
+                ? this.getLastVoteHeight(tx.inputs[0].publicKey)
+                : 0,
+            utxoSet.get(tx.inputs[0].txId, tx.inputs[0].outputIndex),
         ]);
         if (!utxo) {
             throw new transaction_validation_error_1.TransactionValidationError("Invalid input UTXO", "INVALID_INPUT");
         }
-        if (currentHeight - lastVoted < constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS) {
+        if (currentHeight - lastVoted <
+            constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS) {
             throw new transaction_validation_error_1.TransactionValidationError("Vote cooldown period not met", "VOTE_COOLDOWN");
         }
         // Update last vote height
@@ -129,10 +135,10 @@ class TransactionValidator {
                 throw new transaction_validation_error_1.TransactionValidationError("Invalid inputs array", "INVALID_INPUTS");
             }
             // Add concurrent signature verification with timeout
-            const verificationPromises = tx.inputs.map(input => {
+            const verificationPromises = tx.inputs.map((input) => {
                 return Promise.race([
                     this.verifyInputSignature(input, tx.id),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Signature verification timeout')), 5000))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Signature verification timeout")), 5000)),
                 ]);
             });
             await Promise.all(verificationPromises);
@@ -178,9 +184,9 @@ class TransactionValidator {
         }
     }
     static isValidHash(hash) {
-        return typeof hash === 'string' &&
+        return (typeof hash === "string" &&
             hash.length === 64 &&
-            /^[0-9a-f]{64}$/i.test(hash);
+            /^[0-9a-f]{64}$/i.test(hash));
     }
     static async validateInputsAndOutputs(tx, utxoSet) {
         try {
@@ -313,12 +319,7 @@ class TransactionValidator {
         if (!input?.signature || !input?.publicKey) {
             throw new transaction_validation_error_1.TransactionValidationError("Missing signature data", "INVALID_SIGNATURE");
         }
-        const signatureData = {
-            address: input.publicKey,
-        };
-        return crypto_1.HybridCrypto.verify(txId, signatureData, {
-            address: input.publicKey,
-        });
+        return crypto_1.HybridCrypto.verify(txId, input.signature, input.publicKey);
     }
     /**
      * Validates transaction size against network limits
@@ -361,7 +362,7 @@ class TransactionValidator {
                 nonce: tx.nonce,
                 inputs: tx.inputs,
                 outputs: tx.outputs,
-                signature: tx.signature
+                signature: tx.signature,
             };
             // Convert to buffer to get actual byte size
             return Buffer.from(JSON.stringify(sizingTx)).length;

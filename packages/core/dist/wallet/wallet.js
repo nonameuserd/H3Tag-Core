@@ -66,14 +66,14 @@ class Wallet {
         this.state = {
             isInitialized: false,
             lastActivity: Date.now(),
-            failedAttempts: 0
+            failedAttempts: 0,
         };
         this.keyPair = keyPair;
         this.address = keystore.address;
         this.keystore = keystore;
         this.utxoSet = new utxo_model_1.UTXOSet();
         // Add cleanup on process exit
-        process.on('exit', () => {
+        process.on("exit", () => {
             this.secureCleanup();
         });
     }
@@ -141,13 +141,13 @@ class Wallet {
             this.isLocked = false;
             this.updateState({
                 lastActivity: Date.now(),
-                failedAttempts: 0
+                failedAttempts: 0,
             });
             this.eventEmitter.emit("unlocked", { address: this.address });
         }
         catch (error) {
             this.updateState({
-                failedAttempts: this.state.failedAttempts + 1
+                failedAttempts: this.state.failedAttempts + 1,
             });
             throw new WalletError("Failed to unlock wallet", WalletErrorCode.KEYSTORE_ERROR);
         }
@@ -162,8 +162,8 @@ class Wallet {
             const txString = JSON.stringify(transaction);
             const signature = await crypto_1.HybridCrypto.sign(txString, this.keyPair);
             // Clear sensitive data
-            txString.replace(/./g, '0');
-            return signature.address;
+            txString.replace(/./g, "0");
+            return signature;
         }
         catch (error) {
             logger_1.Logger.error("Transaction signing failed:", error);
@@ -277,21 +277,21 @@ class Wallet {
                 recipient: recipientAddress,
                 fee: BigInt(amount),
                 timestamp: Date.now(),
-                memo: memo || '',
+                memo: memo || "",
                 type: transaction_model_1.TransactionType.TRANSFER,
-                hash: '',
+                hash: "",
                 status: transaction_model_1.TransactionStatus.PENDING,
-                signature: { address: '' },
+                signature: "",
                 nonce: 0,
                 currency: {
                     symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                    decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
+                    decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                 },
                 inputs: [],
                 outputs: [],
                 verify: async () => await this.verify(),
                 toHex: () => JSON.stringify(transaction),
-                getSize: () => transaction.getSize()
+                getSize: () => transaction.getSize(),
             };
             // Sign the transaction
             const signature = await this.signTransaction(transaction, password);
@@ -300,7 +300,7 @@ class Wallet {
                 txHash: signature,
                 from: this.address,
                 to: recipientAddress,
-                amount: amount
+                amount: amount,
             });
             return signature;
         }
@@ -330,7 +330,7 @@ class Wallet {
             // Initialize balance object
             const balance = {
                 confirmed: BigInt(0),
-                unconfirmed: BigInt(0)
+                unconfirmed: BigInt(0),
             };
             // Get wallet database instance
             const walletDb = new wallet_schema_1.WalletDatabase(config_database_1.databaseConfig.databases.wallet.path);
@@ -382,7 +382,7 @@ class Wallet {
             this.eventEmitter.emit("addressGenerated", {
                 masterAddress: this.address,
                 newAddress: newAddress,
-                index: nextIndex
+                index: nextIndex,
             });
             return newAddress;
         }
@@ -404,7 +404,7 @@ class Wallet {
             // Verify password before exporting
             await keystore_1.Keystore.decrypt(this.keystore, password);
             // Encrypt private key before returning
-            const encryptedKey = await crypto_1.HybridCrypto.encrypt(this.keyPair.privateKey, { address: this.address });
+            const encryptedKey = await crypto_1.HybridCrypto.encrypt(this.keyPair.privateKey, this.address);
             return encryptedKey;
         }
         catch (error) {
@@ -422,7 +422,7 @@ class Wallet {
     static async importPrivateKey(encryptedKey, originalAddress, password) {
         try {
             // Decrypt using the original address
-            const privateKey = await crypto_1.HybridCrypto.decrypt(encryptedKey, { address: originalAddress });
+            const privateKey = await crypto_1.HybridCrypto.decrypt(encryptedKey, originalAddress);
             // Generate key pair from private key
             const keyPair = await crypto_1.HybridCrypto.generateKeyPair(privateKey);
             // Then derive address from public key
@@ -452,7 +452,7 @@ class Wallet {
         try {
             return await this.utxoSet.listUnspent({
                 addresses: [this.address],
-                minConfirmations: 1
+                minConfirmations: 1,
             });
         }
         catch (error) {

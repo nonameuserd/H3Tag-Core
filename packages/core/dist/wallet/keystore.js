@@ -117,8 +117,8 @@ class Keystore {
             const derivedKeys = await this.deriveMultipleKeys(password, salt, this.KDF_PARAMS);
             const serializedKeyPair = await this.secureSerialize(keyPair);
             // Use IV in encryption
-            const encrypted = await crypto_1.HybridCrypto.encrypt(serializedKeyPair + iv.toString('base64'), // Include IV in the message
-            { address: derivedKeys.address });
+            const encrypted = await crypto_1.HybridCrypto.encrypt(serializedKeyPair + iv.toString("base64"), // Include IV in the message
+            derivedKeys.address);
             const mac = await this.calculateEnhancedMAC(derivedKeys, encrypted, salt);
             return {
                 version: this.VERSION,
@@ -127,11 +127,11 @@ class Keystore {
                 crypto: {
                     cipher: this.CIPHER,
                     ciphertext: encrypted,
-                    cipherparams: { iv: iv.toString('base64') },
+                    cipherparams: { iv: iv.toString("base64") },
                     kdf: this.KDF,
                     kdfparams: {
                         ...this.KDF_PARAMS,
-                        salt: salt.toString('base64'),
+                        salt: salt.toString("base64"),
                     },
                     mac,
                 },
@@ -148,9 +148,9 @@ class Keystore {
             this.validatePassword(password);
             const derivedKeys = await this.deriveMultipleKeys(password, Buffer.from(keystore.crypto.kdfparams.salt, "base64"), this.KDF_PARAMS);
             await this.verifyMAC(derivedKeys, keystore.crypto.ciphertext, keystore.crypto.mac, keystore.crypto.kdfparams.salt);
-            const decrypted = await crypto_1.HybridCrypto.decrypt(keystore.crypto.ciphertext, { address: derivedKeys.address });
+            const decrypted = await crypto_1.HybridCrypto.decrypt(keystore.crypto.ciphertext, derivedKeys.address);
             // Extract IV and actual data from decrypted message
-            const iv = Buffer.from(keystore.crypto.cipherparams.iv, 'base64');
+            const iv = Buffer.from(keystore.crypto.cipherparams.iv, "base64");
             const actualData = decrypted.slice(0, -iv.length);
             return await this.secureDeserialize(actualData);
         }
@@ -185,7 +185,7 @@ class Keystore {
             }
             return {
                 address: baseKey,
-                encryption: crypto_1.HashUtils.sha3(baseKey)
+                encryption: crypto_1.HashUtils.sha3(baseKey),
             };
         }
         finally {
@@ -203,9 +203,7 @@ class Keystore {
         }
     }
     static async calculateEnhancedMAC(keys, ciphertext, salt) {
-        const combinedData = keys.address +
-            ciphertext +
-            salt.toString("base64");
+        const combinedData = keys.address + ciphertext + salt.toString("base64");
         return crypto_1.HashUtils.sha3(combinedData);
     }
     static async verifyMAC(keys, ciphertext, storedMac, salt) {
@@ -233,35 +231,6 @@ class Keystore {
             // Use generic error message to avoid length information leakage
             throw new KeystoreError("Invalid password", "INVALID_PASSWORD");
         }
-    }
-    static validatePasswordStrength(password) {
-        if (!password || typeof password !== "string") {
-            throw new KeystoreError("Invalid password format", KeystoreErrorCode.INVALID_PASSWORD);
-        }
-        const hasUpperCase = /[A-Z]/.test(password);
-        const hasLowerCase = /[a-z]/.test(password);
-        const hasNumbers = /\d/.test(password);
-        const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-        if (!(hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar)) {
-            throw new KeystoreError("Password must contain uppercase, lowercase, numbers, and special characters", KeystoreErrorCode.INVALID_PASSWORD);
-        }
-        // Use constant-time comparison for length check
-        const passwordLength = Buffer.from(password).length;
-        if (!crypto_2.default.timingSafeEqual(Buffer.from([passwordLength]), Buffer.from([this.MIN_PASSWORD_LENGTH]))) {
-            throw new KeystoreError("Invalid password", KeystoreErrorCode.INVALID_PASSWORD);
-        }
-    }
-    static async encryptWithTimeout(data, keys) {
-        return Promise.race([
-            crypto_1.HybridCrypto.encrypt(data, keys),
-            new Promise((_, reject) => setTimeout(() => reject(new KeystoreError("Encryption timeout", "ENCRYPTION_TIMEOUT")), this.MAX_ENCRYPTION_TIME)),
-        ]);
-    }
-    static async decryptWithTimeout(data, keys, iv) {
-        return Promise.race([
-            crypto_1.HybridCrypto.decrypt(data, keys),
-            new Promise((_, reject) => setTimeout(() => reject(new KeystoreError("Decryption timeout", "DECRYPTION_TIMEOUT")), this.MAX_ENCRYPTION_TIME)),
-        ]);
     }
     static async secureSerialize(keyPair) {
         try {
@@ -360,12 +329,12 @@ class Keystore {
         if (Buffer.isBuffer(sensitiveData)) {
             sensitiveData.fill(0);
         }
-        else if (typeof sensitiveData === 'string') {
+        else if (typeof sensitiveData === "string") {
             const buf = Buffer.from(sensitiveData);
             buf.fill(0);
         }
         else if (sensitiveData instanceof Object) {
-            Object.keys(sensitiveData).forEach(key => {
+            Object.keys(sensitiveData).forEach((key) => {
                 sensitiveData[key] = null;
             });
         }
@@ -385,7 +354,10 @@ class Keystore {
         }
     }
     static incrementAttempts(address) {
-        const attempt = this.attempts.get(address) || { count: 0, timestamp: Date.now() };
+        const attempt = this.attempts.get(address) || {
+            count: 0,
+            timestamp: Date.now(),
+        };
         attempt.count++;
         attempt.timestamp = Date.now();
         this.attempts.set(address, attempt);
@@ -416,7 +388,7 @@ class Keystore {
             const metadata = this.rotationMetadata.get(address) || {
                 lastRotation: Date.now(),
                 rotationCount: 0,
-                previousKeyHashes: []
+                previousKeyHashes: [],
             };
             metadata.previousKeyHashes.push(await crypto_1.HashUtils.sha3(JSON.stringify(existingKeystore)));
             metadata.lastRotation = Date.now();
@@ -466,7 +438,9 @@ class Keystore {
         }
         catch (error) {
             logger_1.Logger.error(`Backup failed for address: ${address}`, error);
-            throw new KeystoreError("Backup failed", error instanceof KeystoreError ? error.code : KeystoreErrorCode.BACKUP_ERROR);
+            throw new KeystoreError("Backup failed", error instanceof KeystoreError
+                ? error.code
+                : KeystoreErrorCode.BACKUP_ERROR);
         }
     }
     static async restore(backupData, password) {
@@ -486,7 +460,9 @@ class Keystore {
         }
         catch (error) {
             logger_1.Logger.error("Restore failed:", error);
-            throw new KeystoreError("Restore failed", error instanceof KeystoreError ? error.code : KeystoreErrorCode.RESTORE_ERROR);
+            throw new KeystoreError("Restore failed", error instanceof KeystoreError
+                ? error.code
+                : KeystoreErrorCode.RESTORE_ERROR);
         }
     }
     static async healthCheck() {
@@ -496,14 +472,10 @@ class Keystore {
             }
             await this.database.ping();
             const testKey = await this.generateSecureSalt();
-            const testData = testKey.toString('hex');
-            const encrypted = await crypto_1.HybridCrypto.encrypt(testData, {
-                address: testKey.toString('base64')
-            });
+            const testData = testKey.toString("hex");
+            const encrypted = await crypto_1.HybridCrypto.encrypt(testData, testKey.toString("base64"));
             // Verify encryption worked by attempting decryption
-            const decrypted = await crypto_1.HybridCrypto.decrypt(encrypted, {
-                address: testKey.toString('base64')
-            });
+            const decrypted = await crypto_1.HybridCrypto.decrypt(encrypted, testKey.toString("base64"));
             return decrypted === testData;
         }
         catch (error) {

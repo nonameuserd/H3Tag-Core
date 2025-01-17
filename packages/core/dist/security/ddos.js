@@ -23,19 +23,19 @@ class DDoSProtection {
             lastFailure: 0,
             isOpen: false,
             threshold: 10,
-            resetTimeout: 30000
+            resetTimeout: 30000,
         };
         this.requestTracker = new Map();
         this.validateConfig(config);
         this.config = { ...DDoSProtection.DEFAULT_CONFIG, ...config };
         this.auditManager = auditManager;
-        DDoSProtection.BUCKET_TYPES.forEach(type => {
+        DDoSProtection.BUCKET_TYPES.forEach((type) => {
             this.rateLimitBuckets.set(type, new Map());
         });
         this.requests = new cache_1.Cache({
             ttl: Math.ceil(this.config.windowMs / 1000),
             maxSize: this.config.maxTrackedIPs,
-            compression: true
+            compression: true,
         });
         this.blockedIPs = new Set(this.config.blacklist);
         this.initializeMetrics();
@@ -86,12 +86,15 @@ class DDoSProtection {
         return async (req, res, next) => {
             try {
                 if (this.circuitBreaker.isOpen) {
-                    if (Date.now() - this.circuitBreaker.lastFailure > this.circuitBreaker.resetTimeout) {
+                    if (Date.now() - this.circuitBreaker.lastFailure >
+                        this.circuitBreaker.resetTimeout) {
                         this.circuitBreaker.isOpen = false;
                         this.circuitBreaker.failures = 0;
                     }
                     else {
-                        return res.status(503).json({ error: "Service temporarily unavailable" });
+                        return res
+                            .status(503)
+                            .json({ error: "Service temporarily unavailable" });
                     }
                 }
                 const ip = this.getClientIP(req);
@@ -104,7 +107,7 @@ class DDoSProtection {
                     await this.handleViolation(ip, record);
                     return res.status(429).json({
                         error: "Too many requests",
-                        retryAfter: this.getRetryAfter(ip)
+                        retryAfter: this.getRetryAfter(ip),
                     });
                 }
                 await this.recordRequest(ip, requestType);
@@ -125,11 +128,11 @@ class DDoSProtection {
         }
     }
     getRequestType(req) {
-        if (req.path.includes('/pow'))
-            return 'pow';
-        if (req.path.includes('/vote'))
-            return 'vote';
-        return 'default';
+        if (req.path.includes("/pow"))
+            return "pow";
+        if (req.path.includes("/vote"))
+            return "vote";
+        return "default";
     }
     async recordRequest(ip, type) {
         const bucket = this.rateLimitBuckets.get(type);
@@ -141,7 +144,7 @@ class DDoSProtection {
             firstRequest: Date.now(),
             lastRequest: Date.now(),
             blocked: false,
-            violations: 0
+            violations: 0,
         };
         record.count++;
         record.lastRequest = Date.now();
@@ -158,7 +161,8 @@ class DDoSProtection {
         if (!record) {
             return false;
         }
-        return record.blocked || this.isRateLimitExceeded(record, type);
+        return (record.blocked ||
+            this.isRateLimitExceeded(record, type));
     }
     isRateLimitExceeded(record, type) {
         const windowExpired = Date.now() - record.firstRequest > this.config.windowMs;
@@ -183,18 +187,18 @@ class DDoSProtection {
                     message: `IP ${ip} banned for exceeding ${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} rate limit threshold`,
                     ip,
                     violations: record.violations,
-                    currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
+                    currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
                 },
                 data: {
                     ip,
                     violations: record.violations,
-                    currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
-                }
+                    currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
+                },
             });
             this.eventEmitter.emit("ip_banned", {
                 ip,
                 violations: record.violations,
-                currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
+                currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
             });
         }
         else {
@@ -261,7 +265,7 @@ class DDoSProtection {
         return {
             ...this.metrics,
             memoryUsage: this.requests.getStats().memoryUsage,
-            currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
+            currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         };
     }
     unblockIP(ip) {
@@ -285,7 +289,7 @@ class DDoSProtection {
                 firstRequest: Date.now(),
                 lastRequest: Date.now(),
                 blocked: false,
-                violations: 0
+                violations: 0,
             };
             this.requests.set(ip, record);
         }
@@ -310,13 +314,13 @@ class DDoSProtection {
                 count: 0,
                 firstRequest: now,
                 blocked: false,
-                blockExpires: 0
+                blockExpires: 0,
             };
             // Check if address is blocked
             if (tracking.blocked) {
                 if (now < tracking.blockExpires) {
                     // Still blocked
-                    this.logViolation(address, type, 'Request blocked - cooldown period');
+                    this.logViolation(address, type, "Request blocked - cooldown period");
                     return false;
                 }
                 // Block expired, reset tracking
@@ -324,7 +328,7 @@ class DDoSProtection {
                     count: 0,
                     firstRequest: now,
                     blocked: false,
-                    blockExpires: 0
+                    blockExpires: 0,
                 };
             }
             // Reset window if needed
@@ -349,7 +353,7 @@ class DDoSProtection {
                     type,
                     count: tracking.count,
                     limit,
-                    severity: audit_1.AuditSeverity.WARNING
+                    severity: audit_1.AuditSeverity.WARNING,
                 });
                 return false;
             }
@@ -359,7 +363,7 @@ class DDoSProtection {
         }
         catch (error) {
             // Log error but allow request to proceed in case of internal error
-            shared_1.Logger.error('DDoS protection error:', error);
+            shared_1.Logger.error("DDoS protection error:", error);
             return true;
         }
     }
@@ -370,7 +374,7 @@ class DDoSProtection {
         shared_1.Logger.warn(`Rate limit violation: ${reason}`, {
             address,
             type,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         });
     }
     async dispose() {
@@ -383,11 +387,11 @@ class DDoSProtection {
     }
 }
 exports.DDoSProtection = DDoSProtection;
-DDoSProtection.BUCKET_TYPES = ['pow', 'vote', 'default'];
+DDoSProtection.BUCKET_TYPES = ["pow", "vote", "default"];
 DDoSProtection.PRIORITIES = {
     POW: 3,
     VOTE: 2,
-    DEFAULT: 1
+    DEFAULT: 1,
 };
 DDoSProtection.DEFAULT_CONFIG = {
     windowMs: 60000,

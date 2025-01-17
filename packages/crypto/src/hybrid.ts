@@ -34,7 +34,7 @@ export class HybridCrypto {
   static async sign(
     message: string,
     privateKey: HybridKeyPair
-  ): Promise<{ address: string }> {
+  ): Promise<string> {
     try {
       const privKey =
         typeof privateKey.privateKey === "function"
@@ -49,11 +49,9 @@ export class HybridCrypto {
         Kyber.encapsulate(privKey).then((result) => result.sharedSecret),
       ]);
 
-      return {
-        address: HashUtils.sha3(
-          eccSignature.toDER("hex") + dilithiumHash + kyberSecret
-        ),
-      };
+      return HashUtils.sha3(
+        eccSignature.toDER("hex") + dilithiumHash + kyberSecret
+      );
     } catch (error) {
       Logger.error("Hybrid signing failed:", error);
       throw new HybridError(
@@ -64,26 +62,26 @@ export class HybridCrypto {
 
   static async verify(
     message: string,
-    signature: { address: string },
-    publicKey: { address: string }
+    signature: string,
+    publicKey: string
   ): Promise<boolean> {
     try {
       // 1. Verify address matches
-      if (signature.address !== publicKey.address) return false;
+      if (signature !== publicKey) return false;
 
       // 2. Verify traditional signature
       const eccValid = this.TRADITIONAL_CURVE.keyFromPublic(
-        publicKey.address,
+        publicKey,
         "hex"
-      ).verify(HashUtils.sha256(message), signature.address);
+      ).verify(HashUtils.sha256(message), signature);
 
       if (!eccValid) return false;
 
       // 3. Generate hybrid verification hash
       const verificationHash = HashUtils.sha3(
-        signature.address +
+        signature +
           (await Dilithium.hash(Buffer.from(message))) +
-          (await Kyber.encapsulate(publicKey.address)).sharedSecret
+          (await Kyber.encapsulate(publicKey)).sharedSecret
       );
 
       // 4. Compare against message hash
@@ -96,17 +94,17 @@ export class HybridCrypto {
 
   static async encrypt(
     message: string,
-    publicKey: { address: string }
+    publicKey: string
   ): Promise<string> {
     try {
-      if (!message || !publicKey?.address) {
+      if (!message || !publicKey) {
         throw new HybridError("Missing required parameters");
       }
 
       // 1. Generate session keys
       const sessionKey = CryptoJS.lib.WordArray.random(this.KEY_SIZE / 8);
       const { ciphertext: kyberCiphertext, sharedSecret: kyberSecret } =
-        await Kyber.encapsulate(publicKey.address);
+        await Kyber.encapsulate(publicKey);
 
       // 2. Generate quantum-safe components
       const [dilithiumHash, quantumKey] = await Promise.all([
@@ -140,10 +138,10 @@ export class HybridCrypto {
 
   static async decrypt(
     encryptedData: string,
-    privateKey: { address: string }
+    privateKey: string
   ): Promise<string> {
     try {
-      if (!encryptedData || !privateKey?.address) {
+      if (!encryptedData || !privateKey) {
         throw new HybridError("Missing required parameters");
       }
 
@@ -155,7 +153,7 @@ export class HybridCrypto {
       // 1. Recover shared secrets
       const kyberSecret = await Kyber.decapsulate(
         parsed.sessionKey,
-        privateKey.address
+        privateKey
       );
       const quantumKey = await QuantumWrapper.hashData(
         Buffer.from(parsed.sessionKey)

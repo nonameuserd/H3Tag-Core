@@ -34,39 +34,40 @@ class Mempool {
                     // Clear the map
                     value.clear();
                     // Log eviction event
-                    shared_1.Logger.debug('Cache entry evicted', {
+                    shared_1.Logger.debug("Cache entry evicted", {
                         key,
                         valueSize: value.size,
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
                     });
                     // Trigger garbage collection if needed
-                    if (process.memoryUsage().heapUsed > 1024 * 1024 * 512) { // 512MB
+                    if (process.memoryUsage().heapUsed > 1024 * 1024 * 512) {
+                        // 512MB
                         global.gc?.();
                     }
                 }
                 catch (error) {
-                    shared_1.Logger.error('Cache eviction error:', {
+                    shared_1.Logger.error("Cache eviction error:", {
                         key,
-                        error: error instanceof Error ? error.message : 'Unknown error'
+                        error: error instanceof Error ? error.message : "Unknown error",
                     });
                 }
-            }
+            },
         });
-        this.AUDIT_DIR = './audit-logs';
+        this.AUDIT_DIR = "./audit-logs";
         this.reputationMutex = new async_mutex_1.Mutex();
         this.performanceMonitor = {
             start: (label) => {
                 const startTime = performance.now();
                 const startMemory = process.memoryUsage().heapUsed;
-                shared_1.Logger.debug('Performance monitoring started', {
+                shared_1.Logger.debug("Performance monitoring started", {
                     label,
                     startTime,
-                    startMemory
+                    startMemory,
                 });
                 return {
                     label,
                     startTime,
-                    startMemory
+                    startMemory,
                 };
             },
             end: (marker) => {
@@ -74,24 +75,24 @@ class Mempool {
                 const endMemory = process.memoryUsage().heapUsed;
                 const duration = endTime - marker.startTime;
                 const memoryDiff = endMemory - marker.startMemory;
-                shared_1.Logger.debug('Performance monitoring ended', {
+                shared_1.Logger.debug("Performance monitoring ended", {
                     label: marker.label,
                     duration: `${duration.toFixed(2)}ms`,
                     memoryUsed: `${(memoryDiff / 1024 / 1024).toFixed(2)}MB`,
-                    totalHeap: `${(endMemory / 1024 / 1024).toFixed(2)}MB`
+                    totalHeap: `${(endMemory / 1024 / 1024).toFixed(2)}MB`,
                 });
-            }
+            },
         };
         this.powCache = new cache_1.Cache({
             ttl: 300000,
-            maxSize: 1000
+            maxSize: 1000,
         });
         // Add new constants for absence penalties
         this.VALIDATOR_PENALTIES = {
             MISSED_VALIDATION: -5,
             MISSED_VOTE: -3,
             CONSECUTIVE_MISS_MULTIPLIER: 1.5,
-            MAX_CONSECUTIVE_MISSES: 3
+            MAX_CONSECUTIVE_MISSES: 3,
         };
         // Add tracking for consecutive misses
         this.consecutiveMisses = new Map();
@@ -100,7 +101,7 @@ class Mempool {
         this.lastChangeTimestamp = Date.now();
         this.mempoolStateCache = new Map();
         this.transactionMutexes = new Map();
-        this.lastValidFee = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE;
+        this.lastValidFee = Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
         this.size = 0;
         this.bytes = 0;
         this.usage = 0;
@@ -140,15 +141,15 @@ class Mempool {
                 minPowNodes: 3,
                 minPowHashrate: 1000000,
                 minTagDistribution: 0.1,
-                maxTagConcentration: 0.25
-            }
+                maxTagConcentration: 0.25,
+            },
         });
         this.auditManager = new audit_2.AuditManager(new fileAuditStorage_1.FileAuditStorage({
             baseDir: this.AUDIT_DIR,
             compression: true,
             maxRetries: 3,
             retryDelay: 1000,
-            maxConcurrentWrites: 5
+            maxConcurrentWrites: 5,
         }));
         // Initialize vote tracking
         this.initializeVoteTracking();
@@ -162,7 +163,7 @@ class Mempool {
                 qudraticVote: 100,
             },
             windowMs: 60000,
-            blockDuration: 1200000 // 20 minutes
+            blockDuration: 1200000, // 20 minutes
         }, this.auditManager);
         // Note: Call mempool.initialize() after construction
     }
@@ -173,10 +174,10 @@ class Mempool {
     async initialize() {
         try {
             await this.auditManager.initialize();
-            shared_1.Logger.info('Mempool initialized successfully');
+            shared_1.Logger.info("Mempool initialized successfully");
         }
         catch (error) {
-            shared_1.Logger.error('Failed to initialize mempool:', error);
+            shared_1.Logger.error("Failed to initialize mempool:", error);
             throw error;
         }
     }
@@ -203,9 +204,12 @@ class Mempool {
             // Check all requirements including PoW validation
             return (accountAge >= constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_ACCOUNT_AGE &&
                 hasValidPoW &&
-                reputation >= constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.REPUTATION_THRESHOLD &&
-                currentHeight - lastVoteHeight >= constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS &&
-                votesInWindow < constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW);
+                reputation >=
+                    constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.REPUTATION_THRESHOLD &&
+                currentHeight - lastVoteHeight >=
+                    constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS &&
+                votesInWindow <
+                    constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW);
         }
         catch (error) {
             shared_1.Logger.error("Error validating vote eligibility:", error);
@@ -223,11 +227,11 @@ class Mempool {
         let timeoutId;
         try {
             const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => reject(new Error('Transaction processing timeout')), 30000);
+                timeoutId = setTimeout(() => reject(new Error("Transaction processing timeout")), 30000);
             });
             return await Promise.race([
                 this.processTransaction(transaction),
-                timeoutPromise
+                timeoutPromise,
             ]);
         }
         finally {
@@ -241,7 +245,7 @@ class Mempool {
         if (!health.isHealthy) {
             await this.auditManager.log(audit_1.AuditEventType.MEMPOOL_HEALTH_CHECK_FAILED, {
                 health,
-                severity: audit_1.AuditSeverity.HIGH
+                severity: audit_1.AuditSeverity.HIGH,
             });
             return false;
         }
@@ -286,7 +290,7 @@ class Mempool {
     }
     async handleVoteTransaction(vote) {
         // Add DDoS protection for vote transactions
-        if (!this.ddosProtection.checkRequest('vote_tx', vote.sender)) {
+        if (!this.ddosProtection.checkRequest("vote_tx", vote.sender)) {
             shared_1.Logger.warn(`DDoS protection blocked vote from ${vote.sender}`);
             return;
         }
@@ -311,8 +315,8 @@ class Mempool {
                 voteData: {
                     proposal: vote.id,
                     vote: true,
-                    weight: Number(votingPower)
-                }
+                    weight: Number(votingPower),
+                },
             };
             // Add to mempool with high priority
             const success = await this.addTransaction(voteTransaction);
@@ -321,7 +325,7 @@ class Mempool {
                     sender: vote.sender,
                     votingPower: votingPower.toString(),
                     utxoCount: votingUtxos.length,
-                    severity: audit_1.AuditSeverity.INFO
+                    severity: audit_1.AuditSeverity.INFO,
                 });
             }
         }
@@ -329,7 +333,7 @@ class Mempool {
             shared_1.Logger.error("Error handling vote transaction:", error);
             await this.auditManager.log(audit_1.AuditEventType.VOTE_TRANSACTION_FAILED, {
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
         }
     }
@@ -341,7 +345,7 @@ class Mempool {
      */
     getTransaction(txId) {
         // Add DDoS protection for transaction lookups
-        if (!this.ddosProtection.checkRequest('get_tx', this.node.getAddress())) {
+        if (!this.ddosProtection.checkRequest("get_tx", this.node.getAddress())) {
             shared_1.Logger.warn("DDoS protection blocked transaction lookup");
             return undefined;
         }
@@ -476,7 +480,7 @@ class Mempool {
      */
     getPendingUTXOsForAddress(address) {
         return Array.from(this.transactions.values()).flatMap((tx) => tx.outputs
-            .filter(output => output.address === address)
+            .filter((output) => output.address === address)
             .map((output, index) => ({
             txId: tx.id,
             outputIndex: index,
@@ -491,7 +495,7 @@ class Mempool {
                 symbol: "TAG",
                 decimals: 8,
             },
-            confirmations: 0
+            confirmations: 0,
         })));
     }
     initializeFeeRateBuckets() {
@@ -536,7 +540,7 @@ class Mempool {
             spentUTXOs.add(utxoKey);
             // Check against existing mempool transactions
             this.transactions.forEach((memTx, txId) => {
-                if (memTx.inputs.some(i => i.txId === input.txId && i.outputIndex === input.outputIndex)) {
+                if (memTx.inputs.some((i) => i.txId === input.txId && i.outputIndex === input.outputIndex)) {
                     conflicts.add(txId);
                 }
             });
@@ -576,10 +580,10 @@ class Mempool {
         const sizeBI = BigInt(size);
         // Check for overflow
         if (feeBI > Number.MAX_SAFE_INTEGER || sizeBI > Number.MAX_SAFE_INTEGER) {
-            shared_1.Logger.warn('Fee calculation overflow risk', {
+            shared_1.Logger.warn("Fee calculation overflow risk", {
                 txId: transaction.id,
                 fee: feeBI.toString(),
-                size: sizeBI.toString()
+                size: sizeBI.toString(),
             });
             return 0;
         }
@@ -627,11 +631,11 @@ class Mempool {
         }
         catch (error) {
             // Add cleanup
-            shared_1.Logger.error('Fee bucket update failed:', error);
+            shared_1.Logger.error("Fee bucket update failed:", error);
             await this.auditManager?.log(audit_1.AuditEventType.FEE_BUCKET_UPDATE_FAILED, {
                 txId: transaction.id,
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
         }
     }
@@ -655,7 +659,7 @@ class Mempool {
         }
     }
     async validateTransaction(transaction, utxoSet, currentHeight) {
-        const perfMarker = this.performanceMonitor.start('validate_transaction');
+        const perfMarker = this.performanceMonitor.start("validate_transaction");
         try {
             if (!this.validateBasicStructure(transaction)) {
                 return false;
@@ -666,7 +670,7 @@ class Mempool {
                 shared_1.Logger.warn("Transaction exceeds size limit", {
                     txId: transaction.id,
                     size: txSize,
-                    maxAllowed: maxSize
+                    maxAllowed: maxSize,
                 });
                 return false;
             }
@@ -674,27 +678,30 @@ class Mempool {
                 shared_1.Logger.warn("Invalid transaction version", {
                     txId: transaction.id,
                     version: transaction.version,
-                    required: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION
+                    required: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION,
                 });
                 return false;
             }
             const now = Date.now();
-            if (transaction.timestamp > now + 7200000) { // 2 hours in future
+            if (transaction.timestamp > now + 7200000) {
+                // 2 hours in future
                 shared_1.Logger.warn("Transaction timestamp too far in future", {
                     txId: transaction.id,
                     timestamp: transaction.timestamp,
-                    currentTime: now
+                    currentTime: now,
                 });
                 return false;
             }
-            if (!await transaction_model_2.TransactionBuilder.verify(transaction)) {
-                shared_1.Logger.warn("Core transaction verification failed", { txId: transaction.id });
+            if (!(await transaction_model_2.TransactionBuilder.verify(transaction))) {
+                shared_1.Logger.warn("Core transaction verification failed", {
+                    txId: transaction.id,
+                });
                 return false;
             }
-            if (!await this.validateUTXOs(transaction, utxoSet)) {
+            if (!(await this.validateUTXOs(transaction, utxoSet))) {
                 return false;
             }
-            if (!await this.validateMempoolState(transaction, utxoSet)) {
+            if (!(await this.validateMempoolState(transaction, utxoSet))) {
                 return false;
             }
             // Add PoW validation for specific transaction types
@@ -705,7 +712,7 @@ class Mempool {
                     shared_1.Logger.warn("Coinbase not yet mature", {
                         txId: transaction.id,
                         currentHeight,
-                        requiredMaturity: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCKS_MINED
+                        requiredMaturity: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCKS_MINED,
                     });
                     return false;
                 }
@@ -725,25 +732,25 @@ class Mempool {
                 txId: transaction.id,
                 size: txSize,
                 inputs: transaction.inputs.length,
-                outputs: transaction.outputs.length
+                outputs: transaction.outputs.length,
             });
             return true;
         }
         catch (error) {
-            shared_1.Logger.error('Transaction validation failed:', {
+            shared_1.Logger.error("Transaction validation failed:", {
                 txId: transaction?.id,
                 error: error.message,
-                stack: error.stack
+                stack: error.stack,
             });
             await this.auditManager.log(audit_1.AuditEventType.TRANSACTION_VALIDATION_FAILED, {
                 txId: transaction?.id,
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
             return false;
         }
         finally {
-            if (typeof perfMarker !== 'undefined') {
+            if (typeof perfMarker !== "undefined") {
                 this.performanceMonitor.end(perfMarker);
             }
         }
@@ -767,7 +774,7 @@ class Mempool {
                     shared_1.Logger.warn("Invalid or spent UTXO", {
                         txId: tx.id,
                         utxoId: input.txId,
-                        outputIndex: input.outputIndex
+                        outputIndex: input.outputIndex,
                     });
                     return false;
                 }
@@ -781,55 +788,60 @@ class Mempool {
     }
     async validateMempoolState(transaction, utxoSet) {
         try {
-            // 1. Fee requirements
+            //Fee requirements
             const txSize = this.getTransactionSize(transaction);
             const feeRate = this.calculateFeePerByte(transaction);
-            const minFeeRate = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE;
+            const minFeeRate = await this.getMinFeeRate();
             if (feeRate < minFeeRate) {
                 shared_1.Logger.warn("Insufficient fee rate", {
                     txId: transaction.id,
                     feeRate: feeRate.toString(),
                     minRequired: minFeeRate.toString(),
-                    size: txSize
+                    size: txSize,
                 });
                 return false;
             }
             // Dynamic fee requirements during high congestion
-            if (this.transactions.size > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.HIGH_CONGESTION_THRESHOLD) {
-                const dynamicMinFee = this.calculateDynamicMinFee();
+            if (this.transactions.size >
+                constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.HIGH_CONGESTION_THRESHOLD) {
+                const dynamicMinFee = await this.calculateDynamicMinFee();
                 if (feeRate < dynamicMinFee) {
                     shared_1.Logger.warn("Fee too low during high congestion", {
                         txId: transaction.id,
                         feeRate: feeRate.toString(),
-                        requiredRate: dynamicMinFee.toString()
+                        requiredRate: dynamicMinFee.toString(),
                     });
                     return false;
                 }
             }
             // 1. Check for double-spend within mempool
             for (const input of transaction.inputs) {
-                const isDoubleSpend = Array.from(this.transactions.values()).some(tx => tx.inputs.some(i => i.txId === input.txId && i.outputIndex === input.outputIndex));
+                const isDoubleSpend = Array.from(this.transactions.values()).some((tx) => tx.inputs.some((i) => i.txId === input.txId && i.outputIndex === input.outputIndex));
                 if (isDoubleSpend) {
-                    shared_1.Logger.warn("Double-spend detected in mempool", { txId: transaction.id });
+                    shared_1.Logger.warn("Double-spend detected in mempool", {
+                        txId: transaction.id,
+                    });
                     return false;
                 }
             }
-            // 2. Check mempool size limits
-            if (this.transactions.size >= constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE) {
+            if (this.transactions.size >=
+                await this.getMaxSize()) {
                 const minFeeRate = this.estimateFee(1);
                 const txFeeRate = this.calculateFeePerByte(transaction);
                 if (txFeeRate < minFeeRate) {
                     shared_1.Logger.warn("Fee too low for full mempool", {
                         txId: transaction.id,
                         feeRate: txFeeRate,
-                        minFeeRate
+                        minFeeRate,
                     });
                     return false;
                 }
             }
             // 3. Check ancestry limits
             if (!this.checkAncestryLimits(transaction)) {
-                shared_1.Logger.warn("Transaction exceeds ancestry limits", { txId: transaction.id });
+                shared_1.Logger.warn("Transaction exceeds ancestry limits", {
+                    txId: transaction.id,
+                });
                 return false;
             }
             // 4. Validate UTXO availability
@@ -838,7 +850,7 @@ class Mempool {
                 if (!utxo || utxo.spent) {
                     shared_1.Logger.warn("UTXO not found or spent", {
                         txId: transaction.id,
-                        inputTxId: input.txId
+                        inputTxId: input.txId,
                     });
                     return false;
                 }
@@ -855,12 +867,12 @@ class Mempool {
             return false;
         }
     }
-    calculateDynamicMinFee() {
+    async calculateDynamicMinFee() {
         try {
             // Get current mempool metrics
             const currentSize = this.transactions.size;
-            const maxSize = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
-            const baseMinFee = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE;
+            const maxSize = await this.getMaxSize();
+            const baseMinFee = await this.getMinFeeRate();
             // Calculate congestion levels
             const congestionFactor = currentSize / maxSize;
             // Progressive fee scaling based on congestion levels
@@ -884,7 +896,7 @@ class Mempool {
                 congestion: `${(congestionFactor * 100).toFixed(2)}%`,
                 multiplier: multiplier.toFixed(2),
                 baseFee: baseMinFee,
-                dynamicFee
+                dynamicFee,
             });
             return Math.min(dynamicFee, maxFee);
         }
@@ -893,10 +905,11 @@ class Mempool {
             // Add audit log for fee calculation failure
             this.auditManager?.log(audit_1.AuditEventType.FEE_CALCULATION_FAILED, {
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
             // Use a more reasonable fallback
-            return Math.max(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE, this.lastValidFee || constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE * 2);
+            return Math.max(Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE), this.lastValidFee ||
+                Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 2);
         }
     }
     addToMempool(transaction) {
@@ -919,12 +932,12 @@ class Mempool {
                 this.auditManager?.log(audit_1.AuditEventType.OLD_TRANSACTIONS_REMOVED, {
                     count: removedCount,
                     timestamp: now,
-                    severity: audit_1.AuditSeverity.INFO
+                    severity: audit_1.AuditSeverity.INFO,
                 });
             }
         }
         catch (error) {
-            shared_1.Logger.error('Failed to remove old transactions:', error);
+            shared_1.Logger.error("Failed to remove old transactions:", error);
         }
     }
     async dispose() {
@@ -948,7 +961,7 @@ class Mempool {
                     release();
                 }
                 catch (error) {
-                    shared_1.Logger.warn('Failed to clean up mutex:', error);
+                    shared_1.Logger.warn("Failed to clean up mutex:", error);
                 }
             }
             this.transactionMutexes.clear();
@@ -957,7 +970,7 @@ class Mempool {
             await this.ddosProtection?.dispose();
         }
         catch (error) {
-            shared_1.Logger.error('Error during mempool disposal:', error);
+            shared_1.Logger.error("Error during mempool disposal:", error);
             throw error;
         }
     }
@@ -994,7 +1007,7 @@ class Mempool {
                     retryCount++;
                     if (retryCount === maxRetries)
                         throw error;
-                    await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
+                    await new Promise((resolve) => setTimeout(resolve, 1000 * retryCount));
                 }
             }
             // Cache result for 5 minutes
@@ -1004,7 +1017,7 @@ class Mempool {
                 address,
                 contribution,
                 retries: retryCount,
-                severity: audit_1.AuditSeverity.INFO
+                severity: audit_1.AuditSeverity.INFO,
             });
             return contribution;
         }
@@ -1013,15 +1026,15 @@ class Mempool {
             await this.auditManager.log(audit_1.AuditEventType.POW_CONTRIBUTION_FAILED, {
                 address,
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
             return 0;
         }
     }
     async loadReputationData() {
-        const perfMarker = this.performanceMonitor.start('load_reputation_data');
+        const perfMarker = this.performanceMonitor.start("load_reputation_data");
         try {
-            const cacheKey = 'validator_reputation';
+            const cacheKey = "validator_reputation";
             const cached = this.cache.get(cacheKey);
             if (cached)
                 return cached;
@@ -1038,20 +1051,20 @@ class Mempool {
             await this.auditManager.log(audit_1.AuditEventType.REPUTATION_DATA_LOADED, {
                 validatorCount: validators.length,
                 timestamp: Date.now(),
-                severity: audit_1.AuditSeverity.INFO
+                severity: audit_1.AuditSeverity.INFO,
             });
             return reputationData;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to load reputation data:', error);
+            shared_1.Logger.error("Failed to load reputation data:", error);
             await this.auditManager.log(audit_1.AuditEventType.REPUTATION_LOAD_FAILED, {
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
             return new Map();
         }
         finally {
-            if (typeof perfMarker !== 'undefined') {
+            if (typeof perfMarker !== "undefined") {
                 this.performanceMonitor.end(perfMarker);
             }
         }
@@ -1066,11 +1079,11 @@ class Mempool {
             // Calculate weighted reputation score
             let reputation = 100; // Base score
             // Uptime impact (30%)
-            reputation += (uptime * 30) - 30;
+            reputation += uptime * 30 - 30;
             // Vote participation impact (25%)
-            reputation += (voteParticipation * 25) - 25;
+            reputation += voteParticipation * 25 - 25;
             // Block production impact (25%)
-            reputation += (blockProduction * 25) - 25;
+            reputation += blockProduction * 25 - 25;
             // Slashing penalties (20% max penalty)
             const slashingPenalty = Math.min(slashingHistory.length * 5, 20);
             reputation -= slashingPenalty;
@@ -1096,10 +1109,10 @@ class Mempool {
                 reputation: newReputation,
                 lastUpdate: Date.now(),
                 reason,
-                change: reputationChange
+                change: reputationChange,
             });
             // Clear cache
-            this.cache.delete('validator_reputation');
+            this.cache.delete("validator_reputation");
             // Audit trail
             await this.auditManager.log(audit_1.AuditEventType.REPUTATION_UPDATED, {
                 validator: validatorAddress,
@@ -1107,16 +1120,16 @@ class Mempool {
                 newReputation,
                 reason,
                 change: reputationChange,
-                severity: audit_1.AuditSeverity.INFO
+                severity: audit_1.AuditSeverity.INFO,
             });
             return true;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to update validator reputation:', error);
+            shared_1.Logger.error("Failed to update validator reputation:", error);
             await this.auditManager.log(audit_1.AuditEventType.REPUTATION_UPDATE_FAILED, {
                 validator: validatorAddress,
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
             return false;
         }
@@ -1140,17 +1153,17 @@ class Mempool {
                 await this.auditManager.log(audit_1.AuditEventType.VALIDATOR_SUSPENSION, {
                     validator: validatorAddress,
                     consecutiveMisses: misses,
-                    severity: audit_1.AuditSeverity.HIGH
+                    severity: audit_1.AuditSeverity.HIGH,
                 });
                 // Implement suspension logic here
             }
         }
         catch (error) {
-            shared_1.Logger.error('Failed to handle validator absence:', error);
+            shared_1.Logger.error("Failed to handle validator absence:", error);
             await this.auditManager.log(audit_1.AuditEventType.VALIDATOR_ABSENCE_HANDLING_FAILED, {
                 validator: validatorAddress,
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
         }
     }
@@ -1162,13 +1175,15 @@ class Mempool {
      * Select backup validator when primary fails
      */
     async selectBackupValidator(validationTask, failedValidator) {
-        const perfMarker = this.performanceMonitor.start('select_backup_validator');
+        const perfMarker = this.performanceMonitor.start("select_backup_validator");
         try {
             // Get current validator set
             const currentValidators = await this.getEligibleBackupValidators();
             // Remove failed validator from consideration
-            const eligibleBackups = currentValidators.filter(v => v.address !== failedValidator &&
-                !this.activeValidators.get(validationTask)?.backups.includes(v.address));
+            const eligibleBackups = currentValidators.filter((v) => v.address !== failedValidator &&
+                !this.activeValidators
+                    .get(validationTask)
+                    ?.backups.includes(v.address));
             // Sort by composite score (reputation, uptime, and recent performance)
             const rankedBackups = await this.rankBackupValidators(eligibleBackups);
             // Select best available backup
@@ -1178,7 +1193,7 @@ class Mempool {
                 const current = this.activeValidators.get(validationTask) || {
                     primary: failedValidator,
                     backups: [],
-                    lastRotation: Date.now()
+                    lastRotation: Date.now(),
                 };
                 current.backups.push(selectedBackup);
                 this.activeValidators.set(validationTask, current);
@@ -1188,23 +1203,23 @@ class Mempool {
                     failed: failedValidator,
                     selected: selectedBackup,
                     attempt: current.backups.length,
-                    severity: audit_1.AuditSeverity.INFO
+                    severity: audit_1.AuditSeverity.INFO,
                 });
                 return selectedBackup;
             }
             return null;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to select backup validator:', error);
+            shared_1.Logger.error("Failed to select backup validator:", error);
             await this.auditManager.log(audit_1.AuditEventType.BACKUP_SELECTION_FAILED, {
                 task: validationTask,
                 error: error.message,
-                severity: audit_1.AuditSeverity.ERROR
+                severity: audit_1.AuditSeverity.ERROR,
             });
             return null;
         }
         finally {
-            if (typeof perfMarker !== 'undefined') {
+            if (typeof perfMarker !== "undefined") {
                 this.performanceMonitor.end(perfMarker);
             }
         }
@@ -1215,16 +1230,19 @@ class Mempool {
     async getEligibleBackupValidators() {
         try {
             const allValidators = await this.blockchain.db.getValidators();
-            return allValidators.filter(validator => {
+            return allValidators.filter((validator) => {
                 const reputation = this.reputationSystem.get(validator.address) || 0;
-                const isEligible = reputation >= constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MIN_BACKUP_REPUTATION &&
-                    validator.uptime >= constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MIN_BACKUP_UPTIME &&
+                const isEligible = reputation >=
+                    constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG
+                        .MIN_BACKUP_REPUTATION &&
+                    validator.uptime >=
+                        constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MIN_BACKUP_UPTIME &&
                     !this.isValidatorOverloaded(validator.address);
                 return isEligible;
             });
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get eligible backup validators:', error);
+            shared_1.Logger.error("Failed to get eligible backup validators:", error);
             return [];
         }
     }
@@ -1238,17 +1256,17 @@ class Mempool {
                 const recentPerformance = await this.getRecentPerformanceScore(validator.address);
                 const loadFactor = await this.getValidatorLoadFactor(validator.address);
                 // Calculate composite score (0-100)
-                const score = (reputation * 0.4) + // 40% weight on reputation
-                    (recentPerformance * 0.3) + // 30% weight on recent performance
-                    (validator.uptime * 100 * 0.2) + // 20% weight on uptime
-                    ((1 - loadFactor) * 100 * 0.1); // 10% weight on available capacity
+                const score = reputation * 0.4 + // 40% weight on reputation
+                    recentPerformance * 0.3 + // 30% weight on recent performance
+                    validator.uptime * 100 * 0.2 + // 20% weight on uptime
+                    (1 - loadFactor) * 100 * 0.1; // 10% weight on available capacity
                 return { ...validator, score };
             }));
             // Sort by score (highest first)
             return ranked.sort((a, b) => b.score - a.score);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to rank backup validators:', error);
+            shared_1.Logger.error("Failed to rank backup validators:", error);
             return [];
         }
     }
@@ -1273,10 +1291,11 @@ class Mempool {
         try {
             const recentBlocks = 100; // Look at last 100 blocks
             const performance = await this.blockchain.db.getValidatorPerformance(address, recentBlocks);
-            return (performance.successfulValidations / performance.totalOpportunities) * 100;
+            return ((performance.successfulValidations / performance.totalOpportunities) *
+                100);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get validator performance:', error);
+            shared_1.Logger.error("Failed to get validator performance:", error);
             return 0;
         }
     }
@@ -1289,7 +1308,7 @@ class Mempool {
             return stats.currentLoad / stats.maxCapacity;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get validator load:', error);
+            shared_1.Logger.error("Failed to get validator load:", error);
             return 1; // Assume fully loaded on error
         }
     }
@@ -1305,7 +1324,7 @@ class Mempool {
                     task: validationTask,
                     failed: failedValidator,
                     backup: backupValidator,
-                    severity: audit_1.AuditSeverity.INFO
+                    severity: audit_1.AuditSeverity.INFO,
                 });
                 return true;
             }
@@ -1313,12 +1332,12 @@ class Mempool {
             await this.auditManager.log(audit_1.AuditEventType.VALIDATOR_BACKUP_FAILED, {
                 task: validationTask,
                 failed: failedValidator,
-                severity: audit_1.AuditSeverity.HIGH
+                severity: audit_1.AuditSeverity.HIGH,
             });
             return false;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to handle validation failure:', error);
+            shared_1.Logger.error("Failed to handle validation failure:", error);
             return false;
         }
     }
@@ -1342,8 +1361,10 @@ class Mempool {
     }
     async hasChanged() {
         try {
-            const currentTransactions = this.getTransactions().map(tx => tx.hash).join('');
-            const cacheKey = 'mempool_state';
+            const currentTransactions = this.getTransactions()
+                .map((tx) => tx.hash)
+                .join("");
+            const cacheKey = "mempool_state";
             const cachedState = this.mempoolStateCache.get(cacheKey);
             if (cachedState !== currentTransactions) {
                 this.mempoolStateCache.set(cacheKey, currentTransactions);
@@ -1402,7 +1423,7 @@ class Mempool {
                 txId,
                 inputTxId: input.previousTxId,
                 amount: input.amount.toString(),
-                severity: audit_1.AuditSeverity.INFO
+                severity: audit_1.AuditSeverity.INFO,
             });
             return true;
         }
@@ -1467,7 +1488,7 @@ class Mempool {
                 txId,
                 address: output.address,
                 amount: output.amount.toString(),
-                severity: audit_1.AuditSeverity.INFO
+                severity: audit_1.AuditSeverity.INFO,
             });
             return true;
         }
@@ -1503,80 +1524,65 @@ class Mempool {
     }
     calculateTransactionSize(transaction) {
         try {
-            // Basic structure validation
-            if (!transaction || !transaction.inputs || !transaction.outputs) {
-                throw new Error('Invalid transaction structure');
-            }
-            // Version validation
-            if (transaction.version < 1 || transaction.version > 2) {
-                throw new Error('Invalid transaction version');
+            // Basic validation
+            if (!transaction?.inputs?.length || !transaction?.outputs?.length) {
+                throw new Error("Invalid transaction structure");
             }
             let size = 0;
             const SIZES = {
                 VERSION: 4,
                 LOCKTIME: 4,
-                INPUT_COUNT_VARINT: 1,
-                OUTPUT_COUNT_VARINT: 1,
-                INPUT_OUTPOINT: 36,
-                INPUT_SCRIPT_LENGTH_VARINT: 1,
-                INPUT_SEQUENCE: 4,
-                OUTPUT_VALUE: 8,
-                OUTPUT_SCRIPT_LENGTH_VARINT: 1,
+                INPUT_BASE: 41,
+                OUTPUT_BASE: 9,
                 WITNESS_FLAG: 2,
+                INPUT_SEQUENCE: 4,
             };
-            // Add version and locktime
-            size += SIZES.VERSION;
-            size += SIZES.LOCKTIME;
-            // Input size calculation
+            // Base size
+            size += SIZES.VERSION + SIZES.LOCKTIME;
+            // Input size with validation
             size += this.getVarIntSize(transaction.inputs.length);
             for (const input of transaction.inputs) {
-                if (!input.script) {
-                    throw new Error('Missing input script');
-                }
-                if (!this.isValidInputScript(input.script)) {
-                    throw new Error('Invalid input script');
-                }
-                size += SIZES.INPUT_OUTPOINT;
-                size += SIZES.INPUT_SCRIPT_LENGTH_VARINT;
-                // Signature validation and size
-                if (input.signature) {
-                    const sigSize = Buffer.from(input.signature, 'base64').length;
-                    if (sigSize > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIGNATURE_SIZE) {
-                        throw new Error('Signature too large');
+                size += SIZES.INPUT_BASE;
+                // Script validation
+                if (input.script) {
+                    const scriptSize = Buffer.from(input.script).length;
+                    if (scriptSize > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SCRIPT_SIZE) {
+                        throw new Error(`Input script too large: ${scriptSize} bytes`);
                     }
-                    size += sigSize;
+                    size += scriptSize;
                 }
                 // Public key validation and size
                 if (input.publicKey) {
                     const pubKeySize = Buffer.from(input.publicKey, 'base64').length;
                     if (pubKeySize > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_PUBKEY_SIZE) {
-                        throw new Error('Public key too large');
+                        throw new Error(`Public key too large: ${pubKeySize} bytes`);
                     }
                     size += pubKeySize;
                 }
+                // Signature size if present
+                if (input.signature) {
+                    const sigSize = Buffer.from(input.signature, 'base64').length;
+                    if (sigSize > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIGNATURE_SIZE) {
+                        throw new Error(`Signature too large: ${sigSize} bytes`);
+                    }
+                    size += sigSize;
+                }
                 size += SIZES.INPUT_SEQUENCE;
             }
-            // Output size calculation
+            // Output size with validation
             size += this.getVarIntSize(transaction.outputs.length);
             for (const output of transaction.outputs) {
-                size += SIZES.OUTPUT_VALUE;
-                size += SIZES.OUTPUT_SCRIPT_LENGTH_VARINT;
+                size += SIZES.OUTPUT_BASE;
                 if (output.script) {
-                    if (!this.isValidScriptType(output.script)) {
-                        throw new Error('Invalid script type');
-                    }
                     const scriptSize = Buffer.from(output.script).length;
                     if (scriptSize > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SCRIPT_SIZE) {
-                        throw new Error('Script too large');
+                        throw new Error(`Output script too large: ${scriptSize} bytes`);
                     }
                     size += scriptSize;
                 }
             }
-            // Witness data calculation
-            if (transaction.hasWitness && transaction.witness?.stack) {
-                if (transaction.witness.stack.length !== transaction.inputs.length) {
-                    throw new Error('Witness stack size mismatch');
-                }
+            // Witness data if present
+            if (transaction.hasWitness && transaction.witness?.stack?.length) {
                 size += SIZES.WITNESS_FLAG;
                 size += this.getVarIntSize(transaction.witness.stack.length);
                 for (const witnessData of transaction.witness.stack) {
@@ -1584,16 +1590,12 @@ class Mempool {
                     size += this.getVarIntSize(witnessSize) + witnessSize;
                 }
             }
-            // Final size validation
-            if (size > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
-                throw new Error('Transaction too large');
-            }
             return size;
         }
         catch (error) {
-            shared_1.Logger.error('Transaction size calculation failed:', {
+            shared_1.Logger.error("Transaction size calculation failed:", {
                 txId: transaction?.id,
-                error: error.message
+                error: error.message,
             });
             return Number.MAX_SAFE_INTEGER; // Force validation failure
         }
@@ -1629,19 +1631,19 @@ class Mempool {
             const RATE_TOLERANCE = 0.00001;
             for (const [rate, txs] of this.feeRateBuckets) {
                 if (Math.abs(rate - feeRate) < RATE_TOLERANCE) {
-                    shared_1.Logger.debug('Found fee bucket', {
+                    shared_1.Logger.debug("Found fee bucket", {
                         txId: transaction.id,
                         feeRate,
-                        bucketRate: rate
+                        bucketRate: rate,
                     });
                     return txs;
                 }
             }
             // Create new bucket if none found
             if (!this.feeRateBuckets.has(feeRate)) {
-                shared_1.Logger.debug('Creating new fee bucket', {
+                shared_1.Logger.debug("Creating new fee bucket", {
                     txId: transaction.id,
-                    feeRate
+                    feeRate,
                 });
                 this.feeRateBuckets.set(feeRate, new Set());
                 return this.feeRateBuckets.get(feeRate);
@@ -1649,7 +1651,7 @@ class Mempool {
             return undefined;
         }
         catch (error) {
-            shared_1.Logger.error('Error finding fee bucket:', error);
+            shared_1.Logger.error("Error finding fee bucket:", error);
             return undefined;
         }
     }
@@ -1664,7 +1666,7 @@ class Mempool {
             return bucket;
         }
         catch (error) {
-            shared_1.Logger.error('Error managing fee bucket:', error);
+            shared_1.Logger.error("Error managing fee bucket:", error);
             return new Set();
         }
     }
@@ -1688,32 +1690,31 @@ class Mempool {
                     if (currentBucket.size < MIN_BUCKET_SIZE) {
                         const nextBucket = this.feeRateBuckets.get(nextRate);
                         // Merge into next bucket
-                        currentBucket.forEach(txId => nextBucket.add(txId));
+                        currentBucket.forEach((txId) => nextBucket.add(txId));
                         this.feeRateBuckets.delete(currentRate);
                     }
                 }
             }
-            shared_1.Logger.debug('Fee buckets cleaned up', {
+            shared_1.Logger.debug("Fee buckets cleaned up", {
                 bucketCount: this.feeRateBuckets.size,
-                totalTransactions: Array.from(this.feeRateBuckets.values())
-                    .reduce((sum, bucket) => sum + bucket.size, 0)
+                totalTransactions: Array.from(this.feeRateBuckets.values()).reduce((sum, bucket) => sum + bucket.size, 0),
             });
         }
         catch (error) {
-            shared_1.Logger.error('Fee bucket cleanup failed:', error);
+            shared_1.Logger.error("Fee bucket cleanup failed:", error);
         }
     }
-    updateDynamicFees() {
+    async updateDynamicFees() {
         try {
-            const newFee = this.calculateDynamicMinFee();
+            const newFee = await this.calculateDynamicMinFee();
             this.lastValidFee = newFee;
-            shared_1.Logger.debug('Updated dynamic fees', {
+            shared_1.Logger.debug("Updated dynamic fees", {
                 newFee,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
         }
         catch (error) {
-            shared_1.Logger.error('Failed to update dynamic fees:', error);
+            shared_1.Logger.error("Failed to update dynamic fees:", error);
         }
     }
     async getVotingContribution(address) {
@@ -1734,29 +1735,29 @@ class Mempool {
             // Add timeout to prevent deadlock
             const acquirePromise = mutex.acquire();
             const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Mutex acquisition timeout')), 5000);
+                setTimeout(() => reject(new Error("Mutex acquisition timeout")), 5000);
             });
             release = await Promise.race([acquirePromise, timeoutPromise]);
             const spentUTXOs = new Set();
             for (const input of tx.inputs) {
                 const utxoKey = `${input.txId}:${input.outputIndex}`;
                 if (spentUTXOs.has(utxoKey)) {
-                    shared_1.Logger.warn('Double-spend detected within transaction', {
+                    shared_1.Logger.warn("Double-spend detected within transaction", {
                         txId: tx.id,
-                        utxoKey
+                        utxoKey,
                     });
                     return false;
                 }
                 // Add concurrent UTXO validation
                 const [utxo, isSpentInMempool] = await Promise.all([
                     this.blockchain.getUTXO(input.txId, input.outputIndex),
-                    this.isUTXOSpentInMempool(input.txId, input.outputIndex)
+                    this.isUTXOSpentInMempool(input.txId, input.outputIndex),
                 ]);
                 if (!utxo || utxo.spent || isSpentInMempool) {
-                    shared_1.Logger.warn('Invalid or spent UTXO', {
+                    shared_1.Logger.warn("Invalid or spent UTXO", {
                         txId: tx.id,
                         inputTxId: input.txId,
-                        outputIndex: input.outputIndex
+                        outputIndex: input.outputIndex,
                     });
                     return false;
                 }
@@ -1770,7 +1771,7 @@ class Mempool {
             return true;
         }
         catch (error) {
-            shared_1.Logger.error('Transaction input validation failed:', error);
+            shared_1.Logger.error("Transaction input validation failed:", error);
             return false;
         }
         finally {
@@ -1780,30 +1781,30 @@ class Mempool {
     }
     async isUTXOSpentInMempool(txId, outputIndex) {
         for (const tx of this.transactions.values()) {
-            if (tx.inputs.some(input => input.txId === txId && input.outputIndex === outputIndex)) {
+            if (tx.inputs.some((input) => input.txId === txId && input.outputIndex === outputIndex)) {
                 return true;
             }
         }
         return false;
     }
-    validateTransactionSize(transaction) {
+    async validateTransactionSize(transaction) {
         const size = this.calculateTransactionSize(transaction);
-        // Check against max transaction size
-        if (size > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
-            shared_1.Logger.warn('Transaction exceeds maximum size', {
+        if (size > await this.getMaxSize()) {
+            shared_1.Logger.warn("Transaction exceeds maximum size", {
                 txId: transaction.id,
                 size,
-                maxSize: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE
+                maxSize: await this.getMaxSize(),
             });
             return false;
         }
-        // Check minimum fee based on size
-        const minFee = BigInt(size * constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+        const minFeeRate = await this.getMinFeeRate();
+        // Convert to BigInt before multiplication
+        const minFee = BigInt(Math.floor(size * minFeeRate));
         if (transaction.fee < minFee) {
-            shared_1.Logger.warn('Transaction fee too low for size', {
+            shared_1.Logger.warn("Transaction fee too low for size", {
                 txId: transaction.id,
                 fee: transaction.fee.toString(),
-                minFee: minFee.toString()
+                minFee: minFee.toString(),
             });
             return false;
         }
@@ -1815,8 +1816,7 @@ class Mempool {
         this.usage = this.calculateUsage();
     }
     calculateUsage() {
-        return Array.from(this.transactions.values())
-            .reduce((sum, tx) => sum + tx.getSize(), 0);
+        return Array.from(this.transactions.values()).reduce((sum, tx) => sum + tx.getSize(), 0);
     }
     /**
      * Get detailed information about the current state of the mempool
@@ -1825,8 +1825,7 @@ class Mempool {
     async getMempoolInfo() {
         try {
             // Calculate size metrics
-            const bytes = Array.from(this.transactions.values())
-                .reduce((sum, tx) => sum + this.calculateTransactionSize(tx), 0);
+            const bytes = Array.from(this.transactions.values()).reduce((sum, tx) => sum + this.calculateTransactionSize(tx), 0);
             // Get fee metrics
             const feeMetrics = this.calculateFeeMetrics();
             // Calculate load metrics
@@ -1844,43 +1843,42 @@ class Mempool {
                 currentMemoryUsage: memoryUsage,
                 loadFactor,
                 fees: {
-                    base: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
+                    base: await this.getMinFeeRate(),
                     current: this.lastValidFee,
                     mean: feeMetrics.mean,
                     median: feeMetrics.median,
                     min: feeMetrics.min,
-                    max: feeMetrics.max
+                    max: feeMetrics.max,
                 },
                 transactions: {
                     total: this.transactions.size,
                     pending: this.getPendingCount(),
-                    distribution: typeDistribution
+                    distribution: typeDistribution,
                 },
                 age: {
                     oldest: this.getOldestTransactionAge(),
-                    youngest: this.getYoungestTransactionAge()
+                    youngest: this.getYoungestTransactionAge(),
                 },
                 health: {
                     status: this.getHealthStatus(),
                     lastUpdate: this.lastChangeTimestamp,
-                    isAcceptingTransactions: this.canAcceptTransactions()
-                }
+                    isAcceptingTransactions: this.canAcceptTransactions(),
+                },
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mempool info:', error);
-            throw new Error('Failed to retrieve mempool information');
+            shared_1.Logger.error("Failed to get mempool info:", error);
+            throw new Error("Failed to retrieve mempool information");
         }
     }
     calculateFeeMetrics() {
-        const fees = Array.from(this.transactions.values())
-            .map(tx => this.calculateFeePerByte(tx));
+        const fees = Array.from(this.transactions.values()).map((tx) => this.calculateFeePerByte(tx));
         if (fees.length === 0) {
             return {
                 mean: 0,
                 median: 0,
                 min: 0,
-                max: 0
+                max: 0,
             };
         }
         fees.sort((a, b) => a - b);
@@ -1888,7 +1886,7 @@ class Mempool {
             mean: fees.reduce((sum, fee) => sum + fee, 0) / fees.length,
             median: fees[Math.floor(fees.length / 2)],
             min: fees[0],
-            max: fees[fees.length - 1]
+            max: fees[fees.length - 1],
         };
     }
     getTransactionTypeDistribution() {
@@ -1898,7 +1896,7 @@ class Mempool {
             [transaction_model_1.TransactionType.COINBASE]: 0,
             [transaction_model_1.TransactionType.QUADRATIC_VOTE]: 0,
             [transaction_model_1.TransactionType.POW_REWARD]: 0,
-            [transaction_model_1.TransactionType.REGULAR]: 0
+            [transaction_model_1.TransactionType.REGULAR]: 0,
         };
         for (const tx of this.transactions.values()) {
             distribution[tx.type] = (distribution[tx.type] || 0) + 1;
@@ -1906,17 +1904,14 @@ class Mempool {
         return distribution;
     }
     getPendingCount() {
-        return Array.from(this.transactions.values())
-            .filter(tx => !tx.blockHeight).length;
+        return Array.from(this.transactions.values()).filter((tx) => !tx.blockHeight).length;
     }
     getOldestTransactionAge() {
-        const timestamps = Array.from(this.transactions.values())
-            .map(tx => tx.timestamp);
+        const timestamps = Array.from(this.transactions.values()).map((tx) => tx.timestamp);
         return timestamps.length ? Math.min(...timestamps) : 0;
     }
     getYoungestTransactionAge() {
-        const timestamps = Array.from(this.transactions.values())
-            .map(tx => tx.timestamp);
+        const timestamps = Array.from(this.transactions.values()).map((tx) => tx.timestamp);
         return timestamps.length ? Math.max(...timestamps) : 0;
     }
     getHealthStatus() {
@@ -1924,19 +1919,19 @@ class Mempool {
         const memoryUsage = process.memoryUsage().heapUsed;
         const maxMemory = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MEMORY_USAGE;
         if (loadFactor > 0.9 || memoryUsage > maxMemory * 0.9) {
-            return 'critical';
+            return "critical";
         }
         else if (loadFactor > 0.7 || memoryUsage > maxMemory * 0.7) {
-            return 'degraded';
+            return "degraded";
         }
-        return 'healthy';
+        return "healthy";
     }
     canAcceptTransactions() {
         const health = this.getHealthStatus();
         const memoryOK = process.memoryUsage().heapUsed <
             constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MEMORY_USAGE;
         const sizeOK = this.transactions.size < this.maxSize;
-        return health !== 'critical' && memoryOK && sizeOK;
+        return health !== "critical" && memoryOK && sizeOK;
     }
     /**
      * Get detailed information about all transactions in the mempool
@@ -1963,14 +1958,14 @@ class Mempool {
                     descendantsize: this.calculateDescendantSize(descendants),
                     ancestorcount: ancestors.size,
                     ancestorsize: this.calculateAncestorSize(ancestors),
-                    depends: Array.from(tx.inputs.map(input => input.txId))
+                    depends: Array.from(tx.inputs.map((input) => input.txId)),
                 };
             }
             return result;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get raw mempool:', error);
-            throw new Error('Failed to retrieve mempool transactions');
+            shared_1.Logger.error("Failed to get raw mempool:", error);
+            throw new Error("Failed to retrieve mempool transactions");
         }
     }
     /**
@@ -1980,14 +1975,13 @@ class Mempool {
         // Weight = (base size * 3) + total size
         const baseSize = this.calculateTransactionSize(tx);
         const totalSize = baseSize; // Simplified for non-segwit
-        return (baseSize * 3) + totalSize;
+        return baseSize * 3 + totalSize;
     }
     /**
      * Calculate total size of descendant transactions
      */
     calculateDescendantSize(descendants) {
-        return Array.from(descendants)
-            .reduce((sum, txid) => {
+        return Array.from(descendants).reduce((sum, txid) => {
             const tx = this.transactions.get(txid);
             return sum + (tx ? this.calculateTransactionSize(tx) : 0);
         }, 0);
@@ -1996,8 +1990,7 @@ class Mempool {
      * Calculate total size of ancestor transactions
      */
     calculateAncestorSize(ancestors) {
-        return Array.from(ancestors)
-            .reduce((sum, txid) => {
+        return Array.from(ancestors).reduce((sum, txid) => {
             const tx = this.transactions.get(txid);
             return sum + (tx ? this.calculateTransactionSize(tx) : 0);
         }, 0);
@@ -2011,8 +2004,8 @@ class Mempool {
     async getMempoolEntry(txid) {
         try {
             // Input validation
-            if (!txid || typeof txid !== 'string') {
-                throw new Error('Invalid transaction ID');
+            if (!txid || typeof txid !== "string") {
+                throw new Error("Invalid transaction ID");
             }
             // Get transaction from mempool
             const tx = this.transactions.get(txid);
@@ -2034,102 +2027,113 @@ class Mempool {
                 descendantsize: this.calculateDescendantSize(descendants),
                 ancestorcount: ancestors.size,
                 ancestorsize: this.calculateAncestorSize(ancestors),
-                depends: Array.from(tx.inputs.map(input => input.txId))
+                depends: Array.from(tx.inputs.map((input) => input.txId)),
             };
-            shared_1.Logger.debug('Retrieved mempool entry', { txid, size: entry.vsize });
+            shared_1.Logger.debug("Retrieved mempool entry", { txid, size: entry.vsize });
             return entry;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mempool entry:', error);
+            shared_1.Logger.error("Failed to get mempool entry:", error);
             throw error;
         }
     }
     isValidInputScript(script) {
         try {
-            if (!script || typeof script !== 'string')
+            if (!script || typeof script !== "string")
                 return false;
-            const scriptBuffer = Buffer.from(script, 'hex');
-            let position = 0;
-            while (position < scriptBuffer.length) {
-                const opcode = scriptBuffer[position];
-                position++;
-                const validOpcodes = new Set(Object.values(this.SCRIPT_OPCODES));
-                if (!validOpcodes.has(opcode)) {
-                    shared_1.Logger.warn('Invalid opcode in script', { opcode });
-                    return false;
-                }
-                // Handle push data operations
-                if (opcode > 0x00 && opcode < 0x4c) {
-                    // Direct push of N bytes
-                    position += opcode;
-                }
-                else if (opcode === this.SCRIPT_OPCODES.OP_PUSHDATA1) {
-                    position += 1 + scriptBuffer[position];
-                }
-                else if (opcode === this.SCRIPT_OPCODES.OP_PUSHDATA2) {
-                    position += 2 + scriptBuffer.readUInt16LE(position);
-                }
-                else if (opcode === this.SCRIPT_OPCODES.OP_PUSHDATA4) {
-                    position += 4 + scriptBuffer.readUInt32LE(position);
-                }
-                // Validate position bounds
-                if (position > scriptBuffer.length) {
-                    shared_1.Logger.warn('Script size mismatch');
-                    return false;
-                }
+            // Check for our supported script formats
+            if (script.startsWith("0 ")) {
+                // Native SegWit equivalent (TAG1)
+                return /^0 [a-f0-9]{40}$/i.test(script);
             }
-            return true;
+            else if (script.startsWith("OP_HASH160")) {
+                // P2SH equivalent (TAG3)
+                return /^OP_HASH160 [a-f0-9]{40} OP_EQUAL$/i.test(script);
+            }
+            else if (script.startsWith("OP_DUP")) {
+                // Legacy P2PKH (TAG)
+                return /^OP_DUP OP_HASH160 [a-f0-9]{40} OP_EQUALVERIFY OP_CHECKSIG$/i.test(script);
+            }
+            shared_1.Logger.warn("Unsupported script format");
+            return false;
         }
         catch (error) {
-            shared_1.Logger.error('Input script validation failed:', error);
+            shared_1.Logger.error("Input script validation failed:", error);
             return false;
         }
     }
     isValidScriptType(script) {
         try {
-            if (!script || typeof script !== 'string')
+            if (!script || typeof script !== "string")
                 return false;
-            const scriptBuffer = Buffer.from(script, 'hex');
-            // P2PKH validation (OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG)
-            if (scriptBuffer.length === 25 &&
-                scriptBuffer[0] === 0x76 && // OP_DUP
-                scriptBuffer[1] === 0xa9 && // OP_HASH160
-                scriptBuffer[2] === 0x14 && // Push 20 bytes
-                scriptBuffer[23] === 0x88 && // OP_EQUALVERIFY
-                scriptBuffer[24] === 0xac) { // OP_CHECKSIG
-                return true;
-            }
-            // P2SH validation (OP_HASH160 <scriptHash> OP_EQUAL)
-            if (scriptBuffer.length === 23 &&
-                scriptBuffer[0] === 0xa9 && // OP_HASH160
-                scriptBuffer[1] === 0x14 && // Push 20 bytes
-                scriptBuffer[22] === 0x87) { // OP_EQUAL
-                return true;
-            }
-            // P2WPKH validation (OP_0 <pubKeyHash>)
-            if (scriptBuffer.length === 22 &&
-                scriptBuffer[0] === 0x00 && // OP_0
-                scriptBuffer[1] === 0x14) { // Push 20 bytes
-                return true;
-            }
-            // P2WSH validation (OP_0 <scriptHash>)
-            if (scriptBuffer.length === 34 &&
-                scriptBuffer[0] === 0x00 && // OP_0
-                scriptBuffer[1] === 0x20) { // Push 32 bytes
-                return true;
-            }
-            // P2TR validation (OP_1 <pubKey>)
-            if (scriptBuffer.length === 34 &&
-                scriptBuffer[0] === 0x51 && // OP_1
-                scriptBuffer[1] === 0x20) { // Push 32 bytes
-                return true;
-            }
-            shared_1.Logger.warn('Unknown script type');
-            return false;
+            // Check script version and format
+            const [version, scriptContent] = script.split(":");
+            if (version !== "01")
+                return false;
+            return this.isValidInputScript(scriptContent);
         }
         catch (error) {
-            shared_1.Logger.error('Script type validation failed:', error);
+            shared_1.Logger.error("Script type validation failed:", error);
             return false;
+        }
+    }
+    async getCongestionFactor() {
+        try {
+            const currentSize = this.transactions.size;
+            const maxSize = await this.getMaxSize();
+            return Math.min(currentSize / maxSize, 1);
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get congestion factor:", error);
+            return 0.5; // Return moderate congestion on error
+        }
+    }
+    async getMinFeeRate() {
+        try {
+            return this.calculateDynamicMinFee();
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get min fee rate:", error);
+            return Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+        }
+    }
+    async getMaxSize() {
+        try {
+            const baseMaxSize = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
+            const congestionFactor = await this.getCongestionFactor();
+            // More gradual size reduction based on congestion
+            const dynamicSize = Math.floor(baseMaxSize * (1 - congestionFactor * 0.3));
+            // Never go below minimum viable transaction size
+            const minViableSize = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_SIZE;
+            return Math.max(dynamicSize, minViableSize);
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get max size:", error);
+            // Fallback to conservative size limit
+            return constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
+        }
+    }
+    async getMaxFeeRate() {
+        try {
+            const minFee = await this.getMinFeeRate();
+            // Cap maximum fee at 20x the minimum fee
+            return minFee * 20;
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get max fee rate:", error);
+            return Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 20;
+        }
+    }
+    async getBaseFeeRate() {
+        try {
+            // Get base fee rate from network conditions
+            const congestionFactor = await this.getCongestionFactor();
+            const baseFee = Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+            return Math.floor(baseFee * (1 + congestionFactor));
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get base fee rate:", error);
+            return Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
         }
     }
 }

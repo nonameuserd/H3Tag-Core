@@ -1,5 +1,5 @@
 import { Transaction } from "../models/transaction.model";
-import { UTXO } from '../models/utxo.model';
+import { UTXO } from "../models/utxo.model";
 export declare class WalletError extends Error {
     readonly code: WalletErrorCode;
     constructor(message: string, code: WalletErrorCode);

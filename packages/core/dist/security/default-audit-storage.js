@@ -14,15 +14,15 @@ class DefaultAuditStorage {
             shared_1.Logger.debug(`Audit log written: ${filename}`);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to write audit log:', error);
-            throw new audit_1.AuditError('Failed to write audit log', 'WRITE_FAILED');
+            shared_1.Logger.error("Failed to write audit log:", error);
+            throw new audit_1.AuditError("Failed to write audit log", "WRITE_FAILED");
         }
     }
     async readAuditLog(filename) {
         const data = this.logs.get(filename);
         if (!data) {
             shared_1.Logger.warn(`Audit log not found: ${filename}`);
-            return '';
+            return "";
         }
         return data;
     }

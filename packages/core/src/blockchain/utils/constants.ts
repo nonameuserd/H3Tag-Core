@@ -6,7 +6,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     SYMBOL: "TAG",
     DECIMALS: 8,
     INITIAL_SUPPLY: 0,
-    MAX_SUPPLY: 50000000,
+    MAX_SUPPLY: 696900000,
     UNITS: {
       MACRO: 1n,
       MICRO: 1000000n,
@@ -35,6 +35,8 @@ export const BLOCKCHAIN_CONSTANTS = {
           "seed2.h3tag.com",
           "seed3.h3tag.com",
           "seed4.h3tag.com",
+          "seed5.h3tag.com",
+          "seed6.h3tag.com",
         ],
         TESTNET: [
           "test-seed1.h3tag.com",
@@ -178,9 +180,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     MIN_BLOCK_PRODUCTION: 0.75,
   },
   TRANSACTION: {
-    MIN_FEE: BigInt(10000),
-    MAX_FEE: BigInt(100000000),
-    BASE_FEE: BigInt(10000),
+    MIN_FEE: BigInt(1),
     CURRENT_VERSION: 1,
     MAX_INPUTS: 1000,
     MAX_OUTPUTS: 1000,
@@ -191,14 +191,15 @@ export const BLOCKCHAIN_CONSTANTS = {
       DECIMALS: 8,
     },
     MEMPOOL: {
-      MAX_SIZE: 300000,
+      MAX_SIZE: 300000, // 300K transactions
       HIGH_CONGESTION_THRESHOLD: 50000,
-      MAX_MB: 300,
-      MIN_FEE_RATE: 1,
+      MAX_MB: 300, // 300MB total size
+      MIN_FEE_RATE: BigInt(1),
       FEE_RATE_MULTIPLIER: 1.5,
       EVICTION_INTERVAL: 600000,
       CLEANUP_INTERVAL: 60000,
-      MAX_MEMORY_USAGE: 536870912,
+      MAX_MEMORY_USAGE: 536870912, // 512MB memory limit
+      MIN_SIZE: 1000, // Minimum transactions to maintain
     },
     PROCESSING_TIMEOUT: 30000,
     MAX_SIZE: 1000000, // 1MB limit

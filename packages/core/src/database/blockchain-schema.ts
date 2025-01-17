@@ -241,6 +241,7 @@ export class BlockchainSchema {
   private votingDb: IVotingSchema;
   private transactionLock = new Mutex();
   private transactionStartTime: number;
+  private transactionLocks = new Map<string, Mutex>();
 
   /**
    * Constructor for Database
@@ -2829,6 +2830,36 @@ export class BlockchainSchema {
       await this.db.put(`difficulty:${blockHash}`, difficulty.toString());
     } catch (error) {
       Logger.error("Failed to update difficulty:", error);
+      throw error;
+    }
+  }
+
+  async lockTransaction(txId: string): Promise<() => Promise<void>> {
+    if (!this.transactionLocks.has(txId)) {
+      this.transactionLocks.set(txId, new Mutex());
+    }
+    const mutex = this.transactionLocks.get(txId)!;
+    const release = await mutex.acquire();
+    return async () => { release(); };
+  }
+
+  async unlockTransaction(txId: string): Promise<void> {
+    const mutex = this.transactionLocks.get(txId);
+    if (mutex) {
+      this.transactionLocks.delete(txId);
+    }
+  }
+
+  async markUTXOPending(txId: string, outputIndex: number): Promise<void> {
+    try {
+      const key = `utxo:${txId}:${outputIndex}`;
+      const utxo = await this.db.get(key);
+      if (utxo) {
+        const updatedUtxo = { ...JSON.parse(utxo), pending: true };
+        await this.db.put(key, JSON.stringify(updatedUtxo));
+      }
+    } catch (error) {
+      Logger.error("Failed to mark UTXO as pending:", error);
       throw error;
     }
   }

@@ -1,11 +1,11 @@
-import { MiningInfoDto } from '../dtos/mining.dto';
-import { BlockchainService } from './blockchain.service';
-import { AuditManager } from '@h3tag-blockchain/core';
-import { BlockTemplateDto } from '../dtos/mining.dto';
-import { ProofOfWork } from '@h3tag-blockchain/core';
-import { SubmitBlockDto } from '../dtos/mining.dto';
-import { Mempool } from '@h3tag-blockchain/core';
-import { MerkleTree } from '@h3tag-blockchain/core';
+import { MiningInfoDto } from "../dtos/mining.dto";
+import { BlockchainService } from "./blockchain.service";
+import { AuditManager } from "@h3tag-blockchain/core";
+import { BlockTemplateDto } from "../dtos/mining.dto";
+import { ProofOfWork } from "@h3tag-blockchain/core";
+import { SubmitBlockDto } from "../dtos/mining.dto";
+import { Mempool } from "@h3tag-blockchain/core";
+import { MerkleTree } from "@h3tag-blockchain/core";
 /**
  * @swagger
  * tags:

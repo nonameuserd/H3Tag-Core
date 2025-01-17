@@ -1,4 +1,10 @@
 "use strict";
+/**
+ * @fileoverview Block model definitions for the H3Tag blockchain. Includes block structure,
+ * header format, and builder pattern implementation for block creation and validation.
+ *
+ * @module BlockModel
+ */
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.BlockBuilder = exports.BlockError = void 0;
 const shared_1 = require("@h3tag-blockchain/shared");
@@ -6,6 +12,14 @@ const merkle_1 = require("../utils/merkle");
 const async_mutex_1 = require("async-mutex");
 const audit_1 = require("../security/audit");
 const crypto_1 = require("@h3tag-blockchain/crypto");
+/**
+ * @class BlockError
+ * @extends Error
+ * @description Custom error class for block-related errors
+ *
+ * @example
+ * throw new BlockError("Invalid block structure");
+ */
 class BlockError extends Error {
     constructor(message) {
         super(message);
@@ -13,14 +27,35 @@ class BlockError extends Error {
     }
 }
 exports.BlockError = BlockError;
+/**
+ * @class BlockBuilder
+ * @description Builder pattern implementation for creating new blocks
+ *
+ * @property {number} CURRENT_VERSION - Current block version
+ * @property {number} MAX_TRANSACTIONS - Maximum transactions per block
+ * @property {number} MIN_DIFFICULTY - Minimum mining difficulty
+ * @property {number} maxTransactionAge - Maximum age of transactions
+ *
+ * @example
+ * const builder = new BlockBuilder(previousHash, difficulty, auditManager);
+ * await builder.setTransactions(transactions);
+ * const block = await builder.build(minerKeyPair);
+ */
 class BlockBuilder {
+    /**
+     * Creates a new BlockBuilder instance
+     * @param {string} previousHash - Hash of the previous block
+     * @param {number} difficulty - Mining difficulty target
+     * @param {AuditManager} auditManager - Audit logging manager
+     * @throws {BlockError} If difficulty is invalid
+     */
     constructor(previousHash, difficulty, auditManager) {
         this.maxTransactionAge = 72 * 60 * 60 * 1000; // 72 hours
         this.transactions = [];
         this.votes = [];
         this.validators = [];
         this.mutex = new async_mutex_1.Mutex();
-        this.hash = '';
+        this.hash = "";
         if (difficulty < BlockBuilder.MIN_DIFFICULTY) {
             throw new BlockError("Invalid difficulty");
         }
@@ -44,12 +79,12 @@ class BlockBuilder {
                 powScore: 0,
                 votingScore: 0,
                 participationRate: 0,
-                periodId: 0
+                periodId: 0,
             },
             minerAddress: "",
             signature: undefined,
             publicKey: "",
-            hash: ""
+            hash: "",
         };
     }
     async calculateMerkleRoot() {
@@ -73,8 +108,8 @@ class BlockBuilder {
                 }
             }
             // Map transactions to their hashes
-            const txHashes = this.transactions.map(tx => {
-                if (typeof tx.id !== 'string') {
+            const txHashes = this.transactions.map((tx) => {
+                if (typeof tx.id !== "string") {
                     throw new BlockError(`Invalid transaction ID format: ${tx.id}`);
                 }
                 return tx.id;
@@ -82,7 +117,9 @@ class BlockBuilder {
             // Calculate merkle root
             const merkleRoot = await this.merkleTree.createRoot(txHashes);
             // Validate merkle root
-            if (!merkleRoot || typeof merkleRoot !== 'string' || merkleRoot.length === 0) {
+            if (!merkleRoot ||
+                typeof merkleRoot !== "string" ||
+                merkleRoot.length === 0) {
                 throw new BlockError("Invalid merkle root generated");
             }
             // Log performance metrics
@@ -94,29 +131,30 @@ class BlockBuilder {
                     transactionCount: txHashes.length,
                     calculationTime: duration,
                     merkleRoot,
-                    severity: audit_1.AuditSeverity.INFO
+                    severity: audit_1.AuditSeverity.INFO,
                 });
             }
             return merkleRoot;
         }
         catch (error) {
             shared_1.Logger.error("Merkle root calculation failed:", error);
-            throw new BlockError(error instanceof BlockError ? error.message : "Failed to calculate merkle root");
+            throw new BlockError(error instanceof BlockError
+                ? error.message
+                : "Failed to calculate merkle root");
         }
         finally {
             release();
         }
     }
     /**
-     * Sets the transactions for the block
-     * @param transactions Transactions to set
-     * @returns Promise<this> This block builder instance
+     * Sets transactions for the block
+     * @param {Transaction[]} transactions - Array of transactions to include
+     * @returns {Promise<this>} Builder instance for chaining
+     * @throws {BlockError} If transactions are invalid or exceed limits
      */
     async setTransactions(transactions) {
-        const mutex = new async_mutex_1.Mutex();
+        const release = await this.mutex.acquire();
         try {
-            // Acquire lock to prevent concurrent modifications
-            await mutex.acquire();
             // Validate input
             if (!Array.isArray(transactions)) {
                 throw new BlockError("Invalid transactions array");
@@ -166,31 +204,37 @@ class BlockBuilder {
                     transactionCount: transactions.length,
                     totalFees,
                     merkleRoot: this.header.merkleRoot,
-                    severity: audit_1.AuditSeverity.INFO
+                    severity: audit_1.AuditSeverity.INFO,
                 });
                 return this;
             }
             catch (error) {
-                shared_1.Logger.error('Failed to update block with transactions:', error);
-                throw new BlockError('Failed to update block with transactions');
+                shared_1.Logger.error("Failed to update block with transactions:", error);
+                throw new BlockError("Failed to update block with transactions");
             }
         }
         catch (error) {
-            shared_1.Logger.error('Transaction validation failed:', error);
+            shared_1.Logger.error("Transaction validation failed:", error);
             if (error instanceof BlockError) {
                 throw error;
             }
-            throw new BlockError(error instanceof Error ? error.message : 'Failed to set transactions');
+            throw new BlockError(error instanceof Error ? error.message : "Failed to set transactions");
         }
         finally {
-            // Release the mutex
-            mutex.release();
+            release();
         }
     }
+    /**
+     * Calculates the block hash
+     * @returns {Promise<string>} Block hash
+     * @throws {BlockError} If block header is invalid
+     */
     async calculateHash() {
         try {
             // Validate header fields before hashing
-            if (!this.header || !this.header.previousHash || !this.header.merkleRoot) {
+            if (!this.header ||
+                !this.header.previousHash ||
+                !this.header.merkleRoot) {
                 throw new BlockError("Invalid block header");
             }
             // Performance tracking
@@ -199,7 +243,7 @@ class BlockBuilder {
             const headerString = JSON.stringify({
                 ...this.header,
                 timestamp: this.header.timestamp,
-                nonce: this.header.nonce
+                nonce: this.header.nonce,
             });
             // Use HybridCrypto for quantum-resistant hashing
             const hash = await crypto_1.HybridCrypto.hash(headerString);
@@ -208,10 +252,18 @@ class BlockBuilder {
             return hash;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to calculate block hash:', error);
-            throw new BlockError(error instanceof Error ? error.message : 'Failed to calculate block hash');
+            shared_1.Logger.error("Failed to calculate block hash:", error);
+            throw new BlockError(error instanceof Error
+                ? error.message
+                : "Failed to calculate block hash");
         }
     }
+    /**
+     * Builds the final block
+     * @param {HybridKeyPair} minerKeyPair - Miner's key pair for signing
+     * @returns {Promise<Block>} Completed block
+     * @throws {BlockError} If block building fails
+     */
     async build(minerKeyPair) {
         try {
             // Validate required block components
@@ -219,11 +271,12 @@ class BlockBuilder {
                 this.header.merkleRoot = await this.calculateMerkleRoot();
             }
             if (!this.header.validatorMerkleRoot && this.validators.length > 0) {
-                const validatorHashes = this.validators.map(v => v.address);
+                const validatorHashes = this.validators.map((v) => v.address);
                 this.header.validatorMerkleRoot = await this.merkleTree.createRoot(validatorHashes);
             }
             // Calculate final block hash
             const hash = await this.calculateHash();
+            this.header.hash = hash;
             // Calculate total fees and rewards
             const totalFees = this.transactions.reduce((sum, tx) => sum + Number(tx.fee), 0);
             this.header.fees = totalFees;
@@ -245,39 +298,39 @@ class BlockBuilder {
                     consensusMetrics: {
                         powWeight: this.header.consensusData.powScore,
                         votingWeight: this.header.consensusData.votingScore,
-                        participationRate: this.header.consensusData.participationRate
-                    }
+                        participationRate: this.header.consensusData.participationRate,
+                    },
                 },
                 timestamp: this.header.timestamp || Date.now(),
                 verifyHash: async () => this.verifyHash(),
                 verifySignature: async () => this.verifySignature(),
                 getHeaderBase: () => this.getHeaderBase(),
-                isComplete: () => this.isComplete()
+                isComplete: () => this.isComplete(),
             };
             // Validate final block structure
             this.validateBlockStructure(block);
             return block;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to build block:', error);
-            throw new BlockError(error instanceof Error ? error.message : 'Failed to build block');
+            shared_1.Logger.error("Failed to build block:", error);
+            throw new BlockError(error instanceof Error ? error.message : "Failed to build block");
         }
     }
     // Helper method to validate block structure
     validateBlockStructure(block) {
         if (!block.hash || !block.header || !Array.isArray(block.transactions)) {
-            throw new BlockError('Invalid block structure');
+            throw new BlockError("Invalid block structure");
         }
         // Validate header fields
         const requiredFields = [
-            'version',
-            'height',
-            'previousHash',
-            'timestamp',
-            'merkleRoot',
-            'difficulty',
-            'nonce',
-            'miner'
+            "version",
+            "height",
+            "previousHash",
+            "timestamp",
+            "merkleRoot",
+            "difficulty",
+            "nonce",
+            "miner",
         ];
         for (const field of requiredFields) {
             if (!(field in block.header)) {
@@ -289,59 +342,132 @@ class BlockBuilder {
             block.header.consensusData.votingScore < 0 ||
             block.header.consensusData.participationRate < 0 ||
             block.header.consensusData.participationRate > 1) {
-            throw new BlockError('Invalid consensus data values');
+            throw new BlockError("Invalid consensus data values");
         }
     }
+    /**
+     * Sets the block height
+     * @param {number} height - Block height
+     * @returns {this} Builder instance for chaining
+     * @throws {BlockError} If height is invalid
+     */
     setHeight(height) {
+        if (height < 0 || !Number.isInteger(height)) {
+            throw new BlockError("Invalid block height");
+        }
         this.header.height = height;
         return this;
     }
+    /**
+     * Sets the previous block hash
+     * @param {string} hash - Previous block hash
+     * @returns {this} Builder instance for chaining
+     */
     setPreviousHash(hash) {
         this.header.previousHash = hash;
         return this;
     }
+    /**
+     * Sets the block timestamp
+     * @param {number} timestamp - Block timestamp
+     * @returns {this} Builder instance for chaining
+     * @throws {BlockError} If timestamp is invalid
+     */
     setTimestamp(timestamp) {
+        const now = Date.now();
+        const oneHourInFuture = now + 60 * 60 * 1000;
+        const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
+        // Validate timestamp is not in the future (with small tolerance)
+        if (timestamp > oneHourInFuture) {
+            throw new BlockError("Block timestamp cannot be in the future");
+        }
+        // Validate timestamp is not too old
+        if (timestamp < oneYearAgo) {
+            throw new BlockError("Block timestamp is too old");
+        }
+        // Validate timestamp is a valid number
+        if (!Number.isFinite(timestamp) || timestamp <= 0) {
+            throw new BlockError("Invalid timestamp value");
+        }
         this.header.timestamp = timestamp;
         return this;
     }
+    /**
+     * Verifies the block hash
+     * @returns {Promise<boolean>} True if hash is valid
+     * @throws {BlockError} If hash verification fails
+     */
     async verifyHash() {
         try {
             const calculatedHash = await this.calculateHash();
-            return calculatedHash === this.header.hash;
+            return calculatedHash === this.hash;
         }
         catch (error) {
-            shared_1.Logger.error('Hash verification failed:', error);
+            shared_1.Logger.error("Hash verification failed:", error);
             return false;
         }
     }
+    /**
+     * Verifies the block signature
+     * @returns {Promise<boolean>} True if signature is valid
+     * @throws {BlockError} If signature verification fails
+     */
     async verifySignature() {
-        return crypto_1.HybridCrypto.verify(this.header.hash, this.header.signature, { address: this.header.publicKey });
+        return crypto_1.HybridCrypto.verify(this.header.hash, this.header.signature, this.header.publicKey);
     }
+    /**
+     * Gets the base header string for hashing
+     * @returns {string} Base header string
+     */
     getHeaderBase() {
-        return this.header.version +
+        return (this.header.version +
             this.header.previousHash +
             this.header.merkleRoot +
             this.header.timestamp +
             this.header.difficulty +
             this.header.nonce +
-            this.header.miner;
+            this.header.miner);
     }
+    /**
+     * Sets the block version
+     * @param {number} version - Block version
+     * @returns {this} Builder instance for chaining
+     */
     setVersion(version) {
         this.header.version = version;
         return this;
     }
+    /**
+     * Sets the merkle root
+     * @param {string} merkleRoot - Merkle root
+     * @returns {this} Builder instance for chaining
+     */
     setMerkleRoot(merkleRoot) {
         this.header.merkleRoot = merkleRoot;
         return this;
     }
+    /**
+     * Sets the difficulty
+     * @param {number} difficulty - Difficulty
+     * @returns {this} Builder instance for chaining
+     */
     setDifficulty(difficulty) {
         this.header.difficulty = difficulty;
         return this;
     }
+    /**
+     * Sets the nonce
+     * @param {number} nonce - Nonce
+     * @returns {this} Builder instance for chaining
+     */
     setNonce(nonce) {
         this.header.nonce = nonce;
         return this;
     }
+    /**
+     * Checks if the block is complete
+     * @returns {boolean} True if block is complete
+     */
     isComplete() {
         return !!(this.hash &&
             this.header &&
@@ -350,6 +476,11 @@ class BlockBuilder {
             this.header.timestamp &&
             this.header.nonce);
     }
+    /**
+     * Sets the block hash
+     * @param {string} hash - Block hash
+     * @returns {this} Builder instance for chaining
+     */
     setHash(hash) {
         this.hash = hash;
         return this;

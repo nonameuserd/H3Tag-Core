@@ -166,30 +166,74 @@ export class KeyManager {
       });
 
       const hash = await QuantumWrapper.hashData(Buffer.from(combined));
-
-      // Bitcoin-style address generation with quantum protection
       const ripemd160Hash = HashUtils.ripemd160(
         HashUtils.sha256(hash.toString("hex"))
       );
+
+      // Determine address type (TAG1, TAG3, or TAG)
+      const addressType = this.determineAddressType(pubKey);
+      const versionByte = this.getVersionByte(addressType);
+      
       const versionedHash = Buffer.concat([
-        Buffer.from([0x00]),
+        Buffer.from([versionByte]),
         Buffer.from(ripemd160Hash, "hex"),
       ]);
 
-      // Double SHA256 for checksum
       const checksum = HashUtils.sha256(
         HashUtils.sha256(versionedHash.toString("hex"))
       ).slice(0, 8);
 
-      // Combine and convert to base58
       const finalBinary = Buffer.concat([
         versionedHash,
         Buffer.from(checksum, "hex"),
       ]);
-      return HashUtils.toBase58(finalBinary);
+
+      return addressType + HashUtils.toBase58(finalBinary);
     } catch (error) {
       Logger.error("Failed to derive quantum-safe address", { error });
       throw new KeyError("Address derivation failed");
+    }
+  }
+
+  private static determineAddressType(publicKey: string): string {
+    try {
+        // Extract key characteristics
+        const keyLength = publicKey.length;
+        const keyType = publicKey.substring(0, 2); // First two characters often indicate key type
+        
+        // Determine address type based on key characteristics
+        if (keyType === "02" || keyType === "03") {
+            // Compressed public key format - use native SegWit equivalent
+            return "TAG1";
+        } else if (keyType === "04") {
+            // Uncompressed public key format - use legacy format
+            return "TAG";
+        } else if (keyLength > 66) {
+            // Complex/multisig script - use P2SH equivalent
+            return "TAG3";
+        }
+        
+        // Default to most modern format if we can't determine
+        Logger.debug("Using default address type TAG1 for public key", {
+            keyType,
+            keyLength
+        });
+        return "TAG1";
+    } catch (error) {
+        Logger.warn("Error determining address type, using default TAG1", {
+            error,
+            publicKey: publicKey.substring(0, 10) + "..."
+        });
+        return "TAG1";
+    }
+  }
+
+  private static getVersionByte(addressType: string): number {
+    switch (addressType) {
+      case "TAG1": return 0x00; // Native SegWit equivalent
+      case "TAG3": return 0x05; // P2SH equivalent
+      case "TAG": return 0x00;  // Legacy equivalent
+      default: throw new KeyError("Invalid address type");
     }
   }
 

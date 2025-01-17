@@ -25,7 +25,7 @@ class RateLimit {
             ...RateLimit.DEFAULT_CONFIG,
             ...config,
             keyGenerator: config.keyGenerator || this.defaultKeyGenerator.bind(this),
-            handler: config.handler || this.defaultHandler.bind(this)
+            handler: config.handler || this.defaultHandler.bind(this),
         };
         this.auditManager = auditManager;
         this.limiter = new cache_1.Cache({
@@ -35,8 +35,8 @@ class RateLimit {
             priorityLevels: {
                 pow: 3,
                 quadratic_vote: 2,
-                default: 1
-            }
+                default: 1,
+            },
         });
         this.initializeMetrics();
     }
@@ -105,7 +105,7 @@ class RateLimit {
                 resetTime: now + this.config.windowMs,
                 blocked: false,
                 lastRequest: now,
-                currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
+                currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
             };
         }
         if (info.current >= info.limit) {
@@ -115,11 +115,11 @@ class RateLimit {
                 type: audit_1.AuditEventType.SECURITY,
                 severity: audit_1.AuditSeverity.WARNING,
                 source: "rate_limit",
-                details: { key, requests: info.current }
+                details: { key, requests: info.current },
             });
         }
         this.limiter.set(key, info, {
-            priority: this.config.priorityLevels[type]
+            priority: this.config.priorityLevels[type],
         });
         return info;
     }
@@ -132,7 +132,7 @@ class RateLimit {
             if (info.remaining === 0) {
                 info.blocked = true;
                 info.resetTime = Date.now() + this.config.blockDuration;
-                this.eventEmitter.emit('blocked', { key });
+                this.eventEmitter.emit("blocked", { key });
                 await this.auditManager.logEvent({
                     type: audit_1.AuditEventType.SECURITY,
                     severity: audit_1.AuditSeverity.WARNING,
@@ -161,7 +161,7 @@ class RateLimit {
         res.status(429).json({
             error: "Too Many Requests",
             message: `Rate limit exceeded for ${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL}`,
-            retryAfter: Math.ceil((this.config.blockDuration) / 1000),
+            retryAfter: Math.ceil(this.config.blockDuration / 1000),
             currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         });
     }
@@ -186,7 +186,7 @@ class RateLimit {
     }
     async shutdown() {
         this.limiter.shutdown();
-        this.eventEmitter.emit('shutdown');
+        this.eventEmitter.emit("shutdown");
         shared_1.Logger.info("Rate limiter shutdown");
     }
     async checkLimit(key, type = "default") {
@@ -228,7 +228,7 @@ RateLimit.DEFAULT_CONFIG = {
     priorityLevels: {
         pow: 3,
         quadratic_vote: 2,
-        default: 1
-    }
+        default: 1,
+    },
 };
 //# sourceMappingURL=rateLimit.js.map

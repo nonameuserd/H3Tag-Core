@@ -1,7 +1,49 @@
 import { UTXO } from "./utxo.model";
+import { Mempool } from "../blockchain/mempool";
+/**
+ * @interface Transaction
+ * @description Complete transaction structure
+ *
+ * @property {string} id - Transaction identifier
+ * @property {number} version - Transaction version
+ * @property {TransactionType} type - Transaction type
+ * @property {string} hash - Transaction hash
+ * @property {TransactionStatus} status - Transaction status
+ * @property {TxInput[]} inputs - Transaction inputs
+ * @property {TxOutput[]} outputs - Transaction outputs
+ * @property {number} timestamp - Transaction timestamp
+ * @property {bigint} fee - Transaction fee
+ * @property {number} [lockTime] - Optional lock time
+ * @property {string} signature - Transaction signature
+ * @property {Object} [powData] - Optional mining data
+ * @property {string} sender - Sender's address
+ * @property {string} recipient - Recipient's address
+ * @property {string} [memo] - Optional transaction memo
+ * @property {Object} currency - Currency information
+ * @property {number} [blockHeight] - Block height containing transaction
+ * @property {number} [nonce] - Transaction nonce
+ * @property {Object} [voteData] - Optional voting data
+ * @property {boolean} [hasWitness] - Segregated witness flag
+ * @property {Object} [witness] - Witness data
+ *
+ * @method verify - Verifies transaction integrity
+ * @method toHex - Converts transaction to hex string
+ * @method getSize - Gets transaction size in bytes
+ */
 export declare class TransactionError extends Error {
     constructor(message: string);
 }
+/**
+ * @enum TransactionType
+ * @description Types of transactions supported by the blockchain
+ *
+ * @property {string} QUADRATIC_VOTE - Quadratic voting transaction
+ * @property {string} POW_REWARD - Mining reward transaction
+ * @property {string} STANDARD - Standard value transfer
+ * @property {string} TRANSFER - Token transfer transaction
+ * @property {string} COINBASE - Block reward transaction
+ * @property {string} REGULAR - Regular transaction
+ */
 export declare enum TransactionType {
     QUADRATIC_VOTE = "quadratic_vote",
     POW_REWARD = "pow",
@@ -10,11 +52,37 @@ export declare enum TransactionType {
     COINBASE = "coinbase",
     REGULAR = "regular"
 }
+/**
+ * @enum TransactionStatus
+ * @description Status states for transactions
+ *
+ * @property {string} PENDING - Transaction awaiting confirmation
+ * @property {string} CONFIRMED - Transaction confirmed in blockchain
+ * @property {string} FAILED - Transaction failed to process
+ */
 export declare enum TransactionStatus {
     PENDING = "pending",
     CONFIRMED = "confirmed",
     FAILED = "failed"
 }
+/**
+ * @interface TxInput
+ * @description Transaction input structure
+ *
+ * @property {string} txId - Previous transaction ID
+ * @property {number} outputIndex - Index of previous output
+ * @property {string} signature - Input signature
+ * @property {string} publicKey - Sender's public key
+ * @property {string} address - Sender's address
+ * @property {bigint} amount - Input amount
+ * @property {Object} currency - Currency information
+ * @property {string} currency.symbol - Currency symbol
+ * @property {number} currency.decimals - Decimal places
+ * @property {Object} [votingData] - Optional voting information
+ * @property {number} confirmations - Number of confirmations
+ * @property {string} script - Input script
+ * @property {number} sequence - Input sequence number
+ */
 export interface TxInput {
     txId: string;
     outputIndex: number;
@@ -35,6 +103,18 @@ export interface TxInput {
     script: string;
     sequence: number;
 }
+/**
+ * @interface TxOutput
+ * @description Transaction output structure
+ *
+ * @property {string} address - Recipient's address
+ * @property {bigint} amount - Output amount
+ * @property {string} script - Output script
+ * @property {string} [publicKey] - Optional recipient's public key
+ * @property {Object} currency - Currency information
+ * @property {number} index - Output index in transaction
+ * @property {Object} [votingData] - Optional voting information
+ */
 export interface TxOutput {
     address: string;
     amount: bigint;
@@ -52,6 +132,36 @@ export interface TxOutput {
         timestamp: number;
     };
 }
+/**
+ * @interface Transaction
+ * @description Complete transaction structure
+ *
+ * @property {string} id - Transaction identifier
+ * @property {number} version - Transaction version
+ * @property {TransactionType} type - Transaction type
+ * @property {string} hash - Transaction hash
+ * @property {TransactionStatus} status - Transaction status
+ * @property {TxInput[]} inputs - Transaction inputs
+ * @property {TxOutput[]} outputs - Transaction outputs
+ * @property {number} timestamp - Transaction timestamp
+ * @property {bigint} fee - Transaction fee
+ * @property {number} [lockTime] - Optional lock time
+ * @property {string} signature - Transaction signature
+ * @property {Object} [powData] - Optional mining data
+ * @property {string} sender - Sender's address
+ * @property {string} recipient - Recipient's address
+ * @property {string} [memo] - Optional transaction memo
+ * @property {Object} currency - Currency information
+ * @property {number} [blockHeight] - Block height containing transaction
+ * @property {number} [nonce] - Transaction nonce
+ * @property {Object} [voteData] - Optional voting data
+ * @property {boolean} [hasWitness] - Segregated witness flag
+ * @property {Object} [witness] - Witness data
+ *
+ * @method verify - Verifies transaction integrity
+ * @method toHex - Converts transaction to hex string
+ * @method getSize - Gets transaction size in bytes
+ */
 export interface Transaction {
     id: string;
     version: number;
@@ -63,9 +173,7 @@ export interface Transaction {
     timestamp: number;
     fee: bigint;
     lockTime?: number;
-    signature: {
-        address: string;
-    };
+    signature: string;
     powData?: {
         nonce: string;
         difficulty: number;
@@ -93,7 +201,21 @@ export interface Transaction {
     toHex(): string;
     getSize(): number;
 }
+/**
+ * @class TransactionBuilder
+ * @description Builder pattern implementation for creating new transactions
+ *
+ * @property {number} MAX_INPUTS - Maximum number of inputs allowed
+ * @property {number} MAX_OUTPUTS - Maximum number of outputs allowed
+ *
+ * @example
+ * const builder = new TransactionBuilder();
+ * await builder.addInput(txId, outputIndex, publicKey, amount);
+ * await builder.addOutput(address, amount);
+ * const transaction = await builder.build();
+ */
 export declare class TransactionBuilder {
+    static mempool: Mempool;
     type: TransactionType;
     private timestamp;
     private fee;
@@ -110,13 +232,29 @@ export declare class TransactionBuilder {
     private signature;
     private sender;
     private emitter;
-    private readonly mempool;
     constructor();
+    static setMempool(mempoolInstance: Mempool): void;
+    /**
+     * Adds an input to the transaction
+     * @param {string} txId - Previous transaction ID
+     * @param {number} outputIndex - Index of output in previous transaction
+     * @param {string} publicKey - Sender's public key
+     * @param {bigint} amount - Amount to spend
+     * @returns {Promise<this>} Builder instance for chaining
+     * @throws {TransactionError} If input parameters are invalid
+     */
     addInput(txId: string, // Previous transaction ID
     outputIndex: number, // Index of output in previous transaction
     publicKey: string, // Sender's public key
     amount: bigint): Promise<this>;
     private generateInputScript;
+    /**
+     * Adds an output to the transaction
+     * @param {string} address - Recipient's address
+     * @param {bigint} amount - Amount to send
+     * @returns {Promise<this>} Builder instance for chaining
+     * @throws {TransactionError} If output parameters are invalid
+     */
     addOutput(address: string, // Recipient's address
     amount: bigint): Promise<this>;
     private generateOutputScript;
@@ -139,6 +277,12 @@ export declare class TransactionBuilder {
      * it's been used in block.validator.ts
      */
     static verify(tx: Transaction): Promise<boolean>;
+    /**
+     * Safely parses a JSON string
+     * @param {string} str - JSON string to parse
+     * @returns {any} Parsed object
+     * @throws {TransactionError} If parsing fails
+     */
     static safeJsonParse(str: string): any;
     /**
      * Calculate total input amount with overflow protection
@@ -154,12 +298,16 @@ export declare class TransactionBuilder {
     /**
      * Validate transaction structure and amounts
      */
-    static validateTransaction(tx: Transaction, utxos: UTXO[]): boolean;
+    static validateTransaction(tx: Transaction, utxos: UTXO[]): Promise<boolean>;
+    /**
+     * Calculate transaction size
+     * @param tx Transaction to calculate size for
+     * @returns Size of the transaction in bytes
+     * @throws TransactionError If size calculation fails
+     */
     static calculateTransactionSize(tx: Transaction): number;
     verify(): Promise<boolean>;
-    setSignature(signature: {
-        address: string;
-    }): this;
+    setSignature(signature: string): this;
     setSender(sender: string): this;
     setFee(fee: bigint): this;
     /**
@@ -219,6 +367,20 @@ export declare class TransactionBuilder {
      */
     static validateAddress(address: string): boolean;
     private static getNetworkType;
+    cleanup(): void;
+    private validateCurrency;
+    /**
+     * Calculate minimum required fee based on current network conditions
+     * @param txSize Transaction size in bytes
+     * @returns Promise<bigint> Minimum required fee
+     */
+    private getDynamicMinFee;
+    /**
+     * Calculate maximum allowed fee based on current network conditions
+     * @param txSize Transaction size in bytes
+     * @returns Promise<bigint> Maximum allowed fee
+     */
+    private getDynamicMaxFee;
 }
 /**
  * Estimates the fee for a transaction based on its size and current network conditions

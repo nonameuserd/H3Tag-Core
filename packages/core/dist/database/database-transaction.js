@@ -142,24 +142,24 @@ class DatabaseTransaction {
     put(key, value) {
         this.validateTransactionState();
         if (!key || !value) {
-            throw new Error('Key and value must be provided');
+            throw new Error("Key and value must be provided");
         }
-        this.operations.push({ type: 'put', key, value });
+        this.operations.push({ type: "put", key, value });
         this.batch.put(key, value);
     }
     delete(key) {
         this.validateTransactionState();
         if (!key) {
-            throw new Error('Key must be provided');
+            throw new Error("Key must be provided");
         }
-        this.operations.push({ type: 'del', key });
+        this.operations.push({ type: "del", key });
         this.batch.del(key);
     }
     async commit() {
         this.validateTransactionState();
         try {
             await new Promise((resolve, reject) => {
-                this.batch.write(error => {
+                this.batch.write((error) => {
                     if (error)
                         reject(error);
                     else
@@ -170,9 +170,9 @@ class DatabaseTransaction {
             shared_1.Logger.debug(`Transaction committed with ${this.operations.length} operations`);
         }
         catch (error) {
-            shared_1.Logger.error('Transaction commit failed:', error);
+            shared_1.Logger.error("Transaction commit failed:", error);
             await this.rollback();
-            throw new Error('Transaction commit failed: ' + error.message);
+            throw new Error("Transaction commit failed: " + error.message);
         }
     }
     async rollback() {
@@ -202,7 +202,7 @@ class DatabaseTransaction {
                 }
             }
             await new Promise((resolve, reject) => {
-                reverseBatch.write(error => {
+                reverseBatch.write((error) => {
                     if (error)
                         reject(error);
                     else
@@ -213,8 +213,9 @@ class DatabaseTransaction {
             shared_1.Logger.debug(`Transaction rolled back ${this.operations.length} operations`);
         }
         catch (error) {
-            shared_1.Logger.error('Transaction rollback failed:', error);
-            throw new Error('Transaction rollback failed: ' + (error instanceof Error ? error.message : 'Unknown error'));
+            shared_1.Logger.error("Transaction rollback failed:", error);
+            throw new Error("Transaction rollback failed: " +
+                (error instanceof Error ? error.message : "Unknown error"));
         }
     }
     /**
@@ -223,13 +224,13 @@ class DatabaseTransaction {
      */
     validateTransactionState() {
         if (this.committed && this.rolledBack) {
-            throw new Error('Transaction in invalid state: both committed and rolled back');
+            throw new Error("Transaction in invalid state: both committed and rolled back");
         }
         if (this.committed) {
-            throw new Error('Transaction already committed');
+            throw new Error("Transaction already committed");
         }
         if (this.rolledBack) {
-            throw new Error('Transaction already rolled back');
+            throw new Error("Transaction already rolled back");
         }
     }
     /**
@@ -267,12 +268,12 @@ class DatabaseTransaction {
      */
     getTransactionState() {
         if (this.committed && this.rolledBack)
-            return 'invalid';
+            return "invalid";
         if (this.committed)
-            return 'committed';
+            return "committed";
         if (this.rolledBack)
-            return 'rolled_back';
-        return 'active';
+            return "rolled_back";
+        return "active";
     }
 }
 exports.DatabaseTransaction = DatabaseTransaction;

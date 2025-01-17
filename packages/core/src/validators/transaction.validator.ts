@@ -513,13 +513,7 @@ export class TransactionValidator {
       );
     }
 
-    const signatureData = {
-      address: input.publicKey,
-    };
-
-    return HybridCrypto.verify(txId, signatureData, {
-      address: input.publicKey,
-    });
+    return HybridCrypto.verify(txId, input.signature, input.publicKey);
   }
 
   /**

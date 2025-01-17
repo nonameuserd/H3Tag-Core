@@ -79,8 +79,34 @@ export class NodeInitializer {
       const { RetryStrategy } = require('@h3tag-blockchain/core/dist/utils/retry');
 
       async function initializeNode() {
+        let healthCheckInterval;
         try {
           Logger.info('Starting seed node initialization...');
+
+          // Initialize audit manager first
+          const auditStorage = new InMemoryAuditStorage();
+          const auditManager = new AuditManager(auditStorage);
+
+          // Initialize security with proper error handling
+          let securityKeys;
+          try {
+            securityKeys = await retryStrategy.execute(async () => {
+              await HybridCrypto.initialize();
+              return HybridCrypto.generateKeyPair();
+            });
+          } catch (error) {
+            Logger.error('Failed to initialize security:', error);
+            throw error;
+          }
+
+          // Single cache initialization
+          const cacheConfig = {
+            ttl: 3600,
+            maxSize: 1000,
+            maxMemory: 1024 * 1024 * 512,
+            compression: true
+          };
+          const cache = new Cache(cacheConfig);
 
           // Initialize retry strategy
           const retryConfig = {
@@ -219,8 +245,8 @@ export class NodeInitializer {
             throw error;
           }
 
-          // Start health monitoring
-          setInterval(async () => {
+          // Health monitoring with cleanup
+          healthCheckInterval = setInterval(async () => {
             const keystoreHealth = await Keystore.healthCheck();
             const cacheHealth = cache.getHitRate() > 0.7; // 70% hit rate threshold
             const shardHealth = await shardManager.healthCheck();
@@ -232,7 +258,20 @@ export class NodeInitializer {
                 sharding: shardHealth
               });
             }
-          }, 300000); // Every 5 minutes
+          }, 300000);
+
+          // Cleanup handling
+          const cleanup = async () => {
+            clearInterval(healthCheckInterval);
+            await workerPool.shutdown();
+            await mainDb.close();
+            await miningDb.close();
+            // ... close other resources ...
+            process.exit(0);
+          };
+
+          process.on('SIGTERM', cleanup);
+          process.on('SIGINT', cleanup);
 
           // 9. Start Node Services
           await node.initialize();
@@ -257,6 +296,7 @@ export class NodeInitializer {
           await node.start();
 
         } catch (error) {
+          clearInterval(healthCheckInterval);
           Logger.error('Failed to initialize seed node:', error);
           process.exit(1);
         }

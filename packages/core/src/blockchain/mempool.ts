@@ -379,7 +379,7 @@ export class Mempool {
   private readonly transactionMutexes = new Map<string, Mutex>();
 
   private lastValidFee: number =
-    BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE;
+    Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
 
   private ddosProtection: DDoSProtection;
 
@@ -1208,10 +1208,10 @@ export class Mempool {
     utxoSet: UTXOSet
   ): Promise<boolean> {
     try {
-      // 1. Fee requirements
+      //Fee requirements
       const txSize = this.getTransactionSize(transaction);
       const feeRate = this.calculateFeePerByte(transaction);
-      const minFeeRate = BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE;
+      const minFeeRate = await this.getMinFeeRate();
 
       if (feeRate < minFeeRate) {
         Logger.warn("Insufficient fee rate", {
@@ -1228,7 +1228,7 @@ export class Mempool {
         this.transactions.size >
         BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.HIGH_CONGESTION_THRESHOLD
       ) {
-        const dynamicMinFee = this.calculateDynamicMinFee();
+        const dynamicMinFee = await this.calculateDynamicMinFee();
         if (feeRate < dynamicMinFee) {
           Logger.warn("Fee too low during high congestion", {
             txId: transaction.id,
@@ -1257,10 +1257,9 @@ export class Mempool {
         }
       }
 
-      // 2. Check mempool size limits
       if (
         this.transactions.size >=
-        BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE
+        await this.getMaxSize()
       ) {
         const minFeeRate = this.estimateFee(1);
         const txFeeRate = this.calculateFeePerByte(transaction);
@@ -1308,12 +1307,12 @@ export class Mempool {
     }
   }
 
-  private calculateDynamicMinFee(): number {
+  private async calculateDynamicMinFee(): Promise<number> {
     try {
       // Get current mempool metrics
       const currentSize = this.transactions.size;
-      const maxSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
-      const baseMinFee = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE;
+      const maxSize = await this.getMaxSize();
+      const baseMinFee = await this.getMinFeeRate();
 
       // Calculate congestion levels
       const congestionFactor = currentSize / maxSize;
@@ -1351,9 +1350,9 @@ export class Mempool {
       });
       // Use a more reasonable fallback
       return Math.max(
-        BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
+        Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE),
         this.lastValidFee ||
-          BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE * 2
+          Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 2
       );
     }
   }
@@ -2148,105 +2147,82 @@ export class Mempool {
 
   private calculateTransactionSize(transaction: Transaction): number {
     try {
-      // Basic structure validation
-      if (!transaction || !transaction.inputs || !transaction.outputs) {
+      // Basic validation
+      if (!transaction?.inputs?.length || !transaction?.outputs?.length) {
         throw new Error("Invalid transaction structure");
-      }
-
-      // Version validation
-      if (transaction.version < 1 || transaction.version > 2) {
-        throw new Error("Invalid transaction version");
       }
 
       let size = 0;
       const SIZES = {
         VERSION: 4,
         LOCKTIME: 4,
-        INPUT_COUNT_VARINT: 1,
-        OUTPUT_COUNT_VARINT: 1,
-        INPUT_OUTPOINT: 36,
-        INPUT_SCRIPT_LENGTH_VARINT: 1,
-        INPUT_SEQUENCE: 4,
-        OUTPUT_VALUE: 8,
-        OUTPUT_SCRIPT_LENGTH_VARINT: 1,
+        INPUT_BASE: 41, // outpoint (36) + sequence (4) + varInt (1)
+        OUTPUT_BASE: 9, // value (8) + varInt (1)
         WITNESS_FLAG: 2,
+        INPUT_SEQUENCE: 4,
       };
 
-      // Add version and locktime
-      size += SIZES.VERSION;
-      size += SIZES.LOCKTIME;
+      // Base size
+      size += SIZES.VERSION + SIZES.LOCKTIME;
 
-      // Input size calculation
+      // Input size with validation
       size += this.getVarIntSize(transaction.inputs.length);
       for (const input of transaction.inputs) {
-        if (!input.script) {
-          throw new Error("Missing input script");
-        }
-
-        if (!this.isValidInputScript(input.script)) {
-          throw new Error("Invalid input script");
-        }
-
-        size += SIZES.INPUT_OUTPOINT;
-        size += SIZES.INPUT_SCRIPT_LENGTH_VARINT;
-
-        // Signature validation and size
-        if (input.signature) {
-          const sigSize = Buffer.from(input.signature, "base64").length;
-          if (sigSize > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIGNATURE_SIZE) {
-            throw new Error("Signature too large");
+        size += SIZES.INPUT_BASE;
+        
+        // Script validation
+        if (input.script) {
+          const scriptSize = Buffer.from(input.script).length;
+          if (scriptSize > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SCRIPT_SIZE) {
+            throw new Error(`Input script too large: ${scriptSize} bytes`);
           }
-          size += sigSize;
+          size += scriptSize;
         }
 
         // Public key validation and size
         if (input.publicKey) {
-          const pubKeySize = Buffer.from(input.publicKey, "base64").length;
+          const pubKeySize = Buffer.from(input.publicKey, 'base64').length;
           if (pubKeySize > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_PUBKEY_SIZE) {
-            throw new Error("Public key too large");
+            throw new Error(`Public key too large: ${pubKeySize} bytes`);
           }
           size += pubKeySize;
+        }
+
+        // Signature size if present
+        if (input.signature) {
+          const sigSize = Buffer.from(input.signature, 'base64').length;
+          if (sigSize > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIGNATURE_SIZE) {
+            throw new Error(`Signature too large: ${sigSize} bytes`);
+          }
+          size += sigSize;
         }
 
         size += SIZES.INPUT_SEQUENCE;
       }
 
-      // Output size calculation
+      // Output size with validation
       size += this.getVarIntSize(transaction.outputs.length);
       for (const output of transaction.outputs) {
-        size += SIZES.OUTPUT_VALUE;
-        size += SIZES.OUTPUT_SCRIPT_LENGTH_VARINT;
-
+        size += SIZES.OUTPUT_BASE;
+        
         if (output.script) {
-          if (!this.isValidScriptType(output.script)) {
-            throw new Error("Invalid script type");
-          }
           const scriptSize = Buffer.from(output.script).length;
           if (scriptSize > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SCRIPT_SIZE) {
-            throw new Error("Script too large");
+            throw new Error(`Output script too large: ${scriptSize} bytes`);
           }
           size += scriptSize;
         }
       }
 
-      // Witness data calculation
-      if (transaction.hasWitness && transaction.witness?.stack) {
-        if (transaction.witness.stack.length !== transaction.inputs.length) {
-          throw new Error("Witness stack size mismatch");
-        }
-
+      // Witness data if present
+      if (transaction.hasWitness && transaction.witness?.stack?.length) {
         size += SIZES.WITNESS_FLAG;
         size += this.getVarIntSize(transaction.witness.stack.length);
-
+        
         for (const witnessData of transaction.witness.stack) {
-          const witnessSize = Buffer.from(witnessData, "hex").length;
+          const witnessSize = Buffer.from(witnessData, 'hex').length;
           size += this.getVarIntSize(witnessSize) + witnessSize;
         }
-      }
-
-      // Final size validation
-      if (size > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
-        throw new Error("Transaction too large");
       }
 
       return size;
@@ -2379,9 +2355,9 @@ export class Mempool {
     }
   }
 
-  private updateDynamicFees(): void {
+  private async updateDynamicFees(): Promise<void> {
     try {
-      const newFee = this.calculateDynamicMinFee();
+      const newFee = await this.calculateDynamicMinFee();
       this.lastValidFee = newFee;
 
       Logger.debug("Updated dynamic fees", {
@@ -2478,23 +2454,22 @@ export class Mempool {
     return false;
   }
 
-  private validateTransactionSize(transaction: Transaction): boolean {
+  private async validateTransactionSize(transaction: Transaction): Promise<boolean> {
     const size = this.calculateTransactionSize(transaction);
 
-    // Check against max transaction size
-    if (size > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
+    if (size > await this.getMaxSize()) {
       Logger.warn("Transaction exceeds maximum size", {
         txId: transaction.id,
         size,
-        maxSize: BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE,
+        maxSize: await this.getMaxSize(),
       });
       return false;
     }
 
-    // Check minimum fee based on size
-    const minFee = BigInt(
-      size * BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE
-    );
+    const minFeeRate = await this.getMinFeeRate();
+    // Convert to BigInt before multiplication
+    const minFee = BigInt(Math.floor(size * minFeeRate));
+    
     if (transaction.fee < minFee) {
       Logger.warn("Transaction fee too low for size", {
         txId: transaction.id,
@@ -2554,7 +2529,7 @@ export class Mempool {
         loadFactor,
 
         fees: {
-          base: BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
+          base: await this.getMinFeeRate(),
           current: this.lastValidFee,
           mean: feeMetrics.mean,
           median: feeMetrics.median,
@@ -2788,114 +2763,102 @@ export class Mempool {
 
   private isValidInputScript(script: string): boolean {
     try {
-      if (!script || typeof script !== "string") return false;
+        if (!script || typeof script !== "string") return false;
 
-      const scriptBuffer = Buffer.from(script, "hex");
-      let position = 0;
-
-      while (position < scriptBuffer.length) {
-        const opcode = scriptBuffer[position];
-        position++;
-
-        const validOpcodes = new Set<number>(
-          Object.values(this.SCRIPT_OPCODES)
-        );
-        if (!validOpcodes.has(opcode)) {
-          Logger.warn("Invalid opcode in script", { opcode });
-          return false;
+        // Check for our supported script formats
+        if (script.startsWith("0 ")) {
+            // Native SegWit equivalent (TAG1)
+            return /^0 [a-f0-9]{40}$/i.test(script);
+        } else if (script.startsWith("OP_HASH160")) {
+            // P2SH equivalent (TAG3)
+            return /^OP_HASH160 [a-f0-9]{40} OP_EQUAL$/i.test(script);
+        } else if (script.startsWith("OP_DUP")) {
+            // Legacy P2PKH (TAG)
+            return /^OP_DUP OP_HASH160 [a-f0-9]{40} OP_EQUALVERIFY OP_CHECKSIG$/i.test(script);
         }
 
-        // Handle push data operations
-        if (opcode > 0x00 && opcode < 0x4c) {
-          // Direct push of N bytes
-          position += opcode;
-        } else if (opcode === this.SCRIPT_OPCODES.OP_PUSHDATA1) {
-          position += 1 + scriptBuffer[position];
-        } else if (opcode === this.SCRIPT_OPCODES.OP_PUSHDATA2) {
-          position += 2 + scriptBuffer.readUInt16LE(position);
-        } else if (opcode === this.SCRIPT_OPCODES.OP_PUSHDATA4) {
-          position += 4 + scriptBuffer.readUInt32LE(position);
-        }
-
-        // Validate position bounds
-        if (position > scriptBuffer.length) {
-          Logger.warn("Script size mismatch");
-          return false;
-        }
-      }
-
-      return true;
+        Logger.warn("Unsupported script format");
+        return false;
     } catch (error) {
-      Logger.error("Input script validation failed:", error);
-      return false;
+        Logger.error("Input script validation failed:", error);
+        return false;
     }
-  }
+}
 
-  private isValidScriptType(script: string): boolean {
+private isValidScriptType(script: string): boolean {
     try {
-      if (!script || typeof script !== "string") return false;
+        if (!script || typeof script !== "string") return false;
 
-      const scriptBuffer = Buffer.from(script, "hex");
+        // Check script version and format
+        const [version, scriptContent] = script.split(":");
+        if (version !== "01") return false;
 
-      // P2PKH validation (OP_DUP OP_HASH160 <pubKeyHash> OP_EQUALVERIFY OP_CHECKSIG)
-      if (
-        scriptBuffer.length === 25 &&
-        scriptBuffer[0] === 0x76 && // OP_DUP
-        scriptBuffer[1] === 0xa9 && // OP_HASH160
-        scriptBuffer[2] === 0x14 && // Push 20 bytes
-        scriptBuffer[23] === 0x88 && // OP_EQUALVERIFY
-        scriptBuffer[24] === 0xac
-      ) {
-        // OP_CHECKSIG
-        return true;
-      }
-
-      // P2SH validation (OP_HASH160 <scriptHash> OP_EQUAL)
-      if (
-        scriptBuffer.length === 23 &&
-        scriptBuffer[0] === 0xa9 && // OP_HASH160
-        scriptBuffer[1] === 0x14 && // Push 20 bytes
-        scriptBuffer[22] === 0x87
-      ) {
-        // OP_EQUAL
-        return true;
-      }
-
-      // P2WPKH validation (OP_0 <pubKeyHash>)
-      if (
-        scriptBuffer.length === 22 &&
-        scriptBuffer[0] === 0x00 && // OP_0
-        scriptBuffer[1] === 0x14
-      ) {
-        // Push 20 bytes
-        return true;
-      }
-
-      // P2WSH validation (OP_0 <scriptHash>)
-      if (
-        scriptBuffer.length === 34 &&
-        scriptBuffer[0] === 0x00 && // OP_0
-        scriptBuffer[1] === 0x20
-      ) {
-        // Push 32 bytes
-        return true;
-      }
-
-      // P2TR validation (OP_1 <pubKey>)
-      if (
-        scriptBuffer.length === 34 &&
-        scriptBuffer[0] === 0x51 && // OP_1
-        scriptBuffer[1] === 0x20
-      ) {
-        // Push 32 bytes
-        return true;
-      }
-
-      Logger.warn("Unknown script type");
-      return false;
+        return this.isValidInputScript(scriptContent);
     } catch (error) {
-      Logger.error("Script type validation failed:", error);
-      return false;
+        Logger.error("Script type validation failed:", error);
+        return false;
     }
+}
+
+public async getCongestionFactor(): Promise<number> {
+  try {
+    const currentSize = this.transactions.size;
+    const maxSize = await this.getMaxSize();
+    return Math.min(currentSize / maxSize, 1);
+  } catch (error) {
+    Logger.error("Failed to get congestion factor:", error);
+    return 0.5; // Return moderate congestion on error
   }
+}
+
+public async getMinFeeRate(): Promise<number> {
+  try {
+    return this.calculateDynamicMinFee();
+  } catch (error) {
+    Logger.error("Failed to get min fee rate:", error);
+    return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+  }
+}
+
+public async getMaxSize(): Promise<number> {
+  try {
+    const baseMaxSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
+    const congestionFactor = await this.getCongestionFactor();
+    
+    // More gradual size reduction based on congestion
+    const dynamicSize = Math.floor(baseMaxSize * (1 - congestionFactor * 0.3));
+    
+    // Never go below minimum viable transaction size
+    const minViableSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_SIZE;
+    return Math.max(dynamicSize, minViableSize);
+  } catch (error) {
+    Logger.error("Failed to get max size:", error);
+    // Fallback to conservative size limit
+    return BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
+  }
+}
+
+public async getMaxFeeRate(): Promise<number> {
+  try {
+    const minFee = await this.getMinFeeRate();
+    // Cap maximum fee at 20x the minimum fee
+    return minFee * 20;
+  } catch (error) {
+    Logger.error("Failed to get max fee rate:", error);
+    return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 20;
+  }
+}
+
+public async getBaseFeeRate(): Promise<number> {
+  try {
+    // Get base fee rate from network conditions
+    const congestionFactor = await this.getCongestionFactor();
+    const baseFee = Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+    return Math.floor(baseFee * (1 + congestionFactor));
+  } catch (error) {
+    Logger.error("Failed to get base fee rate:", error);
+    return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+  }
+}
+
 }

@@ -121,6 +121,6 @@ export declare class MiningWorker {
     private initialize;
     calculateHashRate(): number;
     private shouldReportProgress;
-    mineRange({ start, end, target, headerBase, batchSize }: MiningTask): Promise<void>;
+    mineRange({ start, end, target, headerBase, batchSize, }: MiningTask): Promise<void>;
 }
 export {};

@@ -19,11 +19,11 @@ class NodeVerifier {
     static async verifyNode(nodeInfo) {
         try {
             // Add timeout to prevent hanging
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Verification timeout')), this.VERIFICATION_TIMEOUT));
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Verification timeout")), this.VERIFICATION_TIMEOUT));
             // Wrap verification in try-catch to handle timeout rejection properly
             return await Promise.race([
                 this.verifyNodeWithTimeout(nodeInfo),
-                timeoutPromise
+                timeoutPromise,
             ]);
         }
         catch (error) {
@@ -39,7 +39,7 @@ class NodeVerifier {
             this.validateVersion(nodeInfo.version),
             this.validateTimestamp(nodeInfo.timestamp),
             this.validateSignature(nodeInfo),
-            this.validateNodeAddress(nodeInfo.address)
+            this.validateNodeAddress(nodeInfo.address),
         ]);
         return this.verifyRequirements(nodeInfo);
     }
@@ -48,7 +48,9 @@ class NodeVerifier {
         return (nodeInfo.tagInfo.minedBlocks >= this.MIN_POW_BLOCKS &&
             nodeInfo.tagInfo.voteParticipation >= this.MIN_PARTICIPATION_RATE &&
             nodeInfo.tagInfo.currency === constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL &&
-            (nodeInfo.tagInfo.votingPower ? BigInt(nodeInfo.tagInfo.votingPower) >= minimumVotingPower : false));
+            (nodeInfo.tagInfo.votingPower
+                ? BigInt(nodeInfo.tagInfo.votingPower) >= minimumVotingPower
+                : false));
     }
     static async validateSignature(nodeInfo) {
         try {
@@ -56,9 +58,9 @@ class NodeVerifier {
                 version: nodeInfo.version,
                 timestamp: nodeInfo.timestamp,
                 address: nodeInfo.address,
-                tagInfo: nodeInfo.tagInfo
+                tagInfo: nodeInfo.tagInfo,
             });
-            const isValid = await crypto_1.HybridCrypto.verify(data, { address: nodeInfo.signature.address }, { address: nodeInfo.publicKey.address });
+            const isValid = await crypto_1.HybridCrypto.verify(data, nodeInfo.signature, nodeInfo.publicKey);
             if (!isValid) {
                 throw new VerificationError("Invalid node signature");
             }
@@ -71,10 +73,8 @@ class NodeVerifier {
         const node = info;
         return Boolean(node &&
             typeof node.version === "string" &&
-            node.publicKey &&
-            typeof node.publicKey.address === "string" &&
-            typeof node.signature === "object" &&
-            typeof node.signature.address === "string" &&
+            typeof node.publicKey === "string" &&
+            typeof node.signature === "string" &&
             typeof node.timestamp === "number" &&
             typeof node.address === "string" &&
             node.tagInfo &&
@@ -105,8 +105,8 @@ class NodeVerifier {
     static validateNodeAddress(address) {
         try {
             // 1. Basic input validation
-            if (!address || typeof address !== 'string') {
-                throw new VerificationError('Missing or invalid node address');
+            if (!address || typeof address !== "string") {
+                throw new VerificationError("Missing or invalid node address");
             }
             // 2. Protocol validation - support both HTTP/HTTPS and P2P
             const isHttpAddress = address.match(/^https?:\/\//i);
@@ -119,24 +119,24 @@ class NodeVerifier {
             // 4. Protocol-specific validation
             if (isHttpAddress) {
                 // HTTP/HTTPS specific validations
-                const urlRegex = new RegExp('^' + // Start of string
-                    '(?:https?://)' + // Protocol (http or https)
-                    '(?:\\S+(?::\\S*)?@)?' + // Optional authentication
-                    '(?:' + // Hostname parts:
-                    '(?!(?:10|127)(?:\\.\\d{1,3}){3})' + // Exclude private ranges 10.x.x.x
-                    '(?!(?:169\\.254|192\\.168)(?:\\.\\d{1,3}){2})' + // Exclude private ranges 169.254.x.x, 192.168.x.x
-                    '(?!172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.\\d{1,3}){2})' + // Exclude private range 172.16.0.0 - 172.31.255.255
-                    '(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])' + // First octet
-                    '(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}' + // Second and third octets
-                    '(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))' + // Fourth octet
-                    '|' + // OR
-                    '(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)' + // Hostname
-                    '(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*' + // Domain
-                    '\\.(?:[a-z\\u00a1-\\uffff]{2,})' + // TLD
-                    ')' +
-                    '(?::\\d{2,5})?' + // Port number (optional)
-                    '(?:[/?#][^\\s]*)?$', // Path and query params (optional)
-                'i' // Case-insensitive
+                const urlRegex = new RegExp("^" + // Start of string
+                    "(?:https?://)" + // Protocol (http or https)
+                    "(?:\\S+(?::\\S*)?@)?" + // Optional authentication
+                    "(?:" + // Hostname parts:
+                    "(?!(?:10|127)(?:\\.\\d{1,3}){3})" + // Exclude private ranges 10.x.x.x
+                    "(?!(?:169\\.254|192\\.168)(?:\\.\\d{1,3}){2})" + // Exclude private ranges 169.254.x.x, 192.168.x.x
+                    "(?!172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.\\d{1,3}){2})" + // Exclude private range 172.16.0.0 - 172.31.255.255
+                    "(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])" + // First octet
+                    "(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}" + // Second and third octets
+                    "(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))" + // Fourth octet
+                    "|" + // OR
+                    "(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)" + // Hostname
+                    "(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*" + // Domain
+                    "\\.(?:[a-z\\u00a1-\\uffff]{2,})" + // TLD
+                    ")" +
+                    "(?::\\d{2,5})?" + // Port number (optional)
+                    "(?:[/?#][^\\s]*)?$", // Path and query params (optional)
+                "i" // Case-insensitive
                 );
                 if (!urlRegex.test(address)) {
                     throw new VerificationError(`Invalid HTTP/HTTPS node address format`);
@@ -146,7 +146,7 @@ class NodeVerifier {
                 // P2P specific validations
                 const p2pRegex = /^p2p:\/\/([a-f0-9]{64}|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d{2,5})?$/i;
                 if (!p2pRegex.test(address)) {
-                    throw new VerificationError('Invalid P2P node address format');
+                    throw new VerificationError("Invalid P2P node address format");
                 }
             }
             // 5. Port validation
@@ -154,29 +154,29 @@ class NodeVerifier {
             if (port) {
                 const portNum = parseInt(port, 10);
                 if (portNum < 1024 || portNum > 65535) {
-                    throw new VerificationError('Invalid port number. Must be between 1024 and 65535');
+                    throw new VerificationError("Invalid port number. Must be between 1024 and 65535");
                 }
             }
             // 6. Hostname length validation
             if (url.hostname.length > 253) {
-                throw new VerificationError('Hostname exceeds maximum length of 253 characters');
+                throw new VerificationError("Hostname exceeds maximum length of 253 characters");
             }
             // 7. Path security validation
-            if (url.pathname.includes('..')) {
-                throw new VerificationError('Path contains invalid directory traversal patterns');
+            if (url.pathname.includes("..")) {
+                throw new VerificationError("Path contains invalid directory traversal patterns");
             }
-            shared_1.Logger.debug('Node address validation successful', {
+            shared_1.Logger.debug("Node address validation successful", {
                 protocol: url.protocol,
                 hostname: url.hostname,
-                port: url.port || 'default',
-                type: isHttpAddress ? 'HTTP(S)' : 'P2P'
+                port: url.port || "default",
+                type: isHttpAddress ? "HTTP(S)" : "P2P",
             });
         }
         catch (error) {
             if (error instanceof VerificationError) {
                 throw error;
             }
-            shared_1.Logger.error('Node address validation failed:', error);
+            shared_1.Logger.error("Node address validation failed:", error);
             throw new VerificationError(`Invalid node address: ${error.message}`);
         }
     }

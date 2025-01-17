@@ -97,11 +97,11 @@ export class PeerService {
         peerId: peer.getId(),
         address: createPeerDto.address,
         status: peer.getState(),
-        version: peerInfo.version,
-        lastSeen: new Date(peerInfo.lastSeen).toISOString(),
-        latency: peerInfo.latency,
-        height: peerInfo.height,
-        services: peerInfo.services,
+        version: (await peer.getInfo()).version,
+        lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
+        latency: (await peer.getInfo()).latency,
+        height: (await peer.getInfo()).height,
+        services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
       };
     } catch (error) {
       Logger.error("Failed to add peer:", error);
@@ -136,11 +136,11 @@ export class PeerService {
           peerId: peer.getId(),
           address: `${peer.getAddress()}`,
           status: peer.getState(),
-          version: peerInfo.version,
-          lastSeen: new Date(peerInfo.lastSeen).toISOString(),
-          latency: peerInfo.latency,
-          height: peerInfo.height,
-          services: peerInfo.services,
+          version: (await peer.getInfo()).version,
+          lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
+          latency: (await peer.getInfo()).latency,
+          height: (await peer.getInfo()).height,
+          services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
         });
       }
 
@@ -213,11 +213,11 @@ export class PeerService {
         peerId: peer.getId(),
         address: peer.getAddress(),
         status: PeerState.BANNED,
-        version: peerInfo.version,
-        lastSeen: new Date(peerInfo.lastSeen).toISOString(),
-        latency: peerInfo.latency,
-        height: peerInfo.height,
-        services: peerInfo.services,
+        version: (await peer.getInfo()).version,
+        lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
+        latency: (await peer.getInfo()).latency,
+        height: (await peer.getInfo()).height,
+        services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
       };
     } catch (error) {
       Logger.error("Failed to ban peer:", error);
@@ -261,7 +261,9 @@ export class PeerService {
       port: peerInfo.port,
       version: peerInfo.version,
       state: peerInfo.state,
-      services: peerInfo.services,
+      services: Array.isArray(peerInfo.services) 
+        ? peerInfo.services.reduce((acc, service) => acc | service, 0)
+        : peerInfo.services || 1, // 1 represents NODE service
       lastSeen: peerInfo.lastSeen,
       lastSend: peerInfo.lastSend,
       syncedBlocks: peerInfo.syncedBlocks,
@@ -312,7 +314,7 @@ export class PeerService {
           bannedPeers++;
         } else if (peer.isConnected()) {
           activePeers++;
-          totalLatency += peer.getInfo().latency;
+          totalLatency += (await peer.getInfo()).latency;
         }
       }
 

@@ -217,7 +217,7 @@ class ProofOfWork {
                 catch (error) {
                     shared_1.Logger.error(`Failed to persist evicted block ${key}:`, error);
                 }
-            }
+            },
         });
         this.gpuCircuitBreaker = {
             failures: 0,
@@ -225,13 +225,13 @@ class ProofOfWork {
             threshold: 3,
             resetTimeout: 300000,
             isOpen() {
-                return this.failures >= this.threshold &&
-                    (Date.now() - this.lastFailure) < this.resetTimeout;
+                return (this.failures >= this.threshold &&
+                    Date.now() - this.lastFailure < this.resetTimeout);
             },
             recordFailure() {
                 this.failures++;
                 this.lastFailure = Date.now();
-            }
+            },
         };
         this.minTime = 0;
         this.lastBlockTime = Date.now();
@@ -293,7 +293,7 @@ class ProofOfWork {
         });
         this.retryStrategy = new retry_1.RetryStrategy({
             maxAttempts: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_ATTEMPTS,
-            delay: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_DELAY_MS
+            delay: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_DELAY_MS,
         });
     }
     /**
@@ -406,7 +406,7 @@ class ProofOfWork {
                 while (!this.isInterrupted && block.header.nonce < this.MAX_NONCE) {
                     // Update merkle root if mempool changed
                     if (await this.mempool.hasChanged()) {
-                        block.header.merkleRoot = await this.merkleTree.createRoot(block.transactions.map(tx => tx.hash));
+                        block.header.merkleRoot = await this.merkleTree.createRoot(block.transactions.map((tx) => tx.hash));
                     }
                     // Try mining with different strategies (GPU, CPU, etc.)
                     const result = await this.tryMiningStrategies(block);
@@ -417,7 +417,7 @@ class ProofOfWork {
                         this.nonceCache.set(cacheKey, {
                             found: true,
                             nonce: result.header.nonce,
-                            hash: result.hash
+                            hash: result.hash,
                         });
                         this.emitSuccess(result, result.header.nonce, this.calculateHashRate(result.header.nonce, performance.now() - startTime), startTime);
                         // Store the solution when found
@@ -426,8 +426,8 @@ class ProofOfWork {
                             nonce: result.header.nonce,
                             minerAddress: result.header.minerAddress,
                             timestamp: Date.now(),
-                            signature: result.header.signature?.address || "",
-                            difficulty: result.header.difficulty
+                            signature: result.header.signature || "",
+                            difficulty: result.header.difficulty,
                         });
                         // Store mining metrics
                         const metricsData = metrics_1.MiningMetrics.getInstance();
@@ -476,7 +476,7 @@ class ProofOfWork {
     }
     async tryMiningStrategies(block) {
         return this.withErrorBoundary("tryMiningStrategies", async () => {
-            if (!this.ddosProtection.checkRequest('mining', block.header.miner)) {
+            if (!this.ddosProtection.checkRequest("mining", block.header.miner)) {
                 throw new Error("Mining rate limit exceeded");
             }
             // Try GPU mining first if available
@@ -508,7 +508,7 @@ class ProofOfWork {
         });
     }
     getTarget(difficulty) {
-        return (constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET / BigInt(difficulty));
+        return constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET / BigInt(difficulty);
     }
     validateBlockStructure(block) {
         try {
@@ -519,11 +519,11 @@ class ProofOfWork {
             }
             // Required header fields validation
             const requiredFields = [
-                { field: 'version', type: 'number', min: 1 },
-                { field: 'nonce', type: 'number', min: 0 },
-                { field: 'difficulty', type: 'number', min: 1 },
-                { field: 'timestamp', type: 'number', min: 1 },
-                { field: 'height', type: 'number', min: 0 }
+                { field: "version", type: "number", min: 1 },
+                { field: "nonce", type: "number", min: 0 },
+                { field: "difficulty", type: "number", min: 1 },
+                { field: "timestamp", type: "number", min: 1 },
+                { field: "height", type: "number", min: 0 },
             ];
             for (const { field, type, min } of requiredFields) {
                 if (typeof block.header[field] !== type || block.header[field] < min) {
@@ -538,7 +538,8 @@ class ProofOfWork {
                 return false;
             }
             // Transaction validation
-            if (!Array.isArray(block.transactions) || block.transactions.length === 0) {
+            if (!Array.isArray(block.transactions) ||
+                block.transactions.length === 0) {
                 shared_1.Logger.error("Invalid block: missing transactions");
                 return false;
             }
@@ -548,7 +549,8 @@ class ProofOfWork {
                 return false;
             }
             // Size limits
-            if (this.calculateBlockSize(block).total > constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE) {
+            if (this.calculateBlockSize(block).total >
+                constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE) {
                 shared_1.Logger.error("Invalid block: exceeds maximum size");
                 return false;
             }
@@ -692,7 +694,7 @@ class ProofOfWork {
                     return calculatedHash === block.hash;
                 },
                 verifySignature: async () => {
-                    return crypto_2.HybridCrypto.verify(block.hash, { address: block.signature?.address || "" }, { address: block.publicKey });
+                    return crypto_2.HybridCrypto.verify(block.hash, block.signature, block.publicKey);
                 },
                 getHeaderBase: () => block.getHeaderBase(),
                 isComplete() {
@@ -702,7 +704,7 @@ class ProofOfWork {
                         this.header.merkleRoot &&
                         this.header.timestamp &&
                         this.header.nonce);
-                }
+                },
             };
         }
         catch (error) {
@@ -788,7 +790,7 @@ class ProofOfWork {
                     return calculatedHash === result.rows[0].hash;
                 },
                 verifySignature: async () => {
-                    return crypto_2.HybridCrypto.verify(result.rows[0].hash, { address: result.rows[0].signature?.address || "" }, { address: result.rows[0].public_key });
+                    return crypto_2.HybridCrypto.verify(result.rows[0].hash, result.rows[0].signature, result.rows[0].public_key);
                 },
                 getHeaderBase: () => result.rows[0].getHeaderBase(),
                 isComplete() {
@@ -798,7 +800,7 @@ class ProofOfWork {
                         this.header.merkleRoot &&
                         this.header.timestamp &&
                         this.header.nonce);
-                }
+                },
             };
         }
         catch (error) {
@@ -850,19 +852,24 @@ class ProofOfWork {
      * @returns Promise<Block | null> Mined block or null if failed
      */
     async tryParallelMining(block) {
-        const workers = await Promise.all(Array(this.NUM_WORKERS).fill(0).map(async () => {
+        const workers = await Promise.all(Array(this.NUM_WORKERS)
+            .fill(0)
+            .map(async () => {
             const worker = await this.workerPool.getWorker();
-            return { worker, release: () => this.workerPool.releaseWorker(worker) };
+            return {
+                worker,
+                release: () => this.workerPool.releaseWorker(worker),
+            };
         }));
         try {
             const results = await Promise.race(workers.map(({ worker }) => new Promise((resolve) => {
-                worker.once('message', resolve);
+                worker.once("message", resolve);
                 worker.postMessage({
                     start: block.header.nonce,
                     end: Math.min(block.header.nonce + constants_1.BLOCKCHAIN_CONSTANTS.MINING.BATCH_SIZE, this.MAX_NONCE),
                     target: this.target.toString(),
                     headerBase: block.getHeaderBase(),
-                    batchSize: 1000
+                    batchSize: 1000,
                 });
             })));
             if (results?.found) {
@@ -885,14 +892,14 @@ class ProofOfWork {
         const worker = await this.workerPool.getWorker();
         try {
             const result = await new Promise((resolve, reject) => {
-                worker.once('message', resolve);
-                worker.once('error', reject);
+                worker.once("message", resolve);
+                worker.once("error", reject);
                 worker.postMessage({
                     start: block.header.nonce,
                     end: Math.min(block.header.nonce + constants_1.BLOCKCHAIN_CONSTANTS.MINING.BATCH_SIZE, this.MAX_NONCE),
                     target: this.target.toString(),
                     headerBase: block.getHeaderBase(),
-                    batchSize: 1000
+                    batchSize: 1000,
                 });
             });
             if (result.found) {
@@ -919,12 +926,11 @@ class ProofOfWork {
         try {
             // Get expected validators for this block
             const expectedValidators = await this.mempool.getExpectedValidators();
-            const expectedValidatorSet = new Set(expectedValidators.map(v => v.address));
+            const expectedValidatorSet = new Set(expectedValidators.map((v) => v.address));
             // Get present validators from active nodes
-            const presentValidators = new Set((await this.node.getActiveValidators()).map(v => v.address));
+            const presentValidators = new Set((await this.node.getActiveValidators()).map((v) => v.address));
             // Check for missing validators
-            const absentValidators = Array.from(expectedValidatorSet)
-                .filter(validator => !presentValidators.has(validator));
+            const absentValidators = Array.from(expectedValidatorSet).filter((validator) => !presentValidators.has(validator));
             // Handle absent validators
             for (const absentValidator of absentValidators) {
                 await this.mempool.handleValidationFailure(`validator_absence:${block.hash}`, absentValidator);
@@ -989,7 +995,7 @@ class ProofOfWork {
     }
     /**
      * Cleans up mining resources
-    */
+     */
     async dispose() {
         this.isInterrupted = true;
         const cleanupTasks = [
@@ -1025,7 +1031,7 @@ class ProofOfWork {
      */
     async validateWork(data, difficulty) {
         // Add DDoS protection for PoW validation
-        if (!this.ddosProtection.checkRequest('pow_validation', data)) {
+        if (!this.ddosProtection.checkRequest("pow_validation", data)) {
             shared_1.Logger.warn(`DDoS protection blocked PoW validation from ${data}`);
             return false;
         }
@@ -1202,7 +1208,7 @@ class ProofOfWork {
                 shared_1.Logger.warn("Invalid PoW reward amount", {
                     expected: expectedReward.toString(),
                     actual: actualReward.toString(),
-                    height: currentHeight
+                    height: currentHeight,
                 });
                 return false;
             }
@@ -1219,7 +1225,9 @@ class ProofOfWork {
         try {
             const activeMiners = await this.getActiveMiners();
             const totalValidators = await this.blockchain.getValidatorCount();
-            return totalValidators > 0 ? (activeMiners.length / totalValidators) * 100 : 0;
+            return totalValidators > 0
+                ? (activeMiners.length / totalValidators) * 100
+                : 0;
         }
         catch (error) {
             shared_1.Logger.error("Failed to get PoW participation rate:", error);
@@ -1237,7 +1245,7 @@ class ProofOfWork {
                 const blocks = await this.getRecentBlocks(BATCH_SIZE, processedBlocks);
                 if (blocks.length === 0)
                     break;
-                blocks.forEach(block => {
+                blocks.forEach((block) => {
                     if (block.header.miner) {
                         miners.add(block.header.miner);
                     }
@@ -1246,7 +1254,7 @@ class ProofOfWork {
                 // Free up memory
                 blocks.length = 0;
                 // Allow GC to run
-                await new Promise(resolve => setTimeout(resolve, 0));
+                await new Promise((resolve) => setTimeout(resolve, 0));
             }
             return Array.from(miners);
         }
@@ -1276,7 +1284,7 @@ class ProofOfWork {
     isValidHash(hash) {
         try {
             // Early return for invalid input
-            if (!hash || typeof hash !== 'string') {
+            if (!hash || typeof hash !== "string") {
                 return false;
             }
             // Check length first (most efficient)
@@ -1290,7 +1298,8 @@ class ProofOfWork {
             }
             // Additional entropy validation
             const zeroCount = (hash.match(/0/g) || []).length;
-            if (zeroCount > 60) { // Suspicious number of zeros
+            if (zeroCount > 60) {
+                // Suspicious number of zeros
                 shared_1.Logger.warn("Suspicious hash detected with too many zeros");
                 return false;
             }
@@ -1302,10 +1311,10 @@ class ProofOfWork {
         }
     }
     isCoinbaseTransaction(tx) {
-        return tx &&
+        return (tx &&
             tx.type === transaction_model_2.TransactionType.POW_REWARD &&
             !tx.inputs.length && // No inputs for coinbase
-            tx.outputs.length === 1; // Single output for block reward
+            tx.outputs.length === 1); // Single output for block reward
     }
     calculateBlockSize(block) {
         // Use Buffer for more accurate byte size calculation
@@ -1325,13 +1334,13 @@ class ProofOfWork {
         const metadataSize = Buffer.from(JSON.stringify({
             validators: block.validators,
             signature: block.header.signature,
-            timestamp: block.timestamp
+            timestamp: block.timestamp,
         })).length;
         return {
             header: headerSize,
             transactions: txSize,
             metadata: metadataSize,
-            total: headerSize + txSize + metadataSize
+            total: headerSize + txSize + metadataSize,
         };
     }
     calculateTransactionSize(tx) {
@@ -1340,7 +1349,7 @@ class ProofOfWork {
         const metadataSize = Buffer.from(JSON.stringify({
             type: tx.type,
             timestamp: tx.timestamp,
-            signature: tx.signature
+            signature: tx.signature,
         })).length;
         return inputSize + outputSize + metadataSize;
     }
@@ -1371,8 +1380,7 @@ class ProofOfWork {
             .setHeight(height)
             .setPreviousHash(previousBlock.hash)
             .setTimestamp(Date.now())
-            .setTransactions(selectedTxs))
-            .build(this.minerKeyPair);
+            .setTransactions(selectedTxs)).build(this.minerKeyPair);
         // Prepare the block header base before returning
         await this.prepareHeaderBase(block);
         return block;
@@ -1425,7 +1433,7 @@ class ProofOfWork {
             if (output.amount > expectedReward) {
                 shared_1.Logger.warn("Coinbase reward exceeds allowed amount", {
                     actual: output.amount.toString(),
-                    expected: expectedReward.toString()
+                    expected: expectedReward.toString(),
                 });
                 return false;
             }
@@ -1457,31 +1465,35 @@ class ProofOfWork {
             type: transaction_model_2.TransactionType.POW_REWARD,
             sender: "coinbase",
             inputs: [],
-            outputs: [{
+            outputs: [
+                {
                     address: this.minerKeyPair.address,
                     amount: reward,
                     script: await this.generateCoinbaseScript(),
                     currency: {
                         symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                        decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
+                        decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                     },
-                    index: 0
-                }],
+                    index: 0,
+                },
+            ],
             timestamp: Date.now(),
             fee: 0n,
             version: 1,
             status: transaction_model_1.TransactionStatus.PENDING,
             currency: {
                 symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
+                decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
             },
             id: "",
             hash: "",
             signature: null,
             recipient: this.minerKeyPair.address,
-            verify: async () => { return await this.verifyCoinbaseTransaction(tx); },
+            verify: async () => {
+                return await this.verifyCoinbaseTransaction(tx);
+            },
             toHex: () => JSON.stringify(tx),
-            getSize: () => tx.getSize()
+            getSize: () => tx.getSize(),
         };
         // Generate hash and ID
         tx.hash = await crypto_2.HybridCrypto.hash(JSON.stringify(tx));
@@ -1500,10 +1512,10 @@ class ProofOfWork {
         const extraNonce = Math.floor(Math.random() * 100000); // Random extra nonce
         // Combine components in hex format
         const script = [
-            blockHeight.toString(16).padStart(8, '0'),
-            Buffer.from(minerTag).toString('hex'),
-            extraNonce.toString(16).padStart(8, '0') // Extra nonce in hex
-        ].join('');
+            blockHeight.toString(16).padStart(8, "0"),
+            Buffer.from(minerTag).toString("hex"),
+            extraNonce.toString(16).padStart(8, "0"), // Extra nonce in hex
+        ].join("");
         return script;
     }
     /**
@@ -1540,7 +1552,7 @@ class ProofOfWork {
                     break;
                 }
                 // Exponential backoff
-                await new Promise(resolve => setTimeout(resolve, Math.min(5000 * Math.pow(2, this.miningFailures), 30000)));
+                await new Promise((resolve) => setTimeout(resolve, Math.min(5000 * Math.pow(2, this.miningFailures), 30000)));
             }
         }
     }
@@ -1564,11 +1576,10 @@ class ProofOfWork {
             const participationRate = await this.getParticipationRate();
             const networkDifficulty = await this.getNetworkDifficulty();
             // Calculate network hashrate based on difficulty and target block time
-            const networkHashRate = networkDifficulty *
-                (2 ** 32) /
+            const networkHashRate = (networkDifficulty * 2 ** 32) /
                 constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK;
             // Get worker stats
-            const activeWorkers = this.workers.filter(w => w.threadId !== null).length;
+            const activeWorkers = this.workers.filter((w) => w.threadId !== null).length;
             // Get performance metrics
             const recentBlocks = await this.getRecentBlocks(100);
             const averageBlockTime = this.calculateAverageBlockTime(recentBlocks);
@@ -1583,27 +1594,29 @@ class ProofOfWork {
                 workers: {
                     total: this.NUM_WORKERS,
                     active: activeWorkers,
-                    idle: this.NUM_WORKERS - activeWorkers
+                    idle: this.NUM_WORKERS - activeWorkers,
                 },
                 hardware: {
                     gpuEnabled: !!this.gpuMiner && !this.gpuCircuitBreaker.isOpen(),
                     gpuStatus: this.getGPUStatus(),
-                    cpuThreads: this.NUM_WORKERS
+                    cpuThreads: this.NUM_WORKERS,
                 },
                 mempool: {
                     pending: pendingTxs.length,
-                    size: mempoolSize
+                    size: mempoolSize,
                 },
                 performance: {
                     averageBlockTime,
-                    successRate: this.metrics.successfulBlocks / Math.max(this.metrics.totalBlocks, 1) * 100,
-                    cacheHitRate: this.blockCache.getHitRate()
+                    successRate: (this.metrics.successfulBlocks /
+                        Math.max(this.metrics.totalBlocks, 1)) *
+                        100,
+                    cacheHitRate: this.blockCache.getHitRate(),
                 },
                 network: {
                     activeMiners: activeMiners.length,
                     participationRate,
-                    targetBlockTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK
-                }
+                    targetBlockTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK,
+                },
             };
             return miningInfo;
         }
@@ -1646,7 +1659,8 @@ class ProofOfWork {
             if (recentBlocks.length < 2) {
                 // If insufficient blocks, estimate from difficulty
                 const difficulty = await this.getNetworkDifficulty();
-                return difficulty * (2 ** 32) / constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK;
+                return ((difficulty * 2 ** 32) /
+                    constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK);
             }
             // Calculate time span
             const firstBlock = recentBlocks[recentBlocks.length - 1];
@@ -1679,7 +1693,7 @@ class ProofOfWork {
     getBlockWork(difficulty) {
         try {
             // Work is proportional to difficulty * 2^32
-            return BigInt(Math.floor(difficulty)) * (BigInt(2) ** BigInt(32));
+            return BigInt(Math.floor(difficulty)) * BigInt(2) ** BigInt(32);
         }
         catch (error) {
             shared_1.Logger.error("Failed to calculate block work:", error);
@@ -1694,8 +1708,8 @@ class ProofOfWork {
     async getBlockTemplate(minerAddress) {
         return this.withErrorBoundary("getBlockTemplate", async () => {
             // Validate miner address
-            if (!minerAddress || typeof minerAddress !== 'string') {
-                throw new Error('Invalid miner address');
+            if (!minerAddress || typeof minerAddress !== "string") {
+                throw new Error("Invalid miner address");
             }
             // Get current blockchain state
             const currentHeight = this.blockchain.getCurrentHeight();
@@ -1713,7 +1727,7 @@ class ProofOfWork {
             // Select and validate transactions
             const selectedTransactions = await this.selectTransactions(pendingTransactions, maxBlockSize, coinbaseTransaction);
             // Calculate merkle root
-            const merkleRoot = await this.merkleTree.createRoot(selectedTransactions.map(tx => tx.hash));
+            const merkleRoot = await this.merkleTree.createRoot(selectedTransactions.map((tx) => tx.hash));
             // Calculate target from difficulty
             const target = this.calculateTarget(networkDifficulty).toString(16);
             // Get network time boundaries
@@ -1733,7 +1747,7 @@ class ProofOfWork {
                 maxTime,
                 maxVersion: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_VERSION,
                 minVersion: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_VERSION,
-                defaultVersion: constants_1.BLOCKCHAIN_CONSTANTS.MINING.CURRENT_VERSION
+                defaultVersion: constants_1.BLOCKCHAIN_CONSTANTS.MINING.CURRENT_VERSION,
             };
             // Cache template for validation
             const templateHash = await crypto_2.HybridCrypto.hash(JSON.stringify(template));
@@ -1753,12 +1767,12 @@ class ProofOfWork {
             const selected = [coinbase];
             let currentSize = JSON.stringify(coinbase).length;
             // Create immutable copy of transactions
-            const txSnapshot = [...transactions].map(tx => ({ ...tx }));
+            const txSnapshot = [...transactions].map((tx) => ({ ...tx }));
             // Sort by fee per byte
             const sortedTxs = txSnapshot.sort((a, b) => {
                 const aSize = JSON.stringify(a).length;
                 const bSize = JSON.stringify(b).length;
-                return Number((b.fee / BigInt(bSize)) - (a.fee / BigInt(aSize)));
+                return Number(b.fee / BigInt(bSize) - a.fee / BigInt(aSize));
             });
             // Track processed transactions to prevent duplicates
             const processedTxs = new Set();
@@ -1775,7 +1789,7 @@ class ProofOfWork {
                 try {
                     if (await this.validateTemplateTransaction(tx)) {
                         // Double-check transaction hasn't been included elsewhere
-                        if (!await this.blockchain.hasTransaction(tx.hash)) {
+                        if (!(await this.blockchain.hasTransaction(tx.hash))) {
                             selected.push(tx);
                             currentSize += txSize;
                             processedTxs.add(tx.hash);
@@ -1801,14 +1815,15 @@ class ProofOfWork {
             if (JSON.stringify(tx).length > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE)
                 return false;
             // Add timestamp validation
-            if (Math.abs(tx.timestamp - Date.now()) > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TIME_DRIFT)
+            if (Math.abs(tx.timestamp - Date.now()) >
+                constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TIME_DRIFT)
                 return false;
             // Check if transaction is already in blockchain
             const exists = await this.blockchain.hasTransaction(tx.hash);
             if (exists)
                 return false;
             // Verify transaction signature
-            if (!await tx.verify())
+            if (!(await tx.verify()))
                 return false;
             // Check if inputs are still available (not double spent)
             for (const input of tx.inputs) {
@@ -1843,22 +1858,22 @@ class ProofOfWork {
                     throw new Error("Block hash doesn't meet target difficulty");
                 }
                 // Verify block header
-                if (!await this.validateBlockHeader(block)) {
+                if (!(await this.validateBlockHeader(block))) {
                     throw new Error("Invalid block header");
                 }
                 // Verify coinbase transaction
                 const coinbase = block.transactions[0];
-                if (!await this.verifyCoinbaseTransaction(coinbase)) {
+                if (!(await this.verifyCoinbaseTransaction(coinbase))) {
                     throw new Error("Invalid coinbase transaction");
                 }
                 // Verify all other transactions
                 for (let i = 1; i < block.transactions.length; i++) {
-                    if (!await this.validateTemplateTransaction(block.transactions[i])) {
+                    if (!(await this.validateTemplateTransaction(block.transactions[i]))) {
                         throw new Error(`Invalid transaction at index ${i}`);
                     }
                 }
                 // Verify merkle root
-                const calculatedRoot = await this.merkleTree.createRoot(block.transactions.map(tx => tx.hash));
+                const calculatedRoot = await this.merkleTree.createRoot(block.transactions.map((tx) => tx.hash));
                 if (calculatedRoot !== block.header.merkleRoot) {
                     throw new Error("Invalid merkle root");
                 }
@@ -1871,11 +1886,11 @@ class ProofOfWork {
                 this.mempool.removeTransactions(block.transactions);
                 // Update mining metrics
                 this.metrics.updateMetrics({
-                    blockTime: block.header.timestamp - this.lastBlockTime
+                    blockTime: block.header.timestamp - this.lastBlockTime,
                 });
                 this.lastBlockTime = block.header.timestamp;
                 // Emit block added event
-                this.eventEmitter.emit('blockAdded', block);
+                this.eventEmitter.emit("blockAdded", block);
                 shared_1.Logger.info(`Block ${block.hash} successfully added at height ${block.header.height}`);
                 return true;
             }
@@ -1905,7 +1920,8 @@ class ProofOfWork {
             // Check timestamp is within allowed range
             const now = Math.floor(Date.now() / 1000);
             if (block.header.timestamp < this.minTime ||
-                block.header.timestamp > now + 7200) { // Max 2 hours in future
+                block.header.timestamp > now + 7200) {
+                // Max 2 hours in future
                 return false;
             }
             // Verify difficulty matches expected difficulty
@@ -1936,7 +1952,7 @@ class ProofOfWork {
         const height = block.header.height;
         // Check if we're at capacity
         if (this.blocksInFlight.size >= this.MAX_BLOCKS_IN_FLIGHT) {
-            throw new Error('Too many blocks in flight');
+            throw new Error("Too many blocks in flight");
         }
         // Check if block is already in flight
         if (this.blocksInFlight.has(height)) {
@@ -1953,10 +1969,10 @@ class ProofOfWork {
             hash: block.hash,
             startTime: Date.now(),
             timeout,
-            attempts: 1
+            attempts: 1,
         });
         // Update metrics
-        this.metrics.gauge('blocks_in_flight', this.blocksInFlight.size);
+        this.metrics.gauge("blocks_in_flight", this.blocksInFlight.size);
         shared_1.Logger.debug(`Added block ${height} to in-flight tracking`);
     }
     removeInflightBlock(height) {
@@ -1964,7 +1980,7 @@ class ProofOfWork {
         if (block) {
             clearTimeout(block.timeout);
             this.blocksInFlight.delete(height);
-            this.metrics.gauge('blocks_in_flight', this.blocksInFlight.size);
+            this.metrics.gauge("blocks_in_flight", this.blocksInFlight.size);
             shared_1.Logger.debug(`Removed block ${height} from in-flight tracking`);
         }
     }
@@ -1976,7 +1992,10 @@ class ProofOfWork {
         if (block.attempts >= this.MAX_RETRY_ATTEMPTS) {
             shared_1.Logger.error(`Block ${height} failed after ${block.attempts} attempts`);
             this.removeInflightBlock(height);
-            this.eventEmitter.emit('blockFailed', { height, attempts: block.attempts });
+            this.eventEmitter.emit("blockFailed", {
+                height,
+                attempts: block.attempts,
+            });
             return;
         }
         // Retry with backoff
@@ -1985,10 +2004,10 @@ class ProofOfWork {
         block.timeout = setTimeout(() => {
             this.handleBlockTimeout(height);
         }, this.BLOCK_TIMEOUT * block.attempts);
-        this.eventEmitter.emit('blockRetry', {
+        this.eventEmitter.emit("blockRetry", {
             height,
             attempts: block.attempts,
-            timeoutMs: this.BLOCK_TIMEOUT * block.attempts
+            timeoutMs: this.BLOCK_TIMEOUT * block.attempts,
         });
     }
     getInflightBlocks() {

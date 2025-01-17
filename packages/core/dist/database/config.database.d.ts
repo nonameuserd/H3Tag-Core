@@ -15,7 +15,7 @@ export interface LevelDBOptions {
     sync: boolean;
 }
 export interface DatabaseConfig {
-    type: 'leveldb';
+    type: "leveldb";
     defaultRegion: string;
     regions: RegionConfig[];
     options: LevelDBOptions;

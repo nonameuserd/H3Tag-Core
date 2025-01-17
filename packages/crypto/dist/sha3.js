@@ -4,12 +4,12 @@ exports.WasmSHA3 = void 0;
 const wasm_loader_1 = require("./wasm-loader");
 class WasmSHA3 {
     static async initialize() {
-        const wasmModule = await (0, wasm_loader_1.loadWasmModule)('sha3.wasm');
+        const wasmModule = await (0, wasm_loader_1.loadWasmModule)("sha3.wasm");
         this.wasmInstance = await WebAssembly.instantiate(wasmModule, {
             env: {
                 memory: new WebAssembly.Memory({ initial: 256 }),
-                abort: () => console.error('Wasm aborted')
-            }
+                abort: () => console.error("Wasm aborted"),
+            },
         });
     }
     static hash(data) {

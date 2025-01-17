@@ -19,7 +19,7 @@ const applyMiddleware = (app) => {
     app.use(index_1.requestLogger);
     app.use(index_1.timeout);
     // Protected routes middleware
-    app.use('/api/v1/admin/*', index_1.apiKeyAuth);
+    app.use("/api/v1/admin/*", index_1.apiKeyAuth);
     // Error handling (should be last)
     app.use(index_1.errorHandler);
 };

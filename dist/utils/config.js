@@ -1,143 +1,91 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.ConfigService = exports.NetworkType = void 0;
-const crypto_1 = require("@h3tag-blockchain/crypto");
-const HALVING_INTERVAL = 210000;
-const INITIAL_REWARD = 50;
-var NetworkType;
-(function (NetworkType) {
-    NetworkType["MAINNET"] = "mainnet";
-    NetworkType["TESTNET"] = "testnet";
-    NetworkType["DEVNET"] = "devnet";
-})(NetworkType = exports.NetworkType || (exports.NetworkType = {}));
-exports.default = {
-    network: {
-        port: 3000,
-        peers: [],
-        maxPeerLatency: 10000,
-        dnsSeeds: [
-            "seed1.h3tag.network",
-            "seed2.h3tag.network",
-            "seed3.h3tag.network",
-            "seed4.h3tag.network",
-            "seed5.h3tag.network",
-            "seed6.h3tag.network"
-        ],
-    },
-    consensus: {
-        epochLength: 100,
-        enableHybrid: true,
-        minStakeAmount: BigInt(1000),
-        minStakePeriod: 7 * 24 * 60 * 60 * 1000,
-        initialDifficulty: 4,
-        targetBlockTime: 60000,
-        minDifficulty: 1,
-        maxDifficulty: 32
-    },
-    blockchain: {
-        maxSupply: 69690000,
-        initialSupply: 21000000,
-        initialReward: 50,
-        halvingInterval: 210000,
-        blockTime: 600,
-        getBlockReward: (blockHeight) => {
-            const halvings = Math.floor(blockHeight / HALVING_INTERVAL);
-            if (halvings >= 64)
-                return 0; // Max number of halvings
-            return Math.floor(INITIAL_REWARD * Math.pow(0.5, halvings));
-        },
-        isMaxSupplyReached: (currentSupply) => {
-            return currentSupply >= 69690000;
-        }
-    }
-};
-class ConfigService {
-    constructor(config) {
-        this.config = config || defaultConfig;
-    }
-    static getConfig() {
-        return defaultConfig;
-    }
-    get consensus() {
-        return this.config.consensus;
-    }
-    get(key) {
-        return JSON.parse(process.env[key] || '{}');
-    }
-}
-exports.ConfigService = ConfigService;
+const shared_1 = require("@h3tag-blockchain/shared");
 const defaultConfig = {
     network: {
-        type: NetworkType.MAINNET,
-        port: 8333,
-        host: 'localhost',
-        seedDomains: [
-            "seed1.h3tag.net",
-            "seed2.h3tag.net",
-            "seed3.h3tag.net",
-            "seed4.h3tag.net",
-            "seed5.h3tag.net",
-            "seed6.h3tag.net", // South America
-        ]
-    },
-    currency: {
-        name: 'H3TAG',
-        symbol: 'TAG',
-        decimals: 18,
-        initialSupply: 21000000,
-        maxSupply: 69690000,
-        units: {
-            MACRO: 1n,
-            MICRO: 1000000n,
-            MILLI: 1000000000n,
-            TAG: 1000000000000n,
+        type: shared_1.NetworkType.MAINNET,
+        port: {
+            MAINNET: 8333,
+            TESTNET: 10001,
+            DEVNET: 10002,
+        },
+        host: {
+            MAINNET: "mainnet.h3tag.com",
+            TESTNET: "testnet.h3tag.com",
+            DEVNET: "devnet.h3tag.com",
+        },
+        seedDomains: {
+            MAINNET: [
+                "seed1.h3tag.com",
+                "seed2.h3tag.com",
+                "seed3.h3tag.com",
+                "seed4.h3tag.com",
+                "seed5.h3tag.com",
+                "seed6.h3tag.com",
+            ],
+            TESTNET: [
+                "test-seed1.h3tag.com",
+                "test-seed2.h3tag.com",
+                "test-seed3.h3tag.com",
+            ],
+            DEVNET: ["dev-seed1.h3tag.com", "dev-seed2.h3tag.com"],
         },
     },
     mining: {
+        maxAttempts: 1000,
+        currentVersion: 1,
+        maxVersion: 2,
+        minVersion: 1,
+        batchSize: 10000,
         blocksPerYear: 52560,
-        initialReward: 50n,
+        initialReward: BigInt(5000000000),
+        minReward: BigInt(546),
         halvingInterval: 210000,
         maxHalvings: 69,
-        blockTime: 600,
+        blockTime: 600000,
+        maxBlockTime: 600000,
         maxDifficulty: 1000000,
-        targetTimePerBlock: 60000,
+        targetTimePerBlock: 600000,
         difficulty: 7,
-        minHashthreshold: 1000000,
+        minHashrate: 1000000,
         minPowNodes: 3,
         maxForkDepth: 100,
         emergencyPowThreshold: 0.85,
         minPowScore: 0.51,
-        forkResolutionTimeout: 600000,
+        forkResolutionTimeoutMs: 600000,
         difficultyAdjustmentInterval: 2016,
-        initialDifficulty: 1,
+        initialDifficulty: 0x1d0000ffff,
         hashBatchSize: 10000,
-        minDifficulty: 3,
+        maxTarget: BigInt("0x0000000000ffff0000000000000000000000000000000000000000000000000000"),
+        minDifficulty: 2,
         chainDecisionThreshold: 0.67,
         orphanWindow: 100,
         propagationWindow: 50,
         maxPropagationTime: 30000,
         targetTimespan: 14 * 24 * 60 * 60,
         targetBlockTime: 600,
-        maxTarget: BigInt("0x00000000ffff0000000000000000000000000000000000000000000000000000"),
-    },
-    votingConstants: {
-        votingPeriodBlocks: 210240,
-        votingPeriodMs: 690 * 24 * 60 * 60 * 1000,
-        minPowWork: 1000,
-        cooldownBlocks: 1000,
-        maxVotesPerPeriod: 1000,
-        minAccountAge: 1000,
-        minPeerCount: 1000,
-        voteEncryptionVersion: "1.0",
-        maxVoteSizeBytes: 1000,
-        votingWeight: 1000,
-        minVotesForValidity: 1000,
-        votePowerDecay: 1000,
+        adjustmentInterval: 2016,
+        maxAdjustmentFactor: 0.25,
+        voteInfluence: 0.4,
+        minVotesWeight: 0.1,
+        maxChainLength: 10000000,
+        forkResolutionTimeout: 600000,
+        minRewardContribution: BigInt(2016),
+        maxBlockSize: 1048576,
+        minBlockSize: 1024,
+        maxTransactions: 10000,
+        minBlocksMined: 100,
+        blockReward: 50n * 10n ** 8n,
+        maxTxSize: 1048576,
+        minFeePerByte: 1n,
+        autoMine: process.env.AUTO_MINE === "true" || false,
+        cacheTtl: 3600000,
+        maxSupply: BigInt(50000000),
+        safeConfirmationTime: 3600000,
     },
     consensus: {
-        powWeight: 0.6,
-        voteWeight: 0.4,
-        minPowHashrate: 1000000,
+        powWeight: 10000,
+        minPowHashRate: 1000000,
         minVoterCount: 1000,
         minPeriodLength: 1000,
         votingPeriod: 210240,
@@ -145,24 +93,55 @@ const defaultConfig = {
         votePowerCap: 0.05,
         votingDayPeriod: 690 * 24 * 60 * 60 * 1000,
         consensusTimeout: 30 * 60 * 1000,
-        emergencyTimeout: 60 * 60 * 1000, // 1 hour
+        emergencyTimeout: 60 * 60 * 1000,
+        chainSelectionTimeout: 5 * 60 * 1000,
+        voteCollectionTimeout: 3 * 60 * 1000,
+        initialReward: BigInt(546),
+        baseReward: 100n * 10n ** 18n,
+        minReward: 10n * 10n ** 18n,
+        maxSafeReward: 1000000n * 10n ** 18n,
+        halvingInterval: 210000,
+        baseDifficulty: 1n,
+        maxForkLength: 100,
+        validatorWeight: 100,
     },
-    wallet: {
-        address: '',
-        publicKey: async () => {
-            const keyPair = await crypto_1.KeyManager.generateKeyPair();
-            return typeof keyPair.publicKey === 'function'
-                ? await keyPair.publicKey()
-                : keyPair.publicKey;
-        },
-        privateKey: async () => {
-            const keyPair = await crypto_1.KeyManager.generateKeyPair();
-            return typeof keyPair.privateKey === 'function'
-                ? await keyPair.privateKey()
-                : keyPair.privateKey;
-        }
+    votingConstants: {
+        votingPeriodBlocks: 210240,
+        votingPeriodMs: 126144000000,
+        periodCheckInterval: 60000,
+        minPowWork: 10000,
+        cooldownBlocks: 100,
+        maxVotesPerPeriod: 100000,
+        maxVotesPerWindow: 5,
+        minAccountAge: 20160,
+        minPeerCount: 3,
+        voteEncryptionVersion: "1.0",
+        maxVoteSizeBytes: 1024 * 100,
+        votingWeight: 0.4,
+        minVotesForValidity: 0.1,
+        votePowerDecay: 0.5,
+        minVotingPower: BigInt(100),
+        maxVotingPower: BigInt(1000000),
+        maturityPeriod: 86400000,
+        cacheDuration: 300000,
+        minVoteAmount: 1,
+        minPowContribution: 1000,
+        reputationThreshold: 100,
+        rateLimitWindow: 3600,
     },
     util: {
+        retry: {
+            maxAttempts: 1000,
+            initialDelayMs: 1000,
+            maxDelayMs: 30000,
+            backoffFactor: 2,
+        },
+        cache: {
+            ttlMs: 60000,
+            ttlHours: 24,
+            cleanupIntervalMs: 300000,
+        },
+        processingTimeoutMs: 30000,
         retryAttempts: 3,
         retryDelayMs: 1000,
         cacheTtlHours: 24,
@@ -173,6 +152,68 @@ const defaultConfig = {
         maxRetries: 1000,
         cacheTtl: 60000,
         pruneThreshold: 0.8,
+        baseMaxSize: 1000000,
+        absoluteMaxSize: 10000000,
+        staleThreshold: 7 * 24 * 60 * 60 * 1000,
+    },
+    transaction: {
+        baseFee: BigInt(100),
+        currentVersion: 1,
+        maxInputs: 1000,
+        maxOutputs: 1000,
+        maxTimeDrift: 7200000,
+        amountLimits: {
+            min: BigInt(1),
+            max: BigInt("5000000000000000"),
+            decimals: 8,
+        },
+        mempool: {
+            highCongestionThreshold: 50000,
+            maxSize: BigInt(300000),
+            maxMb: 300,
+            minFeeRate: BigInt(1),
+            feeRateMultiplier: 1.5,
+            evictionInterval: 600000,
+            cleanupInterval: 60000,
+            maxMemoryUsage: 536870912,
+            minSize: 1000,
+        },
+        processingTimeout: 30000,
+        maxSize: 1000000,
+        maxScriptSize: 1000000,
+        maxTotalInput: BigInt("1000000000000000"),
+        maxSignatureSize: 520,
+        maxPubkeySize: 65,
+        minInputAge: 3600000,
+        minTxVersion: 1,
+        maxTxVersion: 1,
+        required: 6,
+        maxMessageAge: 300000,
+    },
+    validator: {
+        minValidatorUptime: 0.97,
+        minVoteParticipation: 0.99,
+        minBlockProduction: 0.75,
+    },
+    backupValidatorConfig: {
+        maxBackupAttempts: 3,
+        backupSelectionTimeout: 30000,
+        minBackupReputation: 70,
+        minBackupUptime: 0.95,
+    },
+    version: 1,
+    minSafeConfirmations: 6,
+    maxSafeUtxoAmount: 1000000000000,
+    coinbaseMaturity: 100,
+    userAgent: "/H3Tag:1.0.0/",
+    protocolVersion: 1,
+    maxMempoolSize: 50000,
+    minRelayTxFee: 0.00001,
+    minPeers: 3,
+    message: {
+        prefix: "\x18H3Tag Signed Message:\n",
+        maxLength: 100000,
+        minLength: 1,
     },
 };
 //# sourceMappingURL=config.js.map

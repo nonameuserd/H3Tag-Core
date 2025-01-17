@@ -13,8 +13,8 @@ class CreateNodeDto {
 exports.CreateNodeDto = CreateNodeDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        enum: ['MAINNET', 'TESTNET'],
-        description: 'Network type for the node'
+        enum: ["MAINNET", "TESTNET"],
+        description: "Network type for the node",
     })
 ], CreateNodeDto.prototype, "networkType", void 0);
 __decorate([
@@ -22,15 +22,15 @@ __decorate([
 ], CreateNodeDto.prototype, "region", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        enum: ['full', 'light', 'archive'],
-        required: false
+        enum: ["full", "light", "archive"],
+        required: false,
     })
 ], CreateNodeDto.prototype, "nodeType", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({ required: false, default: 3000 })
 ], CreateNodeDto.prototype, "port", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ required: false, default: 'localhost' })
+    (0, swagger_1.ApiProperty)({ required: false, default: "localhost" })
 ], CreateNodeDto.prototype, "host", void 0);
 class NodeResponseDto {
 }
@@ -39,7 +39,7 @@ __decorate([
     (0, swagger_1.ApiProperty)()
 ], NodeResponseDto.prototype, "nodeId", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ enum: ['running', 'stopped'] })
+    (0, swagger_1.ApiProperty)({ enum: ["running", "stopped"] })
 ], NodeResponseDto.prototype, "status", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)()
@@ -60,7 +60,7 @@ __decorate([
     (0, swagger_1.ApiProperty)()
 ], NodeStatusDto.prototype, "nodeId", void 0);
 __decorate([
-    (0, swagger_1.ApiProperty)({ enum: ['running', 'stopped'] })
+    (0, swagger_1.ApiProperty)({ enum: ["running", "stopped"] })
 ], NodeStatusDto.prototype, "status", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)()
@@ -76,23 +76,23 @@ class PeerDiscoveryResponseDto {
 exports.PeerDiscoveryResponseDto = PeerDiscoveryResponseDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Number of new peers discovered',
-        example: 5
+        description: "Number of new peers discovered",
+        example: 5,
     })
 ], PeerDiscoveryResponseDto.prototype, "discoveredPeers", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Total number of connected peers',
-        example: 12
+        description: "Total number of connected peers",
+        example: 12,
     })
 ], PeerDiscoveryResponseDto.prototype, "totalPeers", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Current peer count vs minimum required peers',
+        description: "Current peer count vs minimum required peers",
         example: {
             current: 12,
-            minimum: 8
-        }
+            minimum: 8,
+        },
     })
 ], PeerDiscoveryResponseDto.prototype, "peerMetrics", void 0);
 class ConnectPeerDto {
@@ -100,8 +100,8 @@ class ConnectPeerDto {
 exports.ConnectPeerDto = ConnectPeerDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Peer address to connect to',
-        example: '127.0.0.1:8333'
+        description: "Peer address to connect to",
+        example: "127.0.0.1:8333",
     })
 ], ConnectPeerDto.prototype, "address", void 0);
 class PeerConnectionResponseDto {
@@ -109,32 +109,32 @@ class PeerConnectionResponseDto {
 exports.PeerConnectionResponseDto = PeerConnectionResponseDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Connection status',
-        example: 'connected'
+        description: "Connection status",
+        example: "connected",
     })
 ], PeerConnectionResponseDto.prototype, "status", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Connected peer address',
-        example: '127.0.0.1:8333'
+        description: "Connected peer address",
+        example: "127.0.0.1:8333",
     })
 ], PeerConnectionResponseDto.prototype, "address", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Peer version',
-        example: '1.0.0'
+        description: "Peer version",
+        example: "1.0.0",
     })
 ], PeerConnectionResponseDto.prototype, "version", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Peer height',
-        example: 780000
+        description: "Peer height",
+        example: 780000,
     })
 ], PeerConnectionResponseDto.prototype, "height", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Connection timestamp',
-        example: '2024-03-21T15:30:00Z'
+        description: "Connection timestamp",
+        example: "2024-03-21T15:30:00Z",
     })
 ], PeerConnectionResponseDto.prototype, "connectedAt", void 0);
 //# sourceMappingURL=node.dto.js.map

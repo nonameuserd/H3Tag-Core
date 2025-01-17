@@ -44,7 +44,7 @@ let BlockchainService = class BlockchainService {
             totalTransactions: chainStats.totalTransactions,
             difficulty: chainStats.difficulty,
             hashrate: await stats.getNetworkHashRate(),
-            blockTime: await stats.getAverageBlockTime()
+            blockTime: await stats.getAverageBlockTime(),
         };
     }
     /**
@@ -80,12 +80,12 @@ let BlockchainService = class BlockchainService {
             const transaction = await withOutput.build();
             const success = await this.blockchain.addTransaction(transaction);
             if (!success) {
-                throw new Error('Transaction rejected by blockchain');
+                throw new Error("Transaction rejected by blockchain");
             }
             return transaction.id;
         }
         catch (error) {
-            shared_1.Logger.error('Transaction submission failed:', error);
+            shared_1.Logger.error("Transaction submission failed:", error);
             throw error;
         }
     }
@@ -163,7 +163,7 @@ let BlockchainService = class BlockchainService {
     async getBlock(hash) {
         const block = await this.blockchain.getBlock(hash);
         if (!block) {
-            throw new Error('Block not found');
+            throw new Error("Block not found");
         }
         return {
             hash: block.hash,
@@ -171,7 +171,7 @@ let BlockchainService = class BlockchainService {
             previousHash: block.header.previousHash,
             timestamp: block.header.timestamp,
             transactions: block.transactions,
-            merkleRoot: block.header.merkleRoot
+            merkleRoot: block.header.merkleRoot,
         };
     }
     async getCurrencyDetails() {
@@ -214,11 +214,11 @@ let BlockchainService = class BlockchainService {
      */
     async getChainTips() {
         const tips = await this.blockchain.getChainTips();
-        return tips.map(tip => ({
+        return tips.map((tip) => ({
             hash: tip.hash,
             height: tip.height,
             status: tip.status,
-            branchLength: tip.branchLen
+            branchLength: tip.branchLen,
         }));
     }
     /**
@@ -255,7 +255,7 @@ let BlockchainService = class BlockchainService {
     async getBestBlockHash() {
         const latestBlock = this.blockchain.getLatestBlock();
         if (!latestBlock) {
-            throw new Error('No blocks in chain');
+            throw new Error("No blocks in chain");
         }
         return latestBlock.hash;
     }
@@ -285,20 +285,20 @@ let BlockchainService = class BlockchainService {
                 difficulty: stats.difficulty,
                 medianTime: await this.stats.getMedianTime(),
                 verificationProgress: 1,
-                chainWork: '0x0',
+                chainWork: "0x0",
                 chainSize: 0,
                 initialBlockDownload: false,
                 networkHashrate,
-                chainTips: chainTips.map(tip => ({
+                chainTips: chainTips.map((tip) => ({
                     hash: tip.hash,
                     height: tip.height,
                     status: tip.status,
-                    branchLength: tip.branchLen
-                }))
+                    branchLength: tip.branchLen,
+                })),
             };
         }
         catch (error) {
-            shared_1.Logger.error('Error getting blockchain info:', error);
+            shared_1.Logger.error("Error getting blockchain info:", error);
             throw error;
         }
     }

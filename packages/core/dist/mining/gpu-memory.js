@@ -115,22 +115,24 @@ class AdaptiveGPUMemory {
     }
     async initialize(device) {
         if (!device)
-            throw new Error('GPU device not initialized');
+            throw new Error("GPU device not initialized");
         this.device = device;
         this.memoryPools = new Map();
         this.memoryUsage = new Map();
         // Initialize with safer buffer sizes
-        await this.createMemoryPool('hash', 64 * 1024 * 1024); // 64MB for hashes
-        await this.createMemoryPool('nonce', 32 * 1024 * 1024); // 32MB for nonces
+        await this.createMemoryPool("hash", 64 * 1024 * 1024); // 64MB for hashes
+        await this.createMemoryPool("nonce", 32 * 1024 * 1024); // 32MB for nonces
     }
     async createMemoryPool(type, initialSize) {
         if (initialSize <= 0)
-            throw new Error('Invalid initial size');
+            throw new Error("Invalid initial size");
         const buffer = this.device.createBuffer({
             size: initialSize,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+            usage: GPUBufferUsage.STORAGE |
+                GPUBufferUsage.COPY_SRC |
+                GPUBufferUsage.COPY_DST,
             mappedAtCreation: false,
-            label: `pool-${type}` // Add label for debugging
+            label: `pool-${type}`, // Add label for debugging
         });
         this.memoryPools.set(type, [buffer]);
         this.memoryUsage.set(type, 0);
@@ -138,7 +140,7 @@ class AdaptiveGPUMemory {
     }
     async allocateMemory(type, size) {
         if (!type || size <= 0)
-            throw new Error('Invalid allocation parameters');
+            throw new Error("Invalid allocation parameters");
         const pool = this.memoryPools.get(type);
         if (!pool)
             throw new Error(`Memory pool not found for type: ${type}`);
@@ -160,13 +162,15 @@ class AdaptiveGPUMemory {
     async expandPool(type) {
         const currentSize = this.getPoolSize(type);
         if (currentSize >= this.device.limits.maxBufferSize) {
-            throw new Error('Maximum GPU buffer size reached');
+            throw new Error("Maximum GPU buffer size reached");
         }
         const newSize = Math.min(currentSize * 2, this.device.limits.maxBufferSize);
         const newBuffer = this.device.createBuffer({
             size: newSize,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
-            label: `pool-${type}-expanded`
+            usage: GPUBufferUsage.STORAGE |
+                GPUBufferUsage.COPY_SRC |
+                GPUBufferUsage.COPY_DST,
+            label: `pool-${type}-expanded`,
         });
         this.memoryPools.get(type)?.push(newBuffer);
         this.bufferUsageMap.set(newBuffer, 0);
@@ -180,7 +184,7 @@ class AdaptiveGPUMemory {
             const totalUsage = Array.from(this.bufferUsageMap.values()).reduce((sum, usage) => sum + usage, 0);
             const gpuMemory = this.device.limits.maxBufferSize;
             if (totalUsage + size > gpuMemory * this.MAX_MEMORY_USAGE) {
-                throw new Error('GPU memory limit exceeded');
+                throw new Error("GPU memory limit exceeded");
             }
             // Find first buffer with enough space
             for (const buffer of pool) {
@@ -193,7 +197,9 @@ class AdaptiveGPUMemory {
             // Create new buffer if within limits
             const newBuffer = this.device.createBuffer({
                 size: Math.max(size, this.getPoolSize(type)),
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+                usage: GPUBufferUsage.STORAGE |
+                    GPUBufferUsage.COPY_SRC |
+                    GPUBufferUsage.COPY_DST,
             });
             pool.push(newBuffer);
             this.bufferUsageMap.set(newBuffer, size);

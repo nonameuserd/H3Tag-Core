@@ -2,8 +2,6 @@
 
 An open-source blockchain implementation with quantum-resistant cryptography. Contributors are welcome!
 
-## 🌟 Open Source
-
 This project is open source and participants are welcome! If you're interested in contributing:
 
 - Email: nonameuserd007@outlook.com

@@ -1,6 +1,6 @@
-import { CreateWalletDto, WalletResponseDto, ImportPrivateKeyDto, TxOutDto } from '../dtos/wallet.dto';
-import { Transaction } from '@h3tag-blockchain/core';
-import { UnspentOutputDto } from '../dtos/wallet.dto';
+import { CreateWalletDto, WalletResponseDto, ImportPrivateKeyDto, TxOutDto } from "../dtos/wallet.dto";
+import { Transaction } from "@h3tag-blockchain/core";
+import { UnspentOutputDto } from "../dtos/wallet.dto";
 /**
  * @swagger
  * tags:

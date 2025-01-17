@@ -37,7 +37,7 @@ export declare class TransactionValidationRequestDto {
 export declare class ChainTipDto {
     hash: string;
     height: number;
-    status: 'active' | 'valid-fork' | 'invalid' | 'valid-headers';
+    status: "active" | "valid-fork" | "invalid" | "valid-headers";
     branchLength: number;
 }
 export declare class DifficultyResponseDto {

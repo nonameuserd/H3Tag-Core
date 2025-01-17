@@ -1,6 +1,39 @@
 import { Logger } from "@h3tag-blockchain/shared";
 import { Mutex } from "async-mutex";
 
+/**
+ * @fileoverview Core metrics tracking system for the H3Tag blockchain. Includes performance metrics,
+ * mining statistics, and network monitoring for blockchain operations and analysis.
+ *
+ * @module CoreMetrics
+ */
+
+/**
+ * @class CoreMetrics
+ * @description Core metrics tracking and management for blockchain operations
+ *
+ * @property {Object} metrics - Storage for various metric types
+ * @property {number[]} metrics.hashRate - Array of hash rate measurements
+ * @property {number[]} metrics.timestamp - Array of measurement timestamps
+ * @property {number[]} metrics.tagVolume - Array of TAG volume measurements
+ * @property {number[]} metrics.tagFees - Array of TAG fee measurements
+ * @property {number} blockHeight - Current block height
+ * @property {number} syncedHeaders - Number of synced headers
+ * @property {number} syncedBlocks - Number of synced blocks
+ * @property {number} whitelistedPeers - Number of whitelisted peers
+ * @property {number} blacklistedPeers - Number of blacklisted peers
+ * @property {number} hashRate - Current hash rate
+ * @property {number} difficulty - Current mining difficulty
+ * @property {number} totalBlocks - Total blocks processed
+ * @property {number} successfulBlocks - Successfully mined blocks
+ * @property {number} lastBlockTime - Timestamp of last block
+ * @property {number} lastMiningTime - Duration of last mining operation
+ *
+ * @example
+ * const metrics = new CoreMetrics();
+ * metrics.gauge("hash_rate", 1000000);
+ * const avgHashRate = metrics.getAverageHashRate();
+ */
 export class MiningMetrics {
   public totalBlocks: number = 0;
   public successfulBlocks: number = 0;
@@ -60,17 +93,29 @@ export class MiningMetrics {
     const release = await this.mutex.acquire();
     try {
       const now = Date.now();
-      if (data.hashRate) {
+      // Validate inputs before updating
+      if (data.hashRate !== undefined && !isNaN(data.hashRate)) {
         this.metrics.hashRate.push(data.hashRate);
         this.metrics.timestamp.push(BigInt(now));
+        this.hashRate = data.hashRate; // Update current hashRate
       }
-      if (data.difficulty) this.metrics.difficulty.push(data.difficulty);
-      if (data.blockTime) {
-        this.lastBlockTime = Date.now();
+      if (data.difficulty !== undefined && !isNaN(data.difficulty)) {
+        this.metrics.difficulty.push(data.difficulty);
+        this.difficulty = data.difficulty; // Update current difficulty
+      }
+      if (data.blockTime !== undefined && !isNaN(data.blockTime)) {
+        this.lastBlockTime = now;
         this.metrics.blockTimes.push(data.blockTime);
+        this.blockTime = data.blockTime; // Update current blockTime
       }
-      if (data.tagVolume) this.metrics.tagVolume.push(data.tagVolume);
-      if (data.tagFees) this.metrics.tagFees.push(data.tagFees);
+      if (data.tagVolume !== undefined && !isNaN(data.tagVolume)) {
+        this.metrics.tagVolume.push(data.tagVolume);
+        this.tagVolume = data.tagVolume; // Update current tagVolume
+      }
+      if (data.tagFees !== undefined && !isNaN(data.tagFees)) {
+        this.metrics.tagFees.push(data.tagFees);
+        this.tagFees = data.tagFees; // Update current tagFees
+      }
 
       // Cleanup old metrics
       this.cleanupOldMetrics(now);
@@ -81,35 +126,52 @@ export class MiningMetrics {
 
   private cleanupOldMetrics(now: number): void {
     const cutoff = now - 24 * 60 * 60 * 1000; // 24 hours
-    const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
+    const startIdx = this.metrics.timestamp.findIndex(
+      (t) => Number(t) > cutoff // Convert BigInt to Number for comparison
+    );
 
     if (startIdx > 0) {
-      this.metrics.hashRate = this.metrics.hashRate.slice(startIdx);
-      this.metrics.difficulty = this.metrics.difficulty.slice(startIdx);
-      this.metrics.blockTimes = this.metrics.blockTimes.slice(startIdx);
-      this.metrics.timestamp = this.metrics.timestamp.slice(startIdx);
-      this.metrics.tagVolume = this.metrics.tagVolume.slice(startIdx);
-      this.metrics.tagFees = this.metrics.tagFees.slice(startIdx);
+      // Cleanup all metric arrays at once
+      Object.keys(this.metrics).forEach((key) => {
+        if (Array.isArray(this.metrics[key])) {
+          this.metrics[key] = this.metrics[key].slice(startIdx);
+        }
+      });
     }
   }
 
+  /**
+   * Get average hash rate over specified time window
+   * @param {number} [timeWindow=3600000] - Time window in milliseconds (default: 1 hour)
+   * @returns {number} Average hash rate or 0 if no data
+   */
   public getAverageHashRate(timeWindow: number = 3600000): number {
-    if (!this.metrics.hashRate.length || !this.metrics.timestamp.length) {
+    try {
+      if (!this.metrics.hashRate.length || !this.metrics.timestamp.length) {
+        return 0;
+      }
+
+      const cutoff = Date.now() - timeWindow;
+      const startIdx = this.metrics.timestamp.findIndex(
+        (t) => Number(t) > cutoff
+      );
+
+      if (startIdx === -1) return 0;
+
+      const recentHashes = this.metrics.hashRate.slice(startIdx);
+      return recentHashes.length > 0
+        ? recentHashes.reduce((a, b) => a + b, 0) / recentHashes.length
+        : 0;
+    } catch (error) {
+      Logger.error("Error calculating average hash rate:", error);
       return 0;
     }
-
-    const cutoff = Date.now() - timeWindow;
-    const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
-    if (startIdx === -1) return 0;
-
-    const recentHashes = this.metrics.hashRate.slice(startIdx);
-    return recentHashes.reduce((a, b) => a + b, 0) / recentHashes.length || 0;
   }
 
   /**
    * Get average TAG volume over specified time window
-   * @param timeWindow Time window in milliseconds (default: 1 hour)
-   * @returns Average TAG volume or 0 if no data
+   * @param {number} [timeWindow=3600000] - Time window in milliseconds (default: 1 hour)
+   * @returns {number} Average TAG volume or 0 if no data
    */
   getAverageTAGVolume(timeWindow: number = 3600000): number {
     try {
@@ -155,8 +217,8 @@ export class MiningMetrics {
 
   /**
    * Get average TAG transaction fees over specified time window
-   * @param timeWindow Time window in milliseconds (default: 1 hour)
-   * @returns Average TAG fees or 0 if no data
+   * @param {number} [timeWindow=3600000] - Time window in milliseconds (default: 1 hour)
+   * @returns {number} Average TAG fees or 0 if no data
    */
   getAverageTAGFees(timeWindow: number = 3600000): number {
     try {
@@ -200,50 +262,71 @@ export class MiningMetrics {
     }
   }
 
+  /**
+   * Record a mining error
+   * @param {string} context - Error context
+   */
   public recordError(context: string): void {
-    Logger.error(`Mining error in ${context}`);
-    this.updateMetrics({
-      hashRate: 0,
-      difficulty: this.difficulty,
-      blockTime: 0,
-    });
-  }
-
-  public gauge(name: string, value: number): void {
-    switch (name) {
-      case "blocks_in_flight":
-        // Track number of blocks being processed
-        this.blockHeight = value;
-        break;
-      case "synced_headers":
-        // Track header sync progress
-        this.syncedHeaders = value;
-        break;
-      case "synced_blocks":
-        // Track block sync progress
-        this.syncedBlocks = value;
-        break;
-      case "whitelisted":
-        // Track whitelisted peers count
-        this.whitelistedPeers = value;
-        break;
-      case "blacklisted":
-        // Track blacklisted peers count
-        this.blacklistedPeers = value;
-        break;
-      case "hash_rate":
-        // Track current hash rate
-        this.hashRate = value;
-        break;
-      case "difficulty":
-        // Track current mining difficulty
-        this.difficulty = value;
-        break;
-      default:
-        Logger.warn(`Unknown metric gauge: ${name}`);
+    try {
+      Logger.error(`Mining error in ${context}`);
+      this.updateMetrics({
+        hashRate: 0,
+        difficulty: this.difficulty,
+        blockTime: 0,
+      }).catch((err) =>
+        Logger.error("Failed to update metrics on error:", err)
+      );
+    } catch (error) {
+      Logger.error("Failed to record error:", error);
     }
   }
 
+  /**
+   * Set a gauge metric value
+   * @param {string} name - Metric name
+   * @param {number} value - Gauge value
+   */
+  public gauge(name: string, value: number): void {
+    if (typeof value !== "number" || isNaN(value)) {
+      Logger.error(`Invalid gauge value for ${name}`);
+      return;
+    }
+
+    try {
+      switch (name) {
+        case "blocks_in_flight":
+          this.blockHeight = value;
+          break;
+        case "synced_headers":
+          this.syncedHeaders = value;
+          break;
+        case "synced_blocks":
+          this.syncedBlocks = value;
+          break;
+        case "whitelisted":
+          this.whitelistedPeers = value;
+          break;
+        case "blacklisted":
+          this.blacklistedPeers = value;
+          break;
+        case "hash_rate":
+          this.hashRate = value;
+          break;
+        case "difficulty":
+          this.difficulty = value;
+          break;
+        default:
+          Logger.warn(`Unknown metric gauge: ${name}`);
+      }
+    } catch (error) {
+      Logger.error(`Failed to update gauge ${name}:`, error);
+    }
+  }
+
+  /**
+   * Record a failed mining attempt
+   * @param {string} reason - Failure reason
+   */
   public recordFailedMine(reason: string): void {
     this.totalBlocks++;
     this.lastMiningTime = Date.now() - this.lastBlockTime;
@@ -251,6 +334,9 @@ export class MiningMetrics {
     Logger.warn(`Mining failed: ${reason}`);
   }
 
+  /**
+   * Record a successful mining attempt
+   */
   public recordSuccessfulMine(): void {
     this.totalBlocks++;
     this.successfulBlocks++;

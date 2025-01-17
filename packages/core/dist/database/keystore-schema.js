@@ -82,37 +82,37 @@ const config_database_1 = require("./config.database");
 class KeystoreDatabase {
     constructor(dbPath) {
         this.db = new level_1.Level(`${dbPath}/keystore`, {
-            valueEncoding: 'json',
-            ...config_database_1.databaseConfig.options
+            valueEncoding: "json",
+            ...config_database_1.databaseConfig.options,
         });
     }
     async ping() {
         try {
-            await this.db.get('__health_check__');
+            await this.db.get("__health_check__");
             return true;
         }
         catch (error) {
-            if (error && 'notFound' in error)
+            if (error && "notFound" in error)
                 return true; // DB is accessible but key not found
             return false;
         }
     }
     async store(address, keystore) {
         if (!address)
-            throw new Error('Address is required');
+            throw new Error("Address is required");
         if (!keystore)
-            throw new Error('Keystore is required');
+            throw new Error("Keystore is required");
         await this.db.put(`keystore:${address}`, JSON.stringify(keystore));
     }
     async get(address) {
         if (!address)
-            throw new Error('Address is required');
+            throw new Error("Address is required");
         try {
             const value = await this.db.get(`keystore:${address}`);
             return JSON.parse(value);
         }
         catch (error) {
-            if (error && 'notFound' in error)
+            if (error && "notFound" in error)
                 return null;
             throw error;
         }

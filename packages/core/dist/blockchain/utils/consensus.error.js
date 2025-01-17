@@ -6,7 +6,7 @@ class ConsensusError extends Error {
         super(message);
         this.code = code;
         this.details = details;
-        this.name = 'ConsensusError';
+        this.name = "ConsensusError";
         Error.captureStackTrace(this, ConsensusError);
     }
     toJSON() {
@@ -15,7 +15,7 @@ class ConsensusError extends Error {
             message: this.message,
             code: this.code,
             details: this.details,
-            stack: this.stack
+            stack: this.stack,
         };
     }
 }

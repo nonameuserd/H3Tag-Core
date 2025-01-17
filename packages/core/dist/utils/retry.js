@@ -12,7 +12,8 @@ function retry(config) {
                 }
                 catch (error) {
                     // Only retry on specified errors if configured
-                    if (config.retryableErrors && !isRetryableError(error, config.retryableErrors)) {
+                    if (config.retryableErrors &&
+                        !isRetryableError(error, config.retryableErrors)) {
                         throw error;
                     }
                     throw error;
@@ -25,7 +26,7 @@ function retry(config) {
 exports.retry = retry;
 function isRetryableError(error, patterns) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    return patterns.some(pattern => pattern instanceof RegExp
+    return patterns.some((pattern) => pattern instanceof RegExp
         ? pattern.test(errorMessage)
         : errorMessage.includes(pattern));
 }
@@ -37,7 +38,7 @@ class RetryStrategy {
             successes: 0,
             failures: 0,
             lastAttempt: 0,
-            averageDelay: 0
+            averageDelay: 0,
         };
     }
     async execute(fn) {
@@ -56,10 +57,10 @@ class RetryStrategy {
                     this.stats.failures++;
                     throw error;
                 }
-                await new Promise(resolve => setTimeout(resolve, calculateDelay(attempts, this.config)));
+                await new Promise((resolve) => setTimeout(resolve, calculateDelay(attempts, this.config)));
             }
         }
-        throw new Error('Max attempts reached');
+        throw new Error("Max attempts reached");
     }
     getStats() {
         return { ...this.stats };
@@ -72,7 +73,7 @@ function calculateDelay(attempt, config) {
         delay = delay * Math.pow(2, attempt - 1);
     }
     const jitterFactor = config.jitterFactor ?? 0.25;
-    const randomFactor = 1 - jitterFactor + (Math.random() * jitterFactor * 2);
+    const randomFactor = 1 - jitterFactor + Math.random() * jitterFactor * 2;
     delay = delay * randomFactor;
     if (config.maxDelay) {
         delay = Math.min(delay, config.maxDelay);

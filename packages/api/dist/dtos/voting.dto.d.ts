@@ -1,4 +1,4 @@
-import { TransactionType, TransactionStatus } from '@h3tag-blockchain/core';
+import { TransactionType, TransactionStatus } from "@h3tag-blockchain/core";
 export declare class ChainVoteDataDto {
     amount: bigint;
     targetChainId: string;

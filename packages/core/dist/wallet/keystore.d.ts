@@ -1,5 +1,5 @@
 import { HybridKeyPair } from "@h3tag-blockchain/crypto";
-import { KeyRotationMetadata } from './keystore-types';
+import { KeyRotationMetadata } from "./keystore-types";
 export declare enum KeystoreErrorCode {
     ENCRYPTION_ERROR = "ENCRYPTION_ERROR",
     DECRYPTION_ERROR = "DECRYPTION_ERROR",
@@ -64,9 +64,6 @@ export declare class Keystore {
     private static verifyMAC;
     private static validateInputs;
     private static validatePassword;
-    private static validatePasswordStrength;
-    private static encryptWithTimeout;
-    private static decryptWithTimeout;
     private static secureSerialize;
     private static secureDeserialize;
     private static validateKeystore;

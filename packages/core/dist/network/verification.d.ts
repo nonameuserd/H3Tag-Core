@@ -3,12 +3,8 @@ export interface NodeInfo {
     height: number;
     peers: number;
     isMiner: boolean;
-    publicKey: {
-        address: string;
-    };
-    signature: {
-        address: string;
-    };
+    publicKey: string;
+    signature: string;
     timestamp: number;
     address: string;
     tagInfo: {

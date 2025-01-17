@@ -51,9 +51,9 @@ let NodeService = class NodeService {
                 network: {
                     type: params.networkType,
                     port: params.port || 8333,
-                    host: params.host || 'localhost',
-                    seedDomains: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.seedDomains[params.networkType]
-                }
+                    host: params.host || "localhost",
+                    seedDomains: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.seedDomains[params.networkType],
+                },
             });
             // Create mempool
             const mempool = new core_1.Mempool(blockchain);
@@ -62,16 +62,18 @@ let NodeService = class NodeService {
             // Start the node
             await node.start();
             // Generate unique node ID
-            const nodeId = `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const nodeId = `node-${Date.now()}-${Math.random()
+                .toString(36)
+                .substr(2, 9)}`;
             // Store node instance
             this.nodes.set(nodeId, node);
             return {
                 nodeId,
-                status: 'running',
-                endpoint: `${params.host || 'localhost'}:${params.port || 3000}`,
+                status: "running",
+                endpoint: `${params.host || "localhost"}:${params.port || 3000}`,
                 networkType: params.networkType,
                 peerCount: node.getPeerCount(),
-                region: params.region
+                region: params.region,
             };
         }
         catch (error) {
@@ -103,14 +105,14 @@ let NodeService = class NodeService {
     async getNodeStatus(nodeId) {
         const node = this.nodes.get(nodeId);
         if (!node) {
-            throw new Error('Node not found');
+            throw new Error("Node not found");
         }
         return {
             nodeId,
-            status: 'running',
+            status: "running",
             peerCount: node.getPeerCount(),
             bannedPeers: node.getBannedPeers(),
-            address: node.getAddress()
+            address: node.getAddress(),
         };
     }
     /**
@@ -171,7 +173,7 @@ let NodeService = class NodeService {
     async getActiveValidators(nodeId) {
         const node = this.nodes.get(nodeId);
         if (!node) {
-            throw new Error('Node not found');
+            throw new Error("Node not found");
         }
         return node.getActiveValidators();
     }
@@ -179,7 +181,7 @@ let NodeService = class NodeService {
         try {
             const node = this.nodes.get(nodeId);
             if (!node) {
-                throw new Error('Node not found');
+                throw new Error("Node not found");
             }
             // Initial peer count
             const initialPeerCount = node.getPeerCount();
@@ -192,12 +194,12 @@ let NodeService = class NodeService {
                 totalPeers: newPeerCount,
                 peerMetrics: {
                     current: newPeerCount,
-                    minimum: node.getConfig().minPeers
-                }
+                    minimum: node.getConfig().minPeers,
+                },
             };
         }
         catch (error) {
-            common_1.Logger.error('Failed to discover peers:', error);
+            common_1.Logger.error("Failed to discover peers:", error);
             throw error;
         }
     }
@@ -205,25 +207,25 @@ let NodeService = class NodeService {
         try {
             const node = this.nodes.get(nodeId);
             if (!node) {
-                throw new Error('Node not found');
+                throw new Error("Node not found");
             }
             // Connect to peer
             await node.connectToPeer(peerAddress);
             // Get peer info
             const peer = node.getPeer(peerAddress);
             if (!peer) {
-                throw new Error('Failed to get peer information after connection');
+                throw new Error("Failed to get peer information after connection");
             }
             return {
-                status: 'connected',
+                status: "connected",
                 address: peerAddress,
                 version: peer.getVersion().toString(),
                 height: peer.getHeight(),
-                connectedAt: new Date().toISOString()
+                connectedAt: new Date().toISOString(),
             };
         }
         catch (error) {
-            common_1.Logger.error('Failed to connect to peer:', error);
+            common_1.Logger.error("Failed to connect to peer:", error);
             throw error;
         }
     }

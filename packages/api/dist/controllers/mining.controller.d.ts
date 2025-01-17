@@ -1,7 +1,7 @@
-import { MiningService } from '../services/mining.service';
-import { MiningInfoDto } from '../dtos/mining.dto';
-import { BlockTemplateDto } from '../dtos/mining.dto';
-import { SubmitBlockDto } from '../dtos/mining.dto';
+import { MiningService } from "../services/mining.service";
+import { MiningInfoDto } from "../dtos/mining.dto";
+import { BlockTemplateDto } from "../dtos/mining.dto";
+import { SubmitBlockDto } from "../dtos/mining.dto";
 export declare class MiningController {
     private readonly miningService;
     constructor(miningService: MiningService);

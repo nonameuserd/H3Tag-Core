@@ -1,4 +1,4 @@
-import { TransactionType } from '@h3tag-blockchain/core';
+import { TransactionType } from "@h3tag-blockchain/core";
 export declare class MempoolInfoDto {
     size: number;
     bytes: number;
@@ -25,7 +25,7 @@ export declare class MempoolInfoDto {
         youngest: number;
     };
     health: {
-        status: 'healthy' | 'degraded' | 'critical';
+        status: "healthy" | "degraded" | "critical";
         lastUpdate: number;
         isAcceptingTransactions: boolean;
     };

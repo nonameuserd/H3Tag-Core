@@ -189,7 +189,7 @@ interface MempoolInfo {
         youngest: number;
     };
     health: {
-        status: 'healthy' | 'degraded' | 'critical';
+        status: "healthy" | "degraded" | "critical";
         lastUpdate: number;
         isAcceptingTransactions: boolean;
     };
@@ -452,5 +452,10 @@ export declare class Mempool {
     getMempoolEntry(txid: string): Promise<RawMempoolEntry>;
     private isValidInputScript;
     private isValidScriptType;
+    getCongestionFactor(): Promise<number>;
+    getMinFeeRate(): Promise<number>;
+    getMaxSize(): Promise<number>;
+    getMaxFeeRate(): Promise<number>;
+    getBaseFeeRate(): Promise<number>;
 }
 export {};

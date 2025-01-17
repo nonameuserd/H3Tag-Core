@@ -222,17 +222,17 @@ export declare class HybridDirectConsensus {
      */
     private handleChainFork;
     /**
-    * Handles chain fork resolution
-    * @param block Block causing the fork
-    * @returns Promise<string> Hash of the winning chain tip
-    * @throws Error if fork resolution fails or times out
-    */
+     * Handles chain fork resolution
+     * @param block Block causing the fork
+     * @returns Promise<string> Hash of the winning chain tip
+     * @throws Error if fork resolution fails or times out
+     */
     private _handleChainFork;
     /**
-   * Calculates PoW score for a block
-   * @param block Block to calculate score for
-   * @returns Promise<number> PoW score
-   */
+     * Calculates PoW score for a block
+     * @param block Block to calculate score for
+     * @returns Promise<number> PoW score
+     */
     private calculatePowScore;
     /**
      * Processes a new block
@@ -309,15 +309,155 @@ export declare class HybridDirectConsensus {
         };
         retryStats: {
             attempts: number;
+            /**
+             * HybridDirectConsensus implements a hybrid consensus mechanism combining PoW and direct voting.
+             * It manages block validation, chain fork resolution, and consensus state.
+             *
+             * @class HybridDirectConsensus
+             *
+             * @property {ProofOfWork} pow - Handles Proof of Work operations
+             * @property {DirectVoting} directVoting - Manages voting operations
+             * @property {BlockchainSchema} db - Database instance
+             * @property {AuditManager} auditManager - Manages audit logging
+             * @property {Cache<boolean>} blockCache - Caches block validation results
+             * @property {ShardManager} shardManager - Manages blockchain sharding
+             * @property {Mempool} mempool - Manages transaction mempool
+             * @property {Blockchain} blockchain - Core blockchain instance
+             * @property {MerkleTree} merkleTree - Handles merkle tree operations
+             * @property {Performance} performance - Monitors performance metrics
+             * @property {RetryStrategy} retryStrategy - Manages operation retries
+             * @property {Map<string, Peer>} peers - Manages network peers
+             * @property {BlockchainSync} blockchainSync - Handles blockchain synchronization
+             * @property {DDoSProtection} ddosProtection - Provides DDoS protection
+             *
+             * @example
+             * const consensus = await HybridDirectConsensus.create(blockchain);
+             * const isValid = await consensus.validateBlock(block);
+             * if (isValid) {
+             *   await consensus.processBlock(block);
+             * }
+             */
+            /**
+             * Creates a new instance of HybridDirectConsensus
+             *
+             * @constructor
+             * @param {Blockchain} blockchain - Blockchain instance
+             */
+            /**
+             * Creates and initializes a new HybridDirectConsensus instance
+             *
+             * @static
+             * @async
+             * @method create
+             * @param {Blockchain} blockchain - Blockchain instance
+             * @returns {Promise<HybridDirectConsensus>} Initialized consensus instance
+             */
+            /**
+             * Validates a block using hybrid consensus rules
+             *
+             * @async
+             * @method validateBlock
+             * @param {Block} block - Block to validate
+             * @returns {Promise<boolean>} True if block is valid
+             * @throws {BlockValidationError} If validation fails or times out
+             *
+             * @example
+             * const isValid = await consensus.validateBlock(block);
+             * if (!isValid) {
+             *   // Handle invalid block
+             * }
+             */
+            /**
+             * Processes a new block
+             *
+             * @async
+             * @method processBlock
+             * @param {Block} block - Block to process
+             * @returns {Promise<Block>} Processed block
+             * @throws {ConsensusError} If block processing fails or times out
+             *
+             * @example
+             * const processedBlock = await consensus.processBlock(block);
+             */
+            /**
+             * Handles chain fork resolution
+             *
+             * @async
+             * @method handleChainFork
+             * @param {Block} block - Block causing the fork
+             * @returns {Promise<string>} Hash of the winning chain tip
+             * @throws {ConsensusError} If fork resolution fails or times out
+             */
+            /**
+             * Validates participation reward transaction
+             *
+             * @async
+             * @method validateParticipationReward
+             * @param {Transaction} transaction - Reward transaction to validate
+             * @param {number} currentHeight - Current blockchain height
+             * @returns {Promise<boolean>} True if reward is valid
+             */
+            /**
+             * Gets consensus metrics
+             *
+             * @method getMetrics
+             * @returns {{
+             *   pow: Object,
+             *   voting: Object,
+             *   votingPeriod: number,
+             *   minimumParticipation: number,
+             *   performance: Object,
+             *   cache: {
+             *     size: number,
+             *     hitRate: number,
+             *     evictionCount: number
+             *   },
+             *   retryStats: Object
+             * }}
+             */
+            /**
+             * Performs health check of consensus system
+             *
+             * @async
+             * @method healthCheck
+             * @returns {Promise<boolean>} True if system is healthy
+             */
+            /**
+             * Starts continuous mining process
+             *
+             * @method startMining
+             * @returns {void}
+             */
+            /**
+             * Stops the mining process
+             *
+             * @method stopMining
+             * @returns {void}
+             */
+            /**
+             * Disposes of the consensus system
+             *
+             * @async
+             * @method dispose
+             * @returns {Promise<void>}
+             */
+            /**
+             * @typedef {Object} CacheMetrics
+             * @property {number} hitRate - Cache hit rate
+             * @property {number} size - Current cache size
+             * @property {number} memoryUsage - Memory usage in bytes
+             * @property {number} evictionCount - Number of cache evictions
+             */
+            /**
+             * @typedef {Object} CircuitBreaker
+             * @property {number} failures - Number of consecutive failures
+             * @property {number} lastFailure - Timestamp of last failure
+             * @property {number} threshold - Failure threshold before opening
+             * @property {number} resetTimeout - Time before resetting failures
+             */
             successes: number;
             failures: number;
-            lastAttempt: number; /**
-             * @fileoverview HybridDirectConsensus implements a hybrid consensus mechanism that combines
-             * Proof of Work (PoW) with direct voting for blockchain validation and fork resolution.
-             * This hybrid approach provides both the security of PoW and the governance benefits of voting.
-             *
-             * @module HybridDirectConsensus
-             */
+            lastAttempt: number;
             averageDelay: number;
         };
     };

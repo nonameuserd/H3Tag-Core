@@ -1,4 +1,4 @@
-import { EncryptedKeystore } from '../wallet/keystore';
+import { EncryptedKeystore } from "../wallet/keystore";
 /**
  * @fileoverview KeystoreDatabase manages encrypted keystore storage and retrieval.
  * It implements secure storage patterns for encrypted wallet keystores with validation

@@ -43,10 +43,10 @@ export declare class NetworkStats {
     private static readonly MAX_DIFFICULTY;
     private static readonly MIN_PROPAGATION_TIME;
     private static readonly MAX_PROPAGATION_TIME;
-    addPeer(peer: Peer): void;
+    addPeer(peer: Peer): Promise<void>;
     removePeer(peerId: string): void;
     getActivePeerCount(): number;
-    getAverageLatency(): number;
+    getAverageLatency(): Promise<number>;
     addBlockPropagationTime(time: number): void;
     updateGlobalHashRate(hashRate: number): void;
     updatePeerLatency(peerId: string, latency: number): void;

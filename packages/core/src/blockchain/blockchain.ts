@@ -649,9 +649,7 @@ export class Blockchain {
           participationRate: 0,
           periodId: 0,
         },
-        signature: {
-          address: "",
-        },
+        signature: "",
         publicKey: "",
         hash: "",
         minerAddress: "",
@@ -671,8 +669,8 @@ export class Blockchain {
       verifySignature: async () => {
         return HybridCrypto.verify(
           block.hash,
-          { address: block.header.signature?.address || "" },
-          { address: block.header.publicKey }
+          block.header.signature,
+          block.header.publicKey
         );
       },
       getHeaderBase: () => block.getHeaderBase(),
@@ -750,9 +748,7 @@ export class Blockchain {
 
   private async validateBlockPreAdd(block: Block): Promise<void> {
     const [signatureValid, consensusValid] = await Promise.all([
-      HybridCrypto.verify(block.hash, block.header.signature, {
-        address: block.header.publicKey,
-      }),
+      HybridCrypto.verify(block.hash, block.header.signature, block.header.publicKey),
       this.consensus.pow.validateBlock(block),
     ]);
 
@@ -1569,9 +1565,7 @@ export class Blockchain {
 
       // Verify signature with timeout
       const isValidSignature = await Promise.race([
-        HybridCrypto.verify(tx.id, tx.signature, {
-          address: tx.sender,
-        }),
+        HybridCrypto.verify(tx.id, tx.signature, tx.sender),
         new Promise((_, reject) =>
           setTimeout(
             () => reject(new Error("Signature verification timeout")),
@@ -2364,7 +2358,7 @@ export class Blockchain {
       const isValid = await HybridCrypto.verify(
         vote.blockHash,
         vote.signature,
-        { address: vote.voter }
+        vote.voter
       );
 
       if (!isValid) {
@@ -2502,8 +2496,8 @@ export class Blockchain {
     }
   }
 
-  public getVerificationProgress(): number {
-    return this.sync ? this.sync.getVerificationProgress() : 1;
+  public async getVerificationProgress(): Promise<number> {
+    return this.sync ? await this.sync.getVerificationProgress() : 1;
   }
 
   public getChainWork(): string {

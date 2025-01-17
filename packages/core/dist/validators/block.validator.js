@@ -44,7 +44,7 @@ class BlockValidator {
                 shared_1.Logger.error(`Block validation failed: ${error.message} (${error.code})`);
             }
             else {
-                shared_1.Logger.error('Unexpected error during block validation:', error);
+                shared_1.Logger.error("Unexpected error during block validation:", error);
             }
             return false;
         }
@@ -96,7 +96,7 @@ class BlockValidator {
         const dynamicSizeLimit = await this.calculateDynamicBlockSize(block);
         // Check block size against dynamic limit
         const blockSize = JSON.stringify(block).length;
-        if (blockSize > await dynamicSizeLimit) {
+        if (blockSize > (await dynamicSizeLimit)) {
             throw new BlockValidationError(`${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block size ${blockSize} exceeds dynamic limit ${dynamicSizeLimit}`, "EXCESS_SIZE");
         }
     }
@@ -182,7 +182,7 @@ class BlockValidator {
     static async validateVoteSignatures(votes) {
         try {
             for (const vote of votes) {
-                const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, { address: vote.signature.address }, vote.publicKey);
+                const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, vote.signature, vote.publicKey);
                 if (!isValid) {
                     shared_1.Logger.warn("Invalid vote signature detected", { voter: vote.voter });
                     return false;
@@ -352,9 +352,10 @@ class BlockValidator {
             // Calculate size of essential components only
             const headerSize = JSON.stringify(block.header).length;
             const txSize = block.transactions.reduce((sum, tx) => sum + JSON.stringify(tx).length, 0);
-            const votesSize = (block.votes || []).reduce((sum, vote) => sum + (typeof vote === "string"
-                ? vote.length
-                : JSON.stringify(vote).length), 0);
+            const votesSize = (block.votes || []).reduce((sum, vote) => sum +
+                (typeof vote === "string"
+                    ? vote.length
+                    : JSON.stringify(vote).length), 0);
             return headerSize + txSize + votesSize;
         }
         catch (error) {
@@ -373,12 +374,12 @@ class BlockValidator {
             try {
                 const [merkleValid, signaturesValid] = await Promise.all([
                     this.validatorSet.verifyValidator(validator, block.header.validatorMerkleRoot),
-                    this.verifyValidatorSignatures(validator)
+                    this.verifyValidatorSignatures(validator),
                 ]);
                 return {
                     validator,
                     isValid: merkleValid && signaturesValid,
-                    weight: validator.reputation / this.VALIDATOR_CONSTANTS.MAX_REPUTATION
+                    weight: validator.reputation / this.VALIDATOR_CONSTANTS.MAX_REPUTATION,
                 };
             }
             catch (error) {
@@ -395,7 +396,7 @@ class BlockValidator {
     static async verifyValidatorSignatures(validator) {
         try {
             const [classicSig] = await Promise.all([
-                crypto_1.HybridCrypto.verify(validator.validationData, { address: validator.signature }, { address: validator.publicKey }),
+                crypto_1.HybridCrypto.verify(validator.validationData, validator.signature, validator.publicKey),
             ]);
             return classicSig;
         }
@@ -409,7 +410,7 @@ class BlockValidator {
             await this.validatorSet.cleanup();
         }
         catch (error) {
-            shared_1.Logger.warn('Validator set cleanup failed:', error);
+            shared_1.Logger.warn("Validator set cleanup failed:", error);
         }
     }
     // Add methods to expose event emitter functionality

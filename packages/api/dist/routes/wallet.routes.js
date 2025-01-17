@@ -26,7 +26,7 @@ const walletController = new wallet_controller_1.WalletController(walletService)
  *             schema:
  *               $ref: '#/components/schemas/WalletResponseDto'
  */
-router.post('/', walletController.createWallet.bind(walletController));
+router.post("/", walletController.createWallet.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/{address}:
@@ -47,7 +47,7 @@ router.post('/', walletController.createWallet.bind(walletController));
  *             schema:
  *               $ref: '#/components/schemas/WalletResponseDto'
  */
-router.get('/:address', walletController.getWallet.bind(walletController));
+router.get("/:address", walletController.getWallet.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/{address}/sign:
@@ -77,7 +77,7 @@ router.get('/:address', walletController.getWallet.bind(walletController));
  *                 signature:
  *                   type: string
  */
-router.post('/:address/sign', walletController.signTransaction.bind(walletController));
+router.post("/:address/sign", walletController.signTransaction.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/{address}/balance:
@@ -98,7 +98,7 @@ router.post('/:address/sign', walletController.signTransaction.bind(walletContro
  *             schema:
  *               $ref: '#/components/schemas/WalletBalanceDto'
  */
-router.get('/:address/balance', walletController.getBalance.bind(walletController));
+router.get("/:address/balance", walletController.getBalance.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/{address}/addresses:
@@ -119,7 +119,7 @@ router.get('/:address/balance', walletController.getBalance.bind(walletControlle
  *             schema:
  *               $ref: '#/components/schemas/NewAddressResponseDto'
  */
-router.post('/:address/addresses', walletController.getNewAddress.bind(walletController));
+router.post("/:address/addresses", walletController.getNewAddress.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/{address}/export:
@@ -151,7 +151,7 @@ router.post('/:address/addresses', walletController.getNewAddress.bind(walletCon
  *       400:
  *         description: Invalid password or wallet not found
  */
-router.post('/:address/export', walletController.exportPrivateKey.bind(walletController));
+router.post("/:address/export", walletController.exportPrivateKey.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/import:
@@ -174,7 +174,7 @@ router.post('/:address/export', walletController.exportPrivateKey.bind(walletCon
  *       400:
  *         description: Invalid private key or password
  */
-router.post('/import', walletController.importPrivateKey.bind(walletController));
+router.post("/import", walletController.importPrivateKey.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/{address}/unspent:
@@ -200,7 +200,7 @@ router.post('/import', walletController.importPrivateKey.bind(walletController))
  *       404:
  *         description: Wallet not found
  */
-router.get('/:address/unspent', walletController.listUnspent.bind(walletController));
+router.get("/:address/unspent", walletController.listUnspent.bind(walletController));
 /**
  * @swagger
  * /api/v1/wallets/txout/{txid}/{n}:
@@ -230,6 +230,6 @@ router.get('/:address/unspent', walletController.listUnspent.bind(walletControll
  *       404:
  *         description: Transaction output not found
  */
-router.get('/txout/:txid/:n', walletController.getTxOut.bind(walletController));
+router.get("/txout/:txid/:n", walletController.getTxOut.bind(walletController));
 exports.default = router;
 //# sourceMappingURL=wallet.routes.js.map

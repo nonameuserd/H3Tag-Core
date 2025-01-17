@@ -36,7 +36,7 @@ class Dilithium {
             }
             return {
                 publicKey: keyPair.publicKey.toString("base64"),
-                privateKey: keyPair.privateKey.toString("base64")
+                privateKey: keyPair.privateKey.toString("base64"),
             };
         }
         catch (error) {

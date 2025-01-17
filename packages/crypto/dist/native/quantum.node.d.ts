@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /// <reference types="node" />
 /// <reference types="node" />
-import { NativeQuantum, QuantumKeyPair, KyberEncapsulation, SecurityLevel } from './types';
+import { NativeQuantum, QuantumKeyPair, KyberEncapsulation, SecurityLevel } from "./types";
 declare class QuantumNative {
     static instance: QuantumNative;
     native: NativeQuantum;

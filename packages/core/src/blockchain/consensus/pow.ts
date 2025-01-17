@@ -615,7 +615,7 @@ export class ProofOfWork {
               nonce: result.header.nonce,
               minerAddress: result.header.minerAddress,
               timestamp: Date.now(),
-              signature: result.header.signature?.address || "",
+              signature: result.header.signature || "",
               difficulty: result.header.difficulty,
             });
 
@@ -948,8 +948,8 @@ export class ProofOfWork {
         verifySignature: async () => {
           return HybridCrypto.verify(
             block.hash,
-            { address: block.signature?.address || "" },
-            { address: block.publicKey }
+            block.signature,
+            block.publicKey
           );
         },
         getHeaderBase: () => block.getHeaderBase(),
@@ -1060,8 +1060,8 @@ export class ProofOfWork {
         verifySignature: async () => {
           return HybridCrypto.verify(
             result.rows[0].hash,
-            { address: result.rows[0].signature?.address || "" },
-            { address: result.rows[0].public_key }
+            result.rows[0].signature,
+            result.rows[0].public_key
           );
         },
         getHeaderBase: () => result.rows[0].getHeaderBase(),

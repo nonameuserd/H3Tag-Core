@@ -1,5 +1,5 @@
-import { PowSolution } from '../blockchain/blockchain';
-import { MiningMetrics } from '../monitoring/metrics';
+import { PowSolution } from "../blockchain/blockchain";
+import { MiningMetrics } from "../monitoring/metrics";
 /**
  * @fileoverview MiningDatabase manages storage and retrieval of mining-related data including
  * PoW solutions, mining metrics, consensus votes, and mining periods. It implements caching

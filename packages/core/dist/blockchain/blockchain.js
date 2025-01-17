@@ -198,12 +198,12 @@ class Blockchain {
         this.utxoCache = new cache_1.Cache({
             ttl: 300000,
             maxSize: 100000,
-            compression: true
+            compression: true,
         });
         this.utxoSetCache = new cache_1.Cache({
             ttl: 300000,
             maxSize: 1,
-            compression: true
+            compression: true,
         });
         this.transactionCache = new cache_1.Cache();
         this.firstTxCache = new cache_1.Cache();
@@ -269,7 +269,7 @@ class Blockchain {
         this.utxoCache = new cache_1.Cache({
             ttl: 300000,
             maxSize: 100000,
-            compression: true
+            compression: true,
         });
         // Set up periodic maintenance tasks
         setInterval(() => this.cleanupMempool(), 60000); // Clean mempool every minute
@@ -288,7 +288,7 @@ class Blockchain {
         this.peerManager = new peer_1.Peer(this.config.network.host, this.config.network.port || 8333, {
             minPingInterval: 30000,
             handshakeTimeout: 5000,
-            maxBanScore: 100
+            maxBanScore: 100,
         }, new shared_2.ConfigService(this.config), this.db);
         // Set up peer event handlers
         this.peerManager.eventEmitter.on("peer_banned", this.handlePeerBanned.bind(this));
@@ -356,7 +356,7 @@ class Blockchain {
         // Start periodic validation
         this.startPeriodicValidation();
         // Start blockchain on initialization
-        this.start().catch(error => {
+        this.start().catch((error) => {
             shared_1.Logger.error("Failed to start blockchain:", error);
         });
         this.ddosProtection = new ddos_1.DDoSProtection({
@@ -467,7 +467,7 @@ class Blockchain {
         return Blockchain.instance;
     }
     /**
-    * Create the genesis block
+     * Create the genesis block
      */
     createGenesisBlock() {
         const timestamp = Date.now();
@@ -491,9 +491,7 @@ class Blockchain {
                     participationRate: 0,
                     periodId: 0,
                 },
-                signature: {
-                    address: "",
-                },
+                signature: "",
                 publicKey: "",
                 hash: "",
                 minerAddress: "",
@@ -509,7 +507,7 @@ class Blockchain {
                 return calculatedHash === block.hash;
             },
             verifySignature: async () => {
-                return crypto_1.HybridCrypto.verify(block.hash, { address: block.header.signature?.address || "" }, { address: block.header.publicKey });
+                return crypto_1.HybridCrypto.verify(block.hash, block.header.signature, block.header.publicKey);
             },
             getHeaderBase: () => block.getHeaderBase(),
             isComplete() {
@@ -519,7 +517,7 @@ class Blockchain {
                     this.header.merkleRoot &&
                     this.header.timestamp &&
                     this.header.nonce);
-            }
+            },
         };
         block.hash = this.calculateBlockHash(block);
         return block;
@@ -574,10 +572,8 @@ class Blockchain {
     }
     async validateBlockPreAdd(block) {
         const [signatureValid, consensusValid] = await Promise.all([
-            crypto_1.HybridCrypto.verify(block.hash, block.header.signature, {
-                address: block.header.publicKey,
-            }),
-            this.consensus.pow.validateBlock(block)
+            crypto_1.HybridCrypto.verify(block.hash, block.header.signature, block.header.publicKey),
+            this.consensus.pow.validateBlock(block),
         ]);
         if (!signatureValid) {
             throw new Error("INVALID_SIGNATURE, Invalid block signature");
@@ -642,7 +638,8 @@ class Blockchain {
         try {
             // Use cached height if available
             if (this.heightCache?.value !== undefined &&
-                Date.now() - (this.heightCache.timestamp || 0) < constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL) {
+                Date.now() - (this.heightCache.timestamp || 0) <
+                    constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL) {
                 return this.heightCache.value;
             }
             // Calculate new height
@@ -650,14 +647,14 @@ class Blockchain {
             // Update cache
             this.heightCache = {
                 value: height,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             };
             // Update metrics
-            this.metrics.gauge('blockchain_height', height);
+            this.metrics.gauge("blockchain_height", height);
             return height;
         }
         catch (error) {
-            shared_1.Logger.error('Error getting blockchain height:', error);
+            shared_1.Logger.error("Error getting blockchain height:", error);
             // Fallback to calculating height directly
             return Math.max(0, this.chain.length - 1);
         }
@@ -716,7 +713,7 @@ class Blockchain {
                                 decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                             },
                             publicKey: tx.sender,
-                            confirmations: 0
+                            confirmations: 0,
                         });
                     });
                 }
@@ -839,14 +836,14 @@ class Blockchain {
     }
     async start() {
         // Add event listener for mined blocks
-        this.consensus.pow.on('blockMined', async (data) => {
+        this.consensus.pow.on("blockMined", async (data) => {
             await this.handleBlockMined(data.block);
         });
         await this.sync.startSync();
     }
     async stop() {
         // Remove event listener
-        this.consensus.pow.off('blockMined', this.handleBlockMined);
+        this.consensus.pow.off("blockMined", this.handleBlockMined);
         crypto_1.KeyManager.shutdown();
         await this.sync.stop();
     }
@@ -925,7 +922,7 @@ class Blockchain {
         const newBlock = await blockBuilder.build({
             address: this.config.wallet.address,
             publicKey: this.config.wallet.publicKey,
-            privateKey: this.config.wallet.privateKey
+            privateKey: this.config.wallet.privateKey,
         });
         // Sign the block before consensus
         await this.signBlock(newBlock, this.config.wallet.privateKey);
@@ -977,7 +974,7 @@ class Blockchain {
                 name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                 symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
                 decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
-                maxSupply: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY
+                maxSupply: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY,
             };
             // Check max supply
             const currentSupply = this.getTotalSupply();
@@ -1097,19 +1094,19 @@ class Blockchain {
                 votePowerDecay: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_POWER_DECAY,
             },
             wallet: config?.wallet || {
-                address: '',
+                address: "",
                 publicKey: async () => {
                     const keyPair = await crypto_1.KeyManager.generateKeyPair();
-                    return typeof keyPair.publicKey === 'function'
+                    return typeof keyPair.publicKey === "function"
                         ? await keyPair.publicKey()
                         : keyPair.publicKey;
                 },
                 privateKey: async () => {
                     const keyPair = await crypto_1.KeyManager.generateKeyPair();
-                    return typeof keyPair.privateKey === 'function'
+                    return typeof keyPair.privateKey === "function"
                         ? await keyPair.privateKey()
                         : keyPair.privateKey;
-                }
+                },
             },
             network: config?.network || {
                 type: dnsSeed_1.NetworkType.MAINNET,
@@ -1259,16 +1256,14 @@ class Blockchain {
             }
             // Verify signature with timeout
             const isValidSignature = await Promise.race([
-                crypto_1.HybridCrypto.verify(tx.id, tx.signature, {
-                    address: tx.sender,
-                }),
+                crypto_1.HybridCrypto.verify(tx.id, tx.signature, tx.sender),
                 new Promise((_, reject) => setTimeout(() => reject(new Error("Signature verification timeout")), 5000)),
             ]);
             if (!isValidSignature) {
                 throw new Error("Invalid transaction signature");
             }
             // Add DDoS protection for transaction submissions
-            if (!this.ddosProtection.checkRequest('blockchain_tx', tx.sender)) {
+            if (!this.ddosProtection.checkRequest("blockchain_tx", tx.sender)) {
                 shared_1.Logger.warn(`DDoS protection blocked blockchain transaction from ${tx.sender}`);
                 return false;
             }
@@ -1553,7 +1548,7 @@ class Blockchain {
             const peer = new peer_1.Peer(peerUrl, this.config.network.port || 8333, {
                 minPingInterval: 30000,
                 handshakeTimeout: 5000,
-                maxBanScore: 100
+                maxBanScore: 100,
             }, new shared_2.ConfigService(this.config), this.db);
             await peer.handshake();
             this.peers.set(peer.getId(), peer);
@@ -1840,7 +1835,7 @@ class Blockchain {
             }
             // Update mempool and UTXO set
             await this.utxoSet.applyBlock(block);
-            block.transactions.forEach(tx => {
+            block.transactions.forEach((tx) => {
                 this.mempool.removeTransaction(tx.id);
             });
             // Emit metrics
@@ -1865,18 +1860,18 @@ class Blockchain {
             // Cache the result
             this.utxoCache.set(cacheKey, utxo, { ttl: 300000 }); // 5 minute TTL
             // Log for monitoring
-            shared_1.Logger.debug('UTXO retrieved', {
+            shared_1.Logger.debug("UTXO retrieved", {
                 txId,
                 outputIndex,
-                spent: utxo.spent
+                spent: utxo.spent,
             });
             return utxo;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get UTXO:', {
+            shared_1.Logger.error("Failed to get UTXO:", {
                 txId,
                 outputIndex,
-                error: error instanceof Error ? error.message : 'Unknown error'
+                error: error instanceof Error ? error.message : "Unknown error",
             });
             return null;
         }
@@ -1891,7 +1886,8 @@ class Blockchain {
         return constants_1.BLOCKCHAIN_CONSTANTS.VERSION;
     }
     hasBlock(hash) {
-        return this.blockCache.has(hash) || this.chain.some(block => block.hash === hash);
+        return (this.blockCache.has(hash) ||
+            this.chain.some((block) => block.hash === hash));
     }
     async validateBlock(block) {
         return this.consensus.validateBlock(block);
@@ -1908,29 +1904,29 @@ class Blockchain {
                 return false;
             // Verify transactions
             for (const tx of block.transactions) {
-                if (!await tx.verify())
+                if (!(await tx.verify()))
                     return false;
             }
             return true;
         }
         catch (error) {
-            shared_1.Logger.error('Block verification failed:', error);
+            shared_1.Logger.error("Block verification failed:", error);
             return false;
         }
     }
     async processVote(vote) {
         try {
             // Verify vote signature
-            const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, vote.signature, { address: vote.voter });
+            const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, vote.signature, vote.voter);
             if (!isValid) {
-                throw new Error('Invalid vote signature');
+                throw new Error("Invalid vote signature");
             }
             // Store vote in database
             await this.db.put(`vote:${vote.blockHash}:${vote.voter}`, JSON.stringify(vote));
             shared_1.Logger.info(`Vote processed for block ${vote.blockHash} by ${vote.voter}`);
         }
         catch (error) {
-            shared_1.Logger.error('Vote processing failed:', error);
+            shared_1.Logger.error("Vote processing failed:", error);
             throw error;
         }
     }
@@ -1963,8 +1959,8 @@ class Blockchain {
                     height: currentHeight,
                     hash: activeBlock.hash,
                     branchLen: 0,
-                    status: 'active',
-                    lastValidatedAt: Date.now()
+                    status: "active",
+                    lastValidatedAt: Date.now(),
                 });
                 processedHashes.add(activeBlock.hash);
             }
@@ -1987,7 +1983,7 @@ class Blockchain {
                     }
                     branchLen++;
                     // Validate the block
-                    isValid = isValid && await this.validateBlock(currentBlock);
+                    isValid = isValid && (await this.validateBlock(currentBlock));
                     if (!isValid)
                         break;
                     // Get previous block
@@ -2000,13 +1996,13 @@ class Blockchain {
                 // Determine status
                 let status;
                 if (!isValid) {
-                    status = 'invalid';
+                    status = "invalid";
                 }
                 else if (await this.verifyBlock(block)) {
-                    status = 'valid-fork';
+                    status = "valid-fork";
                 }
                 else {
-                    status = 'valid-headers';
+                    status = "valid-headers";
                 }
                 tips.push({
                     height: block.header.height,
@@ -2014,28 +2010,28 @@ class Blockchain {
                     branchLen,
                     status,
                     firstBlockHash,
-                    lastValidatedAt: Date.now()
+                    lastValidatedAt: Date.now(),
                 });
                 processedHashes.add(block.hash);
             }
             // Sort tips by height descending
             tips.sort((a, b) => b.height - a.height);
             // Add metrics
-            this.metrics.gauge('chain_tips_count', tips.length);
-            this.metrics.gauge('valid_forks_count', tips.filter(tip => tip.status === 'valid-fork').length);
+            this.metrics.gauge("chain_tips_count", tips.length);
+            this.metrics.gauge("valid_forks_count", tips.filter((tip) => tip.status === "valid-fork").length);
             return tips;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get chain tips:', error);
+            shared_1.Logger.error("Failed to get chain tips:", error);
             throw error;
         }
     }
-    getVerificationProgress() {
-        return this.sync ? this.sync.getVerificationProgress() : 1;
+    async getVerificationProgress() {
+        return this.sync ? await this.sync.getVerificationProgress() : 1;
     }
     getChainWork() {
         const latestBlock = this.getLatestBlock();
-        return latestBlock ? this.calculateChainWork(latestBlock) : '0x0';
+        return latestBlock ? this.calculateChainWork(latestBlock) : "0x0";
     }
     isInitialBlockDownload() {
         return this.sync ? this.sync.isInitialBlockDownload() : false;
@@ -2047,15 +2043,16 @@ class Blockchain {
             work *= BigInt(block.header.height);
             // Adjust for hybrid consensus by considering validators
             if (block.validators && block.validators.length > 0) {
-                const validatorWeight = BigInt(block.validators.length * constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VALIDATOR_WEIGHT);
+                const validatorWeight = BigInt(block.validators.length *
+                    constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VALIDATOR_WEIGHT);
                 work += validatorWeight;
             }
             // Convert to hex string with '0x' prefix
-            return '0x' + work.toString(16);
+            return "0x" + work.toString(16);
         }
         catch (error) {
-            shared_1.Logger.error('Chain work calculation failed:', error);
-            return '0x0';
+            shared_1.Logger.error("Chain work calculation failed:", error);
+            return "0x0";
         }
     }
     getConsensus() {
@@ -2063,8 +2060,7 @@ class Blockchain {
     }
     async hasTransaction(hash) {
         // Check cache and chain
-        return !!(this.transactionCache.has(hash) ||
-            await this.getTransaction(hash));
+        return !!(this.transactionCache.has(hash) || (await this.getTransaction(hash)));
     }
     async isUTXOSpent(input) {
         const utxo = await this.getUTXO(input.txId, input.outputIndex);
@@ -2082,14 +2078,14 @@ class Blockchain {
                 // Update consensus state
                 this.consensus.updateState(block),
                 // Notify peers of new block
-                this.node.broadcastBlock(block)
+                this.node.broadcastBlock(block),
             ]);
             // Update metrics
-            this.metrics.gauge('blockchain_height', this.getHeight());
-            this.metrics.histogram('transactions_per_block', block.transactions.length);
+            this.metrics.gauge("blockchain_height", this.getHeight());
+            this.metrics.histogram("transactions_per_block", block.transactions.length);
         }
         catch (error) {
-            shared_1.Logger.error('Post-block update failed:', error);
+            shared_1.Logger.error("Post-block update failed:", error);
             // Use retry decorator instead of queue
             await this.retryPostBlockAdd(block);
         }
@@ -2112,7 +2108,7 @@ __decorate([
         maxAttempts: 3,
         delay: 1000,
         exponentialBackoff: true,
-        maxDelay: 5000
+        maxDelay: 5000,
     })
 ], Blockchain.prototype, "retryPostBlockAdd", null);
 exports.Blockchain = Blockchain;

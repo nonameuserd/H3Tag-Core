@@ -1,5 +1,5 @@
-import { WalletService } from '../services/wallet.service';
-import { CreateWalletDto, WalletResponseDto, SignTransactionDto, SendToAddressDto, WalletBalanceDto, NewAddressResponseDto, ExportPrivateKeyDto, ImportPrivateKeyDto, UnspentOutputDto, TxOutDto } from '../dtos/wallet.dto';
+import { WalletService } from "../services/wallet.service";
+import { CreateWalletDto, WalletResponseDto, SignTransactionDto, SendToAddressDto, WalletBalanceDto, NewAddressResponseDto, ExportPrivateKeyDto, ImportPrivateKeyDto, UnspentOutputDto, TxOutDto } from "../dtos/wallet.dto";
 export declare class WalletController {
     private readonly walletService;
     constructor(walletService: WalletService);

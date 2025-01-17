@@ -1,4 +1,4 @@
-import { BlockchainSchema } from './blockchain-schema';
+import { BlockchainSchema } from "./blockchain-schema";
 /**
  * @fileoverview DatabaseTransaction implements atomic database operations with rollback support.
  * It provides ACID guarantees for database operations and handles transaction lifecycle management.
@@ -167,5 +167,5 @@ export declare class DatabaseTransaction {
     /**
      * Returns the current state of the transaction
      */
-    getTransactionState(): 'active' | 'committed' | 'rolled_back' | 'invalid';
+    getTransactionState(): "active" | "committed" | "rolled_back" | "invalid";
 }

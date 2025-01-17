@@ -22,7 +22,7 @@ class Cache {
         this.eventEmitter = new events_1.EventEmitter();
         this.MEMORY_LIMITS = {
             MAX_ENTRY_SIZE: 5 * 1024 * 1024,
-            TOTAL_CACHE_SIZE: 500 * 1024 * 1024 // 500MB total
+            TOTAL_CACHE_SIZE: 500 * 1024 * 1024, // 500MB total
         };
         this.options = { ...Cache.DEFAULT_OPTIONS, ...options };
         this.items = new Map();
@@ -61,7 +61,7 @@ class Cache {
                 size < Cache.MAX_COMPRESSION_SIZE) {
                 const compressedValue = (0, zlib_1.gzipSync)(Buffer.from(serializedValue));
                 if (compressedValue.length < size) {
-                    finalValue = compressedValue.toString('base64');
+                    finalValue = compressedValue.toString("base64");
                     size = compressedValue.length;
                     compressed = true;
                 }
@@ -85,7 +85,11 @@ class Cache {
             this.items.set(key, item);
             this.memoryUsage += size;
             this.updateStats();
-            this.eventEmitter.emit("set", { key, value, currency: this.options.currency });
+            this.eventEmitter.emit("set", {
+                key,
+                value,
+                currency: this.options.currency,
+            });
         }
         catch (error) {
             shared_1.Logger.error(`Cache error setting key "${key}":`, error);
@@ -118,7 +122,11 @@ class Cache {
         }
         item.lastAccessed = Date.now();
         this.stats.hits++;
-        this.eventEmitter.emit("hit", { key, value: item.value, currency: this.options.currency });
+        this.eventEmitter.emit("hit", {
+            key,
+            value: item.value,
+            currency: this.options.currency,
+        });
         return item.value;
     }
     mget(keys) {
@@ -131,8 +139,7 @@ class Cache {
         if (this.shouldReduceMemoryUsage()) {
             this.enforceMemoryLimit();
         }
-        const entries = Array.from(this.items.entries())
-            .sort((a, b) => {
+        const entries = Array.from(this.items.entries()).sort((a, b) => {
             const priorityA = this.priorityQueue.get(a[0]) || 0;
             const priorityB = this.priorityQueue.get(b[0]) || 0;
             if (priorityA !== priorityB)
@@ -154,8 +161,7 @@ class Cache {
         return memoryUsage.heapUsed / memoryUsage.heapTotal > this.memoryThreshold;
     }
     enforceMemoryLimit() {
-        const entries = Array.from(this.items.entries())
-            .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+        const entries = Array.from(this.items.entries()).sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
         let removed = 0;
         for (const [key] of entries) {
             if (removed >= this.items.size * 0.2)
@@ -298,8 +304,7 @@ class Cache {
     }
     prune(percentage) {
         const entriesToRemove = Math.floor(this.size() * percentage);
-        const entries = Array.from(this.items.entries())
-            .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
+        const entries = Array.from(this.items.entries()).sort((a, b) => a[1].lastAccessed - b[1].lastAccessed);
         for (let i = 0; i < entriesToRemove; i++) {
             this.items.delete(entries[i][0]);
         }
@@ -320,7 +325,7 @@ Cache.PRIORITIES = {
     CRITICAL: 10,
     HIGH: 5,
     NORMAL: 1,
-    LOW: 0
+    LOW: 0,
 };
 Cache.COMPRESSION_THRESHOLD = 1024; // 1KB
 Cache.MAX_COMPRESSION_SIZE = 50 * 1024 * 1024; // 50MB

@@ -125,7 +125,7 @@ export class BlockchainSync {
         await this.handleNewBlock(block, peer);
       } catch (error) {
         Logger.error(
-          `Error handling new block from peer ${peer.getInfo().url}:`,
+          `Error handling new block from peer ${(await peer.getInfo()).url}:`,
           error
         );
         this.eventEmitter.emit("sync_error", error);
@@ -139,7 +139,7 @@ export class BlockchainSync {
           await this.handleNewTransaction(transaction, peer);
         } catch (error) {
           Logger.error(
-            `Error handling new transaction from peer ${peer.getInfo().url}:`,
+            `Error handling new transaction from peer ${(await peer.getInfo()).url}:`,
             error
           );
           this.eventEmitter.emit("sync_error", error);
@@ -308,11 +308,20 @@ export class BlockchainSync {
       .filter(({ isValid }) => isValid)
       .map(({ peer }) => peer);
 
-    return validConnectedPeers.sort((a, b) => {
-      const heightDiff = b.getInfo().height - a.getInfo().height;
-      if (heightDiff !== 0) return heightDiff;
-      return a.getInfo().latency - b.getInfo().latency;
-    })[0];
+    const peersWithInfo = await Promise.all(
+      validConnectedPeers.map(async peer => ({
+        peer,
+        info: await peer.getInfo()
+      }))
+    );
+
+    return peersWithInfo
+      .sort((a, b) => {
+        const heightDiff = b.info.height - a.info.height;
+        if (heightDiff !== 0) return heightDiff;
+        return a.info.latency - b.info.latency;
+      })
+      .map(({ peer }) => peer)[0];
   }
 
   public async synchronize(peer: Peer): Promise<void> {
@@ -337,7 +346,7 @@ export class BlockchainSync {
     const release = await this.mutex.acquire();
     try {
       const currentHeight = this.blockchain.getHeight();
-      const targetHeight = peer.getInfo().height;
+      const targetHeight = (await peer.getInfo()).height;
 
       this.headerSync = {
         startHeight: currentHeight + 1,
@@ -586,7 +595,7 @@ export class BlockchainSync {
       .map((peer) =>
         peer.request(type, data).catch((error) => {
           Logger.error(
-            `Failed to broadcast to peer ${peer.getInfo().url}:`,
+            `Failed to broadcast to peer, error: ${error.message}`,
             error
           );
         })
@@ -608,7 +617,7 @@ export class BlockchainSync {
 
   private async checkSync(): Promise<void> {
     const bestPeer = await this.selectBestPeer();
-    if (bestPeer && bestPeer.getInfo().height > this.blockchain.getHeight()) {
+    if (bestPeer && (await bestPeer.getInfo()).height > this.blockchain.getHeight()) {
       await this.startSync();
     }
   }
@@ -617,7 +626,7 @@ export class BlockchainSync {
     try {
       const response = await peer.request(PeerMessageType.GET_VOTES, {
         fromHeight: this.lastSyncHeight,
-        toHeight: this.syncingPeer?.getInfo().height,
+        toHeight: (await this.syncingPeer?.getInfo()).height,
       });
 
       if (!Array.isArray(response.votes)) {
@@ -744,8 +753,8 @@ export class BlockchainSync {
       const peerInfo = peer.getInfo();
       const localHeight = this.blockchain.getHeight();
 
-      if (peerInfo.height <= localHeight) return false;
-      if (!(await peer.validatePeerCurrency(peerInfo))) return false;
+      if ((await peerInfo).height <= localHeight) return false;
+      if (!(await peer.validatePeerCurrency(await peerInfo))) return false;
       if (peer.getAverageBandwidth() < 1000000) return false; // 1MB/s minimum
 
       return true;
@@ -762,10 +771,10 @@ export class BlockchainSync {
       : 0;
   }
 
-  private calculateEstimatedTime(): number {
+  private async calculateEstimatedTime(): Promise<number> {
     const blocksPerSecond = this.calculateBlocksPerSecond();
     const remainingBlocks =
-      this.syncingPeer?.getInfo().height - this.lastSyncHeight;
+      (await this.syncingPeer?.getInfo()).height - this.lastSyncHeight;
     return blocksPerSecond > 0 ? (remainingBlocks / blocksPerSecond) * 1000 : 0;
   }
 
@@ -922,10 +931,10 @@ export class BlockchainSync {
     throw new Error("Max retries exceeded");
   }
 
-  public getVerificationProgress(): number {
+  public async getVerificationProgress(): Promise<number> {
     if (this.state !== SyncState.SYNCING) return 1;
     const currentHeight = this.blockchain.getCurrentHeight();
-    const targetHeight = this.syncingPeer?.getInfo().height || currentHeight;
+    const targetHeight = (await this.syncingPeer?.getInfo()).height || currentHeight;
     return targetHeight ? currentHeight / targetHeight : 1;
   }
 

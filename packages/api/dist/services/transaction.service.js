@@ -50,13 +50,15 @@ let TransactionService = class TransactionService {
     async getTransaction(txId) {
         const tx = await this.transactionBuilder.getTransaction(txId);
         if (!tx) {
-            throw new Error('Transaction not found');
+            throw new Error("Transaction not found");
         }
         return {
             id: tx.id,
             fromAddress: tx.sender,
             toAddress: tx.recipient,
-            amount: tx.outputs.reduce((sum, output) => sum + output.amount, BigInt(0)).toString(),
+            amount: tx.outputs
+                .reduce((sum, output) => sum + output.amount, BigInt(0))
+                .toString(),
             timestamp: new Date(tx.timestamp).toISOString(),
             blockHeight: tx.blockHeight,
             confirmations: tx.inputs[0]?.confirmations || 0,
@@ -64,43 +66,43 @@ let TransactionService = class TransactionService {
             type: tx.type,
             status: tx.status,
             hash: tx.hash,
-            inputs: tx.inputs.map(input => ({
+            inputs: tx.inputs.map((input) => ({
                 txId: input.txId,
                 outputIndex: input.outputIndex,
                 amount: input.amount.toString(),
-                address: input.address
+                address: input.address,
             })),
-            outputs: tx.outputs.map(output => ({
+            outputs: tx.outputs.map((output) => ({
                 address: output.address,
                 amount: output.amount.toString(),
-                index: output.index
-            }))
+                index: output.index,
+            })),
         };
     }
     async sendRawTransaction(rawTransaction) {
         try {
             // Validate hex string format
             if (!/^[0-9a-fA-F]+$/.test(rawTransaction)) {
-                throw new Error('Invalid raw transaction format - must be hex string');
+                throw new Error("Invalid raw transaction format - must be hex string");
             }
             // Call core blockchain service to broadcast transaction
             const txId = await this.blockchainService.sendRawTransaction(rawTransaction);
-            common_1.Logger.log('Raw transaction broadcast successfully:', { txId });
+            common_1.Logger.log("Raw transaction broadcast successfully:", { txId });
             return txId;
         }
         catch (error) {
-            common_1.Logger.error('Failed to send raw transaction:', error);
+            common_1.Logger.error("Failed to send raw transaction:", error);
             throw error;
         }
     }
     async getRawTransaction(txId) {
         const transaction = await this.transactionBuilder.getTransaction(txId);
         if (!transaction) {
-            throw new Error('Transaction not found');
+            throw new Error("Transaction not found");
         }
         return {
             hex: transaction.toHex(),
-            txid: transaction.id
+            txid: transaction.id,
         };
     }
     async decodeRawTransaction(rawTransaction) {
@@ -111,7 +113,7 @@ let TransactionService = class TransactionService {
                 hash: decodedTx.hash,
                 version: decodedTx.version,
                 vin: decodedTx.inputs,
-                vout: decodedTx.outputs
+                vout: decodedTx.outputs,
             };
         }
         catch (error) {
@@ -123,7 +125,7 @@ let TransactionService = class TransactionService {
             return await (0, core_1.estimateFee)(targetBlocks);
         }
         catch (error) {
-            common_1.Logger.error('Failed to estimate fee:', error);
+            common_1.Logger.error("Failed to estimate fee:", error);
             throw error;
         }
     }
@@ -132,7 +134,7 @@ let TransactionService = class TransactionService {
             return await core_1.TransactionBuilder.signMessage(message, privateKey);
         }
         catch (error) {
-            common_1.Logger.error('Failed to sign message:', error);
+            common_1.Logger.error("Failed to sign message:", error);
             throw error;
         }
     }
@@ -141,7 +143,7 @@ let TransactionService = class TransactionService {
             return await core_1.TransactionBuilder.verifyMessage(message, signature, publicKey);
         }
         catch (error) {
-            common_1.Logger.error('Failed to verify message:', error);
+            common_1.Logger.error("Failed to verify message:", error);
             throw error;
         }
     }
@@ -150,12 +152,12 @@ let TransactionService = class TransactionService {
             return core_1.TransactionBuilder.validateAddress(address);
         }
         catch (error) {
-            common_1.Logger.error('Failed to validate address:', error);
+            common_1.Logger.error("Failed to validate address:", error);
             throw error;
         }
     }
     getNetworkType() {
-        return core_1.TransactionBuilder['getNetworkType']();
+        return core_1.TransactionBuilder["getNetworkType"]();
     }
 };
 exports.TransactionService = TransactionService;
