@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "declaration": true,
+    "target": "es2020",
+    "moduleResolution": "node",
+    "module": "commonjs",
+    "baseUrl": ".",
+    "paths": {
+      "@h3tag-blockchain/core/*": ["src/*"]
+    }
+  },
+  "references": [{ "path": "../shared" }, { "path": "../crypto" }],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+}

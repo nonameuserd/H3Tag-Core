@@ -1,0 +1,28 @@
+{
+  "name": "h3tag-blockchain",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "yarn build:all",
+    "build:all": "yarn build:crypto && yarn build:shared && yarn build:core && yarn build:api && yarn build:cli",
+    "build:shared": "cd packages/shared && yarn build",
+    "build:crypto": "cd packages/crypto && yarn build",
+    "build:core": "cd packages/core && yarn build",
+    "build:api": "cd packages/api && yarn build",
+    "build:cli": "cd packages/cli && yarn build",
+    "test": "node --max-old-space-size=2048 ./node_modules/.bin/jest",
+    "clean": "npm run clean:modules && npm run clean:dist",
+    "clean:modules": "rimraf '**/node_modules' '**/package-lock.json'",
+    "clean:dist": "rimraf '**/dist' '**/*.tsbuildinfo' '**/index.d.ts'",
+    "clean:js": "rimraf '**/*.js' '**/*.js.map' '!node_modules/**'",
+    "deploy": "cd packages/core && yarn deploy",
+    "bootstrap": "cd packages/core && yarn bootstrap"
+  },
+  "devDependencies": {
+    "typescript": "^4.5.2",
+    "lerna": "^8.1.9"
+  },
+  "postinstall": ""
+}

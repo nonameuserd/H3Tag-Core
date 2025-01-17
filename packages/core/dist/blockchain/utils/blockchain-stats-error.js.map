@@ -1,0 +1,1 @@
+{"version":3,"file":"blockchain-stats-error.js","sourceRoot":"","sources":["../../../src/blockchain/utils/blockchain-stats-error.ts"],"names":[],"mappings":"AAAA,MAAM,oBAAqB,SAAQ,KAAK;IACpC,YACI,OAAe,EACC,IAAY,EACZ,OAA6B;QAE7C,KAAK,CAAC,OAAO,CAAC,CAAC;QAHC,SAAI,GAAJ,IAAI,CAAQ;QACZ,YAAO,GAAP,OAAO,CAAsB;QAG7C,IAAI,CAAC,IAAI,GAAG,sBAAsB,CAAC;IACvC,CAAC;CACJ"}
