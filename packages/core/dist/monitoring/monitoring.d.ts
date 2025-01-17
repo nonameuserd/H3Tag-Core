@@ -1,4 +1,4 @@
-import winston from 'winston';
+import winston from "winston";
 export declare class MonitoringError extends Error {
     constructor(message: string);
 }

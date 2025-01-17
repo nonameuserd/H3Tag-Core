@@ -59,7 +59,9 @@ class TransactionBuilder {
         if (outputIndex < 0 || !Number.isInteger(outputIndex)) {
             throw new TransactionError("Invalid output index");
         }
-        if (!publicKey || amount <= 0 || amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX) {
+        if (!publicKey ||
+            amount <= 0 ||
+            amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX) {
             throw new TransactionError("Invalid input parameters");
         }
         if (this.inputs.length >= TransactionBuilder.MAX_INPUTS) {
@@ -77,19 +79,21 @@ class TransactionBuilder {
             release();
         }
         // Check for duplicate inputs
-        const isDuplicate = this.inputs.some(input => input.txId === txId && input.outputIndex === outputIndex);
+        const isDuplicate = this.inputs.some((input) => input.txId === txId && input.outputIndex === outputIndex);
         if (isDuplicate) {
             throw new TransactionError("Duplicate input detected");
         }
         // Check total input amount
         const totalInputAmount = this.inputs.reduce((sum, input) => sum + input.amount, BigInt(0));
-        if (totalInputAmount + amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TOTAL_INPUT) {
+        if (totalInputAmount + amount >
+            constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TOTAL_INPUT) {
             throw new TransactionError("Total input amount exceeds limit");
         }
         // Check input age
         const inputTx = await this.db.getTransaction(txId);
         if (!inputTx ||
-            Date.now() - inputTx.timestamp < constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_INPUT_AGE) {
+            Date.now() - inputTx.timestamp <
+                constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_INPUT_AGE) {
             throw new TransactionError("Input too recent");
         }
         const input = {
@@ -100,12 +104,12 @@ class TransactionBuilder {
             amount,
             currency: {
                 symbol: "TAG",
-                decimals: 8
+                decimals: 8,
             },
             address: await crypto_1.KeyManager.deriveAddress(publicKey),
             confirmations: 0,
             script: await this.generateInputScript(publicKey),
-            sequence: 0xffffffff // Maximum sequence number by default
+            sequence: 0xffffffff, // Maximum sequence number by default
         };
         this.inputs.push(input);
         return this;
@@ -119,22 +123,22 @@ class TransactionBuilder {
             // Get address from public key
             const address = await crypto_1.KeyManager.deriveAddress(publicKey);
             // Check address type and generate appropriate script
-            if (address.startsWith('TAG1')) {
+            if (address.startsWith("TAG1")) {
                 // Native SegWit equivalent for our blockchain
                 return `0 ${await crypto_1.KeyManager.getPublicKeyHash(publicKey)}`;
             }
-            else if (address.startsWith('TAG3')) {
+            else if (address.startsWith("TAG3")) {
                 // Script Hash equivalent for our blockchain
                 return `OP_HASH160 ${address} OP_EQUAL`;
             }
-            else if (address.startsWith('TAG')) {
+            else if (address.startsWith("TAG")) {
                 // Legacy address equivalent
                 return `OP_DUP OP_HASH160 ${address} OP_EQUALVERIFY OP_CHECKSIG`;
             }
             throw new TransactionError("Unsupported address format");
         }
         catch (error) {
-            shared_1.Logger.error('Script generation failed:', error);
+            shared_1.Logger.error("Script generation failed:", error);
             throw new TransactionError(`Failed to generate input script: ${error.message}`);
         }
     }
@@ -158,9 +162,9 @@ class TransactionBuilder {
             script,
             currency: {
                 symbol: "TAG",
-                decimals: 8
+                decimals: 8,
             },
-            index: this.outputs.length
+            index: this.outputs.length,
         });
         return this;
     }
@@ -179,7 +183,8 @@ class TransactionBuilder {
                 MAX_SCRIPT_SIZE: 10000,
             };
             // Amount validation
-            if (amount < constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MIN || amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX) {
+            if (amount < constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MIN ||
+                amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX) {
                 throw new TransactionError("Invalid amount range");
             }
             // P2PKH (Pay to Public Key Hash) script
@@ -200,18 +205,20 @@ class TransactionBuilder {
             const finalScript = `${scriptVersion}:${script}`;
             shared_1.Logger.debug("Generated output script", {
                 version: scriptVersion,
-                addressHash: addressHash.substring(0, 10) + '...',
-                scriptSize: script.length
+                addressHash: addressHash.substring(0, 10) + "...",
+                scriptSize: script.length,
             });
             return finalScript;
         }
         catch (error) {
             shared_1.Logger.error("Script generation failed:", {
                 error,
-                address: address.substring(0, 8) + '...',
-                amount: amount.toString()
+                address: address.substring(0, 8) + "...",
+                amount: amount.toString(),
             });
-            throw new TransactionError(error instanceof TransactionError ? error.message : "Script generation failed");
+            throw new TransactionError(error instanceof TransactionError
+                ? error.message
+                : "Script generation failed");
         }
     }
     /**
@@ -227,7 +234,7 @@ class TransactionBuilder {
                 throw new TransactionError("Transaction must have inputs and outputs");
             }
             // 2. Calculate and validate amounts
-            const inputAmount = TransactionBuilder.calculateInputAmount(this.inputs.map(input => ({
+            const inputAmount = TransactionBuilder.calculateInputAmount(this.inputs.map((input) => ({
                 amount: input.amount,
                 address: input.address,
                 txId: input.txId,
@@ -238,17 +245,17 @@ class TransactionBuilder {
                 currency: {
                     name: "TAG",
                     symbol: "TAG",
-                    decimals: 8
+                    decimals: 8,
                 },
                 publicKey: input.publicKey,
-                confirmations: input.confirmations
+                confirmations: input.confirmations,
             })));
             const outputAmount = TransactionBuilder.calculateOutputAmount(this.outputs);
             if (inputAmount < outputAmount) {
                 throw new TransactionError("Insufficient input amount");
             }
             // 3. Calculate fee
-            const fee = (inputAmount - outputAmount);
+            const fee = inputAmount - outputAmount;
             if (fee < constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE ||
                 fee > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_FEE) {
                 throw new TransactionError("Invalid fee amount");
@@ -269,13 +276,13 @@ class TransactionBuilder {
                 sender: await this.deriveSenderAddress(this.inputs[0].publicKey),
                 currency: {
                     symbol: "TAG",
-                    decimals: 8
+                    decimals: 8,
                 },
                 recipient: "",
                 memo: "",
                 verify: async () => await this.verify(),
                 toHex: () => JSON.stringify(tx),
-                getSize: () => this.getSize()
+                getSize: () => this.getSize(),
             };
             // Check transaction size
             const txSize = TransactionBuilder.calculateTransactionSize(tx);
@@ -306,26 +313,26 @@ class TransactionBuilder {
     async calculateTransactionHash() {
         try {
             const txData = {
-                inputs: this.inputs.map(input => ({
+                inputs: this.inputs.map((input) => ({
                     txId: input.txId,
                     outputIndex: input.outputIndex,
                     publicKey: input.publicKey,
                 })),
                 outputs: this.outputs,
-                timestamp: this.timestamp
+                timestamp: this.timestamp,
             };
             const merkleRoot = await this.merkleTree.createRoot([
                 JSON.stringify(txData.inputs),
                 JSON.stringify(txData.outputs),
-                txData.timestamp.toString()
+                txData.timestamp.toString(),
             ]);
             return merkleRoot;
         }
         catch (error) {
-            shared_1.Logger.error('Transaction hash calculation failed:', {
+            shared_1.Logger.error("Transaction hash calculation failed:", {
                 error,
                 inputCount: this.inputs.length,
-                outputCount: this.outputs.length
+                outputCount: this.outputs.length,
             });
             if (error instanceof Error) {
                 throw new TransactionError(`Merkle tree error: ${error.message}`);
@@ -354,7 +361,7 @@ class TransactionBuilder {
     isValidAddress(address) {
         try {
             // Input sanitization
-            if (!address || typeof address !== 'string') {
+            if (!address || typeof address !== "string") {
                 shared_1.Logger.error("Invalid address input type", { type: typeof address });
                 return false;
             }
@@ -366,25 +373,31 @@ class TransactionBuilder {
             // Basic format validation
             const H3TAG_ADDRESS_REGEX = /^TAG[a-zA-Z0-9]{30,45}$/;
             if (!H3TAG_ADDRESS_REGEX.test(address)) {
-                shared_1.Logger.warn("Address failed format validation", { address: address.substring(0, 8) + '...' });
+                shared_1.Logger.warn("Address failed format validation", {
+                    address: address.substring(0, 8) + "...",
+                });
                 return false;
             }
             // Checksum validation
             const checksumValid = this.validateAddressChecksum(address);
             if (!checksumValid) {
-                shared_1.Logger.error("Address checksum validation failed", { address: address.substring(0, 8) + '...' });
+                shared_1.Logger.error("Address checksum validation failed", {
+                    address: address.substring(0, 8) + "...",
+                });
                 return false;
             }
             // Network prefix validation
             const network = this.validateNetworkPrefix(address);
             if (!network) {
-                shared_1.Logger.error("Invalid network prefix", { prefix: address.substring(0, 3) });
+                shared_1.Logger.error("Invalid network prefix", {
+                    prefix: address.substring(0, 3),
+                });
                 return false;
             }
             shared_1.Logger.debug("Address validation successful", {
                 network,
                 length: address.length,
-                prefix: address.substring(0, 3)
+                prefix: address.substring(0, 3),
             });
             return true;
         }
@@ -398,8 +411,9 @@ class TransactionBuilder {
             const decodedArray = Uint8Array.from(crypto_1.HashUtils.fromBase58(address));
             const payload = decodedArray.slice(0, -4);
             const checksum = decodedArray.slice(-4);
-            const calculatedChecksum = Buffer.from(crypto_1.HashUtils.doubleSha256(Buffer.from(payload).toString('hex')).slice(0, 4));
-            return Buffer.from(checksum).toString('hex') === calculatedChecksum.toString('hex');
+            const calculatedChecksum = Buffer.from(crypto_1.HashUtils.doubleSha256(Buffer.from(payload).toString("hex")).slice(0, 4));
+            return (Buffer.from(checksum).toString("hex") ===
+                calculatedChecksum.toString("hex"));
         }
         catch (error) {
             shared_1.Logger.error("Checksum validation failed", { error });
@@ -408,9 +422,9 @@ class TransactionBuilder {
     }
     validateNetworkPrefix(address) {
         const networkPrefixes = {
-            'TAG': 'mainnet',
-            'THX': 'testnet',
-            'DBX': 'devnet'
+            TAG: "mainnet",
+            THX: "testnet",
+            DBX: "devnet",
         };
         const prefix = address.substring(0, 3);
         return networkPrefixes[prefix] || null;
@@ -420,7 +434,7 @@ class TransactionBuilder {
             // Use quantum-safe hash function
             const addressBuffer = Buffer.from(address);
             const hashBuffer = await crypto_1.QuantumCrypto.nativeHash(addressBuffer);
-            return hashBuffer.toString('hex');
+            return hashBuffer.toString("hex");
         }
         catch (error) {
             shared_1.Logger.error("Address hashing failed", { error, address });
@@ -445,7 +459,7 @@ class TransactionBuilder {
             const txData = [
                 JSON.stringify(tx.inputs),
                 JSON.stringify(tx.outputs),
-                tx.timestamp.toString()
+                tx.timestamp.toString(),
             ];
             const isValidHash = await merkleTree.verify(tx.hash, txData);
             if (!isValidHash) {
@@ -467,7 +481,10 @@ class TransactionBuilder {
             // 4. Verify each input's signatures
             for (const input of tx.inputs) {
                 try {
-                    const isValid = await crypto_1.HybridCrypto.verify(tx.hash, { address: input.signature }, { address: TransactionBuilder.safeJsonParse(input.publicKey).address });
+                    const isValid = await crypto_1.HybridCrypto.verify(tx.hash, { address: input.signature }, {
+                        address: TransactionBuilder.safeJsonParse(input.publicKey)
+                            .address,
+                    });
                     if (!isValid)
                         return false;
                 }
@@ -488,7 +505,9 @@ class TransactionBuilder {
                 const utxoKey = `${input.txId}:${input.outputIndex}`;
                 // Check for duplicate inputs within the same transaction
                 if (spentUTXOs.has(utxoKey)) {
-                    shared_1.Logger.warn("Double-spend attempt within transaction", { txId: tx.hash });
+                    shared_1.Logger.warn("Double-spend attempt within transaction", {
+                        txId: tx.hash,
+                    });
                     return false;
                 }
                 spentUTXOs.add(utxoKey);
@@ -505,7 +524,7 @@ class TransactionBuilder {
             shared_1.Logger.error("Transaction verification failed", {
                 error,
                 txId: tx?.hash,
-                inputCount: tx?.inputs?.length
+                inputCount: tx?.inputs?.length,
             });
             return false;
         }
@@ -570,7 +589,7 @@ class TransactionBuilder {
                 tx.version !== constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION) {
                 shared_1.Logger.warn("Invalid transaction version", {
                     txId: tx?.hash,
-                    version: tx?.version
+                    version: tx?.version,
                 });
                 return false;
             }
@@ -585,7 +604,7 @@ class TransactionBuilder {
                 shared_1.Logger.warn("Too many inputs/outputs", {
                     txId: tx.hash,
                     inputs: tx.inputs.length,
-                    outputs: tx.outputs.length
+                    outputs: tx.outputs.length,
                 });
                 return false;
             }
@@ -597,7 +616,7 @@ class TransactionBuilder {
                 shared_1.Logger.warn("Insufficient inputs", {
                     txId: tx.hash,
                     inputAmount: inputAmount.toString(),
-                    outputAmount: outputAmount.toString()
+                    outputAmount: outputAmount.toString(),
                 });
                 return false;
             }
@@ -607,7 +626,7 @@ class TransactionBuilder {
                 fee > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_FEE) {
                 shared_1.Logger.warn("Invalid fee", {
                     txId: tx.hash,
-                    fee: fee.toString()
+                    fee: fee.toString(),
                 });
                 return false;
             }
@@ -629,7 +648,7 @@ class TransactionBuilder {
         catch (error) {
             shared_1.Logger.error("Transaction validation failed:", {
                 error,
-                txId: tx?.hash
+                txId: tx?.hash,
             });
             return false;
         }
@@ -642,8 +661,8 @@ class TransactionBuilder {
                 metadata: {
                     version: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION,
                     type: tx.type,
-                    timestamp: tx.timestamp
-                }
+                    timestamp: tx.timestamp,
+                },
             };
             const serialized = JSON.stringify(txData);
             return Buffer.from(serialized).length;
@@ -659,7 +678,7 @@ class TransactionBuilder {
                 inputs: this.inputs,
                 outputs: this.outputs,
                 timestamp: this.timestamp,
-                fee: this.fee
+                fee: this.fee,
             });
             const isValidSignature = await crypto_1.HybridCrypto.verify(message, { address: this.signature.address }, { address: this.sender });
             if (!isValidSignature)
@@ -670,7 +689,7 @@ class TransactionBuilder {
             return totalInput >= totalOutput + this.fee;
         }
         catch (error) {
-            shared_1.Logger.error('Transaction verification failed:', error);
+            shared_1.Logger.error("Transaction verification failed:", error);
             return false;
         }
     }
@@ -724,10 +743,10 @@ class TransactionBuilder {
                         currency: {
                             name: "H3Tag",
                             symbol: "TAG",
-                            decimals: 8
+                            decimals: 8,
                         },
                         publicKey: utxo.publicKey,
-                        confirmations: utxo.confirmations
+                        confirmations: utxo.confirmations,
                     });
                 }
             }
@@ -740,22 +759,22 @@ class TransactionBuilder {
             // Calculate confirmations
             const currentHeight = await TransactionBuilder.blockchain.getHeight();
             if (tx.blockHeight) {
-                tx.inputs = tx.inputs.map(input => ({
+                tx.inputs = tx.inputs.map((input) => ({
                     ...input,
-                    confirmations: currentHeight - tx.blockHeight + 1
+                    confirmations: currentHeight - tx.blockHeight + 1,
                 }));
             }
             shared_1.Logger.debug("Transaction retrieved successfully", {
                 txId,
                 type: tx.type,
-                status: tx.status
+                status: tx.status,
             });
             return tx;
         }
         catch (error) {
             shared_1.Logger.error("Failed to get transaction:", {
                 error,
-                txId
+                txId,
             });
             throw new TransactionError(`Failed to get transaction: ${error.message}`);
         }
@@ -772,12 +791,12 @@ class TransactionBuilder {
     async sendRawTransaction(rawTx) {
         try {
             // Input validation
-            if (!rawTx || typeof rawTx !== 'string') {
+            if (!rawTx || typeof rawTx !== "string") {
                 throw new TransactionError("Invalid raw transaction format");
             }
             // Deserialize and validate transaction
             const tx = await this.deserializeTransaction(rawTx);
-            if (!await tx.verify()) {
+            if (!(await tx.verify())) {
                 throw new TransactionError("Transaction verification failed");
             }
             // Check if transaction already exists
@@ -786,12 +805,14 @@ class TransactionBuilder {
                 throw new TransactionError("Transaction already exists");
             }
             // Emit transaction for network broadcast
-            this.emitter.emit('transaction:broadcast', tx);
+            this.emitter.emit("transaction:broadcast", tx);
             return tx.id;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to send raw transaction:', error);
-            throw new TransactionError(error instanceof TransactionError ? error.message : "Failed to send transaction");
+            shared_1.Logger.error("Failed to send raw transaction:", error);
+            throw new TransactionError(error instanceof TransactionError
+                ? error.message
+                : "Failed to send transaction");
         }
     }
     async deserializeTransaction(rawTx) {
@@ -807,7 +828,7 @@ class TransactionBuilder {
                 id: await this.calculateTransactionHash(),
                 status: TransactionStatus.PENDING,
                 timestamp: Date.now(),
-                verify: async () => await TransactionBuilder.verify(tx)
+                verify: async () => await TransactionBuilder.verify(tx),
             };
             return tx;
         }
@@ -837,21 +858,21 @@ class TransactionBuilder {
             const rawTx = {
                 version: tx.version,
                 type: tx.type,
-                inputs: tx.inputs.map(input => ({
+                inputs: tx.inputs.map((input) => ({
                     txId: input.txId,
                     outputIndex: input.outputIndex,
                     signature: input.signature,
                     publicKey: input.publicKey,
                     amount: input.amount.toString(),
                     script: input.script,
-                    address: input.address
+                    address: input.address,
                 })),
-                outputs: tx.outputs.map(output => ({
+                outputs: tx.outputs.map((output) => ({
                     address: output.address,
                     amount: output.amount.toString(),
                     script: output.script,
                     index: output.index,
-                    currency: output.currency
+                    currency: output.currency,
                 })),
                 timestamp: tx.timestamp,
                 fee: tx.fee.toString(),
@@ -859,37 +880,38 @@ class TransactionBuilder {
                 sender: tx.sender,
                 recipient: tx.recipient,
                 hash: tx.hash,
-                currency: tx.currency
+                currency: tx.currency,
             };
             // Add optional fields if they exist
             if (tx.memo)
-                rawTx['memo'] = tx.memo;
+                rawTx["memo"] = tx.memo;
             if (tx.lockTime)
-                rawTx['lockTime'] = tx.lockTime;
+                rawTx["lockTime"] = tx.lockTime;
             if (tx.powData)
-                rawTx['powData'] = tx.powData;
+                rawTx["powData"] = tx.powData;
             if (tx.voteData)
-                rawTx['voteData'] = tx.voteData;
+                rawTx["voteData"] = tx.voteData;
             if (tx.blockHeight)
-                rawTx['blockHeight'] = tx.blockHeight;
+                rawTx["blockHeight"] = tx.blockHeight;
             if (tx.nonce)
-                rawTx['nonce'] = tx.nonce;
+                rawTx["nonce"] = tx.nonce;
             // Serialize with proper formatting
             const serialized = JSON.stringify(rawTx, null, 2);
             // Validate serialized data size
-            if (Buffer.from(serialized).length > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
+            if (Buffer.from(serialized).length >
+                constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
                 throw new TransactionError("Serialized transaction exceeds size limit");
             }
             shared_1.Logger.debug("Raw transaction retrieved successfully", {
                 txId,
-                size: Buffer.from(serialized).length
+                size: Buffer.from(serialized).length,
             });
             return serialized;
         }
         catch (error) {
             shared_1.Logger.error("Failed to get raw transaction:", {
                 error,
-                txId
+                txId,
             });
             throw new TransactionError(`Failed to get raw transaction: ${error.message}`);
         }
@@ -906,7 +928,7 @@ class TransactionBuilder {
     static async decodeRawTransaction(rawTx) {
         try {
             // Input validation
-            if (!rawTx || typeof rawTx !== 'string') {
+            if (!rawTx || typeof rawTx !== "string") {
                 throw new TransactionError("Invalid raw transaction format");
             }
             // Parse the JSON string
@@ -918,7 +940,13 @@ class TransactionBuilder {
                 throw new TransactionError("Invalid transaction JSON format");
             }
             // Validate required fields
-            const requiredFields = ['version', 'type', 'inputs', 'outputs', 'timestamp'];
+            const requiredFields = [
+                "version",
+                "type",
+                "inputs",
+                "outputs",
+                "timestamp",
+            ];
             for (const field of requiredFields) {
                 if (!txData[field]) {
                     throw new TransactionError(`Missing required field: ${field}`);
@@ -927,11 +955,11 @@ class TransactionBuilder {
             // Convert amounts back to BigInt
             txData.inputs = txData.inputs.map((input) => ({
                 ...input,
-                amount: BigInt(input.amount)
+                amount: BigInt(input.amount),
             }));
             txData.outputs = txData.outputs.map((output) => ({
                 ...output,
-                amount: BigInt(output.amount)
+                amount: BigInt(output.amount),
             }));
             if (txData.fee) {
                 txData.fee = BigInt(txData.fee);
@@ -940,28 +968,30 @@ class TransactionBuilder {
             const tx = {
                 ...txData,
                 verify: async () => await TransactionBuilder.verify(tx),
-                toHex: () => rawTx
+                toHex: () => rawTx,
             };
             // Validate transaction structure
-            if (!await TransactionBuilder.verify(tx)) {
+            if (!(await TransactionBuilder.verify(tx))) {
                 throw new TransactionError("Invalid transaction structure");
             }
             shared_1.Logger.debug("Transaction decoded successfully", {
                 txId: tx.id,
                 type: tx.type,
                 inputCount: tx.inputs.length,
-                outputCount: tx.outputs.length
+                outputCount: tx.outputs.length,
             });
             return tx;
         }
         catch (error) {
             shared_1.Logger.error("Failed to decode transaction:", error);
-            throw new TransactionError(error instanceof TransactionError ? error.message : "Failed to decode transaction");
+            throw new TransactionError(error instanceof TransactionError
+                ? error.message
+                : "Failed to decode transaction");
         }
     }
     getSize() {
         const inputSize = this.inputs.reduce((sum, input) => {
-            return sum + (input.signature?.length || 0) + (input.publicKey?.length || 0);
+            return (sum + (input.signature?.length || 0) + (input.publicKey?.length || 0));
         }, 0);
         const outputSize = this.outputs.reduce((sum, output) => {
             return sum + (output.script?.length || 0);
@@ -981,7 +1011,7 @@ class TransactionBuilder {
     static async signMessage(message, privateKey) {
         try {
             // Input validation
-            if (!message || typeof message !== 'string') {
+            if (!message || typeof message !== "string") {
                 throw new TransactionError("Invalid message format");
             }
             if (!privateKey?.match(/^[a-f0-9]{64}$/i)) {
@@ -990,24 +1020,26 @@ class TransactionBuilder {
             // Prepare message for signing
             const messagePrefix = constants_1.BLOCKCHAIN_CONSTANTS.MESSAGE.PREFIX;
             const messageBuffer = Buffer.from(messagePrefix + message);
-            const messageHash = (0, crypto_2.createHash)('sha256').update(messageBuffer).digest();
+            const messageHash = (0, crypto_2.createHash)("sha256").update(messageBuffer).digest();
             // Sign message hash
-            const signature = await crypto_1.HybridCrypto.sign(messageHash.toString('hex'), {
+            const signature = await crypto_1.HybridCrypto.sign(messageHash.toString("hex"), {
                 privateKey: privateKey,
-                publicKey: crypto_1.HybridCrypto.TRADITIONAL_CURVE.keyFromPrivate(privateKey).getPublic('hex'),
-                address: crypto_1.HashUtils.sha256(crypto_1.HybridCrypto.TRADITIONAL_CURVE.keyFromPrivate(privateKey).getPublic('hex'))
+                publicKey: crypto_1.HybridCrypto.TRADITIONAL_CURVE.keyFromPrivate(privateKey).getPublic("hex"),
+                address: crypto_1.HashUtils.sha256(crypto_1.HybridCrypto.TRADITIONAL_CURVE.keyFromPrivate(privateKey).getPublic("hex")),
             });
             // Encode signature
             const encodedSignature = signature.address;
-            shared_1.Logger.debug('Message signed successfully', {
+            shared_1.Logger.debug("Message signed successfully", {
                 messageLength: message.length,
-                signatureLength: encodedSignature.length
+                signatureLength: encodedSignature.length,
             });
             return encodedSignature;
         }
         catch (error) {
-            shared_1.Logger.error('Message signing failed:', error);
-            throw new TransactionError(error instanceof TransactionError ? error.message : "Failed to sign message");
+            shared_1.Logger.error("Message signing failed:", error);
+            throw new TransactionError(error instanceof TransactionError
+                ? error.message
+                : "Failed to sign message");
         }
     }
     /**
@@ -1021,7 +1053,7 @@ class TransactionBuilder {
     static async verifyMessage(message, signature, publicKey) {
         try {
             // Input validation
-            if (!message || typeof message !== 'string') {
+            if (!message || typeof message !== "string") {
                 throw new TransactionError("Invalid message format");
             }
             if (!signature?.match(/^[a-f0-9]{128}$/i)) {
@@ -1033,19 +1065,21 @@ class TransactionBuilder {
             // Prepare message for verification
             const messagePrefix = constants_1.BLOCKCHAIN_CONSTANTS.MESSAGE.PREFIX;
             const messageBuffer = Buffer.from(messagePrefix + message);
-            const messageHash = (0, crypto_2.createHash)('sha256').update(messageBuffer).digest();
+            const messageHash = (0, crypto_2.createHash)("sha256").update(messageBuffer).digest();
             // Verify using HybridCrypto
-            const isValid = await crypto_1.HybridCrypto.verify(messageHash.toString('hex'), { address: signature }, { address: crypto_1.HashUtils.sha256(publicKey) });
-            shared_1.Logger.debug('Message verification completed', {
+            const isValid = await crypto_1.HybridCrypto.verify(messageHash.toString("hex"), { address: signature }, { address: crypto_1.HashUtils.sha256(publicKey) });
+            shared_1.Logger.debug("Message verification completed", {
                 messageLength: message.length,
                 signatureLength: signature.length,
-                isValid
+                isValid,
             });
             return isValid;
         }
         catch (error) {
-            shared_1.Logger.error('Message verification failed:', error);
-            throw new TransactionError(error instanceof TransactionError ? error.message : "Failed to verify message");
+            shared_1.Logger.error("Message verification failed:", error);
+            throw new TransactionError(error instanceof TransactionError
+                ? error.message
+                : "Failed to verify message");
         }
     }
     /**
@@ -1056,7 +1090,7 @@ class TransactionBuilder {
     static validateAddress(address) {
         try {
             // 1. Basic input validation
-            if (!address || typeof address !== 'string') {
+            if (!address || typeof address !== "string") {
                 shared_1.Logger.warn("Invalid address input type", { type: typeof address });
                 return false;
             }
@@ -1067,10 +1101,16 @@ class TransactionBuilder {
             }
             // 3. Prefix validation with network type check
             const networkType = this.getNetworkType();
-            const validPrefix = networkType === 'mainnet' ? 'TAG' :
-                networkType === 'testnet' ? 'THX' : 'DBX';
+            const validPrefix = networkType === "mainnet"
+                ? "TAG"
+                : networkType === "testnet"
+                    ? "THX"
+                    : "DBX";
             if (!address.startsWith(validPrefix)) {
-                shared_1.Logger.warn("Invalid address prefix", { prefix: address.substring(0, 3), expected: validPrefix });
+                shared_1.Logger.warn("Invalid address prefix", {
+                    prefix: address.substring(0, 3),
+                    expected: validPrefix,
+                });
                 return false;
             }
             // 4. Character set validation (base58 alphabet) - after prefix
@@ -1082,12 +1122,14 @@ class TransactionBuilder {
             }
             // 5. Version and checksum validation
             const decoded = crypto_1.HashUtils.fromBase58(base58Part);
-            if (decoded.length !== 25) { // 1 version + 1 quantum + 20 hash + 4 checksum
+            if (decoded.length !== 25) {
+                // 1 version + 1 quantum + 20 hash + 4 checksum
                 shared_1.Logger.warn("Invalid decoded length", { length: decoded.length });
                 return false;
             }
             const [version, quantumVersion] = decoded;
-            if (version !== 0x00 || (quantumVersion !== 0x00 && quantumVersion !== 0x01)) {
+            if (version !== 0x00 ||
+                (quantumVersion !== 0x00 && quantumVersion !== 0x01)) {
                 shared_1.Logger.warn("Invalid version bytes", { version, quantumVersion });
                 return false;
             }
@@ -1095,8 +1137,9 @@ class TransactionBuilder {
             const decodedArray = Uint8Array.from(decoded);
             const payload = decodedArray.slice(0, -4);
             const checksum = decodedArray.slice(-4);
-            const calculatedChecksum = Buffer.from(crypto_1.HashUtils.doubleSha256(Buffer.from(payload).toString('hex')).slice(0, 4));
-            return Buffer.from(checksum).toString('hex') === calculatedChecksum.toString('hex');
+            const calculatedChecksum = Buffer.from(crypto_1.HashUtils.doubleSha256(Buffer.from(payload).toString("hex")).slice(0, 4));
+            return (Buffer.from(checksum).toString("hex") ===
+                calculatedChecksum.toString("hex"));
         }
         catch (error) {
             shared_1.Logger.error("Address validation error", { error, address });
@@ -1104,7 +1147,7 @@ class TransactionBuilder {
         }
     }
     static getNetworkType() {
-        return (constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type?.toString() || 'MAINNET').toLowerCase();
+        return (constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type?.toString() || "MAINNET").toLowerCase();
     }
 }
 exports.TransactionBuilder = TransactionBuilder;
@@ -1121,7 +1164,8 @@ TransactionBuilder.hybridDirect = new hybrid_direct_1.HybridDirectConsensus(Tran
 async function estimateFee(targetBlocks = 6) {
     try {
         // Input validation
-        if (targetBlocks < 1 || targetBlocks > 1008) { // 1008 blocks = 1 week
+        if (targetBlocks < 1 || targetBlocks > 1008) {
+            // 1008 blocks = 1 week
             throw new TransactionError("Invalid target block range (1-1008)");
         }
         // Base fee calculation constants
@@ -1131,24 +1175,26 @@ async function estimateFee(targetBlocks = 6) {
         // Congestion-based multiplier
         const congestionMultiplier = Math.max(1, (20 - targetBlocks) / 10);
         // Dynamic fee calculation based on target confirmation blocks
-        let estimatedFee = BigInt(Math.floor(Number(BASE_FEE) * congestionMultiplier *
+        let estimatedFee = BigInt(Math.floor(Number(BASE_FEE) *
+            congestionMultiplier *
             (1 + (Math.log(targetBlocks) / Math.log(2)) * 0.1)));
         // Apply network conditions adjustment
         const networkMultiplier = await getNetworkConditionsMultiplier();
-        estimatedFee = estimatedFee * BigInt(Math.ceil(networkMultiplier * 100)) / BigInt(100);
+        estimatedFee =
+            (estimatedFee * BigInt(Math.ceil(networkMultiplier * 100))) / BigInt(100);
         // Ensure fee is within acceptable range
         estimatedFee = estimatedFee < MIN_FEE ? MIN_FEE : estimatedFee;
         estimatedFee = estimatedFee > MAX_FEE ? MAX_FEE : estimatedFee;
-        shared_1.Logger.debug('Fee estimation', {
+        shared_1.Logger.debug("Fee estimation", {
             targetBlocks,
             estimatedFee: estimatedFee.toString(),
             congestionMultiplier,
-            networkMultiplier
+            networkMultiplier,
         });
         return estimatedFee;
     }
     catch (error) {
-        shared_1.Logger.error('Fee estimation failed:', error);
+        shared_1.Logger.error("Fee estimation failed:", error);
         throw new TransactionError("Failed to estimate fee");
     }
 }
@@ -1171,7 +1217,7 @@ async function getNetworkConditionsMultiplier() {
         return 2.1 + (loadFactor - 0.9) * 8;
     }
     catch (error) {
-        shared_1.Logger.warn('Failed to get network conditions:', error);
+        shared_1.Logger.warn("Failed to get network conditions:", error);
         return 1.0; // Conservative fallback
     }
 }

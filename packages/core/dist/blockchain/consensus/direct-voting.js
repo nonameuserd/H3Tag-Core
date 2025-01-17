@@ -263,7 +263,7 @@ class DirectVoting {
         this.setupIntervals();
         // Initialize validators in constructor
         this.validators = [];
-        this.loadValidators().catch(error => shared_1.Logger.error("Failed to load validators:", error));
+        this.loadValidators().catch((error) => shared_1.Logger.error("Failed to load validators:", error));
     }
     async initialize() {
         await this.initializeVotingSchedule();
@@ -379,7 +379,7 @@ class DirectVoting {
                 createdAt: Date.now(),
                 votesMerkleRoot: "",
                 startHeight: this.startVotingHeight,
-                endHeight: this.endVotingHeight
+                endHeight: this.endVotingHeight,
             };
             this.nextVotingHeight +=
                 constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS;
@@ -428,7 +428,7 @@ class DirectVoting {
                 const enrichedVote = {
                     ...vote,
                     votingPower: quadraticPower,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
                 };
                 // Atomic updates
                 this.currentPeriod.votes.set(vote.voteId, enrichedVote);
@@ -487,16 +487,16 @@ class DirectVoting {
      */
     async handleChainFork(oldChainId, newChainId, forkHeight, validators) {
         if (!oldChainId || !newChainId) {
-            throw new Error('Chain IDs must be provided');
+            throw new Error("Chain IDs must be provided");
         }
         if (forkHeight < 0) {
-            throw new Error('Fork height must be non-negative');
+            throw new Error("Fork height must be non-negative");
         }
         if (!validators?.length) {
-            throw new Error('Validators array must not be empty');
+            throw new Error("Validators array must not be empty");
         }
         // Add DDoS check
-        if (!this.ddosProtection.checkRequest('chain_fork', oldChainId)) {
+        if (!this.ddosProtection.checkRequest("chain_fork", oldChainId)) {
             shared_1.Logger.warn(`DDoS protection blocked chain fork request from ${oldChainId}`);
             return oldChainId;
         }
@@ -515,7 +515,7 @@ class DirectVoting {
                 // Calculate quadratic voting power using the tally
                 const votePowers = {
                     [newChainId]: BigInt(Math.floor(Math.sqrt(Number(voteTally.approved)))),
-                    [oldChainId]: BigInt(Math.floor(Math.sqrt(Number(voteTally.rejected))))
+                    [oldChainId]: BigInt(Math.floor(Math.sqrt(Number(voteTally.rejected)))),
                 };
                 const selectedChain = votePowers[newChainId] > votePowers[oldChainId]
                     ? newChainId
@@ -525,12 +525,12 @@ class DirectVoting {
                     selectedChain,
                     votePowers,
                     decidedAt: Date.now(),
-                    forkHeight
+                    forkHeight,
                 };
                 await this.auditManager.logEvent({
                     type: audit_1.AuditEventType.TYPE,
                     severity: audit_2.AuditSeverity.INFO,
-                    source: 'chain_fork',
+                    source: "chain_fork",
                     details: {
                         oldChainId,
                         newChainId,
@@ -540,7 +540,7 @@ class DirectVoting {
                         votePowers,
                         forkHeight,
                         timestamp: Date.now(),
-                    }
+                    },
                 });
                 return currentPeriod;
             });
@@ -686,7 +686,7 @@ class DirectVoting {
             if (!this.currentPeriod)
                 return 0;
             // Add DDoS protection check
-            if (!this.ddosProtection.checkRequest('participation_rate', this.node.getAddress())) {
+            if (!this.ddosProtection.checkRequest("participation_rate", this.node.getAddress())) {
                 shared_1.Logger.warn("Rate limit exceeded for participation rate checks");
                 throw new Error("Rate limit exceeded for participation rate checks");
             }
@@ -704,7 +704,7 @@ class DirectVoting {
             if (!totalEligibleVoters || totalEligibleVoters <= 0) {
                 shared_1.Logger.warn("No eligible voters found");
                 await this.logAudit("participation_rate_zero_voters", {
-                    periodId: this.currentPeriod.periodId
+                    periodId: this.currentPeriod.periodId,
                 });
                 return 0;
             }
@@ -718,7 +718,7 @@ class DirectVoting {
                 activeVoters: activeVoters.length,
                 totalEligible: totalEligibleVoters,
                 rate: boundedRate,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
             return boundedRate;
         }
@@ -727,7 +727,7 @@ class DirectVoting {
             await this.logAudit("participation_rate_failed", {
                 periodId: this.currentPeriod?.periodId,
                 error: error.message,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
             return 0;
         }
@@ -782,15 +782,14 @@ class DirectVoting {
             // 2. Validator set validation
             const [expectedValidators, activeValidators] = await Promise.all([
                 this.mempool.getExpectedValidators(),
-                this.node.getActiveValidators()
+                this.node.getActiveValidators(),
             ]);
-            const expectedValidatorSet = new Set(expectedValidators.map(v => v.address));
-            const presentValidators = new Set(activeValidators.map(v => v.address));
+            const expectedValidatorSet = new Set(expectedValidators.map((v) => v.address));
+            const presentValidators = new Set(activeValidators.map((v) => v.address));
             // Check for missing validators
-            const absentValidators = Array.from(expectedValidatorSet)
-                .filter(validator => !presentValidators.has(validator));
+            const absentValidators = Array.from(expectedValidatorSet).filter((validator) => !presentValidators.has(validator));
             // Handle absent validators
-            await Promise.all(absentValidators.map(validator => this.mempool.handleValidationFailure(`validator_absence:${block.hash}`, validator)));
+            await Promise.all(absentValidators.map((validator) => this.mempool.handleValidationFailure(`validator_absence:${block.hash}`, validator)));
             // Verify minimum validator threshold
             const minimumValidators = Math.ceil(expectedValidators.length * 0.67); // 2/3 majority
             if (presentValidators.size < minimumValidators) {
@@ -814,7 +813,7 @@ class DirectVoting {
                     return false;
                 }
                 // Vote validity check
-                if (!await this.validateVote(vote, block.validators)) {
+                if (!(await this.validateVote(vote, block.validators))) {
                     shared_1.Logger.error(`Invalid vote: ${vote.voteId}`);
                     return false;
                 }
@@ -867,7 +866,8 @@ class DirectVoting {
         // Remove old entries
         for (const [key, value] of this.cache.entries()) {
             const votes = value;
-            if (votes.length > 0 && currentTime - votes[0].timestamp > MAX_CACHE_AGE) {
+            if (votes.length > 0 &&
+                currentTime - votes[0].timestamp > MAX_CACHE_AGE) {
                 this.cache.delete(key);
             }
         }
@@ -923,8 +923,8 @@ class DirectVoting {
         const perfMarker = this.performanceMonitor.start("check_participation");
         try {
             // Validate address format
-            if (!address || typeof address !== 'string') {
-                throw new voting_error_1.VotingError('INVALID_ADDRESS', "Invalid address format");
+            if (!address || typeof address !== "string") {
+                throw new voting_error_1.VotingError("INVALID_ADDRESS", "Invalid address format");
             }
             // Check cache first
             const cacheKey = `participation:${this.currentPeriod?.periodId}:${address}`;
@@ -941,7 +941,7 @@ class DirectVoting {
                 address,
                 periodId: this.currentPeriod?.periodId,
                 hasVoted,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
             return hasVoted;
         }
@@ -949,7 +949,7 @@ class DirectVoting {
             shared_1.Logger.error("Failed to check participation:", error);
             await this.logAudit("participation_check_failed", {
                 address,
-                error: error.message
+                error: error.message,
             });
             return false;
         }
@@ -962,7 +962,7 @@ class DirectVoting {
     }
     getCurrentPeriod() {
         if (!this.currentPeriod) {
-            throw new voting_error_1.VotingError('NO_ACTIVE_PERIOD', 'No active voting period');
+            throw new voting_error_1.VotingError("NO_ACTIVE_PERIOD", "No active voting period");
         }
         return this.currentPeriod;
     }
@@ -970,8 +970,8 @@ class DirectVoting {
         const perfMarker = this.performanceMonitor.start("get_votes_by_address");
         try {
             // Validate address format
-            if (!address || typeof address !== 'string') {
-                throw new voting_error_1.VotingError('INVALID_ADDRESS', "Invalid address format");
+            if (!address || typeof address !== "string") {
+                throw new voting_error_1.VotingError("INVALID_ADDRESS", "Invalid address format");
             }
             // Check cache first
             const cacheKey = `votes:${address}`;
@@ -982,11 +982,13 @@ class DirectVoting {
             // Get votes from database
             const votes = await this.votingDb.getVotesByAddress(address);
             // Cache the results
-            this.cache.set(cacheKey, votes, { ttl: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL });
+            this.cache.set(cacheKey, votes, {
+                ttl: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL,
+            });
             await this.logAudit("votes_retrieved", {
                 address,
                 count: votes.length,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
             return votes;
         }
@@ -994,9 +996,9 @@ class DirectVoting {
             shared_1.Logger.error("Failed to retrieve votes:", error);
             await this.logAudit("votes_retrieval_failed", {
                 address,
-                error: error.message
+                error: error.message,
             });
-            throw new voting_error_1.VotingError('RETRIEVAL_FAILED', "Could not retrieve votes");
+            throw new voting_error_1.VotingError("RETRIEVAL_FAILED", "Could not retrieve votes");
         }
         finally {
             this.performanceMonitor.end(perfMarker);
@@ -1005,8 +1007,9 @@ class DirectVoting {
     async getVotesByAddresses(addresses) {
         try {
             // Validate the addresses array
-            if (!Array.isArray(addresses) || addresses.some(addr => typeof addr !== 'string')) {
-                throw new Error('Invalid addresses format');
+            if (!Array.isArray(addresses) ||
+                addresses.some((addr) => typeof addr !== "string")) {
+                throw new Error("Invalid addresses format");
             }
             // Retrieve votes for each address in batch
             const votesByAddress = {};
@@ -1018,8 +1021,8 @@ class DirectVoting {
             return votesByAddress; // Return the mapping of addresses to their votes
         }
         catch (error) {
-            shared_1.Logger.error(`Failed to retrieve votes for addresses ${addresses.join(', ')}:`, error);
-            throw new Error('Could not retrieve votes. Please try again later.');
+            shared_1.Logger.error(`Failed to retrieve votes for addresses ${addresses.join(", ")}:`, error);
+            throw new Error("Could not retrieve votes. Please try again later.");
         }
     }
     async transitionPeriod() {
@@ -1051,15 +1054,15 @@ class DirectVoting {
     }
     async finalizePeriod() {
         if (!this.currentPeriod) {
-            throw new Error('No active period to finalize');
+            throw new Error("No active period to finalize");
         }
         try {
             // Update period status
             const finalizedPeriod = {
                 ...this.currentPeriod,
-                status: 'completed',
+                status: "completed",
                 endTime: Date.now(),
-                isAudited: true
+                isAudited: true,
             };
             // Store final state
             await this.votingDb.createVotingPeriod(finalizedPeriod);
@@ -1067,7 +1070,7 @@ class DirectVoting {
             return finalizedPeriod;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to finalize voting period:', error);
+            shared_1.Logger.error("Failed to finalize voting period:", error);
             throw error;
         }
     }
@@ -1082,17 +1085,17 @@ class DirectVoting {
                 endBlock: 0,
                 startHeight: await this.db.getCurrentHeight(),
                 endHeight: 0,
-                status: 'active',
+                status: "active",
                 votes: new Map(),
                 isAudited: false,
-                createdAt: now
+                createdAt: now,
             };
             this.currentPeriod = newPeriod;
             await this.votingDb.createVotingPeriod(newPeriod);
             shared_1.Logger.info(`New voting period initialized: ${newPeriod.periodId}`);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to initialize new period:', error);
+            shared_1.Logger.error("Failed to initialize new period:", error);
             throw error;
         }
     }
@@ -1120,7 +1123,7 @@ class DirectVoting {
                 this.votingUtil.dispose(),
                 this.node.close(),
                 this.votingDb.close(),
-                this.backupManager?.cleanup()
+                this.backupManager?.cleanup(),
             ]);
             // Reset state
             this.currentPeriod = null;
@@ -1141,11 +1144,11 @@ class DirectVoting {
                 await this.transitionPeriod();
             }
             catch (error) {
-                shared_1.Logger.error('Period transition failed:', error);
-                await this.logAudit('period_transition_failed', {
+                shared_1.Logger.error("Period transition failed:", error);
+                await this.logAudit("period_transition_failed", {
                     error: error.message,
-                    timestamp: Date.now()
-                }).catch(e => shared_1.Logger.error('Failed to log audit:', e));
+                    timestamp: Date.now(),
+                }).catch((e) => shared_1.Logger.error("Failed to log audit:", e));
             }
         }, constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.PERIOD_CHECK_INTERVAL);
     }
@@ -1165,18 +1168,16 @@ class DirectVoting {
         }
     }
     /**
-   * Updates voting state atomically
-   * @param operation Function that receives current state and returns updated state
-   * @returns Promise<void>
-   */
+     * Updates voting state atomically
+     * @param operation Function that receives current state and returns updated state
+     * @returns Promise<void>
+     */
     async updateVotingState(operation) {
         const transaction = this.db.getTransactionExecutor();
         const transactionOperation = async () => {
-            const snapshot = this.currentPeriod
-                ? { ...this.currentPeriod }
-                : null;
+            const snapshot = this.currentPeriod ? { ...this.currentPeriod } : null;
             if (!snapshot) {
-                throw new Error('No active voting period');
+                throw new Error("No active voting period");
             }
             try {
                 const updatedState = await operation(snapshot);
@@ -1187,16 +1188,16 @@ class DirectVoting {
                 await this.auditManager.logEvent({
                     type: audit_1.AuditEventType.TYPE,
                     severity: audit_2.AuditSeverity.INFO,
-                    source: 'voting_state_update',
+                    source: "voting_state_update",
                     details: {
                         periodId: updatedState.periodId,
-                        timestamp: Date.now()
-                    }
+                        timestamp: Date.now(),
+                    },
                 });
                 return updatedState;
             }
             catch (error) {
-                shared_1.Logger.error('Failed to update voting state:', error);
+                shared_1.Logger.error("Failed to update voting state:", error);
                 throw error;
             }
         };

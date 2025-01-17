@@ -26,7 +26,7 @@ const crypto_1 = require("@h3tag-blockchain/crypto");
  */
 class GPUMiner {
     constructor() {
-        this.MAX_NONCE = 0xFFFFFFFF;
+        this.MAX_NONCE = 0xffffffff;
     }
     /**
      * Initializes the GPU miner
@@ -47,26 +47,26 @@ class GPUMiner {
             header.merkleRoot,
             header.timestamp,
             header.difficulty,
-            header.nonce
-        ].join('');
+            header.nonce,
+        ].join("");
         return parseInt(crypto_1.HashUtils.sha3(data).slice(0, 8), 16);
     }
     async initialize() {
         if (!navigator.gpu) {
-            throw new Error('WebGPU not supported');
+            throw new Error("WebGPU not supported");
         }
         const adapter = await navigator.gpu.requestAdapter({
-            powerPreference: 'high-performance'
+            powerPreference: "high-performance",
         });
         if (!adapter) {
-            throw new Error('No GPU adapter found');
+            throw new Error("No GPU adapter found");
         }
         this.device = await adapter.requestDevice({
-            requiredFeatures: ['timestamp-query'],
+            requiredFeatures: ["timestamp-query"],
             requiredLimits: {
                 maxComputeWorkgroupsPerDimension: 65535,
-                maxStorageBufferBindingSize: 1024 * 1024 * 128
-            }
+                maxStorageBufferBindingSize: 1024 * 1024 * 128,
+            },
         });
         this.device.lost.then((info) => {
             throw new Error(`GPU device was lost: ${info.message}`);
@@ -87,13 +87,13 @@ class GPUMiner {
                 }
             `;
             this.pipeline = this.device.createComputePipeline({
-                layout: 'auto',
+                layout: "auto",
                 compute: {
                     module: this.device.createShaderModule({
-                        code: shader
+                        code: shader,
                     }),
-                    entryPoint: 'main'
-                }
+                    entryPoint: "main",
+                },
             });
         }
         catch (error) {
@@ -118,11 +118,11 @@ class GPUMiner {
      */
     async mine(block, target) {
         if (!this.device || !this.pipeline) {
-            throw new Error('GPU not initialized');
+            throw new Error("GPU not initialized");
         }
         const buffer = this.device.createBuffer({
             size: 16,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
         });
         const blockData = new Uint32Array([this.hashBlockHeader(block)]);
         const targetData = new BigUint64Array([target]);
@@ -131,15 +131,15 @@ class GPUMiner {
             this.device.queue.writeBuffer(buffer, 8, targetData);
             const targetBuffer = this.device.createBuffer({
                 size: 8,
-                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
             });
             this.device.queue.writeBuffer(targetBuffer, 0, targetData);
             this.bindGroup = this.device.createBindGroup({
                 layout: this.pipeline.getBindGroupLayout(0),
                 entries: [
                     { binding: 0, resource: { buffer } },
-                    { binding: 1, resource: { buffer: targetBuffer } }
-                ]
+                    { binding: 1, resource: { buffer: targetBuffer } },
+                ],
             });
             const commandEncoder = this.device.createCommandEncoder();
             const pass = commandEncoder.beginComputePass();
@@ -149,7 +149,7 @@ class GPUMiner {
             pass.end();
             const readBuffer = this.device.createBuffer({
                 size: 8,
-                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ
+                usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
             });
             commandEncoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, 8);
             this.device.queue.submit([commandEncoder.finish()]);
@@ -162,8 +162,7 @@ class GPUMiner {
             return {
                 found: true,
                 nonce: result,
-                hash: crypto_1.HashUtils.sha3(this.getBlockHeaderString(block, result))
-                    .slice(0, 8)
+                hash: crypto_1.HashUtils.sha3(this.getBlockHeaderString(block, result)).slice(0, 8),
             };
         }
         catch (error) {
@@ -187,8 +186,8 @@ class GPUMiner {
             header.merkleRoot,
             header.timestamp,
             header.difficulty,
-            nonce
-        ].join('');
+            nonce,
+        ].join("");
     }
     /**
      * Disposes GPU resources

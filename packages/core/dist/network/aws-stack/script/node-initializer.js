@@ -9,7 +9,7 @@ class NodeInitializer {
             cacheSize: 32 * 1024 * 1024,
             writeBufferSize: 8 * 1024 * 1024,
             blockSize: 8192,
-            maxOpenFiles: 500
+            maxOpenFiles: 500,
         };
         return {
             main: { path: `${basePath}/main`, options: defaultOptions },
@@ -18,11 +18,14 @@ class NodeInitializer {
             utxo: { path: `${basePath}/utxo`, options: defaultOptions },
             wallet: { path: `${basePath}/wallet`, options: defaultOptions },
             voting: { path: `${basePath}/voting`, options: defaultOptions },
-            votingShard: { path: `${basePath}/voting-shard`, options: defaultOptions }
+            votingShard: {
+                path: `${basePath}/voting-shard`,
+                options: defaultOptions,
+            },
         };
     }
     static getInitializationScript(blockchainConfig) {
-        const dbConfig = this.getDatabaseConfig('/data/blockchain');
+        const dbConfig = this.getDatabaseConfig("/data/blockchain");
         return `
       // 1. Core Dependencies
       const { Database } = require('@h3tag-blockchain/core/dist/database/database');

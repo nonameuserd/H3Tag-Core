@@ -133,15 +133,15 @@ const controller = new peer_controller_1.PeerController(peerService);
  *       404:
  *         description: Peer not found
  */
-router.post('/', controller.addPeer);
-router.get('/', controller.getPeers);
-router.delete('/:peerId', controller.removePeer);
-router.post('/:peerId/ban', controller.banPeer);
-router.get('/:peerId/info', controller.getPeerInfo);
-router.post('/ban', controller.setBan);
-router.get('/bans', controller.listBans);
-router.delete('/bans', controller.clearBans);
-router.get('/ban/:ip', controller.getBanInfo);
-router.get('/network', controller.getNetworkInfo);
+router.post("/", controller.addPeer);
+router.get("/", controller.getPeers);
+router.delete("/:peerId", controller.removePeer);
+router.post("/:peerId/ban", controller.banPeer);
+router.get("/:peerId/info", controller.getPeerInfo);
+router.post("/ban", controller.setBan);
+router.get("/bans", controller.listBans);
+router.delete("/bans", controller.clearBans);
+router.get("/ban/:ip", controller.getBanInfo);
+router.get("/network", controller.getNetworkInfo);
 exports.default = router;
 //# sourceMappingURL=peer.routes.js.map

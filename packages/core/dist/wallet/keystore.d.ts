@@ -1,5 +1,5 @@
 import { HybridKeyPair } from "@h3tag-blockchain/crypto";
-import { KeyRotationMetadata } from './keystore-types';
+import { KeyRotationMetadata } from "./keystore-types";
 export declare enum KeystoreErrorCode {
     ENCRYPTION_ERROR = "ENCRYPTION_ERROR",
     DECRYPTION_ERROR = "DECRYPTION_ERROR",

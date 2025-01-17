@@ -184,7 +184,7 @@ export class NetworkStats {
   private static readonly MIN_PROPAGATION_TIME = 0;
   private static readonly MAX_PROPAGATION_TIME = 30000; // 30 seconds
 
-  public addPeer(peer: Peer): void {
+  public async addPeer(peer: Peer): Promise<void> {
     try {
       if (!peer || !(peer instanceof Peer)) {
         throw new NetworkError(
@@ -194,7 +194,7 @@ export class NetworkStats {
         );
       }
 
-      const peerInfo = peer.getInfo();
+      const peerInfo = await peer.getInfo();
       if (!peerInfo?.id) {
         throw new NetworkError(
           "Invalid peer info",
@@ -312,7 +312,7 @@ export class NetworkStats {
     }
   }
 
-  public getAverageLatency(): number {
+  public async getAverageLatency(): Promise<number> {
     try {
       // Get connected peers
       const connectedPeers = Array.from(this.peers.values())
@@ -325,26 +325,24 @@ export class NetworkStats {
       }
 
       let validSamples = 0;
-      const totalLatency = connectedPeers.reduce((sum, peer) => {
-        try {
-          const latency = peer.getInfo()?.latency;
-          if (
-            typeof latency === "number" &&
-            latency >= NetworkStats.MIN_LATENCY &&
-            latency <= NetworkStats.MAX_LATENCY
-          ) {
-            validSamples++;
-            return sum + latency;
+      const latencies = await Promise.all(
+        connectedPeers.map(async peer => {
+          try {
+            const peerInfo = await peer.getInfo();
+            const latency = peerInfo?.latency;
+            if (typeof latency === "number" && latency >= NetworkStats.MIN_LATENCY && latency <= NetworkStats.MAX_LATENCY) {
+              validSamples++;
+              return latency;
+            }
+            return 0;
+          } catch (error) {
+            Logger.warn(`Failed to get latency for peer, error: ${error.message}`, error);
+            return 0;
           }
-          return sum;
-        } catch (error) {
-          Logger.warn(
-            `Failed to get latency for peer ${peer.getInfo()?.id}:`,
-            error
-          );
-          return sum;
-        }
-      }, 0);
+        })
+      );
+
+      const totalLatency = latencies.reduce((sum, latency) => sum + latency, 0);
 
       if (validSamples === 0) {
         Logger.warn("No valid latency samples available");
@@ -830,11 +828,11 @@ export class NetworkStats {
     }
   }
 
-  private isSynced(): boolean {
+  private async isSynced(): Promise<boolean> {
     try {
       return (
         !this.blockchain.isInitialBlockDownload() &&
-        this.blockchain.getVerificationProgress() >= 0.99
+        (await this.blockchain.getVerificationProgress()) >= 0.99
       );
     } catch (error) {
       Logger.warn("Failed to check sync status:", error);

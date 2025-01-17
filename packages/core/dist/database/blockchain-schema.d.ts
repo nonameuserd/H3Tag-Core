@@ -1,11 +1,11 @@
-import { Level } from 'level';
-import { Vote } from '../models/vote.model';
-import { Transaction, TransactionType } from '../models/transaction.model';
-import { Block } from '../models/block.model';
-import { IVotingSchema } from './voting-schema';
-import { Validator } from '../models/validator';
-import { AbstractBatch } from 'abstract-leveldown';
-import { UTXO } from '../models/utxo.model';
+import { Level } from "level";
+import { Vote } from "../models/vote.model";
+import { Transaction, TransactionType } from "../models/transaction.model";
+import { Block } from "../models/block.model";
+import { IVotingSchema } from "./voting-schema";
+import { Validator } from "../models/validator";
+import { AbstractBatch } from "abstract-leveldown";
+import { UTXO } from "../models/utxo.model";
 /**
  * @fileoverview BlockchainSchema implements the database schema and operations for blockchain data storage.
  * It handles block, transaction, and UTXO persistence with optimized caching and atomic batch operations.
@@ -91,63 +91,63 @@ import { UTXO } from '../models/utxo.model';
  * @method getUtxosByAddress
  * @param {string} address - Address to query
  * @returns {Promise<Array<{
-*   txid: string;
-*   vout: number;
-*   amount: number;
-*   confirmations: number;
-* }>>} Array of UTXOs
-*
-* @example
-* const utxos = await schema.getUtxosByAddress(address);
-*/
+ *   txid: string;
+ *   vout: number;
+ *   amount: number;
+ *   confirmations: number;
+ * }>>} Array of UTXOs
+ *
+ * @example
+ * const utxos = await schema.getUtxosByAddress(address);
+ */
 /**
-* Gets current blockchain height
-*
-* @async
-* @method getCurrentHeight
-* @returns {Promise<number>} Current height
-*
-* @example
-* const height = await schema.getCurrentHeight();
-*/
+ * Gets current blockchain height
+ *
+ * @async
+ * @method getCurrentHeight
+ * @returns {Promise<number>} Current height
+ *
+ * @example
+ * const height = await schema.getCurrentHeight();
+ */
 /**
-* Gets unique addresses with balance
-*
-* @async
-* @method getUniqueAddressesWithBalance
-* @returns {Promise<number>} Number of unique addresses
-*/
+ * Gets unique addresses with balance
+ *
+ * @async
+ * @method getUniqueAddressesWithBalance
+ * @returns {Promise<number>} Number of unique addresses
+ */
 /**
-* Gets total supply
-*
-* @async
-* @method getTotalSupply
-* @returns {Promise<bigint>} Total supply
-*/
+ * Gets total supply
+ *
+ * @async
+ * @method getTotalSupply
+ * @returns {Promise<bigint>} Total supply
+ */
 /**
-* Compacts the database
-*
-* @async
-* @method compact
-* @returns {Promise<void>}
-* @throws {Error} If compaction fails
-*/
+ * Compacts the database
+ *
+ * @async
+ * @method compact
+ * @returns {Promise<void>}
+ * @throws {Error} If compaction fails
+ */
 /**
-* Closes database connection
-*
-* @async
-* @method close
-* @returns {Promise<void>}
-*/
+ * Closes database connection
+ *
+ * @async
+ * @method close
+ * @returns {Promise<void>}
+ */
 /**
-* Creates database backup
-*
-* @async
-* @method backup
-* @param {string} path - Backup destination path
-* @returns {Promise<void>}
-* @throws {Error} If backup fails
-*/
+ * Creates database backup
+ *
+ * @async
+ * @method backup
+ * @param {string} path - Backup destination path
+ * @returns {Promise<void>}
+ * @throws {Error} If backup fails
+ */
 interface ChainState {
     height: number;
     lastBlockHash: string;

@@ -1,5 +1,5 @@
-import { PeerService } from '../services/peer.service';
-import { CreatePeerDto, PeerResponseDto, SetBanDto, BanInfoDto, NetworkInfoDto, PeerDetailedInfoDto } from '../dtos/peer.dto';
+import { PeerService } from "../services/peer.service";
+import { CreatePeerDto, PeerResponseDto, SetBanDto, BanInfoDto, NetworkInfoDto, PeerDetailedInfoDto } from "../dtos/peer.dto";
 export declare class PeerController {
     private readonly peerService;
     constructor(peerService: PeerService);

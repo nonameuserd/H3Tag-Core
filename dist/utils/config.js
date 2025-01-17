@@ -21,7 +21,7 @@ exports.default = {
             "seed3.h3tag.network",
             "seed4.h3tag.network",
             "seed5.h3tag.network",
-            "seed6.h3tag.network"
+            "seed6.h3tag.network",
         ],
     },
     consensus: {
@@ -32,7 +32,7 @@ exports.default = {
         initialDifficulty: 4,
         targetBlockTime: 60000,
         minDifficulty: 1,
-        maxDifficulty: 32
+        maxDifficulty: 32,
     },
     blockchain: {
         maxSupply: 69690000,
@@ -48,8 +48,8 @@ exports.default = {
         },
         isMaxSupplyReached: (currentSupply) => {
             return currentSupply >= 69690000;
-        }
-    }
+        },
+    },
 };
 class ConfigService {
     constructor(config) {
@@ -62,7 +62,7 @@ class ConfigService {
         return this.config.consensus;
     }
     get(key) {
-        return JSON.parse(process.env[key] || '{}');
+        return JSON.parse(process.env[key] || "{}");
     }
 }
 exports.ConfigService = ConfigService;
@@ -70,7 +70,7 @@ const defaultConfig = {
     network: {
         type: NetworkType.MAINNET,
         port: 8333,
-        host: 'localhost',
+        host: "localhost",
         seedDomains: [
             "seed1.h3tag.net",
             "seed2.h3tag.net",
@@ -78,11 +78,11 @@ const defaultConfig = {
             "seed4.h3tag.net",
             "seed5.h3tag.net",
             "seed6.h3tag.net", // South America
-        ]
+        ],
     },
     currency: {
-        name: 'H3TAG',
-        symbol: 'TAG',
+        name: "H3TAG",
+        symbol: "TAG",
         decimals: 18,
         initialSupply: 21000000,
         maxSupply: 69690000,
@@ -148,19 +148,19 @@ const defaultConfig = {
         emergencyTimeout: 60 * 60 * 1000, // 1 hour
     },
     wallet: {
-        address: '',
+        address: "",
         publicKey: async () => {
             const keyPair = await crypto_1.KeyManager.generateKeyPair();
-            return typeof keyPair.publicKey === 'function'
+            return typeof keyPair.publicKey === "function"
                 ? await keyPair.publicKey()
                 : keyPair.publicKey;
         },
         privateKey: async () => {
             const keyPair = await crypto_1.KeyManager.generateKeyPair();
-            return typeof keyPair.privateKey === 'function'
+            return typeof keyPair.privateKey === "function"
                 ? await keyPair.privateKey()
                 : keyPair.privateKey;
-        }
+        },
     },
     util: {
         retryAttempts: 3,

@@ -29,7 +29,7 @@ var NetworkErrorCode;
 class NetworkError extends Error {
     constructor(message, code, details) {
         super(message);
-        this.name = 'NetworkError';
+        this.name = "NetworkError";
         this.code = code;
         this.timestamp = Date.now();
         this.details = details ? { ...details } : undefined;
@@ -43,15 +43,15 @@ class NetworkError extends Error {
             message: this.message,
             timestamp: this.timestamp,
             details: this.details ? { ...this.details } : undefined,
-            stack: this.sanitizeStack(this.stack)
+            stack: this.sanitizeStack(this.stack),
         };
     }
     sanitizeStack(stack) {
         if (!stack)
             return undefined;
-        return process.env.NODE_ENV === 'development'
+        return process.env.NODE_ENV === "development"
             ? stack
-            : stack.split('\n')[0];
+            : stack.split("\n")[0];
     }
 }
 exports.NetworkError = NetworkError;

@@ -23,7 +23,7 @@ let MempoolController = class MempoolController {
             return await this.mempoolService.getMempoolInfo();
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mempool info:', error);
+            shared_1.Logger.error("Failed to get mempool info:", error);
             throw new common_1.HttpException(`Failed to get mempool info: ${error.message}`, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -32,7 +32,7 @@ let MempoolController = class MempoolController {
             return await this.mempoolService.getRawMempool(verbose);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get raw mempool:', error);
+            shared_1.Logger.error("Failed to get raw mempool:", error);
             throw new common_1.HttpException(`Failed to get raw mempool: ${error.message}`, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -41,49 +41,51 @@ let MempoolController = class MempoolController {
             return await this.mempoolService.getMempoolEntry(txid);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mempool entry:', error);
-            throw new common_1.HttpException(error.message, error.message.includes('not found') ? common_1.HttpStatus.NOT_FOUND : common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+            shared_1.Logger.error("Failed to get mempool entry:", error);
+            throw new common_1.HttpException(error.message, error.message.includes("not found")
+                ? common_1.HttpStatus.NOT_FOUND
+                : common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
 };
 exports.MempoolController = MempoolController;
 __decorate([
-    (0, common_1.Get)('info'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get mempool information' }),
+    (0, common_1.Get)("info"),
+    (0, swagger_1.ApiOperation)({ summary: "Get mempool information" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Mempool information retrieved successfully',
-        type: mempool_dto_1.MempoolInfoDto
+        description: "Mempool information retrieved successfully",
+        type: mempool_dto_1.MempoolInfoDto,
     })
 ], MempoolController.prototype, "getMempoolInfo", null);
 __decorate([
-    (0, common_1.Get)('raw'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get raw mempool transactions' }),
-    (0, swagger_1.ApiQuery)({ name: 'verbose', type: Boolean, required: false }),
+    (0, common_1.Get)("raw"),
+    (0, swagger_1.ApiOperation)({ summary: "Get raw mempool transactions" }),
+    (0, swagger_1.ApiQuery)({ name: "verbose", type: Boolean, required: false }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Raw mempool transactions retrieved successfully',
-        type: mempool_dto_1.RawMempoolEntryDto
+        description: "Raw mempool transactions retrieved successfully",
+        type: mempool_dto_1.RawMempoolEntryDto,
     }),
-    __param(0, (0, common_1.Query)('verbose'))
+    __param(0, (0, common_1.Query)("verbose"))
 ], MempoolController.prototype, "getRawMempool", null);
 __decorate([
-    (0, common_1.Get)('entry/:txid'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get specific mempool entry' }),
-    (0, swagger_1.ApiParam)({ name: 'txid', description: 'Transaction ID to lookup' }),
+    (0, common_1.Get)("entry/:txid"),
+    (0, swagger_1.ApiOperation)({ summary: "Get specific mempool entry" }),
+    (0, swagger_1.ApiParam)({ name: "txid", description: "Transaction ID to lookup" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Mempool entry retrieved successfully',
-        type: mempool_dto_1.MempoolEntryDto
+        description: "Mempool entry retrieved successfully",
+        type: mempool_dto_1.MempoolEntryDto,
     }),
     (0, swagger_1.ApiResponse)({
         status: 404,
-        description: 'Transaction not found in mempool'
+        description: "Transaction not found in mempool",
     }),
-    __param(0, (0, common_1.Param)('txid'))
+    __param(0, (0, common_1.Param)("txid"))
 ], MempoolController.prototype, "getMempoolEntry", null);
 exports.MempoolController = MempoolController = __decorate([
-    (0, swagger_1.ApiTags)('Mempool'),
-    (0, common_1.Controller)('mempool')
+    (0, swagger_1.ApiTags)("Mempool"),
+    (0, common_1.Controller)("mempool")
 ], MempoolController);
 //# sourceMappingURL=mempool.controller.js.map

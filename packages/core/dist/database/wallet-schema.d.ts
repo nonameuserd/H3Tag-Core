@@ -1,5 +1,5 @@
-import { EncryptedKeystore } from '../wallet/keystore';
-import { UTXO } from '../models/utxo.model';
+import { EncryptedKeystore } from "../wallet/keystore";
+import { UTXO } from "../models/utxo.model";
 /**
  * @fileoverview WalletDatabase implements secure storage and management of wallet data.
  * It handles encrypted keystores, UTXO sets, and address management with optimized

@@ -1,6 +1,6 @@
-import { Blockchain, Transaction } from '@h3tag-blockchain/core';
-import { BlockchainStatsDto, TransactionSubmitDto, ChainTipDto, BlockchainInfoDto } from '../dtos/blockchain.dto';
-import { Node } from '@h3tag-blockchain/core';
+import { Blockchain, Transaction } from "@h3tag-blockchain/core";
+import { BlockchainStatsDto, TransactionSubmitDto, ChainTipDto, BlockchainInfoDto } from "../dtos/blockchain.dto";
+import { Node } from "@h3tag-blockchain/core";
 /**
  * @swagger
  * tags:

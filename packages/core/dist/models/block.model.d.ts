@@ -2,7 +2,7 @@ import { Transaction } from "./transaction.model";
 import { Vote } from "./vote.model";
 import { Validator } from "./validator";
 import { AuditManager } from "../security/audit";
-import { HybridKeyPair } from '@h3tag-blockchain/crypto';
+import { HybridKeyPair } from "@h3tag-blockchain/crypto";
 export declare class BlockError extends Error {
     constructor(message: string);
 }

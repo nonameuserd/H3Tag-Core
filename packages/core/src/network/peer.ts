@@ -8,7 +8,7 @@ import { ConfigService } from "@h3tag-blockchain/shared";
 import { Mutex } from "async-mutex";
 import { randomBytes } from "crypto";
 import { BlockchainSchema } from "../database/blockchain-schema";
-import { PeerInfo, PeerMessageType } from "../models/peer.model";
+import { PeerInfo, PeerMessageType, PeerServices } from "../models/peer.model";
 import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
 import { Transaction } from "../models/transaction.model";
 import { BlockInFlight } from "../blockchain/consensus/pow";
@@ -464,7 +464,7 @@ export class Peer {
     };
   }
 
-  public getInfo(): PeerInfo {
+  public async getInfo(): Promise<PeerInfo> {
     return {
       id: this.peerId,
       url: `${this.address}:${this.port}`,
@@ -476,11 +476,12 @@ export class Peer {
       connectedAt: this.lastMessageTime,
       consensusRole: "participant",
       consensusStats: {
-        powContributions: 0,
-        votingParticipation: 0,
-        lastVoteHeight: 0,
-        reputation: 0,
+        powContributions: await this.getMinedBlocks(),
+        votingParticipation: await this.getVoteParticipation(),
+        lastVoteHeight: this.lastVoteTime ? await this.getBlockHeight() : 0,
+        reputation: this.peerState?.banScore ? 100 - this.peerState.banScore : 100,
       },
+      peers: this.peers.size,
       currency: {
         name: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
         symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
@@ -489,7 +490,9 @@ export class Peer {
         maxSupply: BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY,
         blockReward: Number(BLOCKCHAIN_CONSTANTS.MINING.BLOCK_REWARD),
       },
-      services: this.services,
+      services: Object.values(PeerServices)
+        .filter((service): service is PeerServices => typeof service === 'number')
+        .filter(service => (this.services || PeerServices.NODE) & service),
     };
   }
 

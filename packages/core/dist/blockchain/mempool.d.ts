@@ -189,7 +189,7 @@ interface MempoolInfo {
         youngest: number;
     };
     health: {
-        status: 'healthy' | 'degraded' | 'critical';
+        status: "healthy" | "degraded" | "critical";
         lastUpdate: number;
         isAcceptingTransactions: boolean;
     };

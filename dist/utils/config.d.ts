@@ -146,7 +146,7 @@ export interface NetworkNode {
     address: string;
     lastSeen: number;
     version: string;
-    status: 'active' | 'inactive';
+    status: "active" | "inactive";
 }
 export type Config = DiscoveryConfig & BlockchainConfig;
 export declare class ConfigService {

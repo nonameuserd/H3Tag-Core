@@ -1,6 +1,6 @@
-import { AuditManager, BlockchainSchema } from '@h3tag-blockchain/core';
-import { CreateNodeDto, NodeResponseDto, NodeStatusDto, PeerDiscoveryResponseDto, PeerConnectionResponseDto } from '../dtos/node.dto';
-import { ConfigService } from '@h3tag-blockchain/shared';
+import { AuditManager, BlockchainSchema } from "@h3tag-blockchain/core";
+import { CreateNodeDto, NodeResponseDto, NodeStatusDto, PeerDiscoveryResponseDto, PeerConnectionResponseDto } from "../dtos/node.dto";
+import { ConfigService } from "@h3tag-blockchain/shared";
 /**
  * @swagger
  * tags:

@@ -28,8 +28,8 @@ class NetworkStats {
             distribution: {
                 gini: 0,
                 top10Percent: 0,
-                top50Percent: 0
-            }
+                top50Percent: 0,
+            },
         };
         this.startDiscoveryLoop();
     }
@@ -63,15 +63,15 @@ class NetworkStats {
                     this.peerScores.set(peerId, score * NetworkStats.SCORE_DECAY);
                 }
             }
-            this.eventEmitter.emit('discovery_cycle', {
+            this.eventEmitter.emit("discovery_cycle", {
                 timestamp: now,
                 activePeers: this.getActivePeerCount(),
                 bannedPeers: this.bannedPeers.size,
-                averageScore: this.getAveragePeerScore()
+                averageScore: this.getAveragePeerScore(),
             });
         }
         catch (error) {
-            shared_1.Logger.error('Discovery cycle failed:', error);
+            shared_1.Logger.error("Discovery cycle failed:", error);
         }
     }
     updatePeerScore(peerId, delta) {
@@ -89,26 +89,28 @@ class NetworkStats {
             }
         }
         catch (error) {
-            shared_1.Logger.error('Failed to update peer score:', error);
+            shared_1.Logger.error("Failed to update peer score:", error);
         }
     }
     banPeer(peerId) {
         try {
             this.bannedPeers.add(peerId);
             this.removePeer(peerId);
-            this.eventEmitter.emit('peer_banned', {
+            this.eventEmitter.emit("peer_banned", {
                 peerId,
                 timestamp: Date.now(),
-                reason: 'Low score'
+                reason: "Low score",
             });
         }
         catch (error) {
-            shared_1.Logger.error('Failed to ban peer:', error);
+            shared_1.Logger.error("Failed to ban peer:", error);
         }
     }
     getAveragePeerScore() {
         const scores = Array.from(this.peerScores.values());
-        return scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : 0;
+        return scores.length
+            ? scores.reduce((a, b) => a + b, 0) / scores.length
+            : 0;
     }
     on(event, listener) {
         this.eventEmitter.on(event, listener);
@@ -119,12 +121,12 @@ class NetworkStats {
     removeAllListeners() {
         this.eventEmitter.removeAllListeners();
     }
-    addPeer(peer) {
+    async addPeer(peer) {
         try {
             if (!peer || !(peer instanceof peer_1.Peer)) {
                 throw new network_error_1.NetworkError("Invalid peer object", network_error_1.NetworkErrorCode.PEER_VALIDATION_FAILED, { peer });
             }
-            const peerInfo = peer.getInfo();
+            const peerInfo = await peer.getInfo();
             if (!peerInfo?.id) {
                 throw new network_error_1.NetworkError("Invalid peer info", network_error_1.NetworkErrorCode.PEER_VALIDATION_FAILED, { peerInfo });
             }
@@ -133,7 +135,9 @@ class NetworkStats {
                 throw new network_error_1.NetworkError("Maximum peer limit reached", network_error_1.NetworkErrorCode.PEER_VALIDATION_FAILED, { currentPeers: this.peers.size });
             }
             if (this.bannedPeers.has(peerInfo.id)) {
-                throw new network_error_1.NetworkError("Peer is banned", network_error_1.NetworkErrorCode.PEER_BANNED, { peerId: peerInfo.id });
+                throw new network_error_1.NetworkError("Peer is banned", network_error_1.NetworkErrorCode.PEER_BANNED, {
+                    peerId: peerInfo.id,
+                });
             }
             // Initialize peer score
             this.peerScores.set(peerInfo.id, 0);
@@ -202,7 +206,7 @@ class NetworkStats {
             throw new network_error_1.NetworkError("Failed to get active peer count", network_error_1.NetworkErrorCode.PEER_VALIDATION_FAILED, { error });
         }
     }
-    getAverageLatency() {
+    async getAverageLatency() {
         try {
             // Get connected peers
             const connectedPeers = Array.from(this.peers.values())
@@ -213,22 +217,22 @@ class NetworkStats {
                 return NetworkStats.DEFAULT_LATENCY;
             }
             let validSamples = 0;
-            const totalLatency = connectedPeers.reduce((sum, peer) => {
+            const latencies = await Promise.all(connectedPeers.map(async (peer) => {
                 try {
-                    const latency = peer.getInfo()?.latency;
-                    if (typeof latency === "number" &&
-                        latency >= NetworkStats.MIN_LATENCY &&
-                        latency <= NetworkStats.MAX_LATENCY) {
+                    const peerInfo = await peer.getInfo();
+                    const latency = peerInfo?.latency;
+                    if (typeof latency === "number" && latency >= NetworkStats.MIN_LATENCY && latency <= NetworkStats.MAX_LATENCY) {
                         validSamples++;
-                        return sum + latency;
+                        return latency;
                     }
-                    return sum;
+                    return 0;
                 }
                 catch (error) {
-                    shared_1.Logger.warn(`Failed to get latency for peer ${peer.getInfo()?.id}:`, error);
-                    return sum;
+                    shared_1.Logger.warn(`Failed to get latency for peer, error: ${error.message}`, error);
+                    return 0;
                 }
-            }, 0);
+            }));
+            const totalLatency = latencies.reduce((sum, latency) => sum + latency, 0);
             if (validSamples === 0) {
                 shared_1.Logger.warn("No valid latency samples available");
                 return NetworkStats.DEFAULT_LATENCY;
@@ -385,7 +389,7 @@ class NetworkStats {
             this.eventEmitter.emit("h3Tag_metrics_updated", {
                 ...this.h3TagMetrics,
                 currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
         }
         catch (error) {
@@ -402,14 +406,14 @@ class NetworkStats {
             currency: {
                 name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                 symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
-            }
+                decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
+            },
         };
     }
     async initialize() {
         return new Promise((resolve, reject) => {
             const timeout = setTimeout(() => {
-                reject(new Error('Network stats initialization timeout'));
+                reject(new Error("Network stats initialization timeout"));
             }, 30000); // 30 second timeout
             try {
                 this.peerLatencies = new Map();
@@ -442,11 +446,11 @@ class NetworkStats {
     getNetworkInfo() {
         try {
             // Get connected peers
-            const connectedPeers = Array.from(this.peers.values()).filter(peer => peer.isConnected());
+            const connectedPeers = Array.from(this.peers.values()).filter((peer) => peer.isConnected());
             // Calculate connection metrics
-            const inbound = connectedPeers.filter(peer => peer.isInbound()).length;
+            const inbound = connectedPeers.filter((peer) => peer.isInbound()).length;
             const outbound = connectedPeers.length - inbound;
-            const verified = connectedPeers.filter(peer => peer.isVerified()).length;
+            const verified = connectedPeers.filter((peer) => peer.isVerified()).length;
             // Get network metrics
             const metrics = {
                 totalBytesRecv: connectedPeers.reduce((sum, peer) => sum + peer.getBytesReceived(), 0),
@@ -455,7 +459,7 @@ class NetworkStats {
                 blockHeight: this.blockchain.getHeight(),
                 difficulty: this.blockchain.getCurrentDifficulty(),
                 hashRate: this.globalHashRate,
-                mempool: this.getMempoolInfo()
+                mempool: this.getMempoolInfo(),
             };
             // Get local addresses
             const localAddresses = this.getLocalAddresses();
@@ -468,34 +472,34 @@ class NetworkStats {
                     total: connectedPeers.length,
                     inbound,
                     outbound,
-                    verified
+                    verified,
                 },
                 networks: [
                     {
                         name: "ipv4",
                         limited: false,
                         reachable: true,
-                        proxy: this.configService.get('PROXY_IPV4') || "none",
-                        proxy_randomize_credentials: true
+                        proxy: this.configService.get("PROXY_IPV4") || "none",
+                        proxy_randomize_credentials: true,
                     },
                     {
                         name: "ipv6",
                         limited: false,
                         reachable: true,
-                        proxy: this.configService.get('PROXY_IPV6') || "none",
-                        proxy_randomize_credentials: true
+                        proxy: this.configService.get("PROXY_IPV6") || "none",
+                        proxy_randomize_credentials: true,
                     },
                     {
                         name: "onion",
                         limited: true,
                         reachable: false,
                         proxy: "none",
-                        proxy_randomize_credentials: true
-                    }
+                        proxy_randomize_credentials: true,
+                    },
                 ],
                 localAddresses,
                 warnings: this.getNetworkWarnings(),
-                metrics
+                metrics,
             };
         }
         catch (error) {
@@ -511,7 +515,7 @@ class NetworkStats {
                 bytes: mempool.bytes,
                 usage: mempool.usage,
                 maxmempool: constants_1.BLOCKCHAIN_CONSTANTS.MAX_MEMPOOL_SIZE,
-                mempoolminfee: constants_1.BLOCKCHAIN_CONSTANTS.MIN_RELAY_TX_FEE
+                mempoolminfee: constants_1.BLOCKCHAIN_CONSTANTS.MIN_RELAY_TX_FEE,
             };
         }
         catch (error) {
@@ -521,25 +525,25 @@ class NetworkStats {
                 bytes: 0,
                 usage: 0,
                 maxmempool: constants_1.BLOCKCHAIN_CONSTANTS.MAX_MEMPOOL_SIZE,
-                mempoolminfee: constants_1.BLOCKCHAIN_CONSTANTS.MIN_RELAY_TX_FEE
+                mempoolminfee: constants_1.BLOCKCHAIN_CONSTANTS.MIN_RELAY_TX_FEE,
             };
         }
     }
     getLocalServices() {
         const services = [];
-        if (this.configService.get('NETWORK_NODE'))
-            services.push('NODE_NETWORK');
-        if (this.configService.get('NETWORK_BLOOM'))
-            services.push('NODE_BLOOM');
-        if (this.configService.get('NETWORK_WITNESS'))
-            services.push('NODE_WITNESS');
-        if (this.configService.get('NETWORK_COMPACT'))
-            services.push('NODE_COMPACT_FILTERS');
+        if (this.configService.get("NETWORK_NODE"))
+            services.push("NODE_NETWORK");
+        if (this.configService.get("NETWORK_BLOOM"))
+            services.push("NODE_BLOOM");
+        if (this.configService.get("NETWORK_WITNESS"))
+            services.push("NODE_WITNESS");
+        if (this.configService.get("NETWORK_COMPACT"))
+            services.push("NODE_COMPACT_FILTERS");
         return services;
     }
     getLocalAddresses() {
         try {
-            return this.configService.get('LOCAL_ADDRESSES')?.split(',') || [];
+            return (this.configService.get("LOCAL_ADDRESSES")?.split(",") || []);
         }
         catch (error) {
             shared_1.Logger.warn("Failed to get local addresses:", error);
@@ -565,21 +569,21 @@ class NetworkStats {
     isVersionOutdated() {
         try {
             const currentVersion = parseFloat(constants_1.BLOCKCHAIN_CONSTANTS.VERSION.toString());
-            const latestVersion = parseFloat(this.configService.get('LATEST_VERSION'));
+            const latestVersion = parseFloat(this.configService.get("LATEST_VERSION"));
             return currentVersion < latestVersion;
         }
         catch (error) {
-            shared_1.Logger.warn('Failed to check version:', error);
+            shared_1.Logger.warn("Failed to check version:", error);
             return false;
         }
     }
-    isSynced() {
+    async isSynced() {
         try {
-            return !this.blockchain.isInitialBlockDownload() &&
-                this.blockchain.getVerificationProgress() >= 0.99;
+            return (!this.blockchain.isInitialBlockDownload() &&
+                (await this.blockchain.getVerificationProgress()) >= 0.99);
         }
         catch (error) {
-            shared_1.Logger.warn('Failed to check sync status:', error);
+            shared_1.Logger.warn("Failed to check sync status:", error);
             return false;
         }
     }

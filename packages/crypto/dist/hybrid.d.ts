@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /// <reference types="node" />
-import { HybridKeyPair } from './keys';
+import { HybridKeyPair } from "./keys";
 export declare class HybridError extends Error {
     constructor(message: string);
 }

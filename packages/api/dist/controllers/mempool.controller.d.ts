@@ -1,5 +1,5 @@
-import { MempoolInfoDto, RawMempoolEntryDto, MempoolEntryDto } from '../dtos/mempool.dto';
-import { MempoolService } from '../services/mempool.service';
+import { MempoolInfoDto, RawMempoolEntryDto, MempoolEntryDto } from "../dtos/mempool.dto";
+import { MempoolService } from "../services/mempool.service";
 export declare class MempoolController {
     private readonly mempoolService;
     constructor(mempoolService: MempoolService);

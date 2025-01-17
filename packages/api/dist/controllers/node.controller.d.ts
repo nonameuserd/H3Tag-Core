@@ -1,5 +1,5 @@
-import { NodeService } from '../services/node.service';
-import { CreateNodeDto, NodeResponseDto, NodeStatusDto, PeerDiscoveryResponseDto, ConnectPeerDto, PeerConnectionResponseDto } from '../dtos/node.dto';
+import { NodeService } from "../services/node.service";
+import { CreateNodeDto, NodeResponseDto, NodeStatusDto, PeerDiscoveryResponseDto, ConnectPeerDto, PeerConnectionResponseDto } from "../dtos/node.dto";
 export declare class NodeController {
     private readonly nodeService;
     constructor(nodeService: NodeService);

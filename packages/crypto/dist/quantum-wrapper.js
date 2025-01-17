@@ -19,7 +19,7 @@ class QuantumWrapper {
             return;
         await Promise.all([
             dilithium_1.Dilithium.generateKeyPair(),
-            kyber_1.Kyber.generateKeyPair() // Initialize Kyber
+            kyber_1.Kyber.generateKeyPair(), // Initialize Kyber
         ]);
         this.initialized = true;
     }
@@ -41,10 +41,12 @@ class QuantumWrapper {
             const hybridPublicKey = await this.combinePublicKeys(dilithiumPair.publicKey, kyberPair.publicKey);
             const hybridPrivateKey = await this.combinePrivateKeys(dilithiumPair.privateKey, kyberPair.privateKey);
             // Derive addresses
-            const address = await hybrid_1.HybridCrypto.deriveAddress({ address: hybridPublicKey });
+            const address = await hybrid_1.HybridCrypto.deriveAddress({
+                address: hybridPublicKey,
+            });
             return {
                 publicKey: { address },
-                privateKey: { address: hybridPrivateKey }
+                privateKey: { address: hybridPrivateKey },
             };
         }
         catch (error) {
@@ -74,12 +76,10 @@ class QuantumWrapper {
                 hybrid_1.HybridCrypto.sign(message.toString(), {
                     privateKey: classicalKey,
                     publicKey: classicalKey,
-                    address: await hybrid_1.HybridCrypto.deriveAddress({ address: classicalKey })
+                    address: await hybrid_1.HybridCrypto.deriveAddress({ address: classicalKey }),
                 }),
             ]);
-            return Buffer.concat([
-                Buffer.from(classicalSig.toString(), "hex"),
-            ]);
+            return Buffer.concat([Buffer.from(classicalSig.toString(), "hex")]);
         }
         catch (error) {
             shared_1.Logger.error("Signing failed:", error);
@@ -91,7 +91,9 @@ class QuantumWrapper {
      */
     static async verify(message, signature, publicKey) {
         try {
-            if (!Buffer.isBuffer(message) || !Buffer.isBuffer(signature) || !Buffer.isBuffer(publicKey)) {
+            if (!Buffer.isBuffer(message) ||
+                !Buffer.isBuffer(signature) ||
+                !Buffer.isBuffer(publicKey)) {
                 throw new QuantumWrapperError("Invalid input parameters");
             }
             // Split keys and signatures
@@ -100,7 +102,9 @@ class QuantumWrapper {
             const sigHalfLength = Math.floor(signature.length * this.KEY_SPLIT_RATIO);
             const classicalSig = signature.subarray(0, sigHalfLength).toString("hex");
             // Derive blockchain address from public key
-            const address = await hybrid_1.HybridCrypto.deriveAddress({ address: traditionalKey });
+            const address = await hybrid_1.HybridCrypto.deriveAddress({
+                address: traditionalKey,
+            });
             // Verify signature against derived address
             return await hybrid_1.HybridCrypto.verify(message.toString(), { address: classicalSig }, { address });
         }

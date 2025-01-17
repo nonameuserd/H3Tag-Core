@@ -67,7 +67,7 @@ class MiningMetrics {
     }
     cleanupOldMetrics(now) {
         const cutoff = now - 24 * 60 * 60 * 1000; // 24 hours
-        const startIdx = this.metrics.timestamp.findIndex(t => t > cutoff);
+        const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
         if (startIdx > 0) {
             this.metrics.hashRate = this.metrics.hashRate.slice(startIdx);
             this.metrics.difficulty = this.metrics.difficulty.slice(startIdx);
@@ -82,7 +82,7 @@ class MiningMetrics {
             return 0;
         }
         const cutoff = Date.now() - timeWindow;
-        const startIdx = this.metrics.timestamp.findIndex(t => t > cutoff);
+        const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
         if (startIdx === -1)
             return 0;
         const recentHashes = this.metrics.hashRate.slice(startIdx);
@@ -98,13 +98,13 @@ class MiningMetrics {
             const cutoff = Date.now() - timeWindow;
             // Early return if no data
             if (!this.metrics.tagVolume.length || !this.metrics.timestamp.length) {
-                shared_1.Logger.debug('No TAG volume data available for averaging');
+                shared_1.Logger.debug("No TAG volume data available for averaging");
                 return 0;
             }
             // Find starting index for optimization
-            const startIdx = this.metrics.timestamp.findIndex(t => t > cutoff);
+            const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
             if (startIdx === -1) {
-                shared_1.Logger.debug('No TAG volume data within specified timeWindow');
+                shared_1.Logger.debug("No TAG volume data within specified timeWindow");
                 return 0;
             }
             // Calculate sum and count for average
@@ -112,7 +112,7 @@ class MiningMetrics {
             let count = 0;
             for (let i = startIdx; i < this.metrics.tagVolume.length; i++) {
                 const volume = this.metrics.tagVolume[i];
-                if (typeof volume === 'number' && !isNaN(volume)) {
+                if (typeof volume === "number" && !isNaN(volume)) {
                     sum += volume;
                     count++;
                 }
@@ -123,7 +123,7 @@ class MiningMetrics {
             return average;
         }
         catch (error) {
-            shared_1.Logger.error('Error calculating average TAG volume:', error);
+            shared_1.Logger.error("Error calculating average TAG volume:", error);
             return 0;
         }
     }
@@ -137,13 +137,13 @@ class MiningMetrics {
             const cutoff = Date.now() - timeWindow;
             // Early return if no data
             if (!this.metrics.tagFees.length || !this.metrics.timestamp.length) {
-                shared_1.Logger.debug('No TAG fee data available for averaging');
+                shared_1.Logger.debug("No TAG fee data available for averaging");
                 return 0;
             }
             // Find starting index for optimization
-            const startIdx = this.metrics.timestamp.findIndex(t => t > cutoff);
+            const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
             if (startIdx === -1) {
-                shared_1.Logger.debug('No TAG fee data within specified timeWindow');
+                shared_1.Logger.debug("No TAG fee data within specified timeWindow");
                 return 0;
             }
             // Calculate sum and count for average
@@ -151,7 +151,7 @@ class MiningMetrics {
             let count = 0;
             for (let i = startIdx; i < this.metrics.tagFees.length; i++) {
                 const fee = this.metrics.tagFees[i];
-                if (typeof fee === 'number' && !isNaN(fee)) {
+                if (typeof fee === "number" && !isNaN(fee)) {
                     sum += fee;
                     count++;
                 }
@@ -162,7 +162,7 @@ class MiningMetrics {
             return average;
         }
         catch (error) {
-            shared_1.Logger.error('Error calculating average TAG fees:', error);
+            shared_1.Logger.error("Error calculating average TAG fees:", error);
             return 0;
         }
     }
@@ -171,36 +171,36 @@ class MiningMetrics {
         this.updateMetrics({
             hashRate: 0,
             difficulty: this.difficulty,
-            blockTime: 0
+            blockTime: 0,
         });
     }
     gauge(name, value) {
         switch (name) {
-            case 'blocks_in_flight':
+            case "blocks_in_flight":
                 // Track number of blocks being processed
                 this.blockHeight = value;
                 break;
-            case 'synced_headers':
+            case "synced_headers":
                 // Track header sync progress
                 this.syncedHeaders = value;
                 break;
-            case 'synced_blocks':
+            case "synced_blocks":
                 // Track block sync progress
                 this.syncedBlocks = value;
                 break;
-            case 'whitelisted':
+            case "whitelisted":
                 // Track whitelisted peers count
                 this.whitelistedPeers = value;
                 break;
-            case 'blacklisted':
+            case "blacklisted":
                 // Track blacklisted peers count
                 this.blacklistedPeers = value;
                 break;
-            case 'hash_rate':
+            case "hash_rate":
                 // Track current hash rate
                 this.hashRate = value;
                 break;
-            case 'difficulty':
+            case "difficulty":
                 // Track current mining difficulty
                 this.difficulty = value;
                 break;

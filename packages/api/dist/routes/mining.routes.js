@@ -58,7 +58,7 @@ const controller = new mining_controller_1.MiningController(service);
  *       500:
  *         description: Server error
  */
-router.get('/info', controller.getMiningInfo.bind(controller));
+router.get("/info", controller.getMiningInfo.bind(controller));
 /**
  * @swagger
  * /api/v1/mining/hashps:
@@ -80,43 +80,43 @@ router.get('/info', controller.getMiningInfo.bind(controller));
  *       500:
  *         description: Server error
  */
-router.get('/hashps', controller.getNetworkHashPS.bind(controller));
+router.get("/hashps", controller.getNetworkHashPS.bind(controller));
 /**
-   * @swagger
-   * /mining/template:
-   *   post:
-   *     summary: Get a block template for mining
-   *     tags: [Mining]
-   *     security:
-   *       - bearerAuth: []
-   *     requestBody:
-   *       required: true
-   *       content:
-   *         application/json:
-   *           schema:
-   *             type: object
-   *             required:
-   *               - minerAddress
-   *             properties:
-   *               minerAddress:
-   *                 type: string
-   *                 description: The address that will receive mining rewards
-   *     responses:
-   *       200:
-   *         description: Block template successfully generated
-   *         content:
-   *           application/json:
-   *             schema:
-   *               $ref: '#/components/schemas/BlockTemplateResponse'
-   *       400:
-   *         description: Invalid request parameters
-   *       401:
-   *         description: Unauthorized
-   *       429:
-   *         description: Too many requests
-   *       500:
-   *         description: Server error
-   */
-router.post('/template', controller.getBlockTemplate.bind(controller));
+ * @swagger
+ * /mining/template:
+ *   post:
+ *     summary: Get a block template for mining
+ *     tags: [Mining]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - minerAddress
+ *             properties:
+ *               minerAddress:
+ *                 type: string
+ *                 description: The address that will receive mining rewards
+ *     responses:
+ *       200:
+ *         description: Block template successfully generated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/BlockTemplateResponse'
+ *       400:
+ *         description: Invalid request parameters
+ *       401:
+ *         description: Unauthorized
+ *       429:
+ *         description: Too many requests
+ *       500:
+ *         description: Server error
+ */
+router.post("/template", controller.getBlockTemplate.bind(controller));
 exports.default = router;
 //# sourceMappingURL=mining.routes.js.map

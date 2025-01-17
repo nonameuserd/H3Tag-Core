@@ -1,6 +1,6 @@
-import { BlockchainSchema } from '@h3tag-blockchain/core';
-import { ConfigService } from '@h3tag-blockchain/shared';
-import { CreatePeerDto, PeerResponseDto, SetBanDto, BanInfoDto, NetworkInfoDto, PeerDetailedInfoDto } from '../dtos/peer.dto';
+import { BlockchainSchema } from "@h3tag-blockchain/core";
+import { ConfigService } from "@h3tag-blockchain/shared";
+import { CreatePeerDto, PeerResponseDto, SetBanDto, BanInfoDto, NetworkInfoDto, PeerDetailedInfoDto } from "../dtos/peer.dto";
 /**
  * @swagger
  * components:
@@ -162,33 +162,33 @@ export declare class PeerService {
      */
     setBan(setBanDto: SetBanDto): Promise<void>;
     /**
-    * @swagger
-    * /peers/ban/{ip}:
-    *   get:
-    *     summary: Get ban information for a specific IP
-    *     tags: [Peers]
-    *     parameters:
-    *       - in: path
-    *         name: ip
-    *         required: true
-    *         schema:
-    *           type: string
-    *         description: IP address of the peer
-    *     responses:
-    *       200:
-    *         description: Ban information retrieved successfully
-    *         content:
-    *           application/json:
-    *             schema:
-    *               $ref: '#/components/schemas/BanInfoDto'
-    *       404:
-    *         description: Peer not found or not banned
-    */
+     * @swagger
+     * /peers/ban/{ip}:
+     *   get:
+     *     summary: Get ban information for a specific IP
+     *     tags: [Peers]
+     *     parameters:
+     *       - in: path
+     *         name: ip
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: IP address of the peer
+     *     responses:
+     *       200:
+     *         description: Ban information retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/BanInfoDto'
+     *       404:
+     *         description: Peer not found or not banned
+     */
     getBanInfo(ip: string): Promise<BanInfoDto>;
     /**
-   * @swagger
-   * /peers/ban/{ip}:
-    * /peers/bans:
+     * @swagger
+     * /peers/ban/{ip}:
+     * /peers/bans:
      *   get:
      *     summary: List all banned peers
      *     tags: [Peers]
@@ -208,7 +208,7 @@ export declare class PeerService {
      *       200:
      *         description: All bans cleared successfully
      *
-   */
+     */
     listBans(): Promise<BanInfoDto[]>;
     clearBans(): Promise<void>;
     getNetworkInfo(): Promise<NetworkInfoDto>;

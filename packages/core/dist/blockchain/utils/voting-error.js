@@ -6,7 +6,7 @@ class VotingError extends Error {
         super(message);
         this.code = code;
         this.details = details;
-        this.name = 'VotingError';
+        this.name = "VotingError";
         Object.setPrototypeOf(this, VotingError.prototype);
     }
     toJSON() {
@@ -14,7 +14,7 @@ class VotingError extends Error {
             name: this.name,
             code: this.code,
             message: this.message,
-            details: this.details
+            details: this.details,
         };
     }
 }

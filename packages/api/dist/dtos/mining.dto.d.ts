@@ -1,5 +1,5 @@
-import { TransactionDto } from './transaction.dto';
-import { HybridKeyPair } from '@h3tag-blockchain/crypto';
+import { TransactionDto } from "./transaction.dto";
+import { HybridKeyPair } from "@h3tag-blockchain/crypto";
 export declare class MiningInfoDto {
     blocks: number;
     difficulty: number;

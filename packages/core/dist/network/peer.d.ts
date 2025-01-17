@@ -145,7 +145,7 @@ export declare class Peer {
             lastVoteHeight: number;
         };
     }>;
-    getInfo(): PeerInfo;
+    getInfo(): Promise<PeerInfo>;
     private getLatency;
     updateLatency(rtt: number): void;
     getPeers(): Promise<{
@@ -210,7 +210,7 @@ export declare class Peer {
      * @param banTime Duration of ban in seconds (0 for permanent)
      * @param reason Reason for the ban
      */
-    setBan(command: 'add' | 'remove', banTime?: number, reason?: string): Promise<void>;
+    setBan(command: "add" | "remove", banTime?: number, reason?: string): Promise<void>;
     /**
      * Check if peer is currently banned
      * @returns Promise<boolean>

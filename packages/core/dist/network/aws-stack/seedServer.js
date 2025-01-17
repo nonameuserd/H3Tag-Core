@@ -107,11 +107,11 @@ class SeedServer {
         try {
             const nodes = Array.from(this.knownNodes.values());
             // Create Merkle root from node addresses
-            const nodeAddresses = nodes.map(node => node.address);
+            const nodeAddresses = nodes.map((node) => node.address);
             const merkleRoot = await this.merkleTree.createRoot(nodeAddresses);
             // Verify each node against the Merkle root
             for (const region of this.regions) {
-                const regionNodes = nodes.filter(node => node.region === region);
+                const regionNodes = nodes.filter((node) => node.region === region);
                 for (const node of regionNodes) {
                     const isHealthy = await this.checkNodeHealth(node.address, region);
                     if (isHealthy) {

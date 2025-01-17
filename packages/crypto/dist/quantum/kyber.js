@@ -41,8 +41,8 @@ class Kyber {
                 throw new KyberError(`Invalid private key size: ${keyPair.privateKey.length}`);
             }
             return {
-                publicKey: keyPair.publicKey.toString('base64'),
-                privateKey: keyPair.privateKey.toString('base64')
+                publicKey: keyPair.publicKey.toString("base64"),
+                privateKey: keyPair.privateKey.toString("base64"),
             };
         }
         catch (error) {
@@ -57,20 +57,22 @@ class Kyber {
             if (!publicKey) {
                 throw new KyberError("Missing public key");
             }
-            const publicKeyBuffer = Buffer.from(publicKey, 'base64');
+            const publicKeyBuffer = Buffer.from(publicKey, "base64");
             if (publicKeyBuffer.length !== this.PUBLIC_KEY_SIZE) {
                 throw new KyberError("Invalid public key size");
             }
             const result = await _1.QuantumCrypto.nativeQuantum.kyberEncapsulate(publicKeyBuffer);
-            if (!result?.ciphertext || result.ciphertext.length !== this.CIPHERTEXT_SIZE) {
+            if (!result?.ciphertext ||
+                result.ciphertext.length !== this.CIPHERTEXT_SIZE) {
                 throw new KyberError("Invalid ciphertext generated");
             }
-            if (!result?.sharedSecret || result.sharedSecret.length !== this.SHARED_SECRET_SIZE) {
+            if (!result?.sharedSecret ||
+                result.sharedSecret.length !== this.SHARED_SECRET_SIZE) {
                 throw new KyberError("Invalid shared secret generated");
             }
             return {
-                ciphertext: result.ciphertext.toString('base64'),
-                sharedSecret: result.sharedSecret.toString('base64')
+                ciphertext: result.ciphertext.toString("base64"),
+                sharedSecret: result.sharedSecret.toString("base64"),
             };
         }
         catch (error) {
@@ -85,8 +87,8 @@ class Kyber {
             if (!ciphertext || !privateKey) {
                 throw new KyberError("Missing required parameters");
             }
-            const ciphertextBuffer = Buffer.from(ciphertext, 'base64');
-            const privateKeyBuffer = Buffer.from(privateKey, 'base64');
+            const ciphertextBuffer = Buffer.from(ciphertext, "base64");
+            const privateKeyBuffer = Buffer.from(privateKey, "base64");
             if (ciphertextBuffer.length !== this.CIPHERTEXT_SIZE) {
                 throw new KyberError("Invalid ciphertext size");
             }
@@ -97,7 +99,7 @@ class Kyber {
             if (sharedSecret.length !== this.SHARED_SECRET_SIZE) {
                 throw new KyberError("Invalid shared secret size");
             }
-            return sharedSecret.toString('base64');
+            return sharedSecret.toString("base64");
         }
         catch (error) {
             shared_1.Logger.error("Kyber decapsulation failed:", error);
@@ -106,7 +108,7 @@ class Kyber {
     }
     static isValidPublicKey(publicKey) {
         try {
-            const buffer = Buffer.from(publicKey, 'base64');
+            const buffer = Buffer.from(publicKey, "base64");
             return buffer.length === this.PUBLIC_KEY_SIZE;
         }
         catch {
@@ -115,7 +117,7 @@ class Kyber {
     }
     static isValidPrivateKey(privateKey) {
         try {
-            const buffer = Buffer.from(privateKey, 'base64');
+            const buffer = Buffer.from(privateKey, "base64");
             return buffer.length === this.PRIVATE_KEY_SIZE;
         }
         catch {
@@ -124,7 +126,7 @@ class Kyber {
     }
     static isValidCiphertext(ciphertext) {
         try {
-            const buffer = Buffer.from(ciphertext, 'base64');
+            const buffer = Buffer.from(ciphertext, "base64");
             return buffer.length === this.CIPHERTEXT_SIZE;
         }
         catch {

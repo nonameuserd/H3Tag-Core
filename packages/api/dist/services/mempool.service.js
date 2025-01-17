@@ -28,11 +28,11 @@ let MempoolService = class MempoolService {
                 fees: mempoolInfo.fees,
                 transactions: mempoolInfo.transactions,
                 age: mempoolInfo.age,
-                health: mempoolInfo.health
+                health: mempoolInfo.health,
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mempool info:', error);
+            shared_1.Logger.error("Failed to get mempool info:", error);
             throw error;
         }
     }
@@ -41,7 +41,7 @@ let MempoolService = class MempoolService {
             return await this.node.getMempool().getRawMempool(verbose);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get raw mempool:', error);
+            shared_1.Logger.error("Failed to get raw mempool:", error);
             throw error;
         }
     }
@@ -54,7 +54,7 @@ let MempoolService = class MempoolService {
             return entry;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mempool entry:', error);
+            shared_1.Logger.error("Failed to get mempool entry:", error);
             throw error;
         }
     }

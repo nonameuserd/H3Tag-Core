@@ -17,7 +17,7 @@ class MetricsCollector {
     }
     gauge(metric, value) {
         const key = `${this.namespace}.${metric}`;
-        const actualValue = typeof value === 'function' ? value() : value;
+        const actualValue = typeof value === "function" ? value() : value;
         this.metrics.set(key, actualValue);
     }
     startTimer(metric) {
@@ -31,7 +31,7 @@ class MetricsCollector {
         };
     }
     histogram(metric, value, labels) {
-        const key = `${this.namespace}.${metric}${labels ? `.${labels.stat}` : ''}`;
+        const key = `${this.namespace}.${metric}${labels ? `.${labels.stat}` : ""}`;
         this.metrics.set(key, value);
     }
     setGauge(metric, value, label) {
@@ -41,9 +41,9 @@ class MetricsCollector {
     counter(metric) {
         return {
             inc: (labels) => {
-                const key = `${this.namespace}.${metric}${labels ? `.${labels.stat}` : ''}`;
+                const key = `${this.namespace}.${metric}${labels ? `.${labels.stat}` : ""}`;
                 this.increment(key);
-            }
+            },
         };
     }
     flush() {
@@ -52,14 +52,14 @@ class MetricsCollector {
                 name: key,
                 value,
                 timestamp: Date.now(),
-                type: this.timers.has(key) ? 'timer' : 'counter'
+                type: this.timers.has(key) ? "timer" : "counter",
             }));
-            this.eventEmitter.emit('metrics', metricsData);
+            this.eventEmitter.emit("metrics", metricsData);
             this.metrics.clear();
             this.timers.clear();
         }
         catch (error) {
-            shared_1.Logger.error('Failed to flush metrics:', error);
+            shared_1.Logger.error("Failed to flush metrics:", error);
         }
     }
     dispose() {
@@ -71,7 +71,11 @@ class MetricsCollector {
     observe(metric, value) {
         try {
             this.metrics.set(metric, value);
-            this.eventEmitter.emit('metric', { name: metric, value, type: 'observation' });
+            this.eventEmitter.emit("metric", {
+                name: metric,
+                value,
+                type: "observation",
+            });
         }
         catch (error) {
             shared_1.Logger.error(`Failed to observe metric ${metric}:`, error);
@@ -79,26 +83,26 @@ class MetricsCollector {
     }
     emitMetrics(block, duration) {
         const blockSize = this.calculateBlockSize(block);
-        this.histogram('block_processing_time', duration);
-        this.gauge('block_height', block.header.height);
-        this.gauge('block_size', blockSize);
-        this.histogram('transactions_per_block', block.transactions.length);
+        this.histogram("block_processing_time", duration);
+        this.gauge("block_height", block.header.height);
+        this.gauge("block_size", blockSize);
+        this.histogram("transactions_per_block", block.transactions.length);
     }
     calculateBlockSize(block) {
         const headerSize = this.calculateHeaderSize(block.header);
-        return headerSize +
+        return (headerSize +
             this.calculateVarIntSize(block.transactions.length) +
-            block.transactions.reduce((size, tx) => size + this.calculateTransactionSize(tx), 0);
+            block.transactions.reduce((size, tx) => size + this.calculateTransactionSize(tx), 0));
     }
     calculateHeaderSize(header) {
         // Serialize header data according to protocol specification
         const serializedHeader = Buffer.concat([
-            Buffer.from(header.version.toString(16).padStart(8, '0'), 'hex'),
-            Buffer.from(header.previousHash, 'hex'),
-            Buffer.from(header.merkleRoot, 'hex'),
-            Buffer.from(header.timestamp.toString(16).padStart(8, '0'), 'hex'),
-            Buffer.from(header.difficulty.toString(16).padStart(8, '0'), 'hex'),
-            Buffer.from(header.nonce.toString(16).padStart(8, '0'), 'hex')
+            Buffer.from(header.version.toString(16).padStart(8, "0"), "hex"),
+            Buffer.from(header.previousHash, "hex"),
+            Buffer.from(header.merkleRoot, "hex"),
+            Buffer.from(header.timestamp.toString(16).padStart(8, "0"), "hex"),
+            Buffer.from(header.difficulty.toString(16).padStart(8, "0"), "hex"),
+            Buffer.from(header.nonce.toString(16).padStart(8, "0"), "hex"),
         ]);
         return serializedHeader.length;
     }
@@ -120,7 +124,7 @@ class MetricsCollector {
         return 9;
     }
     calculateInputSize(input) {
-        return (Buffer.from(input.txId, 'hex').length +
+        return (Buffer.from(input.txId, "hex").length +
             this.calculateVarIntSize(input.outputIndex) +
             this.calculateVarIntSize(input.script.length) +
             input.script.length +

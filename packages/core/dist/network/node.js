@@ -29,7 +29,7 @@ class Node {
         this.isRunning = false;
         this.config = {
             ...Node.DEFAULT_CONFIG,
-            ...configService.config
+            ...configService.config,
         };
         this.peers = new Map();
         this.peerStates = new Map();
@@ -39,7 +39,7 @@ class Node {
         this.peerCircuitBreakers = new Map();
         this.seeder = new dnsSeed_1.DNSSeeder(configService, db, {
             networkType: this.config.networkType,
-            port: this.config.port
+            port: this.config.port,
         });
         this.metrics = new metrics_collector_1.MetricsCollector("node");
         this.health = new health_1.HealthMonitor({
@@ -48,33 +48,33 @@ class Node {
                 minPowHashrate: 1000000000,
                 minPowNodes: 100,
                 minTagDistribution: 0.5,
-                maxTagConcentration: 0.2
-            }
+                maxTagConcentration: 0.2,
+            },
         });
         this.ddosProtection = new ddos_1.DDoSProtection({
             maxRequests: {
                 pow: 200,
                 qudraticVote: 100,
-                default: 50
+                default: 50,
             },
-            windowMs: 60000 // 1 minute
+            windowMs: 60000, // 1 minute
         }, this.audit);
         this.audit = new audit_1.AuditManager();
         this.peerCache = new cache_1.Cache({
             ttl: 3600000,
-            maxSize: 1000
+            maxSize: 1000,
         });
         this.discovery = new discovery_1.PeerDiscovery(configService, mempool, new utxo_model_1.UTXOSet());
         // Setup event handlers
         this.setupEventHandlers();
     }
     setupEventHandlers() {
-        this.eventEmitter.on('peer:connect', this.handlePeerConnect.bind(this));
-        this.eventEmitter.on('peer:disconnect', this.handlePeerDisconnect.bind(this));
-        this.eventEmitter.on('peer:message', this.handlePeerMessage.bind(this));
-        this.eventEmitter.on('peer:error', this.handlePeerError.bind(this));
-        this.eventEmitter.on('block:received', this.handleBlockReceived.bind(this));
-        this.eventEmitter.on('tx:received', this.handleTransactionReceived.bind(this));
+        this.eventEmitter.on("peer:connect", this.handlePeerConnect.bind(this));
+        this.eventEmitter.on("peer:disconnect", this.handlePeerDisconnect.bind(this));
+        this.eventEmitter.on("peer:message", this.handlePeerMessage.bind(this));
+        this.eventEmitter.on("peer:error", this.handlePeerError.bind(this));
+        this.eventEmitter.on("block:received", this.handleBlockReceived.bind(this));
+        this.eventEmitter.on("tx:received", this.handleTransactionReceived.bind(this));
     }
     async start() {
         if (this.isRunning)
@@ -89,14 +89,14 @@ class Node {
             await this.discoverPeers();
             // Start maintenance timer
             this.maintenanceTimer = setInterval(() => this.performMaintenance(), this.config.pruneInterval);
-            shared_1.Logger.info('Node started successfully', {
+            shared_1.Logger.info("Node started successfully", {
                 network: this.config.networkType,
-                port: this.config.port
+                port: this.config.port,
             });
         }
         catch (error) {
             this.isRunning = false;
-            shared_1.Logger.error('Failed to start node:', error);
+            shared_1.Logger.error("Failed to start node:", error);
             throw error;
         }
     }
@@ -110,15 +110,15 @@ class Node {
                 clearInterval(this.maintenanceTimer);
             }
             // Disconnect all peers
-            await Promise.all(Array.from(this.peers.values()).map(peer => peer.disconnect()));
+            await Promise.all(Array.from(this.peers.values()).map((peer) => peer.disconnect()));
             // Stop DNS seeder
             await this.seeder.stop();
             // Save peer cache
             await this.savePeerCache();
-            shared_1.Logger.info('Node stopped successfully');
+            shared_1.Logger.info("Node stopped successfully");
         }
         catch (error) {
-            shared_1.Logger.error('Error stopping node:', error);
+            shared_1.Logger.error("Error stopping node:", error);
             throw error;
         }
     }
@@ -130,15 +130,15 @@ class Node {
                 return;
             const peerAddresses = this.discovery.getPeersByType(discovery_1.PeerType.FULL_NODE);
             const connectPromises = peerAddresses
-                .filter(addr => !this.peers.has(addr) && !this.isBanned(addr))
+                .filter((addr) => !this.peers.has(addr) && !this.isBanned(addr))
                 .slice(0, this.config.maxPeers - this.peers.size)
-                .map(addr => this.connectToPeer(addr));
+                .map((addr) => this.connectToPeer(addr));
             await Promise.allSettled(connectPromises);
-            this.metrics.gauge('peer_count', this.peers.size);
+            this.metrics.gauge("peer_count", this.peers.size);
             if (this.peers.size < this.config.minPeers) {
-                shared_1.Logger.warn('Low peer count', {
+                shared_1.Logger.warn("Low peer count", {
                     current: this.peers.size,
-                    minimum: this.config.minPeers
+                    minimum: this.config.minPeers,
                 });
             }
         }
@@ -161,7 +161,7 @@ class Node {
             const tempPeer = new peer_1.Peer(address, this.config.port, {
                 version: this.blockchain.getVersion(),
                 services: this.config.services,
-                timeout: this.config.connectionTimeout
+                timeout: this.config.connectionTimeout,
             }, this.configService, this.db);
             // Get node info through handshake
             const nodeInfo = await tempPeer.handshake();
@@ -180,11 +180,11 @@ class Node {
                     voteParticipation: nodeInfo.voteParticipation || 0,
                     lastVoteHeight: nodeInfo.lastVoteHeight || 0,
                     currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                    votingPower: nodeInfo.votingPower
-                }
+                    votingPower: nodeInfo.votingPower,
+                },
             });
             if (!isVerified) {
-                shared_1.Logger.warn('Peer verification failed', { address });
+                shared_1.Logger.warn("Peer verification failed", { address });
                 tempPeer.disconnect();
                 this.increasePeerBanScore(address, 10);
                 return;
@@ -200,21 +200,21 @@ class Node {
                 lastSeen: Date.now(),
                 banScore: 0,
                 synced: false,
-                height: nodeInfo.height
+                height: nodeInfo.height,
             });
             breaker.onSuccess();
-            this.eventEmitter.emit('peer:connect', tempPeer);
-            shared_1.Logger.info('Peer connected and verified', {
+            this.eventEmitter.emit("peer:connect", tempPeer);
+            shared_1.Logger.info("Peer connected and verified", {
                 address,
                 version: nodeInfo.version,
-                height: nodeInfo.height
+                height: nodeInfo.height,
             });
         }
         catch (error) {
             this.getCircuitBreaker(address).onFailure();
-            shared_1.Logger.error('Failed to connect to peer:', {
+            shared_1.Logger.error("Failed to connect to peer:", {
                 address,
-                error: error.message
+                error: error.message,
             });
             this.increasePeerBanScore(address, 1);
         }
@@ -225,35 +225,35 @@ class Node {
     // Message Handling
     async handlePeerMessage(peer, message) {
         try {
-            if (!this.ddosProtection.checkRequest('peer_message', peer.getId())) {
+            if (!this.ddosProtection.checkRequest("peer_message", peer.getId())) {
                 this.increasePeerBanScore(peer.getId(), 10);
                 return;
             }
             switch (message.type) {
-                case 'block':
+                case "block":
                     await this.handleBlockMessage(peer, message.data);
                     break;
-                case 'tx':
+                case "tx":
                     await this.handleTransactionMessage(peer, message.data);
                     break;
-                case 'inv':
+                case "inv":
                     await this.handleInventoryMessage(peer, message.data);
                     break;
-                case 'getdata':
+                case "getdata":
                     await this.handleGetDataMessage(peer, message.data);
                     break;
-                case 'ping':
+                case "ping":
                     await peer.send(peer_model_1.PeerMessageType.PONG, { nonce: message.data.nonce });
                     break;
                 default:
-                    shared_1.Logger.warn('Unknown message type:', message.type);
+                    shared_1.Logger.warn("Unknown message type:", message.type);
             }
             this.updatePeerLastSeen(peer.getId());
         }
         catch (error) {
-            shared_1.Logger.error('Error handling peer message:', {
+            shared_1.Logger.error("Error handling peer message:", {
                 peerId: peer.getId(),
-                error: error.message
+                error: error.message,
             });
             this.increasePeerBanScore(peer.getId(), 1);
         }
@@ -263,22 +263,23 @@ class Node {
         try {
             if (this.blockchain.hasBlock(block.hash))
                 return;
-            if (!await this.blockchain.validateBlock(block)) {
+            if (!(await this.blockchain.validateBlock(block))) {
                 this.increasePeerBanScore(peer.getId(), 20);
                 return;
             }
-            if (!block.header.previousHash || !this.blockchain.hasBlock(block.header.previousHash)) {
+            if (!block.header.previousHash ||
+                !this.blockchain.hasBlock(block.header.previousHash)) {
                 this.handleOrphanBlock(block);
                 return;
             }
             await this.blockchain.addBlock(block);
             this.processOrphanBlocks(block.hash);
-            this.eventEmitter.emit('block:received', block);
+            this.eventEmitter.emit("block:received", block);
         }
         catch (error) {
-            shared_1.Logger.error('Error handling block message:', {
+            shared_1.Logger.error("Error handling block message:", {
                 blockHash: block.hash,
-                error: error.message
+                error: error.message,
             });
         }
     }
@@ -286,28 +287,28 @@ class Node {
         try {
             if (this.mempool.hasTransaction(tx.id))
                 return;
-            if (!await this.mempool.validateTransaction(tx, await this.blockchain.getUTXOSet(), this.blockchain.getCurrentHeight())) {
+            if (!(await this.mempool.validateTransaction(tx, await this.blockchain.getUTXOSet(), this.blockchain.getCurrentHeight()))) {
                 this.increasePeerBanScore(peer.getId(), 10);
                 return;
             }
             await this.mempool.addTransaction(tx);
-            this.eventEmitter.emit('tx:received', tx);
+            this.eventEmitter.emit("tx:received", tx);
         }
         catch (error) {
-            shared_1.Logger.error('Error handling transaction message:', {
+            shared_1.Logger.error("Error handling transaction message:", {
                 txId: tx.id,
-                error: error.message
+                error: error.message,
             });
         }
     }
     // Peer State Management
     updatePeerState(address, state) {
         if (!address) {
-            shared_1.Logger.warn('Attempted to update state for null peer address');
+            shared_1.Logger.warn("Attempted to update state for null peer address");
             return;
         }
         const currentState = this.peerStates.get(address) || {
-            id: '',
+            id: "",
             address,
             port: this.config.port,
             version: 0,
@@ -315,7 +316,7 @@ class Node {
             lastSeen: 0,
             banScore: 0,
             synced: false,
-            height: 0
+            height: 0,
         };
         this.peerStates.set(address, { ...currentState, ...state });
         this.peerCache.set(address, this.peerStates.get(address));
@@ -335,9 +336,9 @@ class Node {
             peer.disconnect();
             this.peers.delete(peerId);
             this.bannedPeers.set(peerId, Date.now() + this.config.banTime);
-            shared_1.Logger.warn('Peer banned:', {
+            shared_1.Logger.warn("Peer banned:", {
                 peerId,
-                banScore: this.peerStates.get(peerId)?.banScore
+                banScore: this.peerStates.get(peerId)?.banScore,
             });
         }
     }
@@ -346,13 +347,13 @@ class Node {
         if (!this.peerCircuitBreakers.has(address)) {
             this.peerCircuitBreakers.set(address, new circuit_breaker_1.CircuitBreaker({
                 failureThreshold: 3,
-                resetTimeout: 60000
+                resetTimeout: 60000,
             }));
         }
         return this.peerCircuitBreakers.get(address);
     }
     isCompatibleVersion(version) {
-        const minVersion = this.configService.get('MIN_PEER_VERSION');
+        const minVersion = this.configService.get("MIN_PEER_VERSION");
         return version >= minVersion;
     }
     isBanned(address) {
@@ -367,7 +368,7 @@ class Node {
     }
     // Public Methods
     getAddress() {
-        return this.configService.get('NODE_ADDRESS');
+        return this.configService.get("NODE_ADDRESS");
     }
     getPeerCount() {
         return this.peers.size;
@@ -377,40 +378,38 @@ class Node {
     }
     async broadcastBlock(block) {
         try {
-            const promises = Array.from(this.peers.values())
-                .map(peer => peer.send(peer_model_1.PeerMessageType.BLOCK, block));
+            const promises = Array.from(this.peers.values()).map((peer) => peer.send(peer_model_1.PeerMessageType.BLOCK, block));
             await Promise.allSettled(promises);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to broadcast block:', error);
+            shared_1.Logger.error("Failed to broadcast block:", error);
         }
     }
     async broadcastTransaction(tx) {
-        const promises = Array.from(this.peers.values())
-            .map(peer => peer.send(peer_model_1.PeerMessageType.TX, tx));
+        const promises = Array.from(this.peers.values()).map((peer) => peer.send(peer_model_1.PeerMessageType.TX, tx));
         await Promise.allSettled(promises);
     }
     handlePeerConnect(peer) {
-        shared_1.Logger.info('Peer connected:', peer.getId());
+        shared_1.Logger.info("Peer connected:", peer.getId());
     }
     handlePeerDisconnect(peer) {
         const peerId = peer.getId();
         this.peers.delete(peerId);
         this.peerStates.delete(peerId);
         this.peerCircuitBreakers.delete(peerId);
-        shared_1.Logger.info('Peer disconnected:', peerId);
+        shared_1.Logger.info("Peer disconnected:", peerId);
     }
     handlePeerError(peer, error) {
-        shared_1.Logger.error('Peer error:', {
+        shared_1.Logger.error("Peer error:", {
             peerId: peer.getId(),
-            error: error.message
+            error: error.message,
         });
     }
     handleBlockReceived(block) {
-        shared_1.Logger.info('Block received:', block.hash);
+        shared_1.Logger.info("Block received:", block.hash);
     }
     handleTransactionReceived(tx) {
-        shared_1.Logger.info('Transaction received:', tx.id);
+        shared_1.Logger.info("Transaction received:", tx.id);
     }
     async loadPeerCache() {
         try {
@@ -418,10 +417,12 @@ class Node {
             for (const [address, state] of Object.entries(cachedPeers)) {
                 this.peerStates.set(address, state);
             }
-            shared_1.Logger.debug('Loaded peer cache:', { peerCount: Object.keys(cachedPeers).length });
+            shared_1.Logger.debug("Loaded peer cache:", {
+                peerCount: Object.keys(cachedPeers).length,
+            });
         }
         catch (error) {
-            shared_1.Logger.error('Failed to load peer cache:', error);
+            shared_1.Logger.error("Failed to load peer cache:", error);
         }
     }
     async savePeerCache() {
@@ -429,10 +430,10 @@ class Node {
             for (const [address, state] of this.peerStates.entries()) {
                 this.peerCache.set(address, state);
             }
-            shared_1.Logger.debug('Saved peer cache:', { peerCount: this.peerStates.size });
+            shared_1.Logger.debug("Saved peer cache:", { peerCount: this.peerStates.size });
         }
         catch (error) {
-            shared_1.Logger.error('Failed to save peer cache:', error);
+            shared_1.Logger.error("Failed to save peer cache:", error);
         }
     }
     async performMaintenance() {
@@ -443,15 +444,15 @@ class Node {
             this.pruneOrphans();
             // Save peer cache
             await this.savePeerCache();
-            shared_1.Logger.debug('Maintenance completed');
+            shared_1.Logger.debug("Maintenance completed");
         }
         catch (error) {
-            shared_1.Logger.error('Maintenance error:', error);
+            shared_1.Logger.error("Maintenance error:", error);
         }
     }
     async evictStalePeers() {
         const now = Date.now();
-        const staleThreshold = now - (this.config.connectionTimeout * 2);
+        const staleThreshold = now - this.config.connectionTimeout * 2;
         for (const [address, state] of this.peerStates.entries()) {
             if (state.lastSeen < staleThreshold) {
                 const peer = this.peers.get(address);
@@ -460,7 +461,7 @@ class Node {
                     this.peers.delete(address);
                 }
                 this.peerStates.delete(address);
-                shared_1.Logger.debug('Evicted stale peer:', { address });
+                shared_1.Logger.debug("Evicted stale peer:", { address });
             }
         }
     }
@@ -475,22 +476,29 @@ class Node {
     }
     async handleInventoryMessage(peer, data) {
         for (const item of data) {
-            if (item.type === 'block' && !this.blockchain.hasBlock(item.hash)) {
-                await peer.send(peer_model_1.PeerMessageType.GETDATA, { type: 'block', hash: item.hash });
+            if (item.type === "block" && !this.blockchain.hasBlock(item.hash)) {
+                await peer.send(peer_model_1.PeerMessageType.GETDATA, {
+                    type: "block",
+                    hash: item.hash,
+                });
             }
-            else if (item.type === 'tx' && !this.mempool.hasTransaction(item.hash)) {
-                await peer.send(peer_model_1.PeerMessageType.GETDATA, { type: 'tx', hash: item.hash });
+            else if (item.type === "tx" &&
+                !this.mempool.hasTransaction(item.hash)) {
+                await peer.send(peer_model_1.PeerMessageType.GETDATA, {
+                    type: "tx",
+                    hash: item.hash,
+                });
             }
         }
     }
     async handleGetDataMessage(peer, data) {
         for (const item of data) {
-            if (item.type === 'block') {
+            if (item.type === "block") {
                 const block = await this.blockchain.getBlock(item.hash);
                 if (block)
                     await peer.send(peer_model_1.PeerMessageType.BLOCK, block);
             }
-            else if (item.type === 'tx') {
+            else if (item.type === "tx") {
                 const tx = await this.mempool.getTransaction(item.hash);
                 if (tx)
                     await peer.send(peer_model_1.PeerMessageType.TX, tx);
@@ -499,13 +507,16 @@ class Node {
     }
     updatePeerLastSeen(peerId) {
         this.updatePeerState(peerId, {
-            lastSeen: Date.now()
+            lastSeen: Date.now(),
         });
     }
     async handleOrphanBlock(block) {
         const orphanKey = `${block.header.previousHash}:${block.hash}`;
         this.orphanBlocks.set(orphanKey, block);
-        shared_1.Logger.debug('Added orphan block:', { hash: block.hash, previousHash: block.header.previousHash });
+        shared_1.Logger.debug("Added orphan block:", {
+            hash: block.hash,
+            previousHash: block.header.previousHash,
+        });
     }
     async processOrphanBlocks(parentHash) {
         for (const [key, block] of this.orphanBlocks.entries()) {
@@ -519,16 +530,16 @@ class Node {
     async getActiveValidators() {
         const [peerValidators, dbValidators] = await Promise.all([
             Array.from(this.peers.values())
-                .filter(peer => peer.isConnected() && peer.hasVoted())
-                .map(peer => ({ address: peer.getAddress() })),
-            this.db.getActiveValidators()
+                .filter((peer) => peer.isConnected() && peer.hasVoted())
+                .map((peer) => ({ address: peer.getAddress() })),
+            this.db.getActiveValidators(),
         ]);
         // Combine and deduplicate validators
         const uniqueAddresses = new Set([
-            ...peerValidators.map(v => v.address),
-            ...dbValidators.map(v => v.address)
+            ...peerValidators.map((v) => v.address),
+            ...dbValidators.map((v) => v.address),
         ]);
-        return Array.from(uniqueAddresses).map(address => ({ address }));
+        return Array.from(uniqueAddresses).map((address) => ({ address }));
     }
     async close() {
         this.isRunning = false;
@@ -536,8 +547,7 @@ class Node {
             clearInterval(this.maintenanceTimer);
         }
         // Disconnect all peers
-        const disconnectPromises = Array.from(this.peers.values())
-            .map(peer => peer.disconnect());
+        const disconnectPromises = Array.from(this.peers.values()).map((peer) => peer.disconnect());
         await Promise.all(disconnectPromises);
         this.peers.clear();
         this.peerStates.clear();
@@ -552,8 +562,8 @@ class Node {
             isRunning: this.isRunning,
             syncStatus: {
                 synced: this.peers.size > 0,
-                height: this.blockchain.getCurrentHeight()
-            }
+                height: this.blockchain.getCurrentHeight(),
+            },
         };
     }
     /**
@@ -574,25 +584,25 @@ class Node {
             }
             // Broadcast to all connected peers
             const broadcastPromises = Array.from(this.peers.values())
-                .filter(peer => peer.isConnected() && !peer.isBanned())
-                .map(peer => peer.sendTransaction(tx));
+                .filter((peer) => peer.isConnected() && !peer.isBanned())
+                .map((peer) => peer.sendTransaction(tx));
             // Wait for broadcast completion with timeout
             const results = await Promise.allSettled(broadcastPromises);
             // Check broadcast success rate
-            const successCount = results.filter(r => r.status === 'fulfilled').length;
+            const successCount = results.filter((r) => r.status === "fulfilled").length;
             const minPeers = Math.ceil(this.peers.size * 0.51); // Require >50% success
             if (successCount < minPeers) {
                 throw new Error("Failed to broadcast to sufficient peers");
             }
-            shared_1.Logger.info('Transaction broadcast successful', {
+            shared_1.Logger.info("Transaction broadcast successful", {
                 txId,
                 successPeers: successCount,
-                totalPeers: this.peers.size
+                totalPeers: this.peers.size,
             });
             return txId;
         }
         catch (error) {
-            shared_1.Logger.error('Transaction broadcast failed:', error);
+            shared_1.Logger.error("Transaction broadcast failed:", error);
             throw error;
         }
         finally {

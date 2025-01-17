@@ -15,12 +15,12 @@ class ErrorMonitor {
         this.errorCounts.set(type, count);
         const threshold = this.errorThresholds.get(type);
         if (threshold && count >= threshold) {
-            this.alertCallbacks.forEach(cb => cb(type, count));
+            this.alertCallbacks.forEach((cb) => cb(type, count));
         }
         shared_1.Logger.error(`[${type}] ${error.message}`, {
             stack: error.stack,
             count,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
         });
     }
     setThreshold(type, threshold) {

@@ -115,7 +115,9 @@ class QuantumCrypto {
     static async verify(message, signature, publicKey) {
         try {
             this.checkInitialization();
-            if (!Buffer.isBuffer(message) || !Buffer.isBuffer(signature) || !Buffer.isBuffer(publicKey)) {
+            if (!Buffer.isBuffer(message) ||
+                !Buffer.isBuffer(signature) ||
+                !Buffer.isBuffer(publicKey)) {
                 throw new QuantumError("Invalid input parameters");
             }
             return await this.nativeQuantum.dilithiumVerify(message, signature, publicKey);
@@ -150,8 +152,8 @@ class QuantumCrypto {
             const keyPair = await kyber_1.Kyber.generateKeyPair();
             const result = await kyber_1.Kyber.encapsulate(keyPair.publicKey);
             return {
-                ciphertext: Buffer.from(result.ciphertext, 'base64'),
-                sharedSecret: Buffer.from(result.sharedSecret, 'base64')
+                ciphertext: Buffer.from(result.ciphertext, "base64"),
+                sharedSecret: Buffer.from(result.sharedSecret, "base64"),
             };
         }
         catch (error) {
@@ -172,22 +174,22 @@ class QuantumCrypto {
         try {
             // Input validation
             if (!Buffer.isBuffer(data)) {
-                throw new QuantumError('Invalid input: data must be a Buffer');
+                throw new QuantumError("Invalid input: data must be a Buffer");
             }
             // Check initialization
             this.checkInitialization();
             // Generate hashes in parallel with timeout
             const [dilithiumHash, kyberHash] = await Promise.all([
-                this.nativeQuantum.dilithiumHash(data).catch(error => {
+                this.nativeQuantum.dilithiumHash(data).catch((error) => {
                     throw new QuantumError(`Dilithium hash failed: ${error.message}`);
                 }),
-                this.nativeQuantum.kyberHash(data).catch(error => {
+                this.nativeQuantum.kyberHash(data).catch((error) => {
                     throw new QuantumError(`Kyber hash failed: ${error.message}`);
-                })
+                }),
             ]);
             // Validate hash outputs
             if (!Buffer.isBuffer(dilithiumHash) || !Buffer.isBuffer(kyberHash)) {
-                throw new QuantumError('Invalid hash output from native module');
+                throw new QuantumError("Invalid hash output from native module");
             }
             return Buffer.concat([dilithiumHash, kyberHash]);
         }

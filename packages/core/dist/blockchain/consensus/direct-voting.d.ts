@@ -384,9 +384,9 @@ export declare class DirectVoting {
     private setupIntervals;
     private acquireLocks;
     /**
-   * Updates voting state atomically
-   * @param operation Function that receives current state and returns updated state
-   * @returns Promise<void>
-   */
+     * Updates voting state atomically
+     * @param operation Function that receives current state and returns updated state
+     * @returns Promise<void>
+     */
     updateVotingState(operation: (currentState: VotingPeriod) => Promise<VotingPeriod | false>): Promise<VotingPeriod | false>;
 }

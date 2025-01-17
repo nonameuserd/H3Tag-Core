@@ -2,41 +2,41 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.databaseConfig = void 0;
 exports.databaseConfig = {
-    type: 'leveldb',
-    defaultRegion: 'primary',
+    type: "leveldb",
+    defaultRegion: "primary",
     regions: [
         {
-            name: 'primary',
+            name: "primary",
             isActive: true,
-            priority: 1
-        }
+            priority: 1,
+        },
     ],
     // Database structure configuration
     databases: {
         utxo: {
-            path: './utxo-schema',
+            path: "./utxo-schema",
             options: {
-                cacheSize: 512 * 1024 * 1024 // 512MB cache for UTXO set
-            }
+                cacheSize: 512 * 1024 * 1024, // 512MB cache for UTXO set
+            },
         },
         blockchain: {
-            path: './blockchain-schema'
+            path: "./blockchain-schema",
         },
         mining: {
-            path: './mining-schema'
+            path: "./mining-schema",
         },
         voting: {
-            path: './voting-schema'
+            path: "./voting-schema",
         },
         votingShard: {
-            path: './voting-shard-schema'
+            path: "./voting-shard-schema",
         },
         wallet: {
-            path: './wallet-schema'
+            path: "./wallet-schema",
         },
         keystore: {
-            path: './keystore-schema'
-        }
+            path: "./keystore-schema",
+        },
     },
     options: {
         createIfMissing: true,
@@ -46,7 +46,7 @@ exports.databaseConfig = {
         writeBufferSize: 4 * 1024 * 1024,
         blockSize: 4096,
         maxOpenFiles: 1000,
-        sync: false // Set to true for stronger durability guarantees
+        sync: false, // Set to true for stronger durability guarantees
     },
 };
 //# sourceMappingURL=config.database.js.map

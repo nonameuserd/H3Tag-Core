@@ -1,4 +1,4 @@
-export type VotingType = 'node_selection' | 'parameter_change';
+export type VotingType = "node_selection" | "parameter_change";
 export interface Vote {
     voteId: string;
     periodId: number;
@@ -38,7 +38,7 @@ export interface VotingPeriod {
     startHeight: number;
     endHeight: number;
     endTime: number;
-    status: 'active' | 'completed' | 'cancelled';
+    status: "active" | "completed" | "cancelled";
     votes: Map<string, Vote>;
     votesMerkleRoot?: string;
     type?: VotingType;

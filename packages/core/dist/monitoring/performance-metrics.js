@@ -7,7 +7,7 @@ class PerformanceMetrics {
     constructor() {
         this.mutex = new async_mutex_1.Mutex();
         this.metrics = {
-            operations: new Map()
+            operations: new Map(),
         };
     }
     static getInstance() {
@@ -28,7 +28,7 @@ class PerformanceMetrics {
                     count: 0,
                     totalDuration: 0,
                     maxDuration: duration,
-                    minDuration: duration
+                    minDuration: duration,
                 });
             }
             const metric = this.metrics.operations.get(key);
@@ -40,12 +40,12 @@ class PerformanceMetrics {
             metric.minDuration = Math.min(metric.minDuration, duration);
             // Keep last 24 hours of data
             await this.cleanupOldMetrics(now);
-            shared_1.Logger.debug('Performance metric recorded', {
+            shared_1.Logger.debug("Performance metric recorded", {
                 operation: key,
                 duration,
                 average: metric.totalDuration / metric.count,
                 count: metric.count,
-                ...metadata
+                ...metadata,
             });
         }
         finally {
@@ -55,7 +55,7 @@ class PerformanceMetrics {
     async cleanupOldMetrics(now) {
         const cutoff = now - 24 * 60 * 60 * 1000; // 24 hours
         for (const [key, metric] of this.metrics.operations.entries()) {
-            const startIdx = metric.timestamps.findIndex(t => t > cutoff);
+            const startIdx = metric.timestamps.findIndex((t) => t > cutoff);
             if (startIdx > 0) {
                 metric.durations = metric.durations.slice(startIdx);
                 metric.timestamps = metric.timestamps.slice(startIdx);
@@ -79,7 +79,7 @@ class PerformanceMetrics {
                     totalDuration: metric.totalDuration,
                     maxDuration: metric.maxDuration,
                     minDuration: metric.minDuration,
-                    last24Hours: metric.durations
+                    last24Hours: metric.durations,
                 };
             }
         }

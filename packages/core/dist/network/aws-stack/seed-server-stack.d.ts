@@ -1,5 +1,5 @@
-import * as cdk from 'aws-cdk-lib';
-import { Construct } from 'constructs';
+import * as cdk from "aws-cdk-lib";
+import { Construct } from "constructs";
 interface SeedServerStackProps extends cdk.StackProps {
     domainName: string;
     environment: string;

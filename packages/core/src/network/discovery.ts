@@ -291,7 +291,7 @@ export class PeerDiscovery {
     const updatePromises = Array.from(this.peers.values()).map(async (peer) => {
       try {
         const info = await peer.getNodeInfo();
-        const url = peer.getInfo().url;
+        const url = (await peer.getInfo()).url;
 
         // Check TAG requirements for miners
         const isValidMiner =
@@ -315,7 +315,7 @@ export class PeerDiscovery {
           (this.peerScores.get(url) || 0) + (isValidMiner ? 2 : 1)
         );
       } catch (error) {
-        const url = peer.getInfo().url;
+        const url = (await peer.getInfo()).url;
         Logger.warn(`Failed to update peer type for ${url}:`, error);
         this.peerScores.set(url, (this.peerScores.get(url) || 0) - 1);
         this.miners.delete(url);
@@ -331,10 +331,10 @@ export class PeerDiscovery {
     this.cleanupResources();
   }
 
-  private cleanupOldPeers(): void {
+  private async cleanupOldPeers(): Promise<void> {
     const now = Date.now();
     for (const [url, peer] of this.peers.entries()) {
-      if (now - peer.getInfo().lastSeen > PeerDiscovery.MAX_PEER_AGE) {
+      if (now - (await peer.getInfo()).lastSeen > PeerDiscovery.MAX_PEER_AGE) {
         this.removePeer(url);
       }
     }
@@ -456,7 +456,7 @@ export class PeerDiscovery {
       const peerList = await peer.getPeers();
       return peerList.map((p) => p.url);
     } catch (error) {
-      Logger.warn(`Failed to get peers from ${peer.getInfo().url}:`, error);
+      Logger.warn(`Failed to get peers from ${(await peer.getInfo()).url}:`, error);
       return [];
     }
   }

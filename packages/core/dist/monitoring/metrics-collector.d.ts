@@ -1,4 +1,4 @@
-import { Block } from '../models/block.model';
+import { Block } from "../models/block.model";
 export declare class MetricsCollector {
     private metrics;
     private timers;

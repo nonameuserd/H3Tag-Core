@@ -50,7 +50,7 @@ class FileAuditStorage {
     async cleanupStaleLocks() {
         const now = Date.now();
         for (const [lockId, timestamp] of this.locks.entries()) {
-            if (typeof timestamp === 'number' && now - timestamp > this.lockTimeout) {
+            if (typeof timestamp === "number" && now - timestamp > this.lockTimeout) {
                 await this.releaseLock(lockId);
             }
         }
@@ -81,7 +81,7 @@ class FileAuditStorage {
                         }
                     }
                 }
-                throw lastError || new Error('Write failed');
+                throw lastError || new Error("Write failed");
             });
         }
         finally {

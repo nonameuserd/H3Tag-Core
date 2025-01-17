@@ -5,7 +5,7 @@ export declare class RateLimitError extends Error {
     constructor(message: string, code: string);
 }
 interface RateLimitRequest extends Request {
-    consensusType?: "pow" | "directVote" | "default";
+    consensusType?: "pow" | "quadraticVote" | "default";
     headers: {
         "x-forwarded-for"?: string;
     };
@@ -64,7 +64,7 @@ export declare class RateLimit {
     getMetrics(): RateLimitMetrics;
     resetLimit(key: string): void;
     shutdown(): Promise<void>;
-    checkLimit(key: string, type?: "pow" | "directVote" | "default"): Promise<boolean>;
+    checkLimit(key: string, type?: "pow" | "quadraticVote" | "default"): Promise<boolean>;
     on(event: string, listener: (...args: any[]) => void): void;
     off(event: string, listener: (...args: any[]) => void): void;
     removeAllListeners(): void;

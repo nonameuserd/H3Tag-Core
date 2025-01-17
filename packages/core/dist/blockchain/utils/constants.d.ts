@@ -1,4 +1,4 @@
-import { NetworkType } from '@h3tag-blockchain/shared';
+import { NetworkType } from "@h3tag-blockchain/shared";
 export declare const BLOCKCHAIN_CONSTANTS: {
     CURRENCY: {
         NAME: string;

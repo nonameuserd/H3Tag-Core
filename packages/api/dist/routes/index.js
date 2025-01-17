@@ -44,19 +44,19 @@ const router = (0, express_1.Router)();
  *           description: Error message
  */
 // Node management routes
-router.use('/nodes', node_routes_1.default);
+router.use("/nodes", node_routes_1.default);
 // Wallet management routes
-router.use('/wallets', wallet_routes_1.default);
+router.use("/wallets", wallet_routes_1.default);
 // Peer management routes
-router.use('/peers', peer_routes_1.default);
+router.use("/peers", peer_routes_1.default);
 // Blockchain management routes
-router.use('/blockchain', blockchain_routes_1.default);
+router.use("/blockchain", blockchain_routes_1.default);
 // Transaction management routes
-router.use('/transactions', transaction_routes_1.default);
+router.use("/transactions", transaction_routes_1.default);
 // Mining management routes
-router.use('/mining', mining_routes_1.default);
+router.use("/mining", mining_routes_1.default);
 // Mempool management routes
-router.use('/mempool', mempool_routes_1.default);
+router.use("/mempool", mempool_routes_1.default);
 // Health check endpoint
 /**
  * @swagger
@@ -79,10 +79,10 @@ router.use('/mempool', mempool_routes_1.default);
  *                   type: string
  *                   format: date-time
  */
-router.get('/health', (req, res) => {
+router.get("/health", (req, res) => {
     res.json({
-        status: 'ok',
-        timestamp: new Date().toISOString()
+        status: "ok",
+        timestamp: new Date().toISOString(),
     });
 });
 exports.default = router;

@@ -6,6 +6,14 @@ export interface PeerMessage {
   success?: boolean;
 }
 
+export enum PeerServices {
+  NODE = 1,
+  MINER = 2,
+  VALIDATOR = 4,
+  RELAY = 8,
+  ARCHIVE = 16
+}
+
 export interface PeerInfo {
   id: string;
   url: string;
@@ -15,7 +23,7 @@ export interface PeerInfo {
   latency: number;
   capabilities: string[];
   connectedAt: number;
-  peers?: number;
+  peers: number;
   consensusRole: "validator" | "participant" | "observer";
   consensusStats: {
     powContributions: number;
@@ -23,7 +31,7 @@ export interface PeerInfo {
     lastVoteHeight: number;
     reputation: number;
   };
-  currency?: {
+  currency: {
     name: string;
     symbol: string;
     decimals: number;
@@ -31,7 +39,7 @@ export interface PeerInfo {
     maxSupply: number;
     blockReward: number;
   };
-  services?: number;
+  services: PeerServices[];
 }
 
 export interface PeerConfig {
@@ -48,52 +56,16 @@ export interface PeerConfig {
     };
   };
   connectionTimeout: number;
-  publicKey: {
-    traditional: string;
-    dilithium: string;
-    kyber: string;
-  };
-  privateKey: {
-    traditional: string;
-    dilithium: string;
-    kyber: string;
-  };
 }
 
 export interface ExtendedPeerInfo extends PeerInfo {
-  connectedAt: number;
-  publicKey: {
-    traditional: string;
-    dilithium: string;
-    kyber: string;
-  };
-  privateKey: {
-    traditional: string;
-    dilithium: string;
-    kyber: string;
-  };
-  uptime: number;
-  lastSeen: number;
-  latency: number;
-  version: string;
-  capabilities: string[];
   status: "connected" | "disconnected" | "error";
-  height: number;
-  peers: number;
   bandwidth: {
     sent: number;
     received: number;
     rate: number;
   };
   error?: string;
-  currency: {
-    name: string;
-    symbol: string;
-    decimals: number;
-    currentSupply: number;
-    maxSupply: number;
-    blockReward: number;
-  };
 }
 
 export enum PeerMessageType {

@@ -56,18 +56,18 @@ let PeerService = class PeerService {
      */
     async addPeer(createPeerDto) {
         try {
-            const [host, portStr] = createPeerDto.address.split(':');
+            const [host, portStr] = createPeerDto.address.split(":");
             const port = parseInt(portStr, 10);
             if (!host || isNaN(port)) {
-                throw new Error('Invalid peer address format');
+                throw new Error("Invalid peer address format");
             }
             // Create new peer instance
             const peer = new core_1.Peer(host, port, {
-                version: this.configService.get('PEER_VERSION') || 1,
+                version: this.configService.get("PEER_VERSION") || 1,
                 services: 1, // NODE_NETWORK
                 minPingInterval: 120000,
                 connectionTimeout: 10000,
-                handshakeTimeout: 30000
+                handshakeTimeout: 30000,
             }, this.configService, this.blockchainSchema);
             // Attempt to connect to the peer
             await peer.connect();
@@ -79,15 +79,15 @@ let PeerService = class PeerService {
                 peerId: peer.getId(),
                 address: createPeerDto.address,
                 status: peer.getState(),
-                version: peerInfo.version,
-                lastSeen: new Date(peerInfo.lastSeen).toISOString(),
-                latency: peerInfo.latency,
-                height: peerInfo.height,
-                services: peerInfo.services
+                version: (await peer.getInfo()).version,
+                lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
+                latency: (await peer.getInfo()).latency,
+                height: (await peer.getInfo()).height,
+                services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to add peer:', error);
+            shared_1.Logger.error("Failed to add peer:", error);
             throw new Error(`Failed to add peer: ${error.message}`);
         }
     }
@@ -116,17 +116,17 @@ let PeerService = class PeerService {
                     peerId: peer.getId(),
                     address: `${peer.getAddress()}`,
                     status: peer.getState(),
-                    version: peerInfo.version,
-                    lastSeen: new Date(peerInfo.lastSeen).toISOString(),
-                    latency: peerInfo.latency,
-                    height: peerInfo.height,
-                    services: peerInfo.services
+                    version: (await peer.getInfo()).version,
+                    lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
+                    latency: (await peer.getInfo()).latency,
+                    height: (await peer.getInfo()).height,
+                    services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
                 });
             }
             return peerResponses;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get peers:', error);
+            shared_1.Logger.error("Failed to get peers:", error);
             throw new Error(`Failed to get peers: ${error.message}`);
         }
     }
@@ -151,11 +151,11 @@ let PeerService = class PeerService {
     async removePeer(peerId) {
         const peer = this.peers.get(peerId);
         if (!peer) {
-            throw new Error('Peer not found');
+            throw new Error("Peer not found");
         }
         try {
             // Disconnect the peer
-            peer.disconnect(1000, 'Peer removed by admin');
+            peer.disconnect(1000, "Peer removed by admin");
             // Remove from peers map
             this.peers.delete(peerId);
             // Clean up peer data from database
@@ -163,7 +163,7 @@ let PeerService = class PeerService {
             await this.blockchainSchema.db.del(`peer:${peerId}:minedBlocks`);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to remove peer:', error);
+            shared_1.Logger.error("Failed to remove peer:", error);
             throw new Error(`Failed to remove peer: ${error.message}`);
         }
     }
@@ -176,7 +176,7 @@ let PeerService = class PeerService {
     async banPeer(peerId) {
         const peer = this.peers.get(peerId);
         if (!peer) {
-            throw new Error('Peer not found');
+            throw new Error("Peer not found");
         }
         try {
             // Set maximum ban score to trigger ban
@@ -186,15 +186,15 @@ let PeerService = class PeerService {
                 peerId: peer.getId(),
                 address: peer.getAddress(),
                 status: core_1.PeerState.BANNED,
-                version: peerInfo.version,
-                lastSeen: new Date(peerInfo.lastSeen).toISOString(),
-                latency: peerInfo.latency,
-                height: peerInfo.height,
-                services: peerInfo.services
+                version: (await peer.getInfo()).version,
+                lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
+                latency: (await peer.getInfo()).latency,
+                height: (await peer.getInfo()).height,
+                services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to ban peer:', error);
+            shared_1.Logger.error("Failed to ban peer:", error);
             throw new Error(`Failed to ban peer: ${error.message}`);
         }
     }
@@ -232,7 +232,9 @@ let PeerService = class PeerService {
             port: peerInfo.port,
             version: peerInfo.version,
             state: peerInfo.state,
-            services: peerInfo.services,
+            services: Array.isArray(peerInfo.services)
+                ? peerInfo.services.reduce((acc, service) => acc | service, 0)
+                : peerInfo.services || 1, // 1 represents NODE service
             lastSeen: peerInfo.lastSeen,
             lastSend: peerInfo.lastSend,
             syncedBlocks: peerInfo.syncedBlocks,
@@ -240,7 +242,7 @@ let PeerService = class PeerService {
             whitelisted: peerInfo.whitelisted,
             blacklisted: peerInfo.blacklisted,
             capabilities: peerInfo.capabilities,
-            userAgent: peerInfo.userAgent
+            userAgent: peerInfo.userAgent,
         };
     }
     /**
@@ -277,18 +279,18 @@ let PeerService = class PeerService {
                 }
                 else if (peer.isConnected()) {
                     activePeers++;
-                    totalLatency += peer.getInfo().latency;
+                    totalLatency += (await peer.getInfo()).latency;
                 }
             }
             return {
                 totalPeers: this.peers.size,
                 activePeers,
                 bannedPeers,
-                averageLatency: activePeers > 0 ? totalLatency / activePeers : 0
+                averageLatency: activePeers > 0 ? totalLatency / activePeers : 0,
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get network stats:', error);
+            shared_1.Logger.error("Failed to get network stats:", error);
             throw new Error(`Failed to get network stats: ${error.message}`);
         }
     }
@@ -317,53 +319,53 @@ let PeerService = class PeerService {
         const { ip, command, banTime, reason } = setBanDto;
         const peer = this.peers.get(ip);
         if (!peer) {
-            throw new Error('Peer not found');
+            throw new Error("Peer not found");
         }
         await peer.setBan(command, banTime, reason);
     }
     /**
-    * @swagger
-    * /peers/ban/{ip}:
-    *   get:
-    *     summary: Get ban information for a specific IP
-    *     tags: [Peers]
-    *     parameters:
-    *       - in: path
-    *         name: ip
-    *         required: true
-    *         schema:
-    *           type: string
-    *         description: IP address of the peer
-    *     responses:
-    *       200:
-    *         description: Ban information retrieved successfully
-    *         content:
-    *           application/json:
-    *             schema:
-    *               $ref: '#/components/schemas/BanInfoDto'
-    *       404:
-    *         description: Peer not found or not banned
-    */
+     * @swagger
+     * /peers/ban/{ip}:
+     *   get:
+     *     summary: Get ban information for a specific IP
+     *     tags: [Peers]
+     *     parameters:
+     *       - in: path
+     *         name: ip
+     *         required: true
+     *         schema:
+     *           type: string
+     *         description: IP address of the peer
+     *     responses:
+     *       200:
+     *         description: Ban information retrieved successfully
+     *         content:
+     *           application/json:
+     *             schema:
+     *               $ref: '#/components/schemas/BanInfoDto'
+     *       404:
+     *         description: Peer not found or not banned
+     */
     async getBanInfo(ip) {
         const peer = this.peers.get(ip);
         if (!peer) {
-            throw new Error('Peer not found');
+            throw new Error("Peer not found");
         }
         const banInfo = await peer.getBanInfo();
         if (!banInfo) {
-            throw new Error('Ban information not found');
+            throw new Error("Ban information not found");
         }
         return {
             ip: banInfo.address,
             timeRemaining: Math.max(0, banInfo.expiration - Date.now()) / 1000, // Convert to seconds
             reason: banInfo.reason,
-            createdAt: new Date(banInfo.timestamp).toISOString()
+            createdAt: new Date(banInfo.timestamp).toISOString(),
         };
     }
     /**
-   * @swagger
-   * /peers/ban/{ip}:
-    * /peers/bans:
+     * @swagger
+     * /peers/ban/{ip}:
+     * /peers/bans:
      *   get:
      *     summary: List all banned peers
      *     tags: [Peers]
@@ -383,7 +385,7 @@ let PeerService = class PeerService {
      *       200:
      *         description: All bans cleared successfully
      *
-   */
+     */
     async listBans() {
         const allBans = [];
         for (const peer of this.peers.values()) {
@@ -393,7 +395,7 @@ let PeerService = class PeerService {
                     ip: banInfo.address,
                     timeRemaining: Math.max(0, banInfo.expiration - Date.now()) / 1000,
                     reason: banInfo.reason,
-                    createdAt: new Date(banInfo.timestamp).toISOString()
+                    createdAt: new Date(banInfo.timestamp).toISOString(),
                 });
             }
         }
@@ -414,11 +416,11 @@ let PeerService = class PeerService {
                 inbound: networkInfo.connections.inbound,
                 outbound: networkInfo.connections.outbound,
                 networkActive: networkInfo.connections.total > 0,
-                localAddresses: networkInfo.localAddresses
+                localAddresses: networkInfo.localAddresses,
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get network info:', error);
+            shared_1.Logger.error("Failed to get network info:", error);
             throw new Error(`Failed to get network info: ${error.message}`);
         }
     }

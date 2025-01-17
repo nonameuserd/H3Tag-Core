@@ -85,68 +85,68 @@ class MempoolEntryDto {
 exports.MempoolEntryDto = MempoolEntryDto;
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Transaction ID',
-        example: '1234abcd...'
+        description: "Transaction ID",
+        example: "1234abcd...",
     })
 ], MempoolEntryDto.prototype, "txid", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Transaction fee',
-        example: 0.0001
+        description: "Transaction fee",
+        example: 0.0001,
     })
 ], MempoolEntryDto.prototype, "fee", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Virtual transaction size',
-        example: 140
+        description: "Virtual transaction size",
+        example: 140,
     })
 ], MempoolEntryDto.prototype, "vsize", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Transaction weight',
-        example: 560
+        description: "Transaction weight",
+        example: 560,
     })
 ], MempoolEntryDto.prototype, "weight", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Time transaction entered mempool',
-        example: 1625097600
+        description: "Time transaction entered mempool",
+        example: 1625097600,
     })
 ], MempoolEntryDto.prototype, "time", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Block height when transaction entered mempool',
-        example: 680000
+        description: "Block height when transaction entered mempool",
+        example: 680000,
     })
 ], MempoolEntryDto.prototype, "height", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Number of descendant transactions',
-        example: 2
+        description: "Number of descendant transactions",
+        example: 2,
     })
 ], MempoolEntryDto.prototype, "descendantcount", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Total size of descendant transactions',
-        example: 280
+        description: "Total size of descendant transactions",
+        example: 280,
     })
 ], MempoolEntryDto.prototype, "descendantsize", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Number of ancestor transactions',
-        example: 1
+        description: "Number of ancestor transactions",
+        example: 1,
     })
 ], MempoolEntryDto.prototype, "ancestorcount", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Total size of ancestor transactions',
-        example: 140
+        description: "Total size of ancestor transactions",
+        example: 140,
     })
 ], MempoolEntryDto.prototype, "ancestorsize", void 0);
 __decorate([
     (0, swagger_1.ApiProperty)({
-        description: 'Transaction IDs this transaction depends on',
-        type: [String]
+        description: "Transaction IDs this transaction depends on",
+        type: [String],
     })
 ], MempoolEntryDto.prototype, "depends", void 0);
 //# sourceMappingURL=mempool.dto.js.map

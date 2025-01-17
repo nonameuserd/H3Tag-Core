@@ -25,27 +25,30 @@ exports.ZeroCopyCompression = void 0;
 class ZeroCopyCompression {
     constructor(device) {
         // Add proper WebGPU feature detection
-        this.isWebGPUSupported = typeof navigator !== 'undefined' &&
-            'gpu' in navigator &&
-            typeof GPUBuffer !== 'undefined';
+        this.isWebGPUSupported =
+            typeof navigator !== "undefined" &&
+                "gpu" in navigator &&
+                typeof GPUBuffer !== "undefined";
         this.device = device || null;
         this.sharedBuffers = new Map();
         // Add proper environment check
-        if (!this.isWebGPUSupported && process?.env?.NODE_ENV === 'test') {
+        if (!this.isWebGPUSupported && process?.env?.NODE_ENV === "test") {
             this.compressInPlace = async () => Promise.resolve();
             this.compressWithSharedMemory = async () => Promise.resolve();
         }
     }
     async compressInPlace(buffer) {
         if (!this.device || !buffer) {
-            throw new Error('Invalid device or buffer');
+            throw new Error("Invalid device or buffer");
         }
         try {
             // Create shared memory with proper size validation
             const shared = new SharedArrayBuffer(Math.min(buffer.size, Number.MAX_SAFE_INTEGER));
             const view = new Uint8Array(shared);
             // Map buffer with proper error handling
-            const mapped = await buffer.mapAsync(GPUMapMode.WRITE | GPUMapMode.READ).catch(error => {
+            const mapped = await buffer
+                .mapAsync(GPUMapMode.WRITE | GPUMapMode.READ)
+                .catch((error) => {
                 throw new Error(`Failed to map buffer: ${error.message}`);
             });
             // Create command encoder with proper error handling
@@ -66,28 +69,28 @@ class ZeroCopyCompression {
     }
     createBindGroup(buffer, compressionLevel = 1) {
         if (!buffer || buffer.byteLength <= 0) {
-            throw new Error('Invalid buffer');
+            throw new Error("Invalid buffer");
         }
         // Create buffers with proper error handling
         const gpuBuffer = this.device.createBuffer({
             size: buffer.byteLength,
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-            mappedAtCreation: true
+            mappedAtCreation: true,
         });
         // Copy data with bounds checking
         const gpuArray = new Uint8Array(gpuBuffer.getMappedRange());
         gpuArray.set(new Uint8Array(buffer));
         gpuBuffer.unmap();
         // Create state buffer with proper size calculation
-        const stateSize = 4 + 4 + (4096 * 4) + (2048 * 4) + (65536 * 4);
+        const stateSize = 4 + 4 + 4096 * 4 + 2048 * 4 + 65536 * 4;
         const stateBuffer = this.device.createBuffer({
             size: stateSize,
-            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         // Initialize compression level with bounds checking
         const levelData = new Uint32Array([
             0,
-            Math.max(0, Math.min(2, compressionLevel))
+            Math.max(0, Math.min(2, compressionLevel)),
         ]);
         this.device.queue.writeBuffer(stateBuffer, 0, levelData);
         return this.device.createBindGroup({
@@ -95,18 +98,18 @@ class ZeroCopyCompression {
             entries: [
                 {
                     binding: 0,
-                    resource: { buffer: gpuBuffer }
+                    resource: { buffer: gpuBuffer },
                 },
                 {
                     binding: 1,
-                    resource: { buffer: stateBuffer }
-                }
-            ]
+                    resource: { buffer: stateBuffer },
+                },
+            ],
         });
     }
     getCompressionPipeline() {
         return this.device.createComputePipeline({
-            layout: 'auto',
+            layout: "auto",
             compute: {
                 module: this.device.createShaderModule({
                     code: `
@@ -279,15 +282,15 @@ class ZeroCopyCompression {
                                 data[out_pos] = current;
                             }
                         }
-                    `
+                    `,
                 }),
-                entryPoint: 'main'
-            }
+                entryPoint: "main",
+            },
         });
     }
     async allocateSharedBuffer(id, size) {
         if (!id || size <= 0) {
-            throw new Error('Invalid buffer parameters');
+            throw new Error("Invalid buffer parameters");
         }
         // Add size validation
         const validSize = Math.min(size, Number.MAX_SAFE_INTEGER);
@@ -305,7 +308,7 @@ class ZeroCopyCompression {
             const gpuBuffer = this.device.createBuffer({
                 size: shared.byteLength,
                 usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-                mappedAtCreation: true
+                mappedAtCreation: true,
             });
             // Copy data with bounds checking
             const gpuArray = new Uint8Array(gpuBuffer.getMappedRange());

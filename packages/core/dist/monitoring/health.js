@@ -20,8 +20,8 @@ class HealthMonitor {
                 powNodeCount: this.dnsSeeder?.getPowNodeCount() ?? 0,
                 votingNodeCount: this.dnsSeeder?.getVotingNodeCount() ?? 0,
                 networkHashrate: this.dnsSeeder?.getNetworkHashrate() ?? 0,
-                tagHolderCount: await this.dnsSeeder?.getTagHolderCount() ?? 0,
-                tagDistribution: await this.dnsSeeder?.getTagDistribution() ?? 0,
+                tagHolderCount: (await this.dnsSeeder?.getTagHolderCount()) ?? 0,
+                tagDistribution: (await this.dnsSeeder?.getTagDistribution()) ?? 0,
                 isHealthy: false,
             };
             if (!this.config.thresholds.minPowNodes ||

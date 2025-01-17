@@ -40,7 +40,7 @@ const nodeController = new node_controller_1.NodeController(nodeService);
  *       500:
  *         description: Server error
  */
-router.post('/testnet', async (req, res) => {
+router.post("/testnet", async (req, res) => {
     try {
         const result = await nodeController.createTestnetNode(req.body);
         res.json(result);
@@ -71,7 +71,7 @@ router.post('/testnet', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/mainnet', async (req, res) => {
+router.post("/mainnet", async (req, res) => {
     try {
         const result = await nodeController.createMainnetNode(req.body);
         res.json(result);
@@ -102,7 +102,7 @@ router.post('/mainnet', async (req, res) => {
  *       404:
  *         description: Node not found
  */
-router.get('/:nodeId/status', async (req, res) => {
+router.get("/:nodeId/status", async (req, res) => {
     try {
         const result = await nodeController.getNodeStatus(req.params.nodeId);
         res.json(result);
@@ -138,7 +138,7 @@ router.get('/:nodeId/status', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/:nodeId/stop', async (req, res) => {
+router.post("/:nodeId/stop", async (req, res) => {
     try {
         const result = await nodeController.stopNode(req.params.nodeId);
         res.json(result);
@@ -174,7 +174,7 @@ router.post('/:nodeId/stop', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get('/:nodeId/validators', async (req, res) => {
+router.get("/:nodeId/validators", async (req, res) => {
     try {
         const result = await nodeController.getActiveValidators(req.params.nodeId);
         res.json(result);
@@ -208,13 +208,13 @@ router.get('/:nodeId/validators', async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post('/:nodeId/discover-peers', async (req, res) => {
+router.post("/:nodeId/discover-peers", async (req, res) => {
     try {
         const result = await nodeController.discoverPeers(req.params.nodeId);
         res.json(result);
     }
     catch (error) {
-        if (error.message.includes('not found')) {
+        if (error.message.includes("not found")) {
             res.status(404).json({ error: error.message });
         }
         else {
@@ -253,13 +253,13 @@ router.post('/:nodeId/discover-peers', async (req, res) => {
  *       400:
  *         description: Invalid peer address or connection failed
  */
-router.post('/:nodeId/connect-peer', async (req, res) => {
+router.post("/:nodeId/connect-peer", async (req, res) => {
     try {
         const result = await nodeController.connectToPeer(req.params.nodeId, req.body);
         res.json(result);
     }
     catch (error) {
-        if (error.message.includes('not found')) {
+        if (error.message.includes("not found")) {
             res.status(404).json({ error: error.message });
         }
         else {

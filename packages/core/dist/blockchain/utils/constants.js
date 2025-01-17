@@ -18,24 +18,33 @@ exports.BLOCKCHAIN_CONSTANTS = {
             type: {
                 MAINNET: "mainnet",
                 TESTNET: "testnet",
-                DEVNET: "devnet"
+                DEVNET: "devnet",
             },
             port: {
                 MAINNET: 8333,
                 TESTNET: 10001,
-                DEVNET: 10002
+                DEVNET: 10002,
             },
             host: {
                 MAINNET: "mainnet.h3tag.com",
                 TESTNET: "testnet.h3tag.com",
-                DEVNET: "devnet.h3tag.com"
+                DEVNET: "devnet.h3tag.com",
             },
             seedDomains: {
-                MAINNET: ["seed1.h3tag.com", "seed2.h3tag.com", "seed3.h3tag.com", "seed4.h3tag.com"],
-                TESTNET: ["test-seed1.h3tag.com", "test-seed2.h3tag.com", "test-seed3.h3tag.com"],
-                DEVNET: ["dev-seed1.h3tag.com", "dev-seed2.h3tag.com"]
-            }
-        }
+                MAINNET: [
+                    "seed1.h3tag.com",
+                    "seed2.h3tag.com",
+                    "seed3.h3tag.com",
+                    "seed4.h3tag.com",
+                ],
+                TESTNET: [
+                    "test-seed1.h3tag.com",
+                    "test-seed2.h3tag.com",
+                    "test-seed3.h3tag.com",
+                ],
+                DEVNET: ["dev-seed1.h3tag.com", "dev-seed2.h3tag.com"],
+            },
+        },
     },
     MINING: {
         MAX_ATTEMPTS: 1000,
@@ -84,7 +93,7 @@ exports.BLOCKCHAIN_CONSTANTS = {
         BLOCK_REWARD: 50n * 10n ** 8n,
         MAX_TX_SIZE: 1048576,
         MIN_FEE_PER_BYTE: 1n,
-        AUTO_MINE: process.env.AUTO_MINE === 'true' || false,
+        AUTO_MINE: process.env.AUTO_MINE === "true" || false,
         CACHE_TTL: 3600000,
         MAX_SUPPLY: BigInt(50000000),
         SAFE_CONFIRMATION_TIME: 3600000,
@@ -99,7 +108,7 @@ exports.BLOCKCHAIN_CONSTANTS = {
         MAX_VOTES_PER_WINDOW: 5,
         MIN_ACCOUNT_AGE: 20160,
         MIN_PEER_COUNT: 3,
-        VOTE_ENCRYPTION_VERSION: '1.0',
+        VOTE_ENCRYPTION_VERSION: "1.0",
         MAX_VOTE_SIZE_BYTES: 1024 * 100,
         VOTING_WEIGHT: 0.4,
         MIN_VOTES_FOR_VALIDITY: 0.1,
@@ -140,12 +149,12 @@ exports.BLOCKCHAIN_CONSTANTS = {
             MAX_ATTEMPTS: 1000,
             INITIAL_DELAY_MS: 1000,
             MAX_DELAY_MS: 30000,
-            BACKOFF_FACTOR: 2
+            BACKOFF_FACTOR: 2,
         },
         CACHE: {
             TTL_MS: 60000,
             TTL_HOURS: 24,
-            CLEANUP_INTERVAL_MS: 300000
+            CLEANUP_INTERVAL_MS: 300000,
         },
         PROCESSING_TIMEOUT_MS: 30000,
         RETRY_ATTEMPTS: 3,
@@ -178,7 +187,7 @@ exports.BLOCKCHAIN_CONSTANTS = {
         AMOUNT_LIMITS: {
             MIN: BigInt(1),
             MAX: BigInt("5000000000000000"),
-            DECIMALS: 8
+            DECIMALS: 8,
         },
         MEMPOOL: {
             MAX_SIZE: 300000,
@@ -206,21 +215,21 @@ exports.BLOCKCHAIN_CONSTANTS = {
         MAX_BACKUP_ATTEMPTS: 3,
         BACKUP_SELECTION_TIMEOUT: 30000,
         MIN_BACKUP_REPUTATION: 70,
-        MIN_BACKUP_UPTIME: 0.95
+        MIN_BACKUP_UPTIME: 0.95,
     },
     VERSION: 1,
     MIN_SAFE_CONFIRMATIONS: 6,
     MAX_SAFE_UTXO_AMOUNT: 1000000000000,
     COINBASE_MATURITY: 100,
-    USER_AGENT: '/H3Tag:1.0.0/',
+    USER_AGENT: "/H3Tag:1.0.0/",
     PROTOCOL_VERSION: 1,
     MAX_MEMPOOL_SIZE: 50000,
     MIN_RELAY_TX_FEE: 0.00001,
     MIN_PEERS: 3,
     MESSAGE: {
-        PREFIX: '\x18H3Tag Signed Message:\n',
+        PREFIX: "\x18H3Tag Signed Message:\n",
         MAX_LENGTH: 100000,
-        MIN_LENGTH: 1
+        MIN_LENGTH: 1,
     },
 };
 exports.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE = Math.floor(exports.BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE * 0.8);

@@ -90,7 +90,7 @@ class AuditManager {
             compressionRatio: 1,
             lastSync: 0,
             evictedEvents: 0,
-            eventsRemoved: 0
+            eventsRemoved: 0,
         };
         this.storage = storage || new default_audit_storage_1.DefaultAuditStorage();
         this.config = { ...AuditManager.DEFAULT_CONFIG };
@@ -138,7 +138,7 @@ class AuditManager {
             this.eventEmitter.emit("event_logged", {
                 id: event.id,
                 type: event.type,
-                currency: event.currency
+                currency: event.currency,
             });
             if (event.severity === AuditSeverity.CRITICAL) {
                 this.handleCriticalEvent(event);
@@ -160,7 +160,7 @@ class AuditManager {
         shared_1.Logger.debug(`${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit event stored:`, {
             id: event.id,
             type: event.type,
-            severity: event.severity
+            severity: event.severity,
         });
     }
     async evictStaleEvents() {
@@ -200,7 +200,7 @@ class AuditManager {
             try {
                 const compressed = await this.compressEvents(batch);
                 await this.storage.writeAuditLog(`audit_${Date.now()}.log`, compressed);
-                batch.forEach(event => this.events.delete(event.id));
+                batch.forEach((event) => this.events.delete(event.id));
                 this.metrics.lastSync = Date.now();
                 this.eventEmitter.emit("sync_complete", batch.length);
                 return;
@@ -212,7 +212,7 @@ class AuditManager {
                     this.eventEmitter.emit("sync_failed", error);
                     throw error;
                 }
-                await new Promise(resolve => setTimeout(resolve, AuditManager.RETRY_DELAY));
+                await new Promise((resolve) => setTimeout(resolve, AuditManager.RETRY_DELAY));
             }
         }
     }
@@ -224,7 +224,7 @@ class AuditManager {
                 zlib_1.default.gzip(data, {
                     level: this.config.compressionLevel,
                     memLevel: 9,
-                    strategy: 0
+                    strategy: 0,
                 }, (error, compressed) => {
                     if (error) {
                         reject(new AuditError(error.message, "COMPRESSION_FAILED"));
@@ -292,7 +292,7 @@ class AuditManager {
         const auditLog = {
             eventType,
             timestamp: Date.now(),
-            ...data
+            ...data,
         };
         await this.storage.writeAuditLog(`${eventType}_${Date.now()}.log`, JSON.stringify(auditLog));
     }
@@ -307,13 +307,12 @@ class AuditManager {
         }
         catch (error) {
             shared_1.Logger.error(`Failed to get auditor signature: ${error.message}`);
-            return '';
+            return "";
         }
     }
     async cleanup() {
         const now = Date.now();
-        const oldEvents = Array.from(this.events.values())
-            .filter(event => now - event.timestamp > AuditManager.MAX_EVENT_AGE);
+        const oldEvents = Array.from(this.events.values()).filter((event) => now - event.timestamp > AuditManager.MAX_EVENT_AGE);
         for (const event of oldEvents) {
             this.events.delete(event.id);
         }

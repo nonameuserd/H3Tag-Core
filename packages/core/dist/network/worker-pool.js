@@ -38,22 +38,22 @@ class WorkerPool {
             tasksProcessed: 0,
             errors: 0,
             lastActive: Date.now(),
-            avgProcessingTime: 0
+            avgProcessingTime: 0,
         };
-        worker.on('error', (error) => {
+        worker.on("error", (error) => {
             metrics.errors++;
-            shared_1.Logger.error('Worker error:', error);
+            shared_1.Logger.error("Worker error:", error);
             this.handleWorkerError(worker);
         });
-        worker.on('exit', (code) => {
+        worker.on("exit", (code) => {
             if (code !== 0) {
                 shared_1.Logger.warn(`Worker exited with code ${code}`);
             }
             this.workers.delete(worker);
-            this.available = this.available.filter(w => w !== worker);
+            this.available = this.available.filter((w) => w !== worker);
         });
         this.workers.set(worker, metrics);
-        await new Promise(resolve => worker.once('online', resolve));
+        await new Promise((resolve) => worker.once("online", resolve));
         return worker;
     }
     async handleWorkerError(worker) {
@@ -69,11 +69,11 @@ class WorkerPool {
             await worker.terminate();
         }
         catch (error) {
-            shared_1.Logger.error('Error terminating worker:', error);
+            shared_1.Logger.error("Error terminating worker:", error);
         }
         finally {
             this.workers.delete(worker);
-            this.available = this.available.filter(w => w !== worker);
+            this.available = this.available.filter((w) => w !== worker);
         }
     }
     async getWorker() {
@@ -90,7 +90,7 @@ class WorkerPool {
         return new Promise((resolve) => {
             this.tasks.enqueue({
                 resolve,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
         });
     }
@@ -113,22 +113,20 @@ class WorkerPool {
         this.available.push(worker);
     }
     async dispose() {
-        const terminationPromises = Array.from(this.workers.keys()).map(worker => this.terminateWorker(worker));
+        const terminationPromises = Array.from(this.workers.keys()).map((worker) => this.terminateWorker(worker));
         await Promise.all(terminationPromises);
         this.tasks.clear();
         this.available = [];
     }
     getMetrics() {
-        const totalTasksProcessed = Array.from(this.workers.values())
-            .reduce((sum, metrics) => sum + metrics.tasksProcessed, 0);
-        const totalErrors = Array.from(this.workers.values())
-            .reduce((sum, metrics) => sum + metrics.errors, 0);
+        const totalTasksProcessed = Array.from(this.workers.values()).reduce((sum, metrics) => sum + metrics.tasksProcessed, 0);
+        const totalErrors = Array.from(this.workers.values()).reduce((sum, metrics) => sum + metrics.errors, 0);
         return {
             activeWorkers: this.workers.size - this.available.length,
             availableWorkers: this.available.length,
             pendingTasks: this.tasks.size,
             totalTasksProcessed,
-            totalErrors
+            totalErrors,
         };
     }
 }

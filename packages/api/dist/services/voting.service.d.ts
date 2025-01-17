@@ -1,5 +1,5 @@
-import { DirectVoting, Vote } from '@h3tag-blockchain/core';
-import { VoteDto, VotingMetricsDto } from '../dtos/voting.dto';
+import { DirectVoting, Vote } from "@h3tag-blockchain/core";
+import { VoteDto, VotingMetricsDto } from "../dtos/voting.dto";
 export declare class VotingService {
     private readonly directVoting;
     private readonly transactionBuilder;

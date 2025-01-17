@@ -45,7 +45,7 @@ const controller = new transaction_controller_1.TransactionController(new transa
  *       500:
  *         description: Server error
  */
-router.get('/:txId', controller.getTransaction);
+router.get("/:txId", controller.getTransaction);
 /**
  * @swagger
  * /api/v1/transactions/decode:
@@ -71,7 +71,7 @@ router.get('/:txId', controller.getTransaction);
  *       500:
  *         description: Server error
  */
-router.post('/decode', controller.decodeRawTransaction);
+router.post("/decode", controller.decodeRawTransaction);
 /**
  * @swagger
  * /api/v1/transactions/raw:
@@ -103,7 +103,7 @@ router.post('/decode', controller.decodeRawTransaction);
  *       500:
  *         description: Server error
  */
-router.post('/raw', controller.sendRawTransaction);
+router.post("/raw", controller.sendRawTransaction);
 /**
  * @swagger
  * /api/v1/transactions/{txId}/raw:
@@ -137,7 +137,7 @@ router.post('/raw', controller.sendRawTransaction);
  *       500:
  *         description: Server error
  */
-router.get('/:txId/raw', controller.getRawTransaction);
+router.get("/:txId/raw", controller.getRawTransaction);
 /**
  * @swagger
  * /api/v1/transactions/estimate-fee:
@@ -170,7 +170,7 @@ router.get('/:txId/raw', controller.getRawTransaction);
  *       500:
  *         description: Server error
  */
-router.post('/estimate-fee', controller.estimateFee);
+router.post("/estimate-fee", controller.estimateFee);
 /**
  * @swagger
  * /api/v1/transactions/sign-message:
@@ -211,7 +211,7 @@ router.post('/estimate-fee', controller.estimateFee);
  *       500:
  *         description: Server error
  */
-router.post('/sign-message', controller.signMessage);
+router.post("/sign-message", controller.signMessage);
 /**
  * @swagger
  * /api/v1/transactions/verify-message:
@@ -257,7 +257,7 @@ router.post('/sign-message', controller.signMessage);
  *       500:
  *         description: Server error
  */
-router.post('/verify-message', controller.verifyMessage);
+router.post("/verify-message", controller.verifyMessage);
 /**
  * @swagger
  * /api/v1/transactions/validate-address:
@@ -299,6 +299,6 @@ router.post('/verify-message', controller.verifyMessage);
  *       500:
  *         description: Server error
  */
-router.post('/validate-address', controller.validateAddress);
+router.post("/validate-address", controller.validateAddress);
 exports.default = router;
 //# sourceMappingURL=transaction.routes.js.map

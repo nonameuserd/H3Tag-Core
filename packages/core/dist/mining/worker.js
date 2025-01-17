@@ -113,7 +113,7 @@ class MiningWorker {
         }
         catch (error) {
             worker_threads_1.parentPort?.postMessage({
-                error: `Worker initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+                error: `Worker initialization failed: ${error instanceof Error ? error.message : "Unknown error"}`,
             });
         }
     }
@@ -131,14 +131,14 @@ class MiningWorker {
         }
         return false;
     }
-    async mineRange({ start, end, target, headerBase, batchSize = MiningWorker.DEFAULT_BATCH_SIZE }) {
+    async mineRange({ start, end, target, headerBase, batchSize = MiningWorker.DEFAULT_BATCH_SIZE, }) {
         if (!this.isInitialized) {
             await this.initialize();
         }
         if (start >= end || start < 0 || end > Number.MAX_SAFE_INTEGER) {
             worker_threads_1.parentPort?.postMessage({
-                error: 'Invalid range parameters',
-                hashRate: this.calculateHashRate()
+                error: "Invalid range parameters",
+                hashRate: this.calculateHashRate(),
             });
             return;
         }
@@ -165,7 +165,7 @@ class MiningWorker {
                             found: true,
                             nonce: currentNonce,
                             hash,
-                            hashRate: this.calculateHashRate()
+                            hashRate: this.calculateHashRate(),
                         });
                         return;
                     }
@@ -176,25 +176,26 @@ class MiningWorker {
                         found: false,
                         progress: {
                             currentNonce: nonce,
-                            timestamp: Date.now()
+                            timestamp: Date.now(),
                         },
-                        hashRate: this.calculateHashRate()
+                        hashRate: this.calculateHashRate(),
                     });
                 }
                 // Optional GC with reduced frequency
-                if (global.gc && Math.random() < 0.001) { // 0.1% chance to GC
+                if (global.gc && Math.random() < 0.001) {
+                    // 0.1% chance to GC
                     global.gc();
                 }
             }
             worker_threads_1.parentPort?.postMessage({
                 found: false,
-                hashRate: this.calculateHashRate()
+                hashRate: this.calculateHashRate(),
             });
         }
         catch (error) {
             worker_threads_1.parentPort?.postMessage({
-                error: `Mining error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                hashRate: this.calculateHashRate()
+                error: `Mining error: ${error instanceof Error ? error.message : "Unknown error"}`,
+                hashRate: this.calculateHashRate(),
             });
         }
     }
@@ -204,23 +205,23 @@ MiningWorker.DEFAULT_BATCH_SIZE = 1000;
 MiningWorker.REPORT_INTERVAL = 5000; // 5 seconds
 // Initialize worker and handle messages with error handling
 const worker = new MiningWorker();
-worker_threads_1.parentPort?.on('message', async (task) => {
+worker_threads_1.parentPort?.on("message", async (task) => {
     try {
         await worker.mineRange(task);
     }
     catch (error) {
         worker_threads_1.parentPort?.postMessage({
-            error: `Worker error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            hashRate: worker.calculateHashRate()
+            error: `Worker error: ${error instanceof Error ? error.message : "Unknown error"}`,
+            hashRate: worker.calculateHashRate(),
         });
     }
 });
 // Handle termination gracefully
-process.on('SIGTERM', () => {
+process.on("SIGTERM", () => {
     try {
         worker_threads_1.parentPort?.postMessage({
-            error: 'Worker terminated',
-            hashRate: worker.calculateHashRate()
+            error: "Worker terminated",
+            hashRate: worker.calculateHashRate(),
         });
     }
     finally {

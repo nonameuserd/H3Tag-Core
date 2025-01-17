@@ -26,7 +26,7 @@ let MiningController = class MiningController {
             return await this.miningService.getMiningInfo();
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mining info:', error);
+            shared_1.Logger.error("Failed to get mining info:", error);
             throw new common_1.HttpException(`Failed to get mining info: ${error.message}`, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -36,7 +36,7 @@ let MiningController = class MiningController {
             return { hashPS };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get network hash rate:', error);
+            shared_1.Logger.error("Failed to get network hash rate:", error);
             throw new common_1.HttpException(`Failed to get network hash rate: ${error.message}`, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -47,78 +47,78 @@ let MiningController = class MiningController {
         const errors = await (0, class_validator_1.validate)(request);
         if (errors.length > 0) {
             throw new common_1.BadRequestException({
-                status: 'error',
-                message: 'Invalid request',
-                errors: errors.map(error => Object.values(error.constraints))
+                status: "error",
+                message: "Invalid request",
+                errors: errors.map((error) => Object.values(error.constraints)),
             });
         }
         const template = await this.miningService.getBlockTemplate(request.minerAddress);
         return {
-            status: 'success',
-            data: template
+            status: "success",
+            data: template,
         };
     }
     async submitBlock(submitBlockDto) {
         try {
             const blockHash = await this.miningService.submitBlock(submitBlockDto);
             return {
-                status: 'success',
-                blockHash
+                status: "success",
+                blockHash,
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to submit block:', error);
+            shared_1.Logger.error("Failed to submit block:", error);
             throw new common_1.HttpException(`Failed to submit block: ${error.message}`, common_1.HttpStatus.BAD_REQUEST);
         }
     }
 };
 exports.MiningController = MiningController;
 __decorate([
-    (0, common_1.Get)('info'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get mining information' }),
+    (0, common_1.Get)("info"),
+    (0, swagger_1.ApiOperation)({ summary: "Get mining information" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Mining information retrieved successfully',
-        type: mining_dto_1.MiningInfoDto
+        description: "Mining information retrieved successfully",
+        type: mining_dto_1.MiningInfoDto,
     })
 ], MiningController.prototype, "getMiningInfo", null);
 __decorate([
-    (0, common_1.Get)('hashps'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get network hash per second' }),
+    (0, common_1.Get)("hashps"),
+    (0, swagger_1.ApiOperation)({ summary: "Get network hash per second" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Network hash rate retrieved successfully',
+        description: "Network hash rate retrieved successfully",
         schema: {
             properties: {
-                hashPS: { type: 'number' }
-            }
-        }
+                hashPS: { type: "number" },
+            },
+        },
     })
 ], MiningController.prototype, "getNetworkHashPS", null);
 __decorate([
-    (0, common_1.Post)('template'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get block template for mining' }),
+    (0, common_1.Post)("template"),
+    (0, swagger_1.ApiOperation)({ summary: "Get block template for mining" }),
     (0, swagger_1.ApiResponse)({ status: 200, type: mining_dto_3.BlockTemplateDto }),
     __param(0, (0, common_1.Body)())
 ], MiningController.prototype, "getBlockTemplate", null);
 __decorate([
-    (0, common_1.Post)('submit-block'),
-    (0, swagger_1.ApiOperation)({ summary: 'Submit a mined block' }),
+    (0, common_1.Post)("submit-block"),
+    (0, swagger_1.ApiOperation)({ summary: "Submit a mined block" }),
     (0, swagger_1.ApiResponse)({
         status: 201,
-        description: 'Block submitted successfully',
+        description: "Block submitted successfully",
         schema: {
             properties: {
-                status: { type: 'string' },
-                blockHash: { type: 'string' }
-            }
-        }
+                status: { type: "string" },
+                blockHash: { type: "string" },
+            },
+        },
     }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid block data' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: "Invalid block data" }),
     __param(0, (0, common_1.Body)())
 ], MiningController.prototype, "submitBlock", null);
 exports.MiningController = MiningController = __decorate([
-    (0, swagger_1.ApiTags)('Mining'),
-    (0, common_1.Controller)('mining')
+    (0, swagger_1.ApiTags)("Mining"),
+    (0, common_1.Controller)("mining")
 ], MiningController);
 //# sourceMappingURL=mining.controller.js.map

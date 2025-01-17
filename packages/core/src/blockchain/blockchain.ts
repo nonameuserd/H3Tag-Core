@@ -2502,8 +2502,8 @@ export class Blockchain {
     }
   }
 
-  public getVerificationProgress(): number {
-    return this.sync ? this.sync.getVerificationProgress() : 1;
+  public async getVerificationProgress(): Promise<number> {
+    return this.sync ? await this.sync.getVerificationProgress() : 1;
   }
 
   public getChainWork(): string {

@@ -24,7 +24,7 @@ let WalletController = class WalletController {
             return await this.walletService.createWallet(createWalletDto);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to create wallet:', error);
+            shared_1.Logger.error("Failed to create wallet:", error);
             throw new common_1.HttpException(`Failed to create wallet: ${error.message}`, common_1.HttpStatus.BAD_REQUEST);
         }
     }
@@ -33,7 +33,7 @@ let WalletController = class WalletController {
             return await this.walletService.getWallet(address);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get wallet:', error);
+            shared_1.Logger.error("Failed to get wallet:", error);
             throw new common_1.HttpException(`Wallet not found: ${error.message}`, common_1.HttpStatus.NOT_FOUND);
         }
     }
@@ -47,7 +47,7 @@ let WalletController = class WalletController {
             return { signature };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to sign transaction:', error);
+            shared_1.Logger.error("Failed to sign transaction:", error);
             throw new common_1.HttpException(`Failed to sign transaction: ${error.message}`, common_1.HttpStatus.BAD_REQUEST);
         }
     }
@@ -57,7 +57,7 @@ let WalletController = class WalletController {
             return { txId };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to send transaction:', error);
+            shared_1.Logger.error("Failed to send transaction:", error);
             throw new common_1.HttpException(`Failed to send transaction: ${error.message}`, common_1.HttpStatus.BAD_REQUEST);
         }
     }
@@ -65,7 +65,7 @@ let WalletController = class WalletController {
         const balance = await this.walletService.getBalance(address);
         return {
             confirmed: balance.confirmed.toString(),
-            unconfirmed: balance.unconfirmed.toString()
+            unconfirmed: balance.unconfirmed.toString(),
         };
     }
     async getNewAddress(address) {
@@ -94,7 +94,7 @@ let WalletController = class WalletController {
             return await this.walletService.listUnspent(address);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to list unspent outputs:', error);
+            shared_1.Logger.error("Failed to list unspent outputs:", error);
             throw new common_1.HttpException(`Failed to list unspent outputs: ${error.message}`, common_1.HttpStatus.NOT_FOUND);
         }
     }
@@ -103,7 +103,7 @@ let WalletController = class WalletController {
             return await this.walletService.getTxOut(txid, parseInt(n.toString()));
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get transaction output:', error);
+            shared_1.Logger.error("Failed to get transaction output:", error);
             throw new common_1.HttpException(`Transaction output not found: ${error.message}`, common_1.HttpStatus.NOT_FOUND);
         }
     }
@@ -111,135 +111,138 @@ let WalletController = class WalletController {
 exports.WalletController = WalletController;
 __decorate([
     (0, common_1.Post)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Create a new wallet' }),
+    (0, swagger_1.ApiOperation)({ summary: "Create a new wallet" }),
     (0, swagger_1.ApiResponse)({
         status: 201,
-        description: 'Wallet created successfully',
-        type: wallet_dto_1.WalletResponseDto
+        description: "Wallet created successfully",
+        type: wallet_dto_1.WalletResponseDto,
     }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid parameters' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: "Invalid parameters" }),
     __param(0, (0, common_1.Body)())
 ], WalletController.prototype, "createWallet", null);
 __decorate([
-    (0, common_1.Get)(':address'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get wallet information' }),
+    (0, common_1.Get)(":address"),
+    (0, swagger_1.ApiOperation)({ summary: "Get wallet information" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Wallet information retrieved successfully',
-        type: wallet_dto_1.WalletResponseDto
+        description: "Wallet information retrieved successfully",
+        type: wallet_dto_1.WalletResponseDto,
     }),
-    (0, swagger_1.ApiResponse)({ status: 404, description: 'Wallet not found' }),
-    __param(0, (0, common_1.Param)('address'))
+    (0, swagger_1.ApiResponse)({ status: 404, description: "Wallet not found" }),
+    __param(0, (0, common_1.Param)("address"))
 ], WalletController.prototype, "getWallet", null);
 __decorate([
-    (0, common_1.Post)(':address/sign'),
-    (0, swagger_1.ApiOperation)({ summary: 'Sign a transaction' }),
+    (0, common_1.Post)(":address/sign"),
+    (0, swagger_1.ApiOperation)({ summary: "Sign a transaction" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Transaction signed successfully',
+        description: "Transaction signed successfully",
         schema: {
             properties: {
-                signature: { type: 'string' }
-            }
-        }
+                signature: { type: "string" },
+            },
+        },
     }),
-    __param(0, (0, common_1.Param)('address')),
+    __param(0, (0, common_1.Param)("address")),
     __param(1, (0, common_1.Body)())
 ], WalletController.prototype, "signTransaction", null);
 __decorate([
-    (0, common_1.Post)(':address/send'),
-    (0, swagger_1.ApiOperation)({ summary: 'Send funds to another address' }),
+    (0, common_1.Post)(":address/send"),
+    (0, swagger_1.ApiOperation)({ summary: "Send funds to another address" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Transaction sent successfully',
+        description: "Transaction sent successfully",
         schema: {
             properties: {
-                txId: { type: 'string' }
-            }
-        }
+                txId: { type: "string" },
+            },
+        },
     }),
     (0, swagger_1.ApiResponse)({
         status: 400,
-        description: 'Invalid parameters or insufficient funds'
+        description: "Invalid parameters or insufficient funds",
     }),
-    __param(0, (0, common_1.Param)('address')),
+    __param(0, (0, common_1.Param)("address")),
     __param(1, (0, common_1.Body)())
 ], WalletController.prototype, "sendToAddress", null);
 __decorate([
-    (0, common_1.Get)(':address/balance'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get wallet balance' }),
+    (0, common_1.Get)(":address/balance"),
+    (0, swagger_1.ApiOperation)({ summary: "Get wallet balance" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Balance retrieved successfully',
-        type: wallet_dto_1.WalletBalanceDto
+        description: "Balance retrieved successfully",
+        type: wallet_dto_1.WalletBalanceDto,
     }),
-    __param(0, (0, common_1.Param)('address'))
+    __param(0, (0, common_1.Param)("address"))
 ], WalletController.prototype, "getBalance", null);
 __decorate([
-    (0, common_1.Post)(':address/addresses'),
-    (0, swagger_1.ApiOperation)({ summary: 'Generate new address' }),
+    (0, common_1.Post)(":address/addresses"),
+    (0, swagger_1.ApiOperation)({ summary: "Generate new address" }),
     (0, swagger_1.ApiResponse)({
         status: 201,
-        description: 'New address generated successfully',
-        type: wallet_dto_1.NewAddressResponseDto
+        description: "New address generated successfully",
+        type: wallet_dto_1.NewAddressResponseDto,
     }),
-    __param(0, (0, common_1.Param)('address'))
+    __param(0, (0, common_1.Param)("address"))
 ], WalletController.prototype, "getNewAddress", null);
 __decorate([
-    (0, common_1.Post)(':address/export'),
-    (0, swagger_1.ApiOperation)({ summary: 'Export wallet private key' }),
+    (0, common_1.Post)(":address/export"),
+    (0, swagger_1.ApiOperation)({ summary: "Export wallet private key" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Private key exported successfully',
+        description: "Private key exported successfully",
         schema: {
             properties: {
-                privateKey: { type: 'string' }
-            }
-        }
+                privateKey: { type: "string" },
+            },
+        },
     }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid password or wallet not found' }),
-    __param(0, (0, common_1.Param)('address')),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: "Invalid password or wallet not found",
+    }),
+    __param(0, (0, common_1.Param)("address")),
     __param(1, (0, common_1.Body)())
 ], WalletController.prototype, "exportPrivateKey", null);
 __decorate([
-    (0, common_1.Post)('import'),
-    (0, swagger_1.ApiOperation)({ summary: 'Import wallet from private key' }),
+    (0, common_1.Post)("import"),
+    (0, swagger_1.ApiOperation)({ summary: "Import wallet from private key" }),
     (0, swagger_1.ApiResponse)({
         status: 201,
-        description: 'Wallet imported successfully',
-        type: wallet_dto_1.WalletResponseDto
+        description: "Wallet imported successfully",
+        type: wallet_dto_1.WalletResponseDto,
     }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid private key or password' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: "Invalid private key or password" }),
     __param(0, (0, common_1.Body)())
 ], WalletController.prototype, "importPrivateKey", null);
 __decorate([
-    (0, common_1.Get)(':address/unspent'),
-    (0, swagger_1.ApiOperation)({ summary: 'List unspent transaction outputs (UTXOs)' }),
+    (0, common_1.Get)(":address/unspent"),
+    (0, swagger_1.ApiOperation)({ summary: "List unspent transaction outputs (UTXOs)" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'UTXOs retrieved successfully',
-        type: [wallet_dto_1.UnspentOutputDto]
+        description: "UTXOs retrieved successfully",
+        type: [wallet_dto_1.UnspentOutputDto],
     }),
-    (0, swagger_1.ApiResponse)({ status: 404, description: 'Wallet not found' }),
-    __param(0, (0, common_1.Param)('address'))
+    (0, swagger_1.ApiResponse)({ status: 404, description: "Wallet not found" }),
+    __param(0, (0, common_1.Param)("address"))
 ], WalletController.prototype, "listUnspent", null);
 __decorate([
-    (0, common_1.Get)('txout/:txid/:n'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get specific transaction output' }),
+    (0, common_1.Get)("txout/:txid/:n"),
+    (0, swagger_1.ApiOperation)({ summary: "Get specific transaction output" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Transaction output retrieved successfully',
-        type: wallet_dto_1.TxOutDto
+        description: "Transaction output retrieved successfully",
+        type: wallet_dto_1.TxOutDto,
     }),
     (0, swagger_1.ApiResponse)({
         status: 404,
-        description: 'Transaction output not found'
+        description: "Transaction output not found",
     }),
-    __param(0, (0, common_1.Param)('txid')),
-    __param(1, (0, common_1.Param)('n'))
+    __param(0, (0, common_1.Param)("txid")),
+    __param(1, (0, common_1.Param)("n"))
 ], WalletController.prototype, "getTxOut", null);
 exports.WalletController = WalletController = __decorate([
-    (0, swagger_1.ApiTags)('Wallets'),
-    (0, common_1.Controller)('wallets')
+    (0, swagger_1.ApiTags)("Wallets"),
+    (0, common_1.Controller)("wallets")
 ], WalletController);
 //# sourceMappingURL=wallet.controller.js.map

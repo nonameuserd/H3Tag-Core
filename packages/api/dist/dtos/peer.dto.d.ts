@@ -21,7 +21,7 @@ export declare class PeerResponseDto {
 }
 export declare class SetBanDto {
     ip: string;
-    command: 'add' | 'remove';
+    command: "add" | "remove";
     banTime?: number;
     reason?: string;
 }

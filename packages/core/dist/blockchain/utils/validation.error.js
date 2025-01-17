@@ -6,7 +6,7 @@ class BlockValidationError extends Error {
         super(message);
         this.blockHash = blockHash;
         this.validationDetails = validationDetails;
-        this.name = 'BlockValidationError';
+        this.name = "BlockValidationError";
         Error.captureStackTrace(this, BlockValidationError);
     }
     toJSON() {
@@ -15,7 +15,7 @@ class BlockValidationError extends Error {
             message: this.message,
             blockHash: this.blockHash,
             validationDetails: this.validationDetails,
-            stack: this.stack
+            stack: this.stack,
         };
     }
 }

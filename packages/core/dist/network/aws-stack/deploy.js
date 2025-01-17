@@ -29,22 +29,22 @@ const seed_server_stack_1 = require("./seed-server-stack");
 const path = __importStar(require("path"));
 // Add error handling for missing environment variables
 if (!process.env.AWS_REGIONS) {
-    throw new Error('AWS_REGIONS environment variable is required');
+    throw new Error("AWS_REGIONS environment variable is required");
 }
 if (!process.env.DOMAIN_NAME) {
-    throw new Error('DOMAIN_NAME environment variable is required');
+    throw new Error("DOMAIN_NAME environment variable is required");
 }
 const app = new cdk.App();
 // Deploy to multiple regions
-const regions = process.env.AWS_REGIONS.split(',').map(region => region.trim()); // Trim whitespace
-const scriptPath = path.resolve(__dirname, './script/node-initializer.ts');
+const regions = process.env.AWS_REGIONS.split(",").map((region) => region.trim()); // Trim whitespace
+const scriptPath = path.resolve(__dirname, "./script/node-initializer.ts");
 // Validate regions
 if (regions.length === 0) {
-    throw new Error('At least one AWS region must be specified');
+    throw new Error("At least one AWS region must be specified");
 }
 regions.forEach((region) => {
     if (!region) {
-        throw new Error('Empty region found in AWS_REGIONS');
+        throw new Error("Empty region found in AWS_REGIONS");
     }
     new seed_server_stack_1.SeedServerStack(app, `SeedServerStack-${region}`, {
         env: {
@@ -52,9 +52,9 @@ regions.forEach((region) => {
             account: process.env.CDK_DEFAULT_ACCOUNT,
         },
         domainName: process.env.DOMAIN_NAME,
-        environment: process.env.NODE_ENV || 'production',
+        environment: process.env.NODE_ENV || "production",
         crossRegionReferences: true,
-        deploymentScriptPath: scriptPath
+        deploymentScriptPath: scriptPath,
     });
 });
 app.synth();

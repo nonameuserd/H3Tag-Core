@@ -1,6 +1,14 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.PeerMessageType = void 0;
+exports.PeerMessageType = exports.PeerServices = void 0;
+var PeerServices;
+(function (PeerServices) {
+    PeerServices[PeerServices["NODE"] = 1] = "NODE";
+    PeerServices[PeerServices["MINER"] = 2] = "MINER";
+    PeerServices[PeerServices["VALIDATOR"] = 4] = "VALIDATOR";
+    PeerServices[PeerServices["RELAY"] = 8] = "RELAY";
+    PeerServices[PeerServices["ARCHIVE"] = 16] = "ARCHIVE";
+})(PeerServices = exports.PeerServices || (exports.PeerServices = {}));
 var PeerMessageType;
 (function (PeerMessageType) {
     PeerMessageType["VERSION"] = "version";

@@ -48,7 +48,7 @@ const votingController = new voting_controller_1.VotingController(votingService)
  *       400:
  *         description: Invalid vote submission
  */
-router.post('/vote', votingController.submitVote);
+router.post("/vote", votingController.submitVote);
 /**
  * @swagger
  * /voting/metrics:
@@ -65,7 +65,7 @@ router.post('/vote', votingController.submitVote);
  *       500:
  *         description: Internal server error
  */
-router.get('/metrics', votingController.getMetrics);
+router.get("/metrics", votingController.getMetrics);
 /**
  * @swagger
  * /voting/period/current:
@@ -82,7 +82,7 @@ router.get('/metrics', votingController.getMetrics);
  *       500:
  *         description: Internal server error
  */
-router.get('/period/current', votingController.getCurrentPeriod);
+router.get("/period/current", votingController.getCurrentPeriod);
 /**
  * @swagger
  * /voting/votes/{address}:
@@ -108,7 +108,7 @@ router.get('/period/current', votingController.getCurrentPeriod);
  *       404:
  *         description: No votes found for address
  */
-router.get('/votes/:address', votingController.getVotesByAddress);
+router.get("/votes/:address", votingController.getVotesByAddress);
 /**
  * @swagger
  * /voting/participation/{address}:
@@ -135,7 +135,7 @@ router.get('/votes/:address', votingController.getVotesByAddress);
  *       400:
  *         description: Invalid address format
  */
-router.get('/participation/:address', async (req, res) => {
+router.get("/participation/:address", async (req, res) => {
     try {
         const hasParticipated = await directVoting.hasParticipated(req.params.address);
         res.json({ hasParticipated });
@@ -167,7 +167,7 @@ router.get('/participation/:address', async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.get('/schedule', async (req, res) => {
+router.get("/schedule", async (req, res) => {
     try {
         const schedule = await directVoting.getVotingSchedule();
         res.json(schedule);

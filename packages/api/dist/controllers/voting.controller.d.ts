@@ -1,5 +1,5 @@
-import { VotingService } from '../services/voting.service';
-import { VoteDto, VotingMetricsDto } from '../dtos/voting.dto';
+import { VotingService } from "../services/voting.service";
+import { VoteDto, VotingMetricsDto } from "../dtos/voting.dto";
 export declare class VotingController {
     private readonly votingService;
     constructor(votingService: VotingService);

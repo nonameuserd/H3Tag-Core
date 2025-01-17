@@ -1,4 +1,4 @@
-import { Vote, VotingPeriod } from '../models/vote.model';
+import { Vote, VotingPeriod } from "../models/vote.model";
 /**
  * @fileoverview VotingSchema implements the database schema and operations for blockchain voting.
  * It handles vote storage, validation, aggregation, and period management with optimized caching

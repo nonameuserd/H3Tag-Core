@@ -1,4 +1,4 @@
-import { UTXO } from '../models/utxo.model';
+import { UTXO } from "../models/utxo.model";
 /**
  * @fileoverview UTXODatabase implements persistent storage and management of Unspent Transaction Outputs (UTXOs).
  * It provides atomic operations, caching, and efficient querying for UTXO set management with transaction support.

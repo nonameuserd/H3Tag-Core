@@ -286,7 +286,7 @@ export class DifficultyAdjuster {
     return this.networkStats.getActivePeerCount();
   }
 
-  private getAverageNetworkLatency(): number {
+  private async getAverageNetworkLatency(): Promise<number> {
     return this.networkStats.getAverageLatency();
   }
 

@@ -29,28 +29,28 @@ let VotingService = class VotingService {
                 voter: voteDto.voterAddress,
                 signature: { address: voteDto.signature },
                 timestamp: Date.now(),
-                blockHash: '',
+                blockHash: "",
                 approve: voteDto.choice,
                 chainVoteData: {
                     amount: voteDto.chainVoteData?.amount || BigInt(0),
-                    targetChainId: voteDto.chainVoteData?.targetChainId || '',
-                    forkHeight: voteDto.chainVoteData?.forkHeight || 0
+                    targetChainId: voteDto.chainVoteData?.targetChainId || "",
+                    forkHeight: voteDto.chainVoteData?.forkHeight || 0,
                 },
                 votingPower: BigInt(Math.floor(Math.sqrt(Number(voteDto.chainVoteData?.amount || 0)))),
                 publicKey: { address: voteDto.voterAddress },
                 encrypted: false,
                 height: voteDto.height,
-                balance: voteDto.balance
+                balance: voteDto.balance,
             };
             const validators = await this.directVoting.getValidators();
             await this.directVoting.validateVote(vote, validators);
             const success = await this.directVoting.submitVote(vote);
             if (!success)
-                throw new Error('Vote submission failed');
+                throw new Error("Vote submission failed");
             return vote.voteId;
         }
         catch (error) {
-            shared_1.Logger.error('Vote submission failed:', error);
+            shared_1.Logger.error("Vote submission failed:", error);
             throw error;
         }
     }
@@ -64,12 +64,12 @@ let VotingService = class VotingService {
                 currentPeriod: {
                     periodId: (await metrics.currentPeriod.periodId).toString(),
                     startHeight: Number(await metrics.currentPeriod.startHeight),
-                    endHeight: Number(await metrics.currentPeriod.endHeight)
-                }
+                    endHeight: Number(await metrics.currentPeriod.endHeight),
+                },
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get voting metrics:', error);
+            shared_1.Logger.error("Failed to get voting metrics:", error);
             throw error;
         }
     }
@@ -78,7 +78,7 @@ let VotingService = class VotingService {
             return this.directVoting.getCurrentPeriod();
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get current period:', error);
+            shared_1.Logger.error("Failed to get current period:", error);
             throw error;
         }
     }
@@ -87,7 +87,7 @@ let VotingService = class VotingService {
             return this.directVoting.getVotesByAddress(address);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get votes by address:', error);
+            shared_1.Logger.error("Failed to get votes by address:", error);
             throw error;
         }
     }

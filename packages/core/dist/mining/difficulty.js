@@ -156,7 +156,7 @@ class DifficultyAdjuster {
         let ema = values[0];
         for (let i = 1; i < values.length; i++) {
             const value = values[i];
-            if (typeof value !== 'number' || isNaN(value) || !isFinite(value))
+            if (typeof value !== "number" || isNaN(value) || !isFinite(value))
                 continue;
             ema = value * alpha + ema * (1 - alpha);
         }
@@ -214,7 +214,7 @@ class DifficultyAdjuster {
     getActivePeerCount() {
         return this.networkStats.getActivePeerCount();
     }
-    getAverageNetworkLatency() {
+    async getAverageNetworkLatency() {
         return this.networkStats.getAverageLatency();
     }
     calculateAverageBlockTime(blockTimes) {
@@ -232,7 +232,7 @@ class DifficultyAdjuster {
             if (!Array.isArray(blockTimes) ||
                 !blockTimes?.length ||
                 blockTimes.length < 3 ||
-                typeof hashRate !== 'number' ||
+                typeof hashRate !== "number" ||
                 !isFinite(hashRate) ||
                 hashRate <= 0) {
                 return 1.0;
@@ -241,8 +241,10 @@ class DifficultyAdjuster {
             if (avgBlockTime <= 0)
                 return 1.0;
             const timeRatio = this.TARGET_BLOCK_TIME / avgBlockTime;
-            const hashRateChange = this.lastHashRate > 0 ?
-                (Number(hashRate) - Number(this.lastHashRate)) / Number(this.lastHashRate) : 0;
+            const hashRateChange = this.lastHashRate > 0
+                ? (Number(hashRate) - Number(this.lastHashRate)) /
+                    Number(this.lastHashRate)
+                : 0;
             const dampening = 0.75;
             const adjustment = timeRatio * (1 + hashRateChange * dampening);
             this.lastHashRate = BigInt(hashRate);

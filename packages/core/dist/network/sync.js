@@ -31,7 +31,7 @@ class BlockchainSync {
             endTime: 0,
             blocksProcessed: 0,
             votesProcessed: 0,
-            failedAttempts: 0
+            failedAttempts: 0,
         };
         this.headerSync = {
             startHeight: 0,
@@ -42,7 +42,7 @@ class BlockchainSync {
             clear() {
                 this.headers.clear();
                 this.pendingRequests.clear();
-            }
+            },
         };
         this.mutex = new async_mutex_1.Mutex();
         this.blockchain = blockchain;
@@ -65,7 +65,7 @@ class BlockchainSync {
                 await this.handleNewBlock(block, peer);
             }
             catch (error) {
-                shared_1.Logger.error(`Error handling new block from peer ${peer.getInfo().url}:`, error);
+                shared_1.Logger.error(`Error handling new block from peer ${(await peer.getInfo()).url}:`, error);
                 this.eventEmitter.emit("sync_error", error);
             }
         });
@@ -74,7 +74,7 @@ class BlockchainSync {
                 await this.handleNewTransaction(transaction, peer);
             }
             catch (error) {
-                shared_1.Logger.error(`Error handling new transaction from peer ${peer.getInfo().url}:`, error);
+                shared_1.Logger.error(`Error handling new transaction from peer ${(await peer.getInfo()).url}:`, error);
                 this.eventEmitter.emit("sync_error", error);
             }
         });
@@ -106,7 +106,7 @@ class BlockchainSync {
             endTime: 0,
             blocksProcessed: 0,
             votesProcessed: 0,
-            failedAttempts: 0
+            failedAttempts: 0,
         };
         if (this.state === SyncState.SYNCING) {
             return;
@@ -115,7 +115,7 @@ class BlockchainSync {
             this.state = SyncState.SYNCING;
             this.eventEmitter.emit("sync_started", {
                 currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
             shared_1.Logger.info(`Starting ${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization`);
             const bestPeer = await this.selectBestPeer();
@@ -129,7 +129,7 @@ class BlockchainSync {
             this.clearSyncTimeout();
             this.eventEmitter.emit("sync_completed", {
                 currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
             shared_1.Logger.info(`${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization completed`);
         }
@@ -156,7 +156,7 @@ class BlockchainSync {
         this.state = SyncState.ERROR;
         this.eventEmitter.emit("sync_timeout", {
             currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
         this.handleSyncError(new SyncError(`${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync timeout`));
     }
@@ -165,7 +165,7 @@ class BlockchainSync {
         this.eventEmitter.emit("sync_error", {
             error,
             currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         });
         shared_1.Logger.error(`${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization failed:`, error);
         if (this.retryAttempts < BlockchainSync.MAX_RETRY_ATTEMPTS) {
@@ -177,12 +177,12 @@ class BlockchainSync {
             shared_1.Logger.error(`${constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync: Max retry attempts reached`);
             this.eventEmitter.emit("sync_failed", {
                 currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
         }
     }
     async selectBestPeer() {
-        const connectedPeers = Array.from(this.peers.values()).filter(peer => peer.isConnected() && !peer.isBanned());
+        const connectedPeers = Array.from(this.peers.values()).filter((peer) => peer.isConnected() && !peer.isBanned());
         if (connectedPeers.length === 0) {
             return undefined;
         }
@@ -190,32 +190,38 @@ class BlockchainSync {
         const validPeers = await Promise.race([
             Promise.all(connectedPeers.map(async (peer) => ({
                 peer,
-                isValid: await this.validatePeerBeforeSync(peer).catch(() => false)
+                isValid: await this.validatePeerBeforeSync(peer).catch(() => false),
             }))),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Peer validation timeout')), BlockchainSync.SYNC_TIMEOUTS.PEER_SELECTION))
+            new Promise((_, reject) => setTimeout(() => reject(new Error("Peer validation timeout")), BlockchainSync.SYNC_TIMEOUTS.PEER_SELECTION)),
         ]);
         const validConnectedPeers = validPeers
             .filter(({ isValid }) => isValid)
             .map(({ peer }) => peer);
-        return validConnectedPeers.sort((a, b) => {
-            const heightDiff = b.getInfo().height - a.getInfo().height;
+        const peersWithInfo = await Promise.all(validConnectedPeers.map(async (peer) => ({
+            peer,
+            info: await peer.getInfo()
+        })));
+        return peersWithInfo
+            .sort((a, b) => {
+            const heightDiff = b.info.height - a.info.height;
             if (heightDiff !== 0)
                 return heightDiff;
-            return a.getInfo().latency - b.getInfo().latency;
-        })[0];
+            return a.info.latency - b.info.latency;
+        })
+            .map(({ peer }) => peer)[0];
     }
     async synchronize(peer) {
         let syncTimeout;
         try {
             syncTimeout = setTimeout(() => {
-                throw new SyncError('Sync timeout');
+                throw new SyncError("Sync timeout");
             }, BlockchainSync.SYNC_TIMEOUT);
             await this.syncHeaders(peer);
             await this.syncBlocks(peer);
             await this.verifyChain();
         }
         catch (error) {
-            shared_1.Logger.error('Synchronization failed:', error);
+            shared_1.Logger.error("Synchronization failed:", error);
             throw new SyncError(`Sync failed: ${error.message}`);
         }
         finally {
@@ -227,7 +233,7 @@ class BlockchainSync {
         const release = await this.mutex.acquire();
         try {
             const currentHeight = this.blockchain.getHeight();
-            const targetHeight = peer.getInfo().height;
+            const targetHeight = (await peer.getInfo()).height;
             this.headerSync = {
                 startHeight: currentHeight + 1,
                 currentHeight: currentHeight + 1,
@@ -237,11 +243,12 @@ class BlockchainSync {
                 clear() {
                     this.headers.clear();
                     this.pendingRequests.clear();
-                }
+                },
             };
             shared_1.Logger.info(`Starting headers sync from ${currentHeight} to ${targetHeight}`);
             while (this.headerSync.currentHeight <= targetHeight) {
-                const endHeight = Math.min(this.headerSync.currentHeight + BlockchainSync.SYNC_PARAMETERS.HEADERS_BATCH_SIZE, targetHeight);
+                const endHeight = Math.min(this.headerSync.currentHeight +
+                    BlockchainSync.SYNC_PARAMETERS.HEADERS_BATCH_SIZE, targetHeight);
                 try {
                     const headers = await this.requestHeadersWithRetry(peer, this.headerSync.currentHeight, endHeight);
                     if (!this.validateHeaders(headers)) {
@@ -250,7 +257,7 @@ class BlockchainSync {
                         continue;
                     }
                     // Store valid headers
-                    headers.forEach(header => {
+                    headers.forEach((header) => {
                         this.headerSync.headers.set(header.header.height, header);
                     });
                     this.headerSync.currentHeight = endHeight + 1;
@@ -298,7 +305,7 @@ class BlockchainSync {
         // Verify block matches stored header
         const storedHeader = this.headerSync.headers.get(block.header.height);
         if (!storedHeader || storedHeader.header.hash !== block.header.hash) {
-            throw new SyncError('Block does not match stored header');
+            throw new SyncError("Block does not match stored header");
         }
         await this.processBlock(block);
     }
@@ -372,7 +379,7 @@ class BlockchainSync {
             this.eventEmitter.emit("new_block", {
                 block,
                 currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                timestamp: Date.now()
+                timestamp: Date.now(),
             });
             // Broadcast to other peers
             this.broadcastToPeers(peer_model_1.PeerMessageType.NEW_BLOCK, block, peer);
@@ -397,7 +404,7 @@ class BlockchainSync {
         const broadcastPromises = Array.from(this.peers.values())
             .filter((peer) => peer !== excludePeer && peer.isConnected())
             .map((peer) => peer.request(type, data).catch((error) => {
-            shared_1.Logger.error(`Failed to broadcast to peer ${peer.getInfo().url}:`, error);
+            shared_1.Logger.error(`Failed to broadcast to peer, error: ${error.message}`, error);
         }));
         await Promise.all(broadcastPromises);
     }
@@ -412,7 +419,7 @@ class BlockchainSync {
     }
     async checkSync() {
         const bestPeer = await this.selectBestPeer();
-        if (bestPeer && bestPeer.getInfo().height > this.blockchain.getHeight()) {
+        if (bestPeer && (await bestPeer.getInfo()).height > this.blockchain.getHeight()) {
             await this.startSync();
         }
     }
@@ -420,7 +427,7 @@ class BlockchainSync {
         try {
             const response = await peer.request(peer_model_1.PeerMessageType.GET_VOTES, {
                 fromHeight: this.lastSyncHeight,
-                toHeight: this.syncingPeer?.getInfo().height,
+                toHeight: (await this.syncingPeer?.getInfo()).height,
             });
             if (!Array.isArray(response.votes)) {
                 throw new SyncError("Invalid votes response from peer");
@@ -477,16 +484,16 @@ class BlockchainSync {
             try {
                 return await Promise.race([
                     peer.request(peer_model_1.PeerMessageType.GET_BLOCKS, { startHeight, endHeight }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST)),
                 ]);
             }
             catch (error) {
                 if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
                     throw error;
-                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+                await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
             }
         }
-        throw new Error('Max retries exceeded');
+        throw new Error("Max retries exceeded");
     }
     async processBlocksInBatches(blocks) {
         for (let i = 0; i < blocks.length; i += BlockchainSync.BATCH_SIZES.BLOCKS) {
@@ -510,39 +517,43 @@ class BlockchainSync {
             currentTime: Date.now(),
             blocksPerSecond: this.calculateBlocksPerSecond(),
             estimatedTimeRemaining: this.calculateEstimatedTime(),
-            failureRate: this.calculateFailureRate()
+            failureRate: this.calculateFailureRate(),
         };
-        this.eventEmitter.emit('sync_detailed_progress', progress);
+        this.eventEmitter.emit("sync_detailed_progress", progress);
     }
     async validatePeerBeforeSync(peer) {
         try {
             const peerInfo = peer.getInfo();
             const localHeight = this.blockchain.getHeight();
-            if (peerInfo.height <= localHeight)
+            if ((await peerInfo).height <= localHeight)
                 return false;
-            if (!await peer.validatePeerCurrency(peerInfo))
+            if (!(await peer.validatePeerCurrency(await peerInfo)))
                 return false;
             if (peer.getAverageBandwidth() < 1000000)
                 return false; // 1MB/s minimum
             return true;
         }
         catch (error) {
-            shared_1.Logger.error('Peer validation failed:', error);
+            shared_1.Logger.error("Peer validation failed:", error);
             return false;
         }
     }
     calculateBlocksPerSecond() {
         const elapsedSeconds = (Date.now() - this.syncStats.startTime) / 1000;
-        return elapsedSeconds > 0 ? this.syncStats.blocksProcessed / elapsedSeconds : 0;
+        return elapsedSeconds > 0
+            ? this.syncStats.blocksProcessed / elapsedSeconds
+            : 0;
     }
-    calculateEstimatedTime() {
+    async calculateEstimatedTime() {
         const blocksPerSecond = this.calculateBlocksPerSecond();
-        const remainingBlocks = this.syncingPeer?.getInfo().height - this.lastSyncHeight;
+        const remainingBlocks = (await this.syncingPeer?.getInfo()).height - this.lastSyncHeight;
         return blocksPerSecond > 0 ? (remainingBlocks / blocksPerSecond) * 1000 : 0;
     }
     calculateFailureRate() {
         const totalAttempts = this.syncStats.blocksProcessed + this.syncStats.failedAttempts;
-        return totalAttempts > 0 ? (this.syncStats.failedAttempts / totalAttempts) * 100 : 0;
+        return totalAttempts > 0
+            ? (this.syncStats.failedAttempts / totalAttempts) * 100
+            : 0;
     }
     on(event, listener) {
         this.eventEmitter.on(event, listener);
@@ -560,32 +571,32 @@ class BlockchainSync {
         const currentHeight = this.blockchain.getHeight();
         for (let height = 1; height <= currentHeight; height++) {
             const block = await this.blockchain.getBlockByHeight(height);
-            if (!block || !await this.blockchain.verifyBlock(block)) {
+            if (!block || !(await this.blockchain.verifyBlock(block))) {
                 throw new SyncError(`Chain verification failed at height ${height}`);
             }
         }
-        shared_1.Logger.info('Chain verification completed successfully');
+        shared_1.Logger.info("Chain verification completed successfully");
     }
     async requestHeadersWithRetry(peer, startHeight, endHeight) {
         for (let attempt = 0; attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST; attempt++) {
             try {
                 return await Promise.race([
                     peer.request(peer_model_1.PeerMessageType.GETHEADERS, { startHeight, endHeight }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST)),
                 ]);
             }
             catch (error) {
                 if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
                     throw error;
-                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+                await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
             }
         }
-        throw new Error('Max retries exceeded');
+        throw new Error("Max retries exceeded");
     }
     validateHeaders(headers) {
         try {
             if (!headers?.length) {
-                shared_1.Logger.warn('Empty headers array received for validation');
+                shared_1.Logger.warn("Empty headers array received for validation");
                 return false;
             }
             // Validate first header connects to our chain
@@ -617,7 +628,7 @@ class BlockchainSync {
             return true;
         }
         catch (error) {
-            shared_1.Logger.error('Header validation failed:', error);
+            shared_1.Logger.error("Header validation failed:", error);
             return false;
         }
     }
@@ -626,22 +637,22 @@ class BlockchainSync {
             try {
                 return await Promise.race([
                     peer.request(peer_model_1.PeerMessageType.GET_BLOCK, { height }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST))
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST)),
                 ]);
             }
             catch (error) {
                 if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
                     throw error;
-                await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+                await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
             }
         }
-        throw new Error('Max retries exceeded');
+        throw new Error("Max retries exceeded");
     }
-    getVerificationProgress() {
+    async getVerificationProgress() {
         if (this.state !== SyncState.SYNCING)
             return 1;
         const currentHeight = this.blockchain.getCurrentHeight();
-        const targetHeight = this.syncingPeer?.getInfo().height || currentHeight;
+        const targetHeight = (await this.syncingPeer?.getInfo()).height || currentHeight;
         return targetHeight ? currentHeight / targetHeight : 1;
     }
     isInitialBlockDownload() {
@@ -658,16 +669,16 @@ BlockchainSync.SYNC_TIMEOUTS = {
     BLOCK_REQUEST: 30000,
     VOTE_REQUEST: 15000,
     PEER_SELECTION: 10000,
-    SYNC_INTERVAL: 300000 // 5m between sync checks
+    SYNC_INTERVAL: 300000, // 5m between sync checks
 };
 BlockchainSync.MAX_RETRIES = {
     BLOCK_REQUEST: 3,
     VOTE_REQUEST: 2,
-    PEER_SELECTION: 3
+    PEER_SELECTION: 3,
 };
 BlockchainSync.BATCH_SIZES = {
     BLOCKS: 50,
-    VOTES: 100 // Process 100 votes per batch
+    VOTES: 100, // Process 100 votes per batch
 };
 BlockchainSync.SYNC_PARAMETERS = {
     HEADERS_BATCH_SIZE: 2000,

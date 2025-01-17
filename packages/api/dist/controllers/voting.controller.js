@@ -24,7 +24,7 @@ let VotingController = class VotingController {
             return { success: true, voteId: result };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to submit vote:', error);
+            shared_1.Logger.error("Failed to submit vote:", error);
             throw new common_1.HttpException(`Failed to submit vote: ${error.message}`, common_1.HttpStatus.BAD_REQUEST);
         }
     }
@@ -33,7 +33,7 @@ let VotingController = class VotingController {
             return await this.votingService.getVotingMetrics();
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get voting metrics:', error);
+            shared_1.Logger.error("Failed to get voting metrics:", error);
             throw new common_1.HttpException(`Failed to get voting metrics: ${error.message}`, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -42,7 +42,7 @@ let VotingController = class VotingController {
             return await this.votingService.getCurrentPeriod();
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get current period:', error);
+            shared_1.Logger.error("Failed to get current period:", error);
             throw new common_1.HttpException(`Failed to get current period: ${error.message}`, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
@@ -51,56 +51,56 @@ let VotingController = class VotingController {
             return await this.votingService.getVotesByAddress(address);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get votes:', error);
+            shared_1.Logger.error("Failed to get votes:", error);
             throw new common_1.HttpException(`Failed to get votes: ${error.message}`, common_1.HttpStatus.NOT_FOUND);
         }
     }
 };
 exports.VotingController = VotingController;
 __decorate([
-    (0, common_1.Post)('vote'),
-    (0, swagger_1.ApiOperation)({ summary: 'Submit a vote' }),
+    (0, common_1.Post)("vote"),
+    (0, swagger_1.ApiOperation)({ summary: "Submit a vote" }),
     (0, swagger_1.ApiResponse)({
         status: 201,
-        description: 'Vote submitted successfully',
+        description: "Vote submitted successfully",
         schema: {
             properties: {
-                success: { type: 'boolean' },
-                voteId: { type: 'string' }
-            }
-        }
+                success: { type: "boolean" },
+                voteId: { type: "string" },
+            },
+        },
     }),
     __param(0, (0, common_1.Body)())
 ], VotingController.prototype, "submitVote", null);
 __decorate([
-    (0, common_1.Get)('metrics'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get voting metrics' }),
+    (0, common_1.Get)("metrics"),
+    (0, swagger_1.ApiOperation)({ summary: "Get voting metrics" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Voting metrics retrieved successfully',
-        type: voting_dto_1.VotingMetricsDto
+        description: "Voting metrics retrieved successfully",
+        type: voting_dto_1.VotingMetricsDto,
     })
 ], VotingController.prototype, "getMetrics", null);
 __decorate([
-    (0, common_1.Get)('period/current'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get current voting period' }),
+    (0, common_1.Get)("period/current"),
+    (0, swagger_1.ApiOperation)({ summary: "Get current voting period" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Current voting period retrieved successfully'
+        description: "Current voting period retrieved successfully",
     })
 ], VotingController.prototype, "getCurrentPeriod", null);
 __decorate([
-    (0, common_1.Get)('votes/:address'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get votes by address' }),
+    (0, common_1.Get)("votes/:address"),
+    (0, swagger_1.ApiOperation)({ summary: "Get votes by address" }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Votes retrieved successfully',
-        type: [voting_dto_1.VoteDto]
+        description: "Votes retrieved successfully",
+        type: [voting_dto_1.VoteDto],
     }),
-    __param(0, (0, common_1.Param)('address'))
+    __param(0, (0, common_1.Param)("address"))
 ], VotingController.prototype, "getVotesByAddress", null);
 exports.VotingController = VotingController = __decorate([
-    (0, swagger_1.ApiTags)('Voting'),
-    (0, common_1.Controller)('voting')
+    (0, swagger_1.ApiTags)("Voting"),
+    (0, common_1.Controller)("voting")
 ], VotingController);
 //# sourceMappingURL=voting.controller.js.map

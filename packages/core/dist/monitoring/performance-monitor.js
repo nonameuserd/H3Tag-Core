@@ -15,7 +15,7 @@ class PerformanceMonitor {
         const markerId = `${this.context}_${operation}_${Date.now()}`;
         this.metrics.set(markerId, {
             startTime: performance.now(),
-            measurements: []
+            measurements: [],
         });
         return markerId;
     }
@@ -27,11 +27,11 @@ class PerformanceMonitor {
                 return;
             }
             const duration = performance.now() - metric.startTime;
-            const [context, operation] = markerId.split('_');
+            const [context, operation] = markerId.split("_");
             // Record metric using the new PerformanceMetrics class
             await this.metricsClient.recordMetric(operation, duration, {
                 context: this.context,
-                markerId
+                markerId,
             });
             // Store measurement
             metric.measurements.push(duration);
@@ -44,12 +44,12 @@ class PerformanceMonitor {
             await this.metricsClient.recordMetric(`${context}_duration`, duration, {
                 context: this.context,
                 operation,
-                unit: 'ms'
+                unit: "ms",
             });
             await this.metricsClient.recordMetric(`${context}_duration_avg`, stats.average, {
                 context: this.context,
                 operation,
-                unit: 'ms'
+                unit: "ms",
             });
             // Performance alerts
             if (duration > this.ALERT_THRESHOLD_MS) {
@@ -58,14 +58,14 @@ class PerformanceMonitor {
                     operation,
                     duration,
                     threshold: this.ALERT_THRESHOLD_MS,
-                    stats
+                    stats,
                 });
             }
             // Cleanup
             this.metrics.delete(markerId);
         }
         catch (error) {
-            shared_1.Logger.error('Error in performance monitoring:', error);
+            shared_1.Logger.error("Error in performance monitoring:", error);
         }
     }
     calculateStats(measurements) {
@@ -77,20 +77,20 @@ class PerformanceMonitor {
             p99: sorted[Math.floor(sorted.length * 0.99)],
             min: sorted[0],
             max: sorted[sorted.length - 1],
-            samples: measurements.length
+            samples: measurements.length,
         };
     }
     getMetrics(operation) {
         const metrics = {};
         for (const [markerId, data] of this.metrics.entries()) {
-            const [context, op] = markerId.split('_');
+            const [context, op] = markerId.split("_");
             if (!operation || op === operation) {
                 const stats = this.calculateStats(data.measurements);
                 metrics[op] = {
                     current: performance.now() - data.startTime,
                     average: stats.average,
                     p95: stats.p95,
-                    p99: stats.p99
+                    p99: stats.p99,
                 };
             }
         }
@@ -106,7 +106,7 @@ class PerformanceMonitor {
             // Additional cleanup if needed
         }
         catch (error) {
-            shared_1.Logger.error('Failed to dispose PerformanceMonitor:', error);
+            shared_1.Logger.error("Failed to dispose PerformanceMonitor:", error);
         }
     }
 }

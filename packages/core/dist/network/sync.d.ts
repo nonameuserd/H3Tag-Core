@@ -91,6 +91,6 @@ export declare class BlockchainSync {
     private requestHeadersWithRetry;
     private validateHeaders;
     private requestBlockWithRetry;
-    getVerificationProgress(): number;
+    getVerificationProgress(): Promise<number>;
     isInitialBlockDownload(): boolean;
 }

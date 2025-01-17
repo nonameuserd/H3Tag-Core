@@ -13,14 +13,13 @@ class ValidatorSet {
             throw new Error("Invalid validator data");
         }
         const validatorData = `${validator.id}:${validator.publicKey}:${validator.lastActive}:${validator.reputation}`;
-        const validators = Array.from(this.validators.values())
-            .map(v => `${v.id}:${v.publicKey}:${v.lastActive}:${v.reputation}`);
+        const validators = Array.from(this.validators.values()).map((v) => `${v.id}:${v.publicKey}:${v.lastActive}:${v.reputation}`);
         validators.push(validatorData);
         const merkleRoot = await this.merkleTree.createRoot(validators);
         const proof = await this.merkleTree.generateProof(validators.length - 1);
         this.validators.set(validator.id, {
             ...validator,
-            merkleProof: proof
+            merkleProof: proof,
         });
     }
     async verifyValidator(validator, merkleRoot) {
@@ -41,7 +40,7 @@ class ValidatorSet {
             this.validators.clear();
         }
         catch (error) {
-            shared_1.Logger.error('ValidatorSet cleanup failed:', error);
+            shared_1.Logger.error("ValidatorSet cleanup failed:", error);
         }
     }
 }

@@ -64,8 +64,8 @@ class KeyManager {
      */
     static async validateKeyPair(keyPair) {
         try {
-            return (await this.validateKey(keyPair.publicKey) &&
-                await this.validateKey(keyPair.privateKey));
+            return ((await this.validateKey(keyPair.publicKey)) &&
+                (await this.validateKey(keyPair.privateKey)));
         }
         catch (error) {
             shared_1.Logger.error("Key pair validation failed:", error);
@@ -76,8 +76,9 @@ class KeyManager {
      * Validate an individual key
      */
     static async validateKey(key) {
-        const keyString = typeof key === 'function' ? await key() : key;
-        return typeof keyString === 'string' && keyString.length >= this.MIN_ENTROPY_LENGTH;
+        const keyString = typeof key === "function" ? await key() : key;
+        return (typeof keyString === "string" &&
+            keyString.length >= this.MIN_ENTROPY_LENGTH);
     }
     /**
      * Serialize a key pair to string
@@ -115,7 +116,7 @@ class KeyManager {
         const address = await this.deriveAddress(keyPair.publicKey);
         return {
             ...keyPair,
-            address
+            address,
         };
     }
     static async rotateKeyPair(oldKeyPair) {
@@ -125,19 +126,25 @@ class KeyManager {
     }
     static async deriveAddress(publicKey) {
         try {
-            const pubKey = typeof publicKey === 'function' ? await publicKey() : publicKey;
+            const pubKey = typeof publicKey === "function" ? await publicKey() : publicKey;
             const quantumKeys = await quantum_wrapper_1.QuantumWrapper.generateKeyPair();
             const combined = await hybrid_1.HybridCrypto.deriveAddress({
-                address: pubKey + quantumKeys.publicKey.address
+                address: pubKey + quantumKeys.publicKey.address,
             });
             const hash = await quantum_wrapper_1.QuantumWrapper.hashData(Buffer.from(combined));
             // Bitcoin-style address generation with quantum protection
-            const ripemd160Hash = hash_1.HashUtils.ripemd160(hash_1.HashUtils.sha256(hash.toString('hex')));
-            const versionedHash = Buffer.concat([Buffer.from([0x00]), Buffer.from(ripemd160Hash, 'hex')]);
+            const ripemd160Hash = hash_1.HashUtils.ripemd160(hash_1.HashUtils.sha256(hash.toString("hex")));
+            const versionedHash = Buffer.concat([
+                Buffer.from([0x00]),
+                Buffer.from(ripemd160Hash, "hex"),
+            ]);
             // Double SHA256 for checksum
-            const checksum = hash_1.HashUtils.sha256(hash_1.HashUtils.sha256(versionedHash.toString('hex'))).slice(0, 8);
+            const checksum = hash_1.HashUtils.sha256(hash_1.HashUtils.sha256(versionedHash.toString("hex"))).slice(0, 8);
             // Combine and convert to base58
-            const finalBinary = Buffer.concat([versionedHash, Buffer.from(checksum, 'hex')]);
+            const finalBinary = Buffer.concat([
+                versionedHash,
+                Buffer.from(checksum, "hex"),
+            ]);
             return hash_1.HashUtils.toBase58(finalBinary);
         }
         catch (error) {
@@ -158,7 +165,7 @@ class KeyManager {
             const decoded = hash_1.HashUtils.fromBase58(address);
             // Extract the public key hash (remove version byte and checksum)
             const pubKeyHash = decoded.slice(1, -4);
-            return pubKeyHash.toString('hex');
+            return pubKeyHash.toString("hex");
         }
         catch (error) {
             shared_1.Logger.error("Failed to convert address to hash:", error);

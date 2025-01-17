@@ -20,7 +20,7 @@ var OpCode;
     OpCode[OpCode["OP_0"] = 0] = "OP_0";
     // Size prefixes
     OpCode[OpCode["PUSH_20"] = 20] = "PUSH_20";
-    OpCode[OpCode["PUSH_32"] = 32] = "PUSH_32"; // Push 32 bytes
+    OpCode[OpCode["PUSH_32"] = 32] = "PUSH_32";
 })(OpCode || (OpCode = {}));
 class UTXOError extends Error {
     constructor(message) {
@@ -50,7 +50,7 @@ class UTXOSet {
         this.addressIndex = new Map();
         this.verificationCache = new Map();
         this.mutex = new async_mutex_1.Mutex();
-        this.merkleRoot = '';
+        this.merkleRoot = "";
         this.cache = new Map();
         this.utxos = new Map();
         this.merkleTree = new merkle_1.MerkleTree();
@@ -58,12 +58,12 @@ class UTXOSet {
     }
     async createUtxoMerkleRoot() {
         try {
-            const utxoData = Array.from(this.utxos.values()).map(utxo => `${utxo.txId}:${utxo.outputIndex}:${utxo.amount}:${utxo.address}`);
+            const utxoData = Array.from(this.utxos.values()).map((utxo) => `${utxo.txId}:${utxo.outputIndex}:${utxo.amount}:${utxo.address}`);
             return await this.merkleTree.createRoot(utxoData);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to create UTXO merkle root:', error);
-            throw new UTXOError('Failed to create merkle root');
+            shared_1.Logger.error("Failed to create UTXO merkle root:", error);
+            throw new UTXOError("Failed to create merkle root");
         }
     }
     async add(utxo) {
@@ -88,8 +88,8 @@ class UTXOSet {
                 currency: {
                     name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                     symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                    decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
-                }
+                    decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
+                },
             });
             this.utxos.set(this.getUtxoKey(utxo), signedUtxo);
             this.eventEmitter.emit("utxo_added", signedUtxo);
@@ -151,7 +151,9 @@ class UTXOSet {
             }
             // Verify merkle proof
             const utxoData = `${utxo.txId}:${utxo.outputIndex}:${utxo.amount}:${utxo.address}`;
-            const isValidMerkle = await this.merkleTree.verify(utxo.merkleRoot, [utxoData]);
+            const isValidMerkle = await this.merkleTree.verify(utxo.merkleRoot, [
+                utxoData,
+            ]);
             if (!isValidMerkle)
                 return false;
             // Verify signatures
@@ -327,25 +329,48 @@ class UTXOSet {
                 { field: "timestamp", type: "number", minValue: 1 },
                 { field: "spent", type: "boolean" },
                 { field: "currency", type: "object" },
-                { field: "currency.name", type: "string", value: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME },
-                { field: "currency.symbol", type: "string", value: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL },
-                { field: "currency.decimals", type: "number", value: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS },
+                {
+                    field: "currency.name",
+                    type: "string",
+                    value: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
+                },
+                {
+                    field: "currency.symbol",
+                    type: "string",
+                    value: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
+                },
+                {
+                    field: "currency.decimals",
+                    type: "number",
+                    value: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
+                },
             ];
             return validations.every(({ field, type, minLength, minValue, value: expectedValue }) => {
                 const value = utxo[field];
                 if (typeof value !== type)
                     return false;
-                if (minLength && typeof value === "string" && value.length < minLength)
+                if (minLength &&
+                    typeof value === "string" &&
+                    value.length < minLength)
                     return false;
                 if (minValue && typeof value === "number" && value < minValue)
                     return false;
                 if (minValue && typeof value === "bigint" && value < minValue)
                     return false;
-                if (value && typeof value === "object" && 'name' in value && value.name !== constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME)
+                if (value &&
+                    typeof value === "object" &&
+                    "name" in value &&
+                    value.name !== constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME)
                     return false;
-                if (value && typeof value === "object" && 'symbol' in value && value.symbol !== constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL)
+                if (value &&
+                    typeof value === "object" &&
+                    "symbol" in value &&
+                    value.symbol !== constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL)
                     return false;
-                if (value && typeof value === "object" && 'decimals' in value && value.decimals !== constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS)
+                if (value &&
+                    typeof value === "object" &&
+                    "decimals" in value &&
+                    value.decimals !== constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS)
                     return false;
                 return true;
             });
@@ -396,7 +421,7 @@ class UTXOSet {
                 outputIndex: index,
                 amount: output.amount,
                 address: output.address,
-                publicKey: tx.sender // or tx.publicKey, depending on your Transaction interface
+                publicKey: tx.sender, // or tx.publicKey, depending on your Transaction interface
             })));
             // Add UTXOs in batch
             await Promise.all(newUtxos.map((utxo) => this.addUTXO(utxo)));
@@ -434,7 +459,7 @@ class UTXOSet {
                 currency: {
                     name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                     symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                    decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
+                    decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                 },
                 publicKey: utxo.publicKey,
                 confirmations: 0,
@@ -466,29 +491,29 @@ class UTXOSet {
                         OpCode.OP_DUP,
                         OpCode.OP_HASH160,
                         OpCode.PUSH_20,
-                        ...Buffer.from(pubKeyHash, 'hex'),
+                        ...Buffer.from(pubKeyHash, "hex"),
                         OpCode.OP_EQUALVERIFY,
-                        OpCode.OP_CHECKSIG
-                    ]).toString('hex');
+                        OpCode.OP_CHECKSIG,
+                    ]).toString("hex");
                 case ScriptType.P2SH:
                     return Buffer.from([
                         OpCode.OP_HASH160,
                         OpCode.PUSH_20,
-                        ...Buffer.from(pubKeyHash, 'hex'),
-                        OpCode.OP_EQUAL
-                    ]).toString('hex');
+                        ...Buffer.from(pubKeyHash, "hex"),
+                        OpCode.OP_EQUAL,
+                    ]).toString("hex");
                 case ScriptType.P2WPKH:
                     return Buffer.from([
                         OpCode.OP_0,
                         OpCode.PUSH_20,
-                        ...Buffer.from(pubKeyHash, 'hex')
-                    ]).toString('hex');
+                        ...Buffer.from(pubKeyHash, "hex"),
+                    ]).toString("hex");
                 case ScriptType.P2WSH:
                     return Buffer.from([
                         OpCode.OP_0,
                         OpCode.PUSH_32,
-                        ...Buffer.from(pubKeyHash, 'hex')
-                    ]).toString('hex');
+                        ...Buffer.from(pubKeyHash, "hex"),
+                    ]).toString("hex");
                 default:
                     throw new UTXOError("Unsupported address type");
             }
@@ -594,31 +619,31 @@ class UTXOSet {
                 outputIndex: utxo.outputIndex,
                 amount: utxo.amount.toString(),
                 address: utxo.address,
-                timestamp: utxo.timestamp
+                timestamp: utxo.timestamp,
             }));
             // Run verifications in parallel
             const [isValidSignature] = await Promise.all([
-                crypto_1.HybridCrypto.verify(data.toString(), JSON.parse(utxo.signature), JSON.parse(utxo.publicKey))
+                crypto_1.HybridCrypto.verify(data.toString(), JSON.parse(utxo.signature), JSON.parse(utxo.publicKey)),
             ]);
             const result = isValidSignature;
             this.verificationCache.set(cacheKey, result);
             return result;
         }
         catch (error) {
-            shared_1.Logger.error('UTXO signature verification failed:', error);
+            shared_1.Logger.error("UTXO signature verification failed:", error);
             return false;
         }
     }
     async verifyBatch(utxos) {
         return Promise.all(utxos
-            .map(utxo => this.verifyWithTimeout(utxo))
-            .map(p => p.catch(() => false)));
+            .map((utxo) => this.verifyWithTimeout(utxo))
+            .map((p) => p.catch(() => false)));
     }
     async verifyWithTimeout(utxo) {
         try {
             return await Promise.race([
                 this.verifySignatures(utxo),
-                new Promise((_, reject) => setTimeout(() => reject('Verification timeout'), UTXOSet.VERIFICATION_TIMEOUT))
+                new Promise((_, reject) => setTimeout(() => reject("Verification timeout"), UTXOSet.VERIFICATION_TIMEOUT)),
             ]);
         }
         catch {
@@ -645,7 +670,7 @@ class UTXOSet {
             for (const input of tx.inputs) {
                 const utxo = await this.get(input.txId, input.outputIndex);
                 if (utxo) {
-                    changes.push({ type: 'unspend', utxo: { ...utxo } });
+                    changes.push({ type: "unspend", utxo: { ...utxo } });
                     utxo.spent = false;
                     await this.set(input.txId, input.outputIndex, utxo);
                     this.removeFromIndex(utxo); // Update indexes
@@ -664,12 +689,12 @@ class UTXOSet {
                     currency: {
                         name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                         symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                        decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
+                        decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                     },
                     publicKey: tx.outputs[i].publicKey,
-                    confirmations: 0
+                    confirmations: 0,
                 };
-                changes.push({ type: 'remove', utxo });
+                changes.push({ type: "remove", utxo });
                 await this.remove(utxo);
                 this.removeFromIndex(utxo);
             }
@@ -678,25 +703,25 @@ class UTXOSet {
             // Commit changes
             await this.db.commitTransaction();
             // Emit events
-            this.eventEmitter.emit('transaction_reverted', {
+            this.eventEmitter.emit("transaction_reverted", {
                 txId: tx.id,
                 timestamp: Date.now(),
-                changes
+                changes,
             });
-            shared_1.Logger.info('Transaction reverted successfully', {
+            shared_1.Logger.info("Transaction reverted successfully", {
                 txId: tx.id,
                 inputCount: tx.inputs.length,
-                outputCount: tx.outputs.length
+                outputCount: tx.outputs.length,
             });
         }
         catch (error) {
             // Rollback on failure
             await this.db.rollbackTransaction();
-            shared_1.Logger.error('Failed to revert transaction:', {
+            shared_1.Logger.error("Failed to revert transaction:", {
                 error,
-                txId: tx.id
+                txId: tx.id,
             });
-            throw new UTXOError(`Failed to revert transaction ${tx.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new UTXOError(`Failed to revert transaction ${tx.id}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
         finally {
             release();
@@ -753,10 +778,10 @@ class UTXOSet {
                     currency: {
                         name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                         symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-                        decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
+                        decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                     },
                     publicKey: output.publicKey,
-                    confirmations: 0
+                    confirmations: 0,
                 });
             }
             return true;
@@ -772,18 +797,18 @@ class UTXOSet {
     }
     async updateMerkleTree() {
         try {
-            const utxoData = Array.from(this.utxos.values()).map(utxo => JSON.stringify({
+            const utxoData = Array.from(this.utxos.values()).map((utxo) => JSON.stringify({
                 txId: utxo.txId,
                 outputIndex: utxo.outputIndex,
                 amount: utxo.amount.toString(),
-                address: utxo.address
+                address: utxo.address,
             }));
             this.merkleRoot = await this.merkleTree.createRoot(utxoData);
-            shared_1.Logger.debug('Updated UTXO merkle tree', { root: this.merkleRoot });
+            shared_1.Logger.debug("Updated UTXO merkle tree", { root: this.merkleRoot });
         }
         catch (error) {
-            shared_1.Logger.error('Failed to update merkle tree:', error);
-            throw new UTXOError('Failed to update merkle tree');
+            shared_1.Logger.error("Failed to update merkle tree:", error);
+            throw new UTXOError("Failed to update merkle tree");
         }
     }
     cleanupCache() {
@@ -797,8 +822,8 @@ class UTXOSet {
             await this.revertTransaction(tx);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to rollback transaction:', error);
-            throw new UTXOError('Rollback failed');
+            shared_1.Logger.error("Failed to rollback transaction:", error);
+            throw new UTXOError("Rollback failed");
         }
     }
     async findUtxosForVoting(address) {
@@ -810,29 +835,30 @@ class UTXOSet {
             if (cached)
                 return cached;
             // Find eligible UTXOs
-            const utxos = Array.from(this.utxos.values()).filter(utxo => {
+            const utxos = Array.from(this.utxos.values()).filter((utxo) => {
                 const meetsMinAmount = utxo.amount >= constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTING_POWER;
                 const isUnspent = !utxo.spent;
                 const isCorrectAddress = utxo.address === address;
-                const isMatured = Date.now() - utxo.timestamp >= constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MATURITY_PERIOD;
+                const isMatured = Date.now() - utxo.timestamp >=
+                    constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MATURITY_PERIOD;
                 return meetsMinAmount && isUnspent && isCorrectAddress && isMatured;
             });
             // Verify UTXOs in parallel
-            const verificationResults = await Promise.all(utxos.map(utxo => this.verifyUtxo(utxo)));
+            const verificationResults = await Promise.all(utxos.map((utxo) => this.verifyUtxo(utxo)));
             const validUtxos = utxos.filter((_, index) => verificationResults[index]);
             // Cache results
             this.cache.set(cacheKey, validUtxos);
-            shared_1.Logger.debug('Found voting UTXOs', {
+            shared_1.Logger.debug("Found voting UTXOs", {
                 address,
                 count: validUtxos.length,
-                totalAmount: validUtxos.reduce((sum, utxo) => sum + utxo.amount, BigInt(0))
+                totalAmount: validUtxos.reduce((sum, utxo) => sum + utxo.amount, BigInt(0)),
             });
             return validUtxos;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to find voting UTXOs:', {
+            shared_1.Logger.error("Failed to find voting UTXOs:", {
                 error,
-                address
+                address,
             });
             return [];
         }
@@ -852,8 +878,8 @@ class UTXOSet {
                     // Ensure amount is within safe bounds for sqrt calculation
                     const amount = Number(utxo.amount);
                     if (amount > Number.MAX_SAFE_INTEGER) {
-                        shared_1.Logger.warn('UTXO amount exceeds safe calculation limit', {
-                            amount: utxo.amount.toString()
+                        shared_1.Logger.warn("UTXO amount exceeds safe calculation limit", {
+                            amount: utxo.amount.toString(),
                         });
                         return power;
                     }
@@ -861,9 +887,9 @@ class UTXOSet {
                     return power + sqrt;
                 }
                 catch (error) {
-                    shared_1.Logger.error('Error calculating individual UTXO power:', {
+                    shared_1.Logger.error("Error calculating individual UTXO power:", {
                         error,
-                        utxo: utxo.txId
+                        utxo: utxo.txId,
                     });
                     return power;
                 }
@@ -872,15 +898,15 @@ class UTXOSet {
             const cappedPower = totalPower > constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTING_POWER
                 ? constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTING_POWER
                 : totalPower;
-            shared_1.Logger.debug('Calculated voting power', {
+            shared_1.Logger.debug("Calculated voting power", {
                 utxoCount: utxos.length,
                 totalPower: totalPower.toString(),
-                cappedPower: cappedPower.toString()
+                cappedPower: cappedPower.toString(),
             });
             return cappedPower;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to calculate voting power:', error);
+            shared_1.Logger.error("Failed to calculate voting power:", error);
             return BigInt(0);
         }
     }
@@ -909,12 +935,13 @@ class UTXOSet {
                 }
             }
             // Apply filters
-            utxos = utxos.filter(utxo => {
+            utxos = utxos.filter((utxo) => {
                 if (options.minAmount && utxo.amount < options.minAmount)
                     return false;
                 if (options.maxAmount && utxo.amount > options.maxAmount)
                     return false;
-                if (options.minConfirmations && utxo.confirmations < options.minConfirmations)
+                if (options.minConfirmations &&
+                    utxo.confirmations < options.minConfirmations)
                     return false;
                 return true;
             });
@@ -957,7 +984,7 @@ class UTXOSet {
             return true;
         }
         catch (error) {
-            shared_1.Logger.error('Error checking UTXO safety:', error);
+            shared_1.Logger.error("Error checking UTXO safety:", error);
             return false;
         }
     }
@@ -969,22 +996,22 @@ class UTXOSet {
     isStandardScript(script) {
         try {
             // Check for standard script patterns
-            return Object.values(ScriptType).some(type => {
+            return Object.values(ScriptType).some((type) => {
                 switch (type) {
                     case ScriptType.P2PKH:
-                        return script.startsWith('OP_DUP OP_HASH160');
+                        return script.startsWith("OP_DUP OP_HASH160");
                     case ScriptType.P2SH:
-                        return script.startsWith('OP_HASH160');
+                        return script.startsWith("OP_HASH160");
                     case ScriptType.P2WPKH:
                     case ScriptType.P2WSH:
-                        return script.startsWith('OP_0');
+                        return script.startsWith("OP_0");
                     default:
                         return false;
                 }
             });
         }
         catch (error) {
-            shared_1.Logger.error('Error checking script standardness:', error);
+            shared_1.Logger.error("Error checking script standardness:", error);
             return false;
         }
     }
@@ -1012,7 +1039,7 @@ class UTXOSet {
             const isCoinbase = await this.isCoinbaseTransaction(txId);
             // If it's a coinbase, check maturity
             if (isCoinbase && !(await this.isCoinbaseMature(txId))) {
-                shared_1.Logger.debug('Immature coinbase transaction', { txId });
+                shared_1.Logger.debug("Immature coinbase transaction", { txId });
                 return null;
             }
             // Get the block information
@@ -1020,34 +1047,34 @@ class UTXOSet {
             // Parse the script
             const scriptInfo = this.parseScript(utxo.script);
             const txOutInfo = {
-                bestblock: blockInfo?.hash || '',
+                bestblock: blockInfo?.hash || "",
                 confirmations: utxo.confirmations || 0,
                 amount: utxo.amount,
                 scriptPubKey: {
                     asm: scriptInfo.asm,
                     hex: scriptInfo.hex,
                     type: scriptInfo.type,
-                    address: utxo.address
+                    address: utxo.address,
                 },
                 coinbase: isCoinbase,
-                timestamp: utxo.timestamp
+                timestamp: utxo.timestamp,
             };
-            shared_1.Logger.debug('Retrieved UTXO information', {
+            shared_1.Logger.debug("Retrieved UTXO information", {
                 txId,
                 outputIndex: n,
                 amount: utxo.amount.toString(),
                 confirmations: txOutInfo.confirmations,
-                isCoinbase
+                isCoinbase,
             });
             return txOutInfo;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get transaction output:', {
+            shared_1.Logger.error("Failed to get transaction output:", {
                 error,
                 txId,
-                outputIndex: n
+                outputIndex: n,
             });
-            throw new UTXOError(`Failed to get transaction output: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new UTXOError(`Failed to get transaction output: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
         finally {
             release();
@@ -1061,30 +1088,30 @@ class UTXOSet {
     parseScript(script) {
         try {
             // Convert script to hex
-            const hex = Buffer.from(script).toString('hex');
+            const hex = Buffer.from(script).toString("hex");
             // Determine script type
-            let type = 'nonstandard';
-            if (script.startsWith('OP_DUP OP_HASH160')) {
-                type = 'pubkeyhash';
+            let type = "nonstandard";
+            if (script.startsWith("OP_DUP OP_HASH160")) {
+                type = "pubkeyhash";
             }
-            else if (script.startsWith('OP_HASH160')) {
-                type = 'scripthash';
+            else if (script.startsWith("OP_HASH160")) {
+                type = "scripthash";
             }
-            else if (script.startsWith('OP_0')) {
-                type = 'witness_v0_keyhash';
+            else if (script.startsWith("OP_0")) {
+                type = "witness_v0_keyhash";
             }
             return {
                 asm: script,
                 hex: hex,
-                type: type // The type of script
+                type: type, // The type of script
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to parse script:', error);
+            shared_1.Logger.error("Failed to parse script:", error);
             return {
-                asm: '',
-                hex: '',
-                type: 'nonstandard'
+                asm: "",
+                hex: "",
+                type: "nonstandard",
             };
         }
     }
@@ -1117,17 +1144,18 @@ class UTXOSet {
             }
             const input = transaction.inputs[0];
             // Check for null input (all zeros) and specific vout index
-            const isNullInput = input.txId === '0000000000000000000000000000000000000000000000000000000000000000';
-            const hasMaxVout = input.outputIndex === 0xFFFFFFFF;
+            const isNullInput = input.txId ===
+                "0000000000000000000000000000000000000000000000000000000000000000";
+            const hasMaxVout = input.outputIndex === 0xffffffff;
             // Verify coinbase script length (2-100 bytes as per BIP34)
-            const scriptLength = Buffer.from(input.script, 'hex').length;
+            const scriptLength = Buffer.from(input.script, "hex").length;
             const hasValidScriptLength = scriptLength >= 2 && scriptLength <= 100;
             return isNullInput && hasMaxVout && hasValidScriptLength;
         }
         catch (error) {
-            shared_1.Logger.error('Error checking coinbase transaction:', {
+            shared_1.Logger.error("Error checking coinbase transaction:", {
                 error,
-                txId
+                txId,
             });
             return false;
         }
@@ -1151,9 +1179,9 @@ class UTXOSet {
             return confirmations >= constants_1.BLOCKCHAIN_CONSTANTS.COINBASE_MATURITY;
         }
         catch (error) {
-            shared_1.Logger.error('Error checking coinbase maturity:', {
+            shared_1.Logger.error("Error checking coinbase maturity:", {
                 error,
-                txId
+                txId,
             });
             return false;
         }

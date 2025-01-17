@@ -23,7 +23,7 @@ let NodeController = class NodeController {
             return await this.nodeService.createNode({
                 ...createNodeDto,
                 networkType: shared_1.NetworkType.TESTNET,
-                port: createNodeDto.port || 4000
+                port: createNodeDto.port || 4000,
             });
         }
         catch (error) {
@@ -35,7 +35,7 @@ let NodeController = class NodeController {
             return await this.nodeService.createNode({
                 ...createNodeDto,
                 networkType: shared_1.NetworkType.MAINNET,
-                port: createNodeDto.port || 3000
+                port: createNodeDto.port || 3000,
             });
         }
         catch (error) {
@@ -54,9 +54,9 @@ let NodeController = class NodeController {
         try {
             const success = await this.nodeService.stopNode(nodeId);
             if (success) {
-                return { status: 'stopped', nodeId };
+                return { status: "stopped", nodeId };
             }
-            throw new Error('Node not found');
+            throw new Error("Node not found");
         }
         catch (error) {
             throw new common_1.HttpException(`Failed to stop node: ${error.message}`, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
@@ -75,9 +75,9 @@ let NodeController = class NodeController {
             return await this.nodeService.discoverPeers(nodeId);
         }
         catch (error) {
-            throw new common_1.HttpException(error.message.includes('not found')
-                ? 'Node not found'
-                : `Failed to discover peers: ${error.message}`, error.message.includes('not found')
+            throw new common_1.HttpException(error.message.includes("not found")
+                ? "Node not found"
+                : `Failed to discover peers: ${error.message}`, error.message.includes("not found")
                 ? common_1.HttpStatus.NOT_FOUND
                 : common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
@@ -87,8 +87,8 @@ let NodeController = class NodeController {
             return await this.nodeService.connectToPeer(nodeId, connectPeerDto.address);
         }
         catch (error) {
-            if (error.message.includes('not found')) {
-                throw new common_1.HttpException('Node not found', common_1.HttpStatus.NOT_FOUND);
+            if (error.message.includes("not found")) {
+                throw new common_1.HttpException("Node not found", common_1.HttpStatus.NOT_FOUND);
             }
             throw new common_1.HttpException(`Failed to connect to peer: ${error.message}`, common_1.HttpStatus.BAD_REQUEST);
         }
@@ -96,181 +96,181 @@ let NodeController = class NodeController {
 };
 exports.NodeController = NodeController;
 __decorate([
-    (0, common_1.Post)('testnet'),
-    (0, swagger_1.ApiOperation)({ summary: 'Create a new TESTNET node' }),
+    (0, common_1.Post)("testnet"),
+    (0, swagger_1.ApiOperation)({ summary: "Create a new TESTNET node" }),
     (0, swagger_1.ApiResponse)({
         status: 201,
-        description: 'Node created successfully',
-        type: node_dto_1.NodeResponseDto
+        description: "Node created successfully",
+        type: node_dto_1.NodeResponseDto,
     }),
     (0, swagger_1.ApiResponse)({
         status: 500,
-        description: 'Failed to create node',
+        description: "Failed to create node",
         schema: {
             properties: {
-                message: { type: 'string' },
-                statusCode: { type: 'number' }
-            }
-        }
+                message: { type: "string" },
+                statusCode: { type: "number" },
+            },
+        },
     }),
     __param(0, (0, common_1.Body)())
 ], NodeController.prototype, "createTestnetNode", null);
 __decorate([
-    (0, common_1.Post)('mainnet'),
-    (0, swagger_1.ApiOperation)({ summary: 'Create a new MAINNET node' }),
+    (0, common_1.Post)("mainnet"),
+    (0, swagger_1.ApiOperation)({ summary: "Create a new MAINNET node" }),
     (0, swagger_1.ApiResponse)({
         status: 201,
-        description: 'Node created successfully',
-        type: node_dto_1.NodeResponseDto
+        description: "Node created successfully",
+        type: node_dto_1.NodeResponseDto,
     }),
     (0, swagger_1.ApiResponse)({
         status: 500,
-        description: 'Failed to create node',
+        description: "Failed to create node",
         schema: {
             properties: {
-                message: { type: 'string' },
-                statusCode: { type: 'number' }
-            }
-        }
+                message: { type: "string" },
+                statusCode: { type: "number" },
+            },
+        },
     }),
     __param(0, (0, common_1.Body)())
 ], NodeController.prototype, "createMainnetNode", null);
 __decorate([
-    (0, common_1.Get)(':nodeId/status'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get node status' }),
+    (0, common_1.Get)(":nodeId/status"),
+    (0, swagger_1.ApiOperation)({ summary: "Get node status" }),
     (0, swagger_1.ApiParam)({
-        name: 'nodeId',
-        description: 'Node identifier',
-        required: true
+        name: "nodeId",
+        description: "Node identifier",
+        required: true,
     }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Node status retrieved successfully',
-        type: node_dto_1.NodeStatusDto
+        description: "Node status retrieved successfully",
+        type: node_dto_1.NodeStatusDto,
     }),
     (0, swagger_1.ApiResponse)({
         status: 404,
-        description: 'Node not found'
+        description: "Node not found",
     }),
-    __param(0, (0, common_1.Param)('nodeId'))
+    __param(0, (0, common_1.Param)("nodeId"))
 ], NodeController.prototype, "getNodeStatus", null);
 __decorate([
-    (0, common_1.Post)(':nodeId/stop'),
-    (0, swagger_1.ApiOperation)({ summary: 'Stop a running node' }),
+    (0, common_1.Post)(":nodeId/stop"),
+    (0, swagger_1.ApiOperation)({ summary: "Stop a running node" }),
     (0, swagger_1.ApiParam)({
-        name: 'nodeId',
-        description: 'Node identifier',
-        required: true
+        name: "nodeId",
+        description: "Node identifier",
+        required: true,
     }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Node stopped successfully',
+        description: "Node stopped successfully",
         schema: {
-            type: 'object',
+            type: "object",
             properties: {
                 status: {
-                    type: 'string',
-                    example: 'stopped'
+                    type: "string",
+                    example: "stopped",
                 },
                 nodeId: {
-                    type: 'string'
-                }
-            }
-        }
+                    type: "string",
+                },
+            },
+        },
     }),
     (0, swagger_1.ApiResponse)({
         status: 404,
-        description: 'Node not found'
+        description: "Node not found",
     }),
     (0, swagger_1.ApiResponse)({
         status: 500,
-        description: 'Failed to stop node'
+        description: "Failed to stop node",
     }),
-    __param(0, (0, common_1.Param)('nodeId'))
+    __param(0, (0, common_1.Param)("nodeId"))
 ], NodeController.prototype, "stopNode", null);
 __decorate([
-    (0, common_1.Get)(':nodeId/validators'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get active validators for a node' }),
+    (0, common_1.Get)(":nodeId/validators"),
+    (0, swagger_1.ApiOperation)({ summary: "Get active validators for a node" }),
     (0, swagger_1.ApiParam)({
-        name: 'nodeId',
-        description: 'Node identifier',
-        required: true
+        name: "nodeId",
+        description: "Node identifier",
+        required: true,
     }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Active validators retrieved successfully',
+        description: "Active validators retrieved successfully",
         schema: {
-            type: 'array',
+            type: "array",
             items: {
-                type: 'object',
+                type: "object",
                 properties: {
                     address: {
-                        type: 'string',
-                        description: 'Validator address'
-                    }
-                }
-            }
-        }
+                        type: "string",
+                        description: "Validator address",
+                    },
+                },
+            },
+        },
     }),
     (0, swagger_1.ApiResponse)({
         status: 404,
-        description: 'Node not found'
+        description: "Node not found",
     }),
     (0, swagger_1.ApiResponse)({
         status: 500,
-        description: 'Failed to get validators'
+        description: "Failed to get validators",
     }),
-    __param(0, (0, common_1.Param)('nodeId'))
+    __param(0, (0, common_1.Param)("nodeId"))
 ], NodeController.prototype, "getActiveValidators", null);
 __decorate([
-    (0, common_1.Post)(':nodeId/discover-peers'),
-    (0, swagger_1.ApiOperation)({ summary: 'Trigger peer discovery for a node' }),
+    (0, common_1.Post)(":nodeId/discover-peers"),
+    (0, swagger_1.ApiOperation)({ summary: "Trigger peer discovery for a node" }),
     (0, swagger_1.ApiParam)({
-        name: 'nodeId',
-        description: 'Node identifier',
-        required: true
+        name: "nodeId",
+        description: "Node identifier",
+        required: true,
     }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Peer discovery completed successfully',
-        type: node_dto_1.PeerDiscoveryResponseDto
+        description: "Peer discovery completed successfully",
+        type: node_dto_1.PeerDiscoveryResponseDto,
     }),
     (0, swagger_1.ApiResponse)({
         status: 404,
-        description: 'Node not found'
+        description: "Node not found",
     }),
     (0, swagger_1.ApiResponse)({
         status: 500,
-        description: 'Failed to discover peers'
+        description: "Failed to discover peers",
     }),
-    __param(0, (0, common_1.Param)('nodeId'))
+    __param(0, (0, common_1.Param)("nodeId"))
 ], NodeController.prototype, "discoverPeers", null);
 __decorate([
-    (0, common_1.Post)(':nodeId/connect-peer'),
-    (0, swagger_1.ApiOperation)({ summary: 'Connect to a specific peer' }),
+    (0, common_1.Post)(":nodeId/connect-peer"),
+    (0, swagger_1.ApiOperation)({ summary: "Connect to a specific peer" }),
     (0, swagger_1.ApiParam)({
-        name: 'nodeId',
-        description: 'Node identifier',
-        required: true
+        name: "nodeId",
+        description: "Node identifier",
+        required: true,
     }),
     (0, swagger_1.ApiResponse)({
         status: 200,
-        description: 'Successfully connected to peer',
-        type: node_dto_1.PeerConnectionResponseDto
+        description: "Successfully connected to peer",
+        type: node_dto_1.PeerConnectionResponseDto,
     }),
     (0, swagger_1.ApiResponse)({
         status: 404,
-        description: 'Node not found'
+        description: "Node not found",
     }),
     (0, swagger_1.ApiResponse)({
         status: 400,
-        description: 'Invalid peer address or connection failed'
+        description: "Invalid peer address or connection failed",
     }),
-    __param(0, (0, common_1.Param)('nodeId')),
+    __param(0, (0, common_1.Param)("nodeId")),
     __param(1, (0, common_1.Body)())
 ], NodeController.prototype, "connectToPeer", null);
 exports.NodeController = NodeController = __decorate([
-    (0, swagger_1.ApiTags)('Nodes'),
-    (0, common_1.Controller)('nodes')
+    (0, swagger_1.ApiTags)("Nodes"),
+    (0, common_1.Controller)("nodes")
 ], NodeController);
 //# sourceMappingURL=node.controller.js.map

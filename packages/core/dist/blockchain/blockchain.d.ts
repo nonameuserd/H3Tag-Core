@@ -172,7 +172,7 @@ interface ChainTip {
     height: number;
     hash: string;
     branchLen: number;
-    status: 'active' | 'valid-fork' | 'valid-headers' | 'invalid';
+    status: "active" | "valid-fork" | "valid-headers" | "invalid";
     firstBlockHash?: string;
     lastValidatedAt?: number;
 }
@@ -256,7 +256,7 @@ export declare class Blockchain {
      */
     static create(config?: Partial<BlockchainConfig>): Promise<Blockchain>;
     /**
-    * Create the genesis block
+     * Create the genesis block
      */
     private createGenesisBlock;
     /**
@@ -576,7 +576,7 @@ export declare class Blockchain {
      * @returns Promise<ChainTip[]> Array of chain tips information
      */
     getChainTips(): Promise<ChainTip[]>;
-    getVerificationProgress(): number;
+    getVerificationProgress(): Promise<number>;
     getChainWork(): string;
     isInitialBlockDownload(): boolean;
     private calculateChainWork;

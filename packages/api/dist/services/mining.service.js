@@ -61,7 +61,7 @@ let MiningService = class MiningService {
             };
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get mining info:', error);
+            shared_1.Logger.error("Failed to get mining info:", error);
             throw error;
         }
     }
@@ -88,7 +88,7 @@ let MiningService = class MiningService {
             return pow.getNetworkHashPS();
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get network hash rate:', error);
+            shared_1.Logger.error("Failed to get network hash rate:", error);
             throw error;
         }
     }
@@ -126,14 +126,14 @@ let MiningService = class MiningService {
             previousHash: template.previousHash,
             timestamp: template.timestamp,
             difficulty: template.difficulty,
-            transactions: template.transactions.map(tx => this.mapTransactionToDto(tx)),
+            transactions: template.transactions.map((tx) => this.mapTransactionToDto(tx)),
             merkleRoot: template.merkleRoot,
             target: template.target,
             minTime: template.minTime,
             maxTime: template.maxTime,
             maxVersion: template.maxVersion,
             minVersion: template.minVersion,
-            defaultVersion: template.defaultVersion
+            defaultVersion: template.defaultVersion,
         };
     }
     /**
@@ -146,25 +146,25 @@ let MiningService = class MiningService {
             id: tx.id,
             fromAddress: tx.sender,
             toAddress: tx.recipient,
-            amount: tx.outputs[0]?.amount.toString() || '0',
+            amount: tx.outputs[0]?.amount.toString() || "0",
             timestamp: new Date(tx.timestamp).toISOString(),
             fee: tx.fee.toString(),
             type: tx.type,
             status: tx.status,
             hash: tx.hash,
-            inputs: tx.inputs.map(input => ({
+            inputs: tx.inputs.map((input) => ({
                 txId: input.txId,
                 outputIndex: input.outputIndex,
                 amount: input.amount.toString(),
-                address: input.address
+                address: input.address,
             })),
-            outputs: tx.outputs.map(output => ({
+            outputs: tx.outputs.map((output) => ({
                 address: output.address,
                 amount: output.amount.toString(),
-                index: output.index
+                index: output.index,
             })),
             confirmations: 0, // Template transactions are unconfirmed
-            blockHeight: undefined // Not yet in a block
+            blockHeight: undefined, // Not yet in a block
         };
     }
     async submitBlock(submitBlockDto) {
@@ -176,12 +176,11 @@ let MiningService = class MiningService {
             .setTimestamp(submitBlockDto.header.timestamp)
             .setDifficulty(submitBlockDto.header.difficulty)
             .setNonce(submitBlockDto.header.nonce)
-            .setTransactions(submitBlockDto.transactions))
-            .build(submitBlockDto.minerKeyPair);
+            .setTransactions(submitBlockDto.transactions)).build(submitBlockDto.minerKeyPair);
         // Submit block to PoW consensus
         const success = await this.pow.submitBlock(block);
         if (!success) {
-            throw new Error('Block submission failed');
+            throw new Error("Block submission failed");
         }
         return block.hash;
     }

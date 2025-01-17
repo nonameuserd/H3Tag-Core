@@ -3,7 +3,7 @@ class BlockchainStatsError extends Error {
         super(message);
         this.code = code;
         this.context = context;
-        this.name = 'BlockchainStatsError';
+        this.name = "BlockchainStatsError";
     }
 }
 //# sourceMappingURL=blockchain-stats-error.js.map
