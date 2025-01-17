@@ -10,8 +10,38 @@ const pow_1 = require("../blockchain/consensus/pow");
 const hybrid_direct_1 = require("../blockchain/consensus/hybrid-direct");
 const blockchain_1 = require("../blockchain/blockchain");
 const async_mutex_1 = require("async-mutex");
-const mempool_1 = require("../blockchain/mempool");
+const events_1 = require("events");
 const crypto_2 = require("crypto");
+/**
+ * @interface Transaction
+ * @description Complete transaction structure
+ *
+ * @property {string} id - Transaction identifier
+ * @property {number} version - Transaction version
+ * @property {TransactionType} type - Transaction type
+ * @property {string} hash - Transaction hash
+ * @property {TransactionStatus} status - Transaction status
+ * @property {TxInput[]} inputs - Transaction inputs
+ * @property {TxOutput[]} outputs - Transaction outputs
+ * @property {number} timestamp - Transaction timestamp
+ * @property {bigint} fee - Transaction fee
+ * @property {number} [lockTime] - Optional lock time
+ * @property {string} signature - Transaction signature
+ * @property {Object} [powData] - Optional mining data
+ * @property {string} sender - Sender's address
+ * @property {string} recipient - Recipient's address
+ * @property {string} [memo] - Optional transaction memo
+ * @property {Object} currency - Currency information
+ * @property {number} [blockHeight] - Block height containing transaction
+ * @property {number} [nonce] - Transaction nonce
+ * @property {Object} [voteData] - Optional voting data
+ * @property {boolean} [hasWitness] - Segregated witness flag
+ * @property {Object} [witness] - Witness data
+ *
+ * @method verify - Verifies transaction integrity
+ * @method toHex - Converts transaction to hex string
+ * @method getSize - Gets transaction size in bytes
+ */
 class TransactionError extends Error {
     constructor(message) {
         super(message);
@@ -19,6 +49,17 @@ class TransactionError extends Error {
     }
 }
 exports.TransactionError = TransactionError;
+/**
+ * @enum TransactionType
+ * @description Types of transactions supported by the blockchain
+ *
+ * @property {string} QUADRATIC_VOTE - Quadratic voting transaction
+ * @property {string} POW_REWARD - Mining reward transaction
+ * @property {string} STANDARD - Standard value transfer
+ * @property {string} TRANSFER - Token transfer transaction
+ * @property {string} COINBASE - Block reward transaction
+ * @property {string} REGULAR - Regular transaction
+ */
 var TransactionType;
 (function (TransactionType) {
     TransactionType["QUADRATIC_VOTE"] = "quadratic_vote";
@@ -28,94 +69,143 @@ var TransactionType;
     TransactionType["COINBASE"] = "coinbase";
     TransactionType["REGULAR"] = "regular";
 })(TransactionType = exports.TransactionType || (exports.TransactionType = {}));
+/**
+ * @enum TransactionStatus
+ * @description Status states for transactions
+ *
+ * @property {string} PENDING - Transaction awaiting confirmation
+ * @property {string} CONFIRMED - Transaction confirmed in blockchain
+ * @property {string} FAILED - Transaction failed to process
+ */
 var TransactionStatus;
 (function (TransactionStatus) {
     TransactionStatus["PENDING"] = "pending";
     TransactionStatus["CONFIRMED"] = "confirmed";
     TransactionStatus["FAILED"] = "failed";
 })(TransactionStatus = exports.TransactionStatus || (exports.TransactionStatus = {}));
+/**
+ * @class TransactionBuilder
+ * @description Builder pattern implementation for creating new transactions
+ *
+ * @property {number} MAX_INPUTS - Maximum number of inputs allowed
+ * @property {number} MAX_OUTPUTS - Maximum number of outputs allowed
+ *
+ * @example
+ * const builder = new TransactionBuilder();
+ * await builder.addInput(txId, outputIndex, publicKey, amount);
+ * await builder.addOutput(address, amount);
+ * const transaction = await builder.build();
+ */
 class TransactionBuilder {
     constructor() {
         this.inputs = [];
         this.outputs = [];
         this.mutex = new async_mutex_1.Mutex();
-        this.signature = { address: "" };
+        this.signature = "";
         this.sender = "";
-        this.mempool = new mempool_1.Mempool(TransactionBuilder.blockchain);
         this.type = TransactionType.STANDARD;
         this.timestamp = Date.now();
         this.merkleTree = new merkle_1.MerkleTree();
         this.db = new blockchain_schema_1.BlockchainSchema();
+        this.emitter = new events_1.EventEmitter();
+        this.emitter.setMaxListeners(10);
     }
+    static setMempool(mempoolInstance) {
+        TransactionBuilder.mempool = mempoolInstance;
+    }
+    /**
+     * Adds an input to the transaction
+     * @param {string} txId - Previous transaction ID
+     * @param {number} outputIndex - Index of output in previous transaction
+     * @param {string} publicKey - Sender's public key
+     * @param {bigint} amount - Amount to spend
+     * @returns {Promise<this>} Builder instance for chaining
+     * @throws {TransactionError} If input parameters are invalid
+     */
     async addInput(txId, // Previous transaction ID
     outputIndex, // Index of output in previous transaction
     publicKey, // Sender's public key
     amount // Amount to spend
     ) {
-        // Input validation
-        if (!txId?.match(/^[a-f0-9]{64}$/i)) {
-            throw new TransactionError("Invalid transaction ID format");
-        }
-        if (outputIndex < 0 || !Number.isInteger(outputIndex)) {
-            throw new TransactionError("Invalid output index");
-        }
-        if (!publicKey ||
-            amount <= 0 ||
-            amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX) {
-            throw new TransactionError("Invalid input parameters");
-        }
-        if (this.inputs.length >= TransactionBuilder.MAX_INPUTS) {
-            throw new TransactionError("Maximum inputs reached");
-        }
-        // Verify UTXO exists and is unspent
         const release = await this.mutex.acquire();
         try {
-            const utxo = await this.db.getUTXO(txId, outputIndex);
-            if (!utxo || utxo.spent) {
-                throw new TransactionError("UTXO not found or already spent");
+            // Add transaction lock
+            const txLock = await this.db.lockTransaction(txId);
+            try {
+                // Input validation
+                if (!txId?.match(/^[a-f0-9]{64}$/i)) {
+                    throw new TransactionError("Invalid transaction ID format");
+                }
+                if (outputIndex < 0 || !Number.isInteger(outputIndex)) {
+                    throw new TransactionError("Invalid output index");
+                }
+                if (!publicKey ||
+                    amount <= BigInt(0) ||
+                    amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX) {
+                    throw new TransactionError("Invalid input parameters");
+                }
+                if (this.inputs.length >= TransactionBuilder.MAX_INPUTS) {
+                    throw new TransactionError("Maximum inputs reached");
+                }
+                // Verify UTXO exists and is unspent
+                const utxo = await this.db.getUTXO(txId, outputIndex);
+                if (!utxo || utxo.spent) {
+                    throw new TransactionError("UTXO not found or already spent");
+                }
+                // Mark UTXO as pending
+                await this.db.markUTXOPending(txId, outputIndex);
             }
+            finally {
+                await txLock();
+                await this.db.unlockTransaction(txId);
+            }
+            // Check for duplicate inputs
+            const isDuplicate = this.inputs.some((input) => input.txId === txId && input.outputIndex === outputIndex);
+            if (isDuplicate) {
+                throw new TransactionError("Duplicate input detected");
+            }
+            // Check total input amount
+            const totalInputAmount = this.inputs.reduce((sum, input) => sum + input.amount, BigInt(0));
+            if (totalInputAmount + amount >
+                constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TOTAL_INPUT) {
+                throw new TransactionError("Total input amount exceeds limit");
+            }
+            // Check input age
+            const inputTx = await this.db.getTransaction(txId);
+            if (!inputTx ||
+                Date.now() - inputTx.timestamp <
+                    constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_INPUT_AGE) {
+                throw new TransactionError("Input too recent");
+            }
+            const input = {
+                txId,
+                outputIndex,
+                signature: "",
+                publicKey,
+                amount,
+                currency: {
+                    symbol: "TAG",
+                    decimals: 8,
+                },
+                address: await crypto_1.KeyManager.deriveAddress(publicKey),
+                confirmations: 0,
+                script: await this.generateInputScript(publicKey),
+                sequence: 0xffffffff, // Maximum sequence number by default
+            };
+            if (!this.validateCurrency(input.currency, amount)) {
+                throw new TransactionError("Invalid currency amount or configuration");
+            }
+            this.inputs.push(input);
+            return this;
         }
         finally {
             release();
         }
-        // Check for duplicate inputs
-        const isDuplicate = this.inputs.some((input) => input.txId === txId && input.outputIndex === outputIndex);
-        if (isDuplicate) {
-            throw new TransactionError("Duplicate input detected");
-        }
-        // Check total input amount
-        const totalInputAmount = this.inputs.reduce((sum, input) => sum + input.amount, BigInt(0));
-        if (totalInputAmount + amount >
-            constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TOTAL_INPUT) {
-            throw new TransactionError("Total input amount exceeds limit");
-        }
-        // Check input age
-        const inputTx = await this.db.getTransaction(txId);
-        if (!inputTx ||
-            Date.now() - inputTx.timestamp <
-                constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_INPUT_AGE) {
-            throw new TransactionError("Input too recent");
-        }
-        const input = {
-            txId,
-            outputIndex,
-            signature: "",
-            publicKey,
-            amount,
-            currency: {
-                symbol: "TAG",
-                decimals: 8,
-            },
-            address: await crypto_1.KeyManager.deriveAddress(publicKey),
-            confirmations: 0,
-            script: await this.generateInputScript(publicKey),
-            sequence: 0xffffffff, // Maximum sequence number by default
-        };
-        this.inputs.push(input);
-        return this;
     }
     async generateInputScript(publicKey) {
         try {
+            // Add version prefix
+            const scriptVersion = "01";
             // Input validation
             if (!publicKey) {
                 throw new TransactionError("Invalid public key");
@@ -123,25 +213,36 @@ class TransactionBuilder {
             // Get address from public key
             const address = await crypto_1.KeyManager.deriveAddress(publicKey);
             // Check address type and generate appropriate script
+            let script;
             if (address.startsWith("TAG1")) {
                 // Native SegWit equivalent for our blockchain
-                return `0 ${await crypto_1.KeyManager.getPublicKeyHash(publicKey)}`;
+                script = `0 ${await crypto_1.KeyManager.getPublicKeyHash(publicKey)}`;
             }
             else if (address.startsWith("TAG3")) {
                 // Script Hash equivalent for our blockchain
-                return `OP_HASH160 ${address} OP_EQUAL`;
+                script = `OP_HASH160 ${await crypto_1.KeyManager.addressToHash(address)} OP_EQUAL`;
             }
             else if (address.startsWith("TAG")) {
                 // Legacy address equivalent
-                return `OP_DUP OP_HASH160 ${address} OP_EQUALVERIFY OP_CHECKSIG`;
+                script = `OP_DUP OP_HASH160 ${await crypto_1.KeyManager.addressToHash(address)} OP_EQUALVERIFY OP_CHECKSIG`;
             }
-            throw new TransactionError("Unsupported address format");
+            else {
+                throw new TransactionError("Unsupported address format");
+            }
+            return `${scriptVersion}:${script}`;
         }
         catch (error) {
             shared_1.Logger.error("Script generation failed:", error);
-            throw new TransactionError(`Failed to generate input script: ${error.message}`);
+            throw new TransactionError("Failed to generate input script");
         }
     }
+    /**
+     * Adds an output to the transaction
+     * @param {string} address - Recipient's address
+     * @param {bigint} amount - Amount to send
+     * @returns {Promise<this>} Builder instance for chaining
+     * @throws {TransactionError} If output parameters are invalid
+     */
     async addOutput(address, // Recipient's address
     amount // Amount to send
     ) {
@@ -176,8 +277,8 @@ class TransactionBuilder {
             }
             // Version control for future script upgrades
             const scriptVersion = "01";
-            // Generate quantum-safe address hash
-            const addressHash = await this.hashAddress(address);
+            // Generate address hash
+            const addressHash = await crypto_1.KeyManager.addressToHash(address);
             // Script constants
             const SCRIPT_CONSTANTS = {
                 MAX_SCRIPT_SIZE: 10000,
@@ -187,35 +288,40 @@ class TransactionBuilder {
                 amount > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX) {
                 throw new TransactionError("Invalid amount range");
             }
-            // P2PKH (Pay to Public Key Hash) script
-            const scriptElements = [
-                "OP_DUP",
-                "OP_HASH160",
-                addressHash,
-                "OP_EQUALVERIFY",
-                "OP_CHECKSIG", // Check signature
-            ];
-            // Build script with version
+            let scriptElements;
+            // Generate script based on address type
+            if (address.startsWith("TAG1")) {
+                // Native SegWit equivalent
+                scriptElements = ["0", addressHash];
+            }
+            else if (address.startsWith("TAG3")) {
+                // P2SH equivalent
+                scriptElements = ["OP_HASH160", addressHash, "OP_EQUAL"];
+            }
+            else if (address.startsWith("TAG")) {
+                // Legacy P2PKH
+                scriptElements = [
+                    "OP_DUP",
+                    "OP_HASH160",
+                    addressHash,
+                    "OP_EQUALVERIFY",
+                    "OP_CHECKSIG",
+                ];
+            }
+            else {
+                throw new TransactionError("Unsupported address format");
+            }
+            // Build script
             const script = scriptElements.join(" ");
             // Validate script size
             if (script.length > SCRIPT_CONSTANTS.MAX_SCRIPT_SIZE) {
                 throw new TransactionError("Script size exceeds limit");
             }
             // Format: version:script
-            const finalScript = `${scriptVersion}:${script}`;
-            shared_1.Logger.debug("Generated output script", {
-                version: scriptVersion,
-                addressHash: addressHash.substring(0, 10) + "...",
-                scriptSize: script.length,
-            });
-            return finalScript;
+            return `${scriptVersion}:${script}`;
         }
         catch (error) {
-            shared_1.Logger.error("Script generation failed:", {
-                error,
-                address: address.substring(0, 8) + "...",
-                amount: amount.toString(),
-            });
+            shared_1.Logger.error("Script generation failed:", error);
             throw new TransactionError(error instanceof TransactionError
                 ? error.message
                 : "Script generation failed");
@@ -254,12 +360,7 @@ class TransactionBuilder {
             if (inputAmount < outputAmount) {
                 throw new TransactionError("Insufficient input amount");
             }
-            // 3. Calculate fee
             const fee = inputAmount - outputAmount;
-            if (fee < constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE ||
-                fee > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_FEE) {
-                throw new TransactionError("Invalid fee amount");
-            }
             // 4. Generate transaction hash
             const hash = await this.calculateTransactionHash();
             const tx = {
@@ -272,7 +373,7 @@ class TransactionBuilder {
                 outputs: this.outputs,
                 timestamp: this.timestamp,
                 fee,
-                signature: { address: "" },
+                signature: "",
                 sender: await this.deriveSenderAddress(this.inputs[0].publicKey),
                 currency: {
                     symbol: "TAG",
@@ -284,10 +385,18 @@ class TransactionBuilder {
                 toHex: () => JSON.stringify(tx),
                 getSize: () => this.getSize(),
             };
-            // Check transaction size
+            // Get dynamic fee requirements from mempool
             const txSize = TransactionBuilder.calculateTransactionSize(tx);
-            if (txSize > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
-                throw new TransactionError(`Transaction size ${txSize} exceeds limit ${constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE}`);
+            const minRequiredFee = await this.getDynamicMinFee(txSize);
+            const maxAllowedFee = await this.getDynamicMaxFee(txSize);
+            // Validate fee against dynamic thresholds
+            if (fee < minRequiredFee || fee > maxAllowedFee) {
+                throw new TransactionError(`Invalid fee amount: ${fee}. Must be between ${minRequiredFee} and ${maxAllowedFee}`);
+            }
+            // Check transaction size
+            const maxMempoolSize = await TransactionBuilder.mempool.getMaxSize();
+            if (txSize > maxMempoolSize) {
+                throw new TransactionError(`Transaction size ${txSize} exceeds current mempool limit ${maxMempoolSize}`);
             }
             // Add UTXO validation
             for (const input of this.inputs) {
@@ -481,12 +590,12 @@ class TransactionBuilder {
             // 4. Verify each input's signatures
             for (const input of tx.inputs) {
                 try {
-                    const isValid = await crypto_1.HybridCrypto.verify(tx.hash, { address: input.signature }, {
-                        address: TransactionBuilder.safeJsonParse(input.publicKey)
-                            .address,
-                    });
-                    if (!isValid)
+                    const isValid = await crypto_1.HybridCrypto.verify(tx.hash, input.signature, TransactionBuilder.safeJsonParse(input.publicKey));
+                    // Add null check and explicit false return
+                    if (!isValid || isValid === null) {
+                        shared_1.Logger.warn("Invalid signature detected", { txId: tx.hash });
                         return false;
+                    }
                 }
                 catch (error) {
                     shared_1.Logger.error("Signature verification failed", { error });
@@ -529,9 +638,28 @@ class TransactionBuilder {
             return false;
         }
     }
+    /**
+     * Safely parses a JSON string
+     * @param {string} str - JSON string to parse
+     * @returns {any} Parsed object
+     * @throws {TransactionError} If parsing fails
+     */
     static safeJsonParse(str) {
         try {
-            return JSON.parse(str);
+            // Add input validation
+            if (typeof str !== "string") {
+                throw new TransactionError("Invalid input type for JSON parsing");
+            }
+            // Add size limit check
+            if (str.length > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE) {
+                throw new TransactionError("JSON string exceeds size limit");
+            }
+            const parsed = JSON.parse(str);
+            // Add parsed object validation
+            if (typeof parsed !== "object" || parsed === null) {
+                throw new TransactionError("Invalid JSON structure");
+            }
+            return parsed;
         }
         catch (error) {
             shared_1.Logger.error("JSON parse failed", { error });
@@ -549,7 +677,8 @@ class TransactionBuilder {
             try {
                 const amount = BigInt(utxo.amount);
                 const newSum = sum + amount;
-                if (newSum < sum) {
+                // Add overflow check
+                if (newSum < sum || newSum < amount) {
                     throw new TransactionError("Input amount overflow");
                 }
                 return newSum;
@@ -583,7 +712,7 @@ class TransactionBuilder {
     /**
      * Validate transaction structure and amounts
      */
-    static validateTransaction(tx, utxos) {
+    static async validateTransaction(tx, utxos) {
         try {
             if (!tx?.version ||
                 tx.version !== constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION) {
@@ -622,8 +751,8 @@ class TransactionBuilder {
             }
             // 5. Validate fee
             const fee = inputAmount - outputAmount;
-            if (fee < constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE ||
-                fee > constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_FEE) {
+            if (fee < await this.mempool.getMinFeeRate() ||
+                fee > await this.mempool.getMaxFeeRate()) {
                 shared_1.Logger.warn("Invalid fee", {
                     txId: tx.hash,
                     fee: fee.toString(),
@@ -643,6 +772,18 @@ class TransactionBuilder {
                 shared_1.Logger.warn("Transaction too large", { size: txSize });
                 return false;
             }
+            // Add timestamp validation
+            const currentTime = Date.now();
+            const maxFutureTime = currentTime + 15 * 60 * 1000; // 15 minutes
+            const minPastTime = currentTime - 2 * 60 * 60 * 1000; // 2 hours
+            if (tx.timestamp > maxFutureTime || tx.timestamp < minPastTime) {
+                shared_1.Logger.warn("Invalid transaction timestamp", {
+                    txId: tx.hash,
+                    timestamp: tx.timestamp,
+                    currentTime,
+                });
+                return false;
+            }
             return true;
         }
         catch (error) {
@@ -653,6 +794,12 @@ class TransactionBuilder {
             return false;
         }
     }
+    /**
+     * Calculate transaction size
+     * @param tx Transaction to calculate size for
+     * @returns Size of the transaction in bytes
+     * @throws TransactionError If size calculation fails
+     */
     static calculateTransactionSize(tx) {
         try {
             const txData = {
@@ -680,7 +827,7 @@ class TransactionBuilder {
                 timestamp: this.timestamp,
                 fee: this.fee,
             });
-            const isValidSignature = await crypto_1.HybridCrypto.verify(message, { address: this.signature.address }, { address: this.sender });
+            const isValidSignature = await crypto_1.HybridCrypto.verify(message, this.signature, this.sender);
             if (!isValidSignature)
                 return false;
             // Verify amounts
@@ -1028,7 +1175,7 @@ class TransactionBuilder {
                 address: crypto_1.HashUtils.sha256(crypto_1.HybridCrypto.TRADITIONAL_CURVE.keyFromPrivate(privateKey).getPublic("hex")),
             });
             // Encode signature
-            const encodedSignature = signature.address;
+            const encodedSignature = signature;
             shared_1.Logger.debug("Message signed successfully", {
                 messageLength: message.length,
                 signatureLength: encodedSignature.length,
@@ -1067,7 +1214,7 @@ class TransactionBuilder {
             const messageBuffer = Buffer.from(messagePrefix + message);
             const messageHash = (0, crypto_2.createHash)("sha256").update(messageBuffer).digest();
             // Verify using HybridCrypto
-            const isValid = await crypto_1.HybridCrypto.verify(messageHash.toString("hex"), { address: signature }, { address: crypto_1.HashUtils.sha256(publicKey) });
+            const isValid = await crypto_1.HybridCrypto.verify(messageHash.toString("hex"), signature, crypto_1.HashUtils.sha256(publicKey));
             shared_1.Logger.debug("Message verification completed", {
                 messageLength: message.length,
                 signatureLength: signature.length,
@@ -1149,6 +1296,62 @@ class TransactionBuilder {
     static getNetworkType() {
         return (constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type?.toString() || "MAINNET").toLowerCase();
     }
+    cleanup() {
+        this.emitter.removeAllListeners();
+    }
+    validateCurrency(currency, amount) {
+        // Basic currency validation
+        if (currency.symbol !== "TAG")
+            return false;
+        // Handle whole number amounts
+        if (amount % BigInt(1) === BigInt(0))
+            return true;
+        // For decimal amounts, check if they match the currency's decimal places
+        const amountStr = amount.toString();
+        const decimalPlaces = amountStr.includes(".")
+            ? amountStr.split(".")[1].length
+            : 0;
+        return decimalPlaces <= currency.decimals;
+    }
+    /**
+     * Calculate minimum required fee based on current network conditions
+     * @param txSize Transaction size in bytes
+     * @returns Promise<bigint> Minimum required fee
+     */
+    async getDynamicMinFee(txSize) {
+        try {
+            // Get base fee rate from mempool
+            const baseFeeRate = await TransactionBuilder.mempool.getMinFeeRate();
+            // Calculate minimum fee based on transaction size
+            const minFee = BigInt(Math.ceil(txSize * Number(baseFeeRate)));
+            // Never go below absolute minimum fee
+            return BigInt(Math.max(Number(minFee), Number(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE)));
+        }
+        catch (error) {
+            shared_1.Logger.warn("Failed to get dynamic min fee, using fallback:", error);
+            // Fallback to static minimum
+            return BigInt(constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE);
+        }
+    }
+    /**
+     * Calculate maximum allowed fee based on current network conditions
+     * @param txSize Transaction size in bytes
+     * @returns Promise<bigint> Maximum allowed fee
+     */
+    async getDynamicMaxFee(txSize) {
+        try {
+            // Calculate dynamic max fee based on congestion
+            const baseMaxFee = await TransactionBuilder.mempool.getBaseFeeRate();
+            const dynamicMaxFee = baseMaxFee * txSize;
+            // Never exceed absolute maximum fee
+            return BigInt(Math.min(Number(dynamicMaxFee), Number(await TransactionBuilder.mempool.getMaxFeeRate())));
+        }
+        catch (error) {
+            shared_1.Logger.warn("Failed to get dynamic max fee, using fallback:", error);
+            // Fallback to static maximum
+            return BigInt(await TransactionBuilder.mempool.getMaxFeeRate());
+        }
+    }
 }
 exports.TransactionBuilder = TransactionBuilder;
 TransactionBuilder.MAX_INPUTS = 1500; // Bitcoin-like limit
@@ -1169,9 +1372,9 @@ async function estimateFee(targetBlocks = 6) {
             throw new TransactionError("Invalid target block range (1-1008)");
         }
         // Base fee calculation constants
-        const BASE_FEE = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.BASE_FEE;
-        const MIN_FEE = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE;
-        const MAX_FEE = constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_FEE;
+        const BASE_FEE = await TransactionBuilder.mempool.getBaseFeeRate();
+        const MIN_FEE = BigInt(await TransactionBuilder.mempool.getMinFeeRate());
+        const MAX_FEE = BigInt(await TransactionBuilder.mempool.getMaxFeeRate());
         // Congestion-based multiplier
         const congestionMultiplier = Math.max(1, (20 - targetBlocks) / 10);
         // Dynamic fee calculation based on target confirmation blocks

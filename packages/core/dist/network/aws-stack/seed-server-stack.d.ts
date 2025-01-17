@@ -6,9 +6,8 @@ interface SeedServerStackProps extends cdk.StackProps {
     deploymentScriptPath: string;
 }
 export declare class SeedServerStack extends cdk.Stack {
-    private readonly merkleTree;
-    private readonly config;
     constructor(scope: Construct, id: string, props: SeedServerStackProps);
     private initialize;
+    private setupInstanceConfiguration;
 }
 export {};

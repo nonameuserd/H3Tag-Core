@@ -452,5 +452,10 @@ export declare class Mempool {
     getMempoolEntry(txid: string): Promise<RawMempoolEntry>;
     private isValidInputScript;
     private isValidScriptType;
+    getCongestionFactor(): Promise<number>;
+    getMinFeeRate(): Promise<number>;
+    getMaxSize(): Promise<number>;
+    getMaxFeeRate(): Promise<number>;
+    getBaseFeeRate(): Promise<number>;
 }
 export {};

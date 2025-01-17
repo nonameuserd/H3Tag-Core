@@ -1,14 +1,8 @@
 import { Injectable } from "@nestjs/common";
-import {
-  DirectVoting,
-  TransactionStatus,
-  TransactionType,
-  Vote,
-} from "@h3tag-blockchain/core";
+import { DirectVoting, Vote } from "@h3tag-blockchain/core";
 import { VoteDto, VotingMetricsDto } from "../dtos/voting.dto";
 import { Logger } from "@h3tag-blockchain/shared";
 import { TransactionBuilder } from "@h3tag-blockchain/core";
-import { BLOCKCHAIN_CONSTANTS } from "@h3tag-blockchain/core";
 
 @Injectable()
 export class VotingService {
@@ -24,14 +18,14 @@ export class VotingService {
       this.transactionBuilder
         .setFee(BigInt(0))
         .setSender(voteDto.voterAddress)
-        .setSignature({ address: voteDto.signature });
+        .setSignature(voteDto.signature);
 
       const vote: Vote = {
         voteId: crypto.randomUUID(),
         periodId: this.directVoting.getCurrentPeriod().periodId,
         voterAddress: voteDto.voterAddress,
         voter: voteDto.voterAddress,
-        signature: { address: voteDto.signature },
+        signature: voteDto.signature,
         timestamp: Date.now(),
         blockHash: "",
         approve: voteDto.choice,
@@ -43,7 +37,7 @@ export class VotingService {
         votingPower: BigInt(
           Math.floor(Math.sqrt(Number(voteDto.chainVoteData?.amount || 0)))
         ),
-        publicKey: { address: voteDto.voterAddress },
+        publicKey: voteDto.voterAddress,
         encrypted: false,
         height: voteDto.height,
         balance: voteDto.balance,

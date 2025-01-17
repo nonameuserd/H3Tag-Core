@@ -319,12 +319,7 @@ class TransactionValidator {
         if (!input?.signature || !input?.publicKey) {
             throw new transaction_validation_error_1.TransactionValidationError("Missing signature data", "INVALID_SIGNATURE");
         }
-        const signatureData = {
-            address: input.publicKey,
-        };
-        return crypto_1.HybridCrypto.verify(txId, signatureData, {
-            address: input.publicKey,
-        });
+        return crypto_1.HybridCrypto.verify(txId, input.signature, input.publicKey);
     }
     /**
      * Validates transaction size against network limits

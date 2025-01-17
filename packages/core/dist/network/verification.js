@@ -60,7 +60,7 @@ class NodeVerifier {
                 address: nodeInfo.address,
                 tagInfo: nodeInfo.tagInfo,
             });
-            const isValid = await crypto_1.HybridCrypto.verify(data, { address: nodeInfo.signature.address }, { address: nodeInfo.publicKey.address });
+            const isValid = await crypto_1.HybridCrypto.verify(data, nodeInfo.signature, nodeInfo.publicKey);
             if (!isValid) {
                 throw new VerificationError("Invalid node signature");
             }
@@ -73,10 +73,8 @@ class NodeVerifier {
         const node = info;
         return Boolean(node &&
             typeof node.version === "string" &&
-            node.publicKey &&
-            typeof node.publicKey.address === "string" &&
-            typeof node.signature === "object" &&
-            typeof node.signature.address === "string" &&
+            typeof node.publicKey === "string" &&
+            typeof node.signature === "string" &&
             typeof node.timestamp === "number" &&
             typeof node.address === "string" &&
             node.tagInfo &&

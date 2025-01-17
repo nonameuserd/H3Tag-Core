@@ -8,12 +8,8 @@ export interface NodeInfo {
   height: number;
   peers: number;
   isMiner: boolean;
-  publicKey: {
-    address: string;
-  };
-  signature: {
-    address: string;
-  };
+  publicKey: string;
+  signature: string;
   timestamp: number;
   address: string;
   tagInfo: {
@@ -101,8 +97,8 @@ export class NodeVerifier {
 
       const isValid = await HybridCrypto.verify(
         data,
-        { address: nodeInfo.signature.address },
-        { address: nodeInfo.publicKey.address }
+        nodeInfo.signature,
+        nodeInfo.publicKey
       );
 
       if (!isValid) {
@@ -120,10 +116,8 @@ export class NodeVerifier {
     return Boolean(
       node &&
         typeof node.version === "string" &&
-        node.publicKey &&
-        typeof node.publicKey.address === "string" &&
-        typeof node.signature === "object" &&
-        typeof node.signature.address === "string" &&
+        typeof node.publicKey === "string" &&
+        typeof node.signature === "string" &&
         typeof node.timestamp === "number" &&
         typeof node.address === "string" &&
         node.tagInfo &&

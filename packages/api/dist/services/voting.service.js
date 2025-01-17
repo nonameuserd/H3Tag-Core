@@ -21,13 +21,13 @@ let VotingService = class VotingService {
             this.transactionBuilder
                 .setFee(BigInt(0))
                 .setSender(voteDto.voterAddress)
-                .setSignature({ address: voteDto.signature });
+                .setSignature(voteDto.signature);
             const vote = {
                 voteId: crypto.randomUUID(),
                 periodId: this.directVoting.getCurrentPeriod().periodId,
                 voterAddress: voteDto.voterAddress,
                 voter: voteDto.voterAddress,
-                signature: { address: voteDto.signature },
+                signature: voteDto.signature,
                 timestamp: Date.now(),
                 blockHash: "",
                 approve: voteDto.choice,
@@ -37,7 +37,7 @@ let VotingService = class VotingService {
                     forkHeight: voteDto.chainVoteData?.forkHeight || 0,
                 },
                 votingPower: BigInt(Math.floor(Math.sqrt(Number(voteDto.chainVoteData?.amount || 0)))),
-                publicKey: { address: voteDto.voterAddress },
+                publicKey: voteDto.voterAddress,
                 encrypted: false,
                 height: voteDto.height,
                 balance: voteDto.balance,

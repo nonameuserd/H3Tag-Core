@@ -64,9 +64,6 @@ export declare class Keystore {
     private static verifyMAC;
     private static validateInputs;
     private static validatePassword;
-    private static validatePasswordStrength;
-    private static encryptWithTimeout;
-    private static decryptWithTimeout;
     private static secureSerialize;
     private static secureDeserialize;
     private static validateKeystore;

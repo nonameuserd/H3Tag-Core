@@ -22,6 +22,20 @@ var OpCode;
     OpCode[OpCode["PUSH_20"] = 20] = "PUSH_20";
     OpCode[OpCode["PUSH_32"] = 32] = "PUSH_32";
 })(OpCode || (OpCode = {}));
+/**
+ * @fileoverview UTXO (Unspent Transaction Output) model definitions for the H3Tag blockchain.
+ * Includes UTXO structure, set management, and validation logic for transaction inputs/outputs.
+ *
+ * @module UTXOModel
+ */
+/**
+ * @class UTXOError
+ * @extends Error
+ * @description Custom error class for UTXO-related errors
+ *
+ * @example
+ * throw new UTXOError("Invalid UTXO structure");
+ */
 class UTXOError extends Error {
     constructor(message) {
         super(message);
@@ -39,6 +53,20 @@ var ScriptType;
     ScriptType["P2WPKH"] = "p2wpkh";
     ScriptType["P2WSH"] = "p2wsh";
 })(ScriptType || (ScriptType = {}));
+/**
+ * @interface UTXOSet
+ * @description Manages a set of UTXOs with query and update capabilities
+ *
+ * @property {Map<string, UTXO>} cache - In-memory cache of UTXOs
+ * @property {Map<string, number>} cacheTimestamps - Timestamps for cache entries
+ * @property {number} CACHE_EXPIRY - Cache expiration time in milliseconds
+ *
+ * @method get - Retrieves a UTXO by txId and outputIndex
+ * @method add - Adds a new UTXO to the set
+ * @method remove - Removes a UTXO from the set
+ * @method getBalance - Gets total balance for an address
+ * @method getUTXOs - Gets all UTXOs for an address
+ */
 class UTXOSet {
     constructor() {
         this.eventEmitter = new events_1.EventEmitter();
@@ -52,9 +80,14 @@ class UTXOSet {
         this.mutex = new async_mutex_1.Mutex();
         this.merkleRoot = "";
         this.cache = new Map();
+        this.CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
+        this.cacheTimestamps = new Map();
+        this.VERIFICATION_CACHE_MAX_SIZE = 10000;
         this.utxos = new Map();
         this.merkleTree = new merkle_1.MerkleTree();
         this.db = new uxo_schema_1.UTXODatabase(config_database_1.databaseConfig.databases.utxo.path);
+        // Set up periodic cache cleanup
+        setInterval(() => this.cleanExpiredCache(), 5 * 60 * 1000); // Clean every 5 minutes
     }
     async createUtxoMerkleRoot() {
         try {
@@ -66,6 +99,9 @@ class UTXOSet {
             throw new UTXOError("Failed to create merkle root");
         }
     }
+    /**
+     * Add a UTXO to the set
+     */
     async add(utxo) {
         const mutex = await this.mutex.acquire();
         try {
@@ -119,6 +155,9 @@ class UTXOSet {
             throw new UTXOError("Failed to sign UTXO");
         }
     }
+    /**
+     * Find UTXOs for a specific amount
+     */
     async findUtxosForAmount(address, targetAmount) {
         try {
             let sum = BigInt(0);
@@ -144,6 +183,9 @@ class UTXOSet {
             throw new UTXOError(error instanceof Error ? error.message : "Failed to find UTXOs");
         }
     }
+    /**
+     * Verify a UTXO's integrity
+     */
     async verifyUtxo(utxo) {
         try {
             if (!utxo || !utxo.txId || !utxo.merkleRoot) {
@@ -345,13 +387,11 @@ class UTXOSet {
                     value: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                 },
             ];
-            return validations.every(({ field, type, minLength, minValue, value: expectedValue }) => {
+            return validations.every(({ field, type, minLength, minValue }) => {
                 const value = utxo[field];
                 if (typeof value !== type)
                     return false;
-                if (minLength &&
-                    typeof value === "string" &&
-                    value.length < minLength)
+                if (minLength && typeof value === "string" && value.length < minLength)
                     return false;
                 if (minValue && typeof value === "number" && value < minValue)
                     return false;
@@ -421,10 +461,12 @@ class UTXOSet {
                 outputIndex: index,
                 amount: output.amount,
                 address: output.address,
-                publicKey: tx.sender, // or tx.publicKey, depending on your Transaction interface
+                publicKey: tx.sender,
             })));
             // Add UTXOs in batch
             await Promise.all(newUtxos.map((utxo) => this.addUTXO(utxo)));
+            // Clean cache after block application
+            this.cleanExpiredCache();
         }
         catch (error) {
             shared_1.Logger.error("Failed to apply block to UTXO set:", error);
@@ -483,40 +525,35 @@ class UTXOSet {
             if (!address || typeof address !== "string") {
                 throw new UTXOError("Invalid address for script generation");
             }
-            const pubKeyHash = await crypto_1.KeyManager.addressToHash(address);
-            const scriptType = this.detectAddressType(address);
-            switch (scriptType) {
-                case ScriptType.P2PKH:
-                    return Buffer.from([
-                        OpCode.OP_DUP,
-                        OpCode.OP_HASH160,
-                        OpCode.PUSH_20,
-                        ...Buffer.from(pubKeyHash, "hex"),
-                        OpCode.OP_EQUALVERIFY,
-                        OpCode.OP_CHECKSIG,
-                    ]).toString("hex");
-                case ScriptType.P2SH:
-                    return Buffer.from([
-                        OpCode.OP_HASH160,
-                        OpCode.PUSH_20,
-                        ...Buffer.from(pubKeyHash, "hex"),
-                        OpCode.OP_EQUAL,
-                    ]).toString("hex");
-                case ScriptType.P2WPKH:
-                    return Buffer.from([
-                        OpCode.OP_0,
-                        OpCode.PUSH_20,
-                        ...Buffer.from(pubKeyHash, "hex"),
-                    ]).toString("hex");
-                case ScriptType.P2WSH:
-                    return Buffer.from([
-                        OpCode.OP_0,
-                        OpCode.PUSH_32,
-                        ...Buffer.from(pubKeyHash, "hex"),
-                    ]).toString("hex");
-                default:
-                    throw new UTXOError("Unsupported address type");
+            // Version control for future script upgrades
+            const scriptVersion = "01";
+            // Generate address hash
+            const addressHash = await crypto_1.KeyManager.addressToHash(address);
+            let scriptElements;
+            if (address.startsWith("TAG1")) {
+                // Native SegWit equivalent
+                scriptElements = ["0", addressHash];
             }
+            else if (address.startsWith("TAG3")) {
+                // P2SH equivalent
+                scriptElements = ["OP_HASH160", addressHash, "OP_EQUAL"];
+            }
+            else if (address.startsWith("TAG")) {
+                // Legacy P2PKH
+                scriptElements = [
+                    "OP_DUP",
+                    "OP_HASH160",
+                    addressHash,
+                    "OP_EQUALVERIFY",
+                    "OP_CHECKSIG",
+                ];
+            }
+            else {
+                throw new UTXOError("Unsupported address format");
+            }
+            // Build script
+            const script = scriptElements.join(" ");
+            return `${scriptVersion}:${script}`;
         }
         catch (error) {
             shared_1.Logger.error("Error generating locking script:", error);
@@ -608,12 +645,21 @@ class UTXOSet {
     }
     async verifySignatures(utxo) {
         try {
-            // Cache verification results
             const cacheKey = `verify:${utxo.txId}:${utxo.outputIndex}`;
+            // Check cache first
             const cached = this.verificationCache.get(cacheKey);
-            if (cached)
+            if (cached !== undefined)
                 return cached;
-            // Prepare data once for both verifications
+            // Implement cache size management before adding new entries
+            if (this.verificationCache.size >= this.VERIFICATION_CACHE_MAX_SIZE) {
+                // Clear oldest 20% of entries
+                const entriesToDelete = Math.floor(this.VERIFICATION_CACHE_MAX_SIZE * 0.2);
+                const entries = Array.from(this.verificationCache.keys());
+                for (let i = 0; i < entriesToDelete; i++) {
+                    this.verificationCache.delete(entries[i]);
+                }
+            }
+            // Prepare data once for verification
             const data = Buffer.from(JSON.stringify({
                 txId: utxo.txId,
                 outputIndex: utxo.outputIndex,
@@ -621,13 +667,11 @@ class UTXOSet {
                 address: utxo.address,
                 timestamp: utxo.timestamp,
             }));
-            // Run verifications in parallel
-            const [isValidSignature] = await Promise.all([
-                crypto_1.HybridCrypto.verify(data.toString(), JSON.parse(utxo.signature), JSON.parse(utxo.publicKey)),
-            ]);
-            const result = isValidSignature;
-            this.verificationCache.set(cacheKey, result);
-            return result;
+            // Run verification
+            const isValidSignature = await crypto_1.HybridCrypto.verify(data.toString(), JSON.parse(utxo.signature), JSON.parse(utxo.publicKey));
+            // Cache and return result
+            this.verificationCache.set(cacheKey, isValidSignature);
+            return isValidSignature;
         }
         catch (error) {
             shared_1.Logger.error("UTXO signature verification failed:", error);
@@ -753,6 +797,19 @@ class UTXOSet {
     async applyTransaction(tx) {
         const release = await this.mutex.acquire();
         try {
+            // Add input validation
+            if (!tx ||
+                !tx.id ||
+                !Array.isArray(tx.inputs) ||
+                !Array.isArray(tx.outputs)) {
+                throw new UTXOError("Invalid transaction format");
+            }
+            // Add total input/output amount validation
+            const inputAmount = await this.calculateInputAmount(tx.inputs);
+            const outputAmount = tx.outputs.reduce((sum, output) => sum + output.amount, BigInt(0));
+            if (inputAmount < outputAmount) {
+                throw new UTXOError("Transaction inputs less than outputs");
+            }
             // Verify all inputs exist and are unspent
             for (const input of tx.inputs) {
                 const utxo = await this.get(input.txId, input.outputIndex);
@@ -795,6 +852,17 @@ class UTXOSet {
             release();
         }
     }
+    async calculateInputAmount(inputs) {
+        let total = BigInt(0);
+        for (const input of inputs) {
+            const utxo = await this.get(input.txId, input.outputIndex);
+            if (!utxo) {
+                throw new UTXOError(`Input UTXO not found: ${input.txId}:${input.outputIndex}`);
+            }
+            total += utxo.amount;
+        }
+        return total;
+    }
     async updateMerkleTree() {
         try {
             const utxoData = Array.from(this.utxos.values()).map((utxo) => JSON.stringify({
@@ -820,6 +888,7 @@ class UTXOSet {
         try {
             await this.db.rollbackTransaction();
             await this.revertTransaction(tx);
+            this.cleanExpiredCache(); // Clean cache after rollback
         }
         catch (error) {
             shared_1.Logger.error("Failed to rollback transaction:", error);
@@ -829,6 +898,8 @@ class UTXOSet {
     async findUtxosForVoting(address) {
         const release = await this.mutex.acquire();
         try {
+            // Clean expired entries before checking cache
+            this.cleanExpiredCache();
             // Check cache first
             const cacheKey = `voting_utxos:${address}`;
             const cached = this.cache.get(cacheKey);
@@ -848,6 +919,7 @@ class UTXOSet {
             const validUtxos = utxos.filter((_, index) => verificationResults[index]);
             // Cache results
             this.cache.set(cacheKey, validUtxos);
+            this.cacheTimestamps.set(cacheKey, Date.now());
             shared_1.Logger.debug("Found voting UTXOs", {
                 address,
                 count: validUtxos.length,
@@ -868,22 +940,23 @@ class UTXOSet {
     }
     calculateVotingPower(utxos) {
         try {
-            // Validate input
             if (!Array.isArray(utxos) || utxos.length === 0) {
                 return BigInt(0);
             }
-            // Calculate quadratic voting power with safety checks
+            // Add safety check for maximum array length
+            if (utxos.length > 1000) {
+                shared_1.Logger.warn("Excessive number of UTXOs for voting power calculation");
+                utxos = utxos.slice(0, 1000);
+            }
             const totalPower = utxos.reduce((power, utxo) => {
                 try {
-                    // Ensure amount is within safe bounds for sqrt calculation
-                    const amount = Number(utxo.amount);
-                    if (amount > Number.MAX_SAFE_INTEGER) {
-                        shared_1.Logger.warn("UTXO amount exceeds safe calculation limit", {
-                            amount: utxo.amount.toString(),
-                        });
+                    // Use BigInt throughout calculation to prevent overflow
+                    const amount = utxo.amount;
+                    if (amount <= BigInt(0)) {
                         return power;
                     }
-                    const sqrt = BigInt(Math.floor(Math.sqrt(amount)));
+                    // Safe square root calculation for BigInt
+                    const sqrt = this.bigIntSqrt(amount);
                     return power + sqrt;
                 }
                 catch (error) {
@@ -894,21 +967,27 @@ class UTXOSet {
                     return power;
                 }
             }, BigInt(0));
-            // Apply voting power caps
-            const cappedPower = totalPower > constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTING_POWER
-                ? constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTING_POWER
-                : totalPower;
-            shared_1.Logger.debug("Calculated voting power", {
-                utxoCount: utxos.length,
-                totalPower: totalPower.toString(),
-                cappedPower: cappedPower.toString(),
-            });
-            return cappedPower;
+            return totalPower;
         }
         catch (error) {
             shared_1.Logger.error("Failed to calculate voting power:", error);
             return BigInt(0);
         }
+    }
+    bigIntSqrt(value) {
+        if (value < BigInt(0)) {
+            throw new Error("Square root of negative numbers is not supported");
+        }
+        if (value < BigInt(2)) {
+            return value;
+        }
+        let x0 = value / BigInt(2);
+        let x1 = (x0 + value / x0) / BigInt(2);
+        while (x1 < x0) {
+            x0 = x1;
+            x1 = (x0 + value / x0) / BigInt(2);
+        }
+        return x0;
     }
     /**
      * List unspent transaction outputs with filtering options
@@ -1087,23 +1166,51 @@ class UTXOSet {
      */
     parseScript(script) {
         try {
-            // Convert script to hex
-            const hex = Buffer.from(script).toString("hex");
-            // Determine script type
-            let type = "nonstandard";
-            if (script.startsWith("OP_DUP OP_HASH160")) {
-                type = "pubkeyhash";
+            // Add input validation
+            if (!script || typeof script !== "string") {
+                throw new Error("Invalid script input");
             }
-            else if (script.startsWith("OP_HASH160")) {
-                type = "scripthash";
+            // Parse version and script content
+            const [version, scriptContent] = script.split(":");
+            if (!version || !scriptContent) {
+                throw new Error("Invalid script format");
             }
-            else if (script.startsWith("OP_0")) {
-                type = "witness_v0_keyhash";
+            // Validate version
+            if (version !== "01") {
+                shared_1.Logger.warn("Unsupported script version:", version);
+                return {
+                    asm: "",
+                    hex: "",
+                    type: "nonstandard",
+                };
             }
+            // Convert script content to hex while maintaining opcodes
+            let hex;
+            try {
+                // Split the script into parts
+                const parts = scriptContent.split(" ");
+                const hexParts = parts.map((part) => {
+                    if (part.startsWith("OP_")) {
+                        // Convert opcode to hex
+                        return Buffer.from([OpCode[part]]).toString("hex");
+                    }
+                    else {
+                        // Convert data to hex
+                        return Buffer.from(part, "hex").toString("hex");
+                    }
+                });
+                hex = hexParts.join("");
+            }
+            catch {
+                hex = "";
+                shared_1.Logger.error("Failed to convert script to hex");
+            }
+            // Determine script type based on content
+            const type = this.determineScriptType(scriptContent);
             return {
-                asm: script,
-                hex: hex,
-                type: type, // The type of script
+                asm: scriptContent,
+                hex,
+                type,
             };
         }
         catch (error) {
@@ -1114,6 +1221,25 @@ class UTXOSet {
                 type: "nonstandard",
             };
         }
+    }
+    determineScriptType(script) {
+        if (!script)
+            return "nonstandard";
+        if (script.startsWith("OP_DUP OP_HASH160") &&
+            script.includes("OP_EQUALVERIFY OP_CHECKSIG")) {
+            return "p2pkh"; // Legacy address
+        }
+        if (script.startsWith("OP_HASH160") && script.endsWith("OP_EQUAL")) {
+            return "p2sh"; // Script hash
+        }
+        if (script.startsWith("0")) {
+            // Check if it's P2WPKH or P2WSH based on the data length
+            const parts = script.split(" ");
+            if (parts.length === 2) {
+                return parts[1].length === 40 ? "p2wpkh" : "p2wsh";
+            }
+        }
+        return "nonstandard";
     }
     /**
      * Check if a transaction is a coinbase transaction
@@ -1184,6 +1310,15 @@ class UTXOSet {
                 txId,
             });
             return false;
+        }
+    }
+    cleanExpiredCache() {
+        const now = Date.now();
+        for (const [key, timestamp] of this.cacheTimestamps.entries()) {
+            if (now - timestamp > this.CACHE_EXPIRY) {
+                this.cache.delete(key);
+                this.cacheTimestamps.delete(key);
+            }
         }
     }
 }

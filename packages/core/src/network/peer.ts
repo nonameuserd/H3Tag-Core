@@ -443,8 +443,8 @@ export class Peer {
 
   public async getNodeInfo(): Promise<{
     isMiner: boolean;
-    publicKey: { address: string };
-    signature: { address: string };
+    publicKey: string;
+    signature: string;
     tagInfo: {
       minedBlocks: number;
       votingPower: bigint;
@@ -565,8 +565,8 @@ export class Peer {
     height: number;
     peers: number;
     isMiner: boolean;
-    publicKey: { address: string };
-    signature: { address: string };
+    publicKey: string;
+    signature: string;
     minedBlocks: number;
     voteParticipation: number;
     lastVoteHeight: number;

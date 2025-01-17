@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Block model definitions for the H3Tag blockchain. Includes block structure,
+ * header format, and builder pattern implementation for block creation and validation.
+ *
+ * @module BlockModel
+ */
+
 import { Transaction } from "./transaction.model";
 import { Logger } from "@h3tag-blockchain/shared";
 import { MerkleTree } from "../utils/merkle";
@@ -7,6 +14,14 @@ import { Mutex } from "async-mutex";
 import { AuditEventType, AuditSeverity, AuditManager } from "../security/audit";
 import { HybridCrypto, HybridKeyPair } from "@h3tag-blockchain/crypto";
 
+/**
+ * @class BlockError
+ * @extends Error
+ * @description Custom error class for block-related errors
+ *
+ * @example
+ * throw new BlockError("Invalid block structure");
+ */
 export class BlockError extends Error {
   constructor(message: string) {
     super(message);
@@ -14,6 +29,33 @@ export class BlockError extends Error {
   }
 }
 
+/**
+ * @interface BlockHeader
+ * @description Defines the structure of a block header in the blockchain
+ *
+ * @property {number} version - Block version number
+ * @property {number} height - Block height in the chain
+ * @property {string} previousHash - Hash of the previous block
+ * @property {number} timestamp - Block creation timestamp
+ * @property {string} merkleRoot - Merkle root of transactions
+ * @property {number} difficulty - Mining difficulty target
+ * @property {number} nonce - Proof of work nonce
+ * @property {string} miner - Miner identifier
+ * @property {string} validatorMerkleRoot - Merkle root of validators
+ * @property {number} totalTAG - Total TAG in circulation
+ * @property {number} blockReward - Mining reward for this block
+ * @property {number} fees - Total transaction fees
+ * @property {string} target - Mining target difficulty
+ * @property {Object} consensusData - Consensus-related metrics
+ * @property {number} consensusData.powScore - Proof of work score
+ * @property {number} consensusData.votingScore - Voting score
+ * @property {number} consensusData.participationRate - Network participation rate
+ * @property {number} consensusData.periodId - Consensus period identifier
+ * @property {string} [signature] - Block signature
+ * @property {string} publicKey - Miner's public key
+ * @property {string} hash - Block hash
+ * @property {string} minerAddress - Miner's address
+ */
 export interface BlockHeader {
   version: number;
   height: number;
@@ -34,12 +76,31 @@ export interface BlockHeader {
     participationRate: number;
     periodId: number;
   };
-  signature?: { address: string };
+  signature?: string;
   publicKey: string;
   hash: string;
   minerAddress: string;
 }
 
+/**
+ * @interface Block
+ * @description Represents a complete block in the blockchain
+ *
+ * @property {string} hash - Block hash identifier
+ * @property {BlockHeader} header - Block header information
+ * @property {Transaction[]} transactions - List of transactions in the block
+ * @property {Object} [metadata] - Additional block metadata
+ * @property {number} metadata.receivedTimestamp - Block reception timestamp
+ * @property {Object} [metadata.consensusMetrics] - Consensus-related metrics
+ * @property {Vote[]} votes - List of validator votes
+ * @property {Validator[]} validators - List of block validators
+ * @property {number} timestamp - Block timestamp
+ *
+ * @method verifyHash - Verifies block hash integrity
+ * @method verifySignature - Verifies block signature
+ * @method getHeaderBase - Gets base header string for hashing
+ * @method isComplete - Checks if block has all required components
+ */
 export interface Block {
   hash: string;
   header: BlockHeader;
@@ -61,6 +122,20 @@ export interface Block {
   isComplete(): boolean;
 }
 
+/**
+ * @class BlockBuilder
+ * @description Builder pattern implementation for creating new blocks
+ *
+ * @property {number} CURRENT_VERSION - Current block version
+ * @property {number} MAX_TRANSACTIONS - Maximum transactions per block
+ * @property {number} MIN_DIFFICULTY - Minimum mining difficulty
+ * @property {number} maxTransactionAge - Maximum age of transactions
+ *
+ * @example
+ * const builder = new BlockBuilder(previousHash, difficulty, auditManager);
+ * await builder.setTransactions(transactions);
+ * const block = await builder.build(minerKeyPair);
+ */
 export class BlockBuilder {
   private static readonly CURRENT_VERSION = 1;
   private static readonly MAX_TRANSACTIONS = 2000;
@@ -75,6 +150,13 @@ export class BlockBuilder {
   private readonly auditManager: AuditManager;
   private hash: string = "";
 
+  /**
+   * Creates a new BlockBuilder instance
+   * @param {string} previousHash - Hash of the previous block
+   * @param {number} difficulty - Mining difficulty target
+   * @param {AuditManager} auditManager - Audit logging manager
+   * @throws {BlockError} If difficulty is invalid
+   */
   constructor(
     previousHash: string,
     difficulty: number,
@@ -187,9 +269,10 @@ export class BlockBuilder {
   }
 
   /**
-   * Sets the transactions for the block
-   * @param transactions Transactions to set
-   * @returns Promise<this> This block builder instance
+   * Sets transactions for the block
+   * @param {Transaction[]} transactions - Array of transactions to include
+   * @returns {Promise<this>} Builder instance for chaining
+   * @throws {BlockError} If transactions are invalid or exceed limits
    */
   async setTransactions(transactions: Transaction[]): Promise<this> {
     const release = await this.mutex.acquire();
@@ -278,6 +361,11 @@ export class BlockBuilder {
     }
   }
 
+  /**
+   * Calculates the block hash
+   * @returns {Promise<string>} Block hash
+   * @throws {BlockError} If block header is invalid
+   */
   public async calculateHash(): Promise<string> {
     try {
       // Validate header fields before hashing
@@ -316,6 +404,12 @@ export class BlockBuilder {
     }
   }
 
+  /**
+   * Builds the final block
+   * @param {HybridKeyPair} minerKeyPair - Miner's key pair for signing
+   * @returns {Promise<Block>} Completed block
+   * @throws {BlockError} If block building fails
+   */
   async build(minerKeyPair: HybridKeyPair): Promise<Block> {
     try {
       // Validate required block components
@@ -420,6 +514,12 @@ export class BlockBuilder {
     }
   }
 
+  /**
+   * Sets the block height
+   * @param {number} height - Block height
+   * @returns {this} Builder instance for chaining
+   * @throws {BlockError} If height is invalid
+   */
   public setHeight(height: number): this {
     if (height < 0 || !Number.isInteger(height)) {
       throw new BlockError("Invalid block height");
@@ -428,35 +528,51 @@ export class BlockBuilder {
     return this;
   }
 
+  /**
+   * Sets the previous block hash
+   * @param {string} hash - Previous block hash
+   * @returns {this} Builder instance for chaining
+   */
   public setPreviousHash(hash: string): this {
     this.header.previousHash = hash;
     return this;
   }
 
+  /**
+   * Sets the block timestamp
+   * @param {number} timestamp - Block timestamp
+   * @returns {this} Builder instance for chaining
+   * @throws {BlockError} If timestamp is invalid
+   */
   public setTimestamp(timestamp: number): this {
     const now = Date.now();
-    const oneHourInFuture = now + (60 * 60 * 1000);
-    const oneYearAgo = now - (365 * 24 * 60 * 60 * 1000);
+    const oneHourInFuture = now + 60 * 60 * 1000;
+    const oneYearAgo = now - 365 * 24 * 60 * 60 * 1000;
 
     // Validate timestamp is not in the future (with small tolerance)
     if (timestamp > oneHourInFuture) {
-        throw new BlockError("Block timestamp cannot be in the future");
+      throw new BlockError("Block timestamp cannot be in the future");
     }
 
     // Validate timestamp is not too old
     if (timestamp < oneYearAgo) {
-        throw new BlockError("Block timestamp is too old");
+      throw new BlockError("Block timestamp is too old");
     }
 
     // Validate timestamp is a valid number
     if (!Number.isFinite(timestamp) || timestamp <= 0) {
-        throw new BlockError("Invalid timestamp value");
+      throw new BlockError("Invalid timestamp value");
     }
 
     this.header.timestamp = timestamp;
     return this;
   }
 
+  /**
+   * Verifies the block hash
+   * @returns {Promise<boolean>} True if hash is valid
+   * @throws {BlockError} If hash verification fails
+   */
   public async verifyHash(): Promise<boolean> {
     try {
       const calculatedHash = await this.calculateHash();
@@ -467,12 +583,23 @@ export class BlockBuilder {
     }
   }
 
+  /**
+   * Verifies the block signature
+   * @returns {Promise<boolean>} True if signature is valid
+   * @throws {BlockError} If signature verification fails
+   */
   public async verifySignature(): Promise<boolean> {
-    return HybridCrypto.verify(this.header.hash, this.header.signature, {
-      address: this.header.publicKey,
-    });
+    return HybridCrypto.verify(
+      this.header.hash,
+      this.header.signature,
+      this.header.publicKey
+    );
   }
 
+  /**
+   * Gets the base header string for hashing
+   * @returns {string} Base header string
+   */
   public getHeaderBase(): string {
     return (
       this.header.version +
@@ -485,26 +612,50 @@ export class BlockBuilder {
     );
   }
 
+  /**
+   * Sets the block version
+   * @param {number} version - Block version
+   * @returns {this} Builder instance for chaining
+   */
   public setVersion(version: number): this {
     this.header.version = version;
     return this;
   }
 
+  /**
+   * Sets the merkle root
+   * @param {string} merkleRoot - Merkle root
+   * @returns {this} Builder instance for chaining
+   */
   public setMerkleRoot(merkleRoot: string): this {
     this.header.merkleRoot = merkleRoot;
     return this;
   }
 
+  /**
+   * Sets the difficulty
+   * @param {number} difficulty - Difficulty
+   * @returns {this} Builder instance for chaining
+   */
   public setDifficulty(difficulty: number): this {
     this.header.difficulty = difficulty;
     return this;
   }
 
+  /**
+   * Sets the nonce
+   * @param {number} nonce - Nonce
+   * @returns {this} Builder instance for chaining
+   */
   public setNonce(nonce: number): this {
     this.header.nonce = nonce;
     return this;
   }
 
+  /**
+   * Checks if the block is complete
+   * @returns {boolean} True if block is complete
+   */
   public isComplete(): boolean {
     return !!(
       this.hash &&
@@ -516,6 +667,11 @@ export class BlockBuilder {
     );
   }
 
+  /**
+   * Sets the block hash
+   * @param {string} hash - Block hash
+   * @returns {this} Builder instance for chaining
+   */
   public setHash(hash: string): this {
     this.hash = hash;
     return this;

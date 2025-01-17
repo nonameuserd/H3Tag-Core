@@ -225,7 +225,7 @@ class DirectVotingUtil {
             return false;
         }
         // Single signature verification attempt
-        return await this.db.verifySignature(vote.voter, `${vote.chainVoteData.targetChainId}:${vote.timestamp}`, vote.signature.address);
+        return await this.db.verifySignature(vote.voter, `${vote.chainVoteData.targetChainId}:${vote.timestamp}`, vote.signature);
     }
     /**
      * Disposes of the DirectVotingUtil

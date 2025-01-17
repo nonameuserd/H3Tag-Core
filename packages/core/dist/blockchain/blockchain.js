@@ -491,9 +491,7 @@ class Blockchain {
                     participationRate: 0,
                     periodId: 0,
                 },
-                signature: {
-                    address: "",
-                },
+                signature: "",
                 publicKey: "",
                 hash: "",
                 minerAddress: "",
@@ -509,7 +507,7 @@ class Blockchain {
                 return calculatedHash === block.hash;
             },
             verifySignature: async () => {
-                return crypto_1.HybridCrypto.verify(block.hash, { address: block.header.signature?.address || "" }, { address: block.header.publicKey });
+                return crypto_1.HybridCrypto.verify(block.hash, block.header.signature, block.header.publicKey);
             },
             getHeaderBase: () => block.getHeaderBase(),
             isComplete() {
@@ -574,9 +572,7 @@ class Blockchain {
     }
     async validateBlockPreAdd(block) {
         const [signatureValid, consensusValid] = await Promise.all([
-            crypto_1.HybridCrypto.verify(block.hash, block.header.signature, {
-                address: block.header.publicKey,
-            }),
+            crypto_1.HybridCrypto.verify(block.hash, block.header.signature, block.header.publicKey),
             this.consensus.pow.validateBlock(block),
         ]);
         if (!signatureValid) {
@@ -1260,9 +1256,7 @@ class Blockchain {
             }
             // Verify signature with timeout
             const isValidSignature = await Promise.race([
-                crypto_1.HybridCrypto.verify(tx.id, tx.signature, {
-                    address: tx.sender,
-                }),
+                crypto_1.HybridCrypto.verify(tx.id, tx.signature, tx.sender),
                 new Promise((_, reject) => setTimeout(() => reject(new Error("Signature verification timeout")), 5000)),
             ]);
             if (!isValidSignature) {
@@ -1923,7 +1917,7 @@ class Blockchain {
     async processVote(vote) {
         try {
             // Verify vote signature
-            const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, vote.signature, { address: vote.voter });
+            const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, vote.signature, vote.voter);
             if (!isValid) {
                 throw new Error("Invalid vote signature");
             }

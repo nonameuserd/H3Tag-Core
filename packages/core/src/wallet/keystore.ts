@@ -179,7 +179,7 @@ export class Keystore {
       // Use IV in encryption
       const encrypted = await HybridCrypto.encrypt(
         serializedKeyPair + iv.toString("base64"), // Include IV in the message
-        { address: derivedKeys.address }
+        derivedKeys.address
       );
 
       const mac = await this.calculateEnhancedMAC(derivedKeys, encrypted, salt);
@@ -230,9 +230,10 @@ export class Keystore {
         keystore.crypto.kdfparams.salt
       );
 
-      const decrypted = await HybridCrypto.decrypt(keystore.crypto.ciphertext, {
-        address: derivedKeys.address,
-      });
+      const decrypted = await HybridCrypto.decrypt(
+        keystore.crypto.ciphertext,
+        derivedKeys.address
+      );
 
       // Extract IV and actual data from decrypted message
       const iv = Buffer.from(keystore.crypto.cipherparams.iv, "base64");
@@ -380,77 +381,6 @@ export class Keystore {
     }
   }
 
-  private static validatePasswordStrength(password: string): void {
-    if (!password || typeof password !== "string") {
-      throw new KeystoreError(
-        "Invalid password format",
-        KeystoreErrorCode.INVALID_PASSWORD
-      );
-    }
-
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-    if (!(hasUpperCase && hasLowerCase && hasNumbers && hasSpecialChar)) {
-      throw new KeystoreError(
-        "Password must contain uppercase, lowercase, numbers, and special characters",
-        KeystoreErrorCode.INVALID_PASSWORD
-      );
-    }
-
-    // Use constant-time comparison for length check
-    const passwordLength = Buffer.from(password).length;
-    if (
-      !crypto.timingSafeEqual(
-        Buffer.from([passwordLength]),
-        Buffer.from([this.MIN_PASSWORD_LENGTH])
-      )
-    ) {
-      throw new KeystoreError(
-        "Invalid password",
-        KeystoreErrorCode.INVALID_PASSWORD
-      );
-    }
-  }
-
-  private static async encryptWithTimeout(
-    data: string,
-    keys: { address: string }
-  ): Promise<string> {
-    return Promise.race([
-      HybridCrypto.encrypt(data, keys),
-      new Promise((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new KeystoreError("Encryption timeout", "ENCRYPTION_TIMEOUT")
-            ),
-          this.MAX_ENCRYPTION_TIME
-        )
-      ),
-    ]) as Promise<string>;
-  }
-
-  private static async decryptWithTimeout(
-    data: string,
-    keys: { address: string },
-    iv: Buffer
-  ): Promise<string> {
-    return Promise.race([
-      HybridCrypto.decrypt(data, keys),
-      new Promise((_, reject) =>
-        setTimeout(
-          () =>
-            reject(
-              new KeystoreError("Decryption timeout", "DECRYPTION_TIMEOUT")
-            ),
-          this.MAX_ENCRYPTION_TIME
-        )
-      ),
-    ]) as Promise<string>;
-  }
 
   private static async secureSerialize(
     keyPair: HybridKeyPair
@@ -801,14 +731,10 @@ export class Keystore {
 
       const testKey = await this.generateSecureSalt();
       const testData = testKey.toString("hex");
-      const encrypted = await HybridCrypto.encrypt(testData, {
-        address: testKey.toString("base64"),
-      });
+      const encrypted = await HybridCrypto.encrypt(testData, testKey.toString("base64"));
 
       // Verify encryption worked by attempting decryption
-      const decrypted = await HybridCrypto.decrypt(encrypted, {
-        address: testKey.toString("base64"),
-      });
+      const decrypted = await HybridCrypto.decrypt(encrypted, testKey.toString("base64"));
 
       return decrypted === testData;
     } catch (error) {

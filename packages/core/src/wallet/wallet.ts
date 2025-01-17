@@ -179,7 +179,7 @@ export class Wallet {
       const signature = await HybridCrypto.sign(txString, this.keyPair);
       // Clear sensitive data
       txString.replace(/./g, "0");
-      return signature.address;
+      return signature;
     } catch (error) {
       Logger.error("Transaction signing failed:", error);
       throw new WalletError(
@@ -354,7 +354,7 @@ export class Wallet {
         type: TransactionType.TRANSFER,
         hash: "", // Will be set after signing
         status: TransactionStatus.PENDING,
-        signature: { address: "" },
+        signature: "",
         nonce: 0,
         currency: {
           symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
@@ -509,7 +509,7 @@ export class Wallet {
       // Encrypt private key before returning
       const encryptedKey = await HybridCrypto.encrypt(
         this.keyPair.privateKey as string,
-        { address: this.address }
+        this.address
       );
 
       return encryptedKey;
@@ -536,9 +536,7 @@ export class Wallet {
   ): Promise<Wallet> {
     try {
       // Decrypt using the original address
-      const privateKey = await HybridCrypto.decrypt(encryptedKey, {
-        address: originalAddress,
-      });
+      const privateKey = await HybridCrypto.decrypt(encryptedKey, originalAddress);
 
       // Generate key pair from private key
       const keyPair = await HybridCrypto.generateKeyPair(privateKey);

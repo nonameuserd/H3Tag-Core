@@ -34,6 +34,8 @@ export declare class KeyManager {
     static generateKeyPair(entropy?: string): Promise<HybridKeyPair>;
     static rotateKeyPair(oldKeyPair: HybridKeyPair): Promise<HybridKeyPair>;
     static deriveAddress(publicKey: string | (() => Promise<string>)): Promise<string>;
+    private static determineAddressType;
+    private static getVersionByte;
     static shutdown(): Promise<void>;
     /**
      * Convert address to public key hash

@@ -426,7 +426,7 @@ class ProofOfWork {
                             nonce: result.header.nonce,
                             minerAddress: result.header.minerAddress,
                             timestamp: Date.now(),
-                            signature: result.header.signature?.address || "",
+                            signature: result.header.signature || "",
                             difficulty: result.header.difficulty,
                         });
                         // Store mining metrics
@@ -694,7 +694,7 @@ class ProofOfWork {
                     return calculatedHash === block.hash;
                 },
                 verifySignature: async () => {
-                    return crypto_2.HybridCrypto.verify(block.hash, { address: block.signature?.address || "" }, { address: block.publicKey });
+                    return crypto_2.HybridCrypto.verify(block.hash, block.signature, block.publicKey);
                 },
                 getHeaderBase: () => block.getHeaderBase(),
                 isComplete() {
@@ -790,7 +790,7 @@ class ProofOfWork {
                     return calculatedHash === result.rows[0].hash;
                 },
                 verifySignature: async () => {
-                    return crypto_2.HybridCrypto.verify(result.rows[0].hash, { address: result.rows[0].signature?.address || "" }, { address: result.rows[0].public_key });
+                    return crypto_2.HybridCrypto.verify(result.rows[0].hash, result.rows[0].signature, result.rows[0].public_key);
                 },
                 getHeaderBase: () => result.rows[0].getHeaderBase(),
                 isComplete() {

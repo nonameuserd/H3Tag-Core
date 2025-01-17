@@ -163,7 +163,7 @@ class Wallet {
             const signature = await crypto_1.HybridCrypto.sign(txString, this.keyPair);
             // Clear sensitive data
             txString.replace(/./g, "0");
-            return signature.address;
+            return signature;
         }
         catch (error) {
             logger_1.Logger.error("Transaction signing failed:", error);
@@ -281,7 +281,7 @@ class Wallet {
                 type: transaction_model_1.TransactionType.TRANSFER,
                 hash: "",
                 status: transaction_model_1.TransactionStatus.PENDING,
-                signature: { address: "" },
+                signature: "",
                 nonce: 0,
                 currency: {
                     symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
@@ -404,7 +404,7 @@ class Wallet {
             // Verify password before exporting
             await keystore_1.Keystore.decrypt(this.keystore, password);
             // Encrypt private key before returning
-            const encryptedKey = await crypto_1.HybridCrypto.encrypt(this.keyPair.privateKey, { address: this.address });
+            const encryptedKey = await crypto_1.HybridCrypto.encrypt(this.keyPair.privateKey, this.address);
             return encryptedKey;
         }
         catch (error) {
@@ -422,9 +422,7 @@ class Wallet {
     static async importPrivateKey(encryptedKey, originalAddress, password) {
         try {
             // Decrypt using the original address
-            const privateKey = await crypto_1.HybridCrypto.decrypt(encryptedKey, {
-                address: originalAddress,
-            });
+            const privateKey = await crypto_1.HybridCrypto.decrypt(encryptedKey, originalAddress);
             // Generate key pair from private key
             const keyPair = await crypto_1.HybridCrypto.generateKeyPair(privateKey);
             // Then derive address from public key

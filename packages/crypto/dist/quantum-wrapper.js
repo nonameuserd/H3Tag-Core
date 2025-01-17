@@ -106,7 +106,7 @@ class QuantumWrapper {
                 address: traditionalKey,
             });
             // Verify signature against derived address
-            return await hybrid_1.HybridCrypto.verify(message.toString(), { address: classicalSig }, { address });
+            return await hybrid_1.HybridCrypto.verify(message.toString(), classicalSig, address);
         }
         catch (error) {
             shared_1.Logger.error("Hybrid verification failed:", error);

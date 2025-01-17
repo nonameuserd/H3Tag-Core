@@ -47,6 +47,7 @@ class BlockchainSchema {
         this.transactionOperations = [];
         this.heightCache = new cache_1.Cache();
         this.transactionLock = new async_mutex_1.Mutex();
+        this.transactionLocks = new Map();
         this.dbPath = dbPath;
         this.db = new level_1.Level(dbPath, {
             valueEncoding: "json",
@@ -2316,6 +2317,34 @@ class BlockchainSchema {
         }
         catch (error) {
             shared_1.Logger.error("Failed to update difficulty:", error);
+            throw error;
+        }
+    }
+    async lockTransaction(txId) {
+        if (!this.transactionLocks.has(txId)) {
+            this.transactionLocks.set(txId, new async_mutex_1.Mutex());
+        }
+        const mutex = this.transactionLocks.get(txId);
+        const release = await mutex.acquire();
+        return async () => { release(); };
+    }
+    async unlockTransaction(txId) {
+        const mutex = this.transactionLocks.get(txId);
+        if (mutex) {
+            this.transactionLocks.delete(txId);
+        }
+    }
+    async markUTXOPending(txId, outputIndex) {
+        try {
+            const key = `utxo:${txId}:${outputIndex}`;
+            const utxo = await this.db.get(key);
+            if (utxo) {
+                const updatedUtxo = { ...JSON.parse(utxo), pending: true };
+                await this.db.put(key, JSON.stringify(updatedUtxo));
+            }
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to mark UTXO as pending:", error);
             throw error;
         }
     }

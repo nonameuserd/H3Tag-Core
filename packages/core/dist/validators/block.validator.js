@@ -182,7 +182,7 @@ class BlockValidator {
     static async validateVoteSignatures(votes) {
         try {
             for (const vote of votes) {
-                const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, { address: vote.signature.address }, vote.publicKey);
+                const isValid = await crypto_1.HybridCrypto.verify(vote.blockHash, vote.signature, vote.publicKey);
                 if (!isValid) {
                     shared_1.Logger.warn("Invalid vote signature detected", { voter: vote.voter });
                     return false;
@@ -396,7 +396,7 @@ class BlockValidator {
     static async verifyValidatorSignatures(validator) {
         try {
             const [classicSig] = await Promise.all([
-                crypto_1.HybridCrypto.verify(validator.validationData, { address: validator.signature }, { address: validator.publicKey }),
+                crypto_1.HybridCrypto.verify(validator.validationData, validator.signature, validator.publicKey),
             ]);
             return classicSig;
         }

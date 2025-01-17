@@ -30,9 +30,7 @@ class HybridCrypto {
                 dilithium_1.Dilithium.hash(Buffer.from(message)),
                 kyber_1.Kyber.encapsulate(privKey).then((result) => result.sharedSecret),
             ]);
-            return {
-                address: hash_1.HashUtils.sha3(eccSignature.toDER("hex") + dilithiumHash + kyberSecret),
-            };
+            return hash_1.HashUtils.sha3(eccSignature.toDER("hex") + dilithiumHash + kyberSecret);
         }
         catch (error) {
             shared_1.Logger.error("Hybrid signing failed:", error);
@@ -42,16 +40,16 @@ class HybridCrypto {
     static async verify(message, signature, publicKey) {
         try {
             // 1. Verify address matches
-            if (signature.address !== publicKey.address)
+            if (signature !== publicKey)
                 return false;
             // 2. Verify traditional signature
-            const eccValid = this.TRADITIONAL_CURVE.keyFromPublic(publicKey.address, "hex").verify(hash_1.HashUtils.sha256(message), signature.address);
+            const eccValid = this.TRADITIONAL_CURVE.keyFromPublic(publicKey, "hex").verify(hash_1.HashUtils.sha256(message), signature);
             if (!eccValid)
                 return false;
             // 3. Generate hybrid verification hash
-            const verificationHash = hash_1.HashUtils.sha3(signature.address +
+            const verificationHash = hash_1.HashUtils.sha3(signature +
                 (await dilithium_1.Dilithium.hash(Buffer.from(message))) +
-                (await kyber_1.Kyber.encapsulate(publicKey.address)).sharedSecret);
+                (await kyber_1.Kyber.encapsulate(publicKey)).sharedSecret);
             // 4. Compare against message hash
             return verificationHash === hash_1.HashUtils.sha3(message);
         }
@@ -62,12 +60,12 @@ class HybridCrypto {
     }
     static async encrypt(message, publicKey) {
         try {
-            if (!message || !publicKey?.address) {
+            if (!message || !publicKey) {
                 throw new HybridError("Missing required parameters");
             }
             // 1. Generate session keys
             const sessionKey = crypto_js_1.default.lib.WordArray.random(this.KEY_SIZE / 8);
-            const { ciphertext: kyberCiphertext, sharedSecret: kyberSecret } = await kyber_1.Kyber.encapsulate(publicKey.address);
+            const { ciphertext: kyberCiphertext, sharedSecret: kyberSecret } = await kyber_1.Kyber.encapsulate(publicKey);
             // 2. Generate quantum-safe components
             const [dilithiumHash, quantumKey] = await Promise.all([
                 dilithium_1.Dilithium.hash(Buffer.from(message)),
@@ -93,7 +91,7 @@ class HybridCrypto {
     }
     static async decrypt(encryptedData, privateKey) {
         try {
-            if (!encryptedData || !privateKey?.address) {
+            if (!encryptedData || !privateKey) {
                 throw new HybridError("Missing required parameters");
             }
             const parsed = JSON.parse(encryptedData);
@@ -101,7 +99,7 @@ class HybridCrypto {
                 throw new HybridError("Invalid encrypted data format");
             }
             // 1. Recover shared secrets
-            const kyberSecret = await kyber_1.Kyber.decapsulate(parsed.sessionKey, privateKey.address);
+            const kyberSecret = await kyber_1.Kyber.decapsulate(parsed.sessionKey, privateKey);
             const quantumKey = await quantum_wrapper_1.QuantumWrapper.hashData(Buffer.from(parsed.sessionKey));
             // 2. Reconstruct hybrid key
             const hybridKey = hash_1.HashUtils.sha3(parsed.sessionKey +

@@ -184,6 +184,7 @@ export declare class BlockchainSchema {
     private votingDb;
     private transactionLock;
     private transactionStartTime;
+    private transactionLocks;
     /**
      * Constructor for Database
      * @param dbPath Path to the database
@@ -733,5 +734,8 @@ export declare class BlockchainSchema {
      * Updates block difficulty in database
      */
     updateDifficulty(blockHash: string, difficulty: number): Promise<void>;
+    lockTransaction(txId: string): Promise<() => Promise<void>>;
+    unlockTransaction(txId: string): Promise<void>;
+    markUTXOPending(txId: string, outputIndex: number): Promise<void>;
 }
 export {};

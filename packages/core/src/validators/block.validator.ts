@@ -301,7 +301,7 @@ export class BlockValidator {
       for (const vote of votes) {
         const isValid = await HybridCrypto.verify(
           vote.blockHash,
-          { address: vote.signature.address },
+          vote.signature,
           vote.publicKey
         );
 
@@ -634,8 +634,8 @@ export class BlockValidator {
       const [classicSig] = await Promise.all([
         HybridCrypto.verify(
           validator.validationData,
-          { address: validator.signature },
-          { address: validator.publicKey }
+          validator.signature,
+          validator.publicKey
         ),
       ]);
 
