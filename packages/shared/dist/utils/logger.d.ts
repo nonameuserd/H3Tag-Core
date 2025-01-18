@@ -1,4 +1,4 @@
-import winston from 'winston';
+import winston from "winston";
 export declare const Logger: winston.Logger;
 export declare const requestLogger: (req: any, res: any, next: any) => void;
 export declare const performance: {

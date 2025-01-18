@@ -98,7 +98,8 @@ export class WalletController {
       );
       const withOutput = await withInput.addOutput(
         signTransactionDto.transaction.toAddress,
-        BigInt(signTransactionDto.transaction.amount)
+        BigInt(signTransactionDto.transaction.amount),
+        signTransactionDto.transaction.confirmations
       );
       const transaction = await withOutput.build();
 

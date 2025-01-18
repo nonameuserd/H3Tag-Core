@@ -202,7 +202,7 @@ export class WalletDatabase {
   async listWallets(): Promise<string[]> {
     const addresses: string[] = [];
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [key] of this.db.iterator({
         gte: "address:",
         lte: "address:\xFF",
       })) {

@@ -171,10 +171,10 @@ export class PerformanceMonitor {
       p99: number;
     };
   } {
-    const metrics: any = {};
+    const metrics: Record<string, { current: number; average: number; p95: number; p99: number }> = {};
 
     for (const [markerId, data] of this.metrics.entries()) {
-      const [context, op] = markerId.split("_");
+      const [op] = markerId.split("_");
       if (!operation || op === operation) {
         const stats = this.calculateStats(data.measurements);
         metrics[op] = {

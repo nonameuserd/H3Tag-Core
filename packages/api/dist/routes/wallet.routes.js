@@ -232,4 +232,3 @@ router.get("/:address/unspent", walletController.listUnspent.bind(walletControll
  */
 router.get("/txout/:txid/:n", walletController.getTxOut.bind(walletController));
 exports.default = router;
-//# sourceMappingURL=wallet.routes.js.map

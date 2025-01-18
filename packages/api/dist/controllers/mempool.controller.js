@@ -88,4 +88,3 @@ exports.MempoolController = MempoolController = __decorate([
     (0, swagger_1.ApiTags)("Mempool"),
     (0, common_1.Controller)("mempool")
 ], MempoolController);
-//# sourceMappingURL=mempool.controller.js.map

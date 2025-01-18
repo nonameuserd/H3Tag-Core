@@ -328,4 +328,3 @@ HybridCrypto.metrics = {
     failedAttempts: 0,
     lastHashTime: 0,
 };
-//# sourceMappingURL=hybrid.js.map

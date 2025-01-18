@@ -153,4 +153,3 @@ __decorate([
         example: 0.65,
     })
 ], VotingMetricsDto.prototype, "participationRate", void 0);
-//# sourceMappingURL=voting.dto.js.map

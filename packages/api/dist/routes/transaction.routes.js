@@ -301,4 +301,3 @@ router.post("/verify-message", controller.verifyMessage);
  */
 router.post("/validate-address", controller.validateAddress);
 exports.default = router;
-//# sourceMappingURL=transaction.routes.js.map

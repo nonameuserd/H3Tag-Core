@@ -273,4 +273,3 @@ exports.NodeController = NodeController = __decorate([
     (0, swagger_1.ApiTags)("Nodes"),
     (0, common_1.Controller)("nodes")
 ], NodeController);
-//# sourceMappingURL=node.controller.js.map

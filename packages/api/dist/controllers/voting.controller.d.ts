@@ -8,6 +8,6 @@ export declare class VotingController {
         voteId: string;
     }>;
     getMetrics(): Promise<VotingMetricsDto>;
-    getCurrentPeriod(): Promise<import("packages/core/dist").VotingPeriod>;
-    getVotesByAddress(address: string): Promise<import("packages/core/dist").Vote[]>;
+    getCurrentPeriod(): Promise<any>;
+    getVotesByAddress(address: string): Promise<any>;
 }

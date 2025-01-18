@@ -182,4 +182,3 @@ class QuantumNative {
 // Export singleton instance
 exports.nativeQuantum = QuantumNative.getInstance();
 exports.default = exports.nativeQuantum;
-//# sourceMappingURL=quantum.node.js.map

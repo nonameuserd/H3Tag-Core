@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 export declare const rateLimiter: import("express-rate-limit").RateLimitRequestHandler;
-export declare const errorHandler: (err: Error, req: Request, res: Response, next: NextFunction) => void;
+export declare const errorHandler: (err: Error, req: Request, res: Response) => void;
 export declare const requestLogger: (req: Request, res: Response, next: NextFunction) => void;
 export declare const apiKeyAuth: (req: Request, res: Response, next: NextFunction) => Response<any, Record<string, any>>;
 export declare const corsOptions: {

@@ -7,4 +7,3 @@ exports.DISCOVERY_CONFIG = {
     minPeers: parseInt(process.env.MIN_PEERS),
     version: process.env.VERSION,
 };
-//# sourceMappingURL=constants.js.map

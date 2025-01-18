@@ -23,7 +23,7 @@ export class VotingError extends Error {
   constructor(
     public readonly code: VotingErrorCode,
     message: string,
-    public readonly details?: Record<string, any>
+    public readonly details?: Record<string, unknown>
   ) {
     super(message);
     this.name = "VotingError";

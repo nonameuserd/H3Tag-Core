@@ -225,4 +225,3 @@ exports.TransactionController = TransactionController = __decorate([
     (0, swagger_1.ApiTags)("Transactions"),
     (0, common_1.Controller)("transactions")
 ], TransactionController);
-//# sourceMappingURL=transaction.controller.js.map

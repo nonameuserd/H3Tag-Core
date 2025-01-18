@@ -3,6 +3,7 @@ import { Cache } from "../scaling/cache";
 import { AuditManager, AuditEventType, AuditSeverity } from "./audit";
 import { Logger } from "@h3tag-blockchain/shared";
 import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
+import { Request, Response } from 'express';
 
 export class DDoSError extends Error {
   constructor(message: string, public readonly code: string) {
@@ -171,7 +172,7 @@ export class DDoSProtection {
   }
 
   public middleware() {
-    return async (req: any, res: any, next: Function) => {
+    return async (req: Request, res: Response, next: (err?: Error) => void) => {
       try {
         if (this.circuitBreaker.isOpen) {
           if (
@@ -181,9 +182,7 @@ export class DDoSProtection {
             this.circuitBreaker.isOpen = false;
             this.circuitBreaker.failures = 0;
           } else {
-            return res
-              .status(503)
-              .json({ error: "Service temporarily unavailable" });
+            return res.status(503).json({ err: "Service temporarily unavailable" });
           }
         }
 
@@ -227,7 +226,7 @@ export class DDoSProtection {
     }
   }
 
-  private getRequestType(req: any): string {
+  private getRequestType(req: Request): string {
     if (req.path.includes("/pow")) return "pow";
     if (req.path.includes("/vote")) return "vote";
     return "default";
@@ -350,10 +349,12 @@ export class DDoSProtection {
     this.eventEmitter.emit("ip_blocked", { ip, duration });
   }
 
-  private getClientIP(req: any): string {
+  private getClientIP(req: Request): string {
     const ip = this.config.trustProxy
-      ? req.ip || req.headers["x-forwarded-for"]?.split(",")[0]
-      : req.connection.remoteAddress;
+      ? (req as Request).ip || (typeof req.headers["x-forwarded-for"] === 'string' 
+          ? req.headers["x-forwarded-for"].split(",")[0] 
+          : req.headers["x-forwarded-for"]?.[0])
+      : req.socket.remoteAddress;
 
     if (!ip || typeof ip !== "string") {
       throw new DDoSError("Invalid IP address", "INVALID_IP");

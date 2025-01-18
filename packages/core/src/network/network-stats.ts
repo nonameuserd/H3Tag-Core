@@ -5,11 +5,17 @@ import { NetworkError, NetworkErrorCode } from "./network-error";
 import { ConfigService, Logger } from "@h3tag-blockchain/shared";
 import { Blockchain } from "../blockchain/blockchain";
 
-interface PeerInfo {
-  id: string;
-  url: string;
-  lastSeen: number;
-}
+type NetworkStatsEvent = {
+  timestamp: number;
+  peerId?: string;
+  data?: unknown;
+  metrics?: {
+    count?: number;
+    latency?: number;
+    hashRate?: number;
+    propagationTime?: number;
+  };
+};
 
 export class NetworkStats {
   private readonly eventEmitter = new EventEmitter();
@@ -153,11 +159,11 @@ export class NetworkStats {
       : 0;
   }
 
-  public on(event: string, listener: (...args: any[]) => void): void {
+  public on(event: string, listener: (eventData: NetworkStatsEvent) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
-  public off(event: string, listener: (...args: any[]) => void): void {
+  public off(event: string, listener: (...args: NetworkStatsEvent[]) => void): void {
     this.eventEmitter.off(event, listener);
   }
 
@@ -486,7 +492,7 @@ export class NetworkStats {
       }
 
       const eventName = `peer_${event}`;
-      const listener = (data: unknown) => {
+      const listener = () => {
         this.eventEmitter.emit(eventName, {
           peerId,
           args,

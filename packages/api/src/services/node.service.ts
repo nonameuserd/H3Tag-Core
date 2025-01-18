@@ -15,6 +15,7 @@ import {
   PeerConnectionResponseDto,
 } from "../dtos/node.dto";
 import { ConfigService } from "@h3tag-blockchain/shared";
+import { KeyManager } from "@h3tag-blockchain/crypto";
 
 /**
  * @swagger
@@ -56,16 +57,115 @@ export class NodeService {
    */
   async createNode(params: CreateNodeDto): Promise<NodeResponseDto> {
     try {
-      // Initialize blockchain
+      // Initialize blockchain with complete config
       const blockchain = await Blockchain.create({
         network: {
           type: params.networkType,
           port: params.port || 8333,
           host: params.host || "localhost",
-          seedDomains:
-            BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.seedDomains[
-              params.networkType
-            ],
+          seedDomains: BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.seedDomains[params.networkType],
+        },
+        currency: {
+          name: 'H3TAG',
+          symbol: 'TAG',
+          decimals: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
+          initialSupply: BLOCKCHAIN_CONSTANTS.CURRENCY.INITIAL_SUPPLY,
+          maxSupply: BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY,
+          units: {
+            MACRO: BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MACRO,
+            MICRO: BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MICRO,
+            MILLI: BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MILLI,
+            TAG: BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.TAG,
+          },
+        },
+        mining: {
+          blocksPerYear: BLOCKCHAIN_CONSTANTS.MINING.BLOCKS_PER_YEAR,
+          initialReward: BLOCKCHAIN_CONSTANTS.MINING.INITIAL_REWARD,
+          blockTime: BLOCKCHAIN_CONSTANTS.MINING.BLOCK_TIME,
+          halvingInterval: BLOCKCHAIN_CONSTANTS.MINING.HALVING_INTERVAL,
+          maxHalvings: BLOCKCHAIN_CONSTANTS.MINING.MAX_HALVINGS,
+          maxDifficulty: BLOCKCHAIN_CONSTANTS.MINING.MAX_DIFFICULTY,
+          targetTimePerBlock: BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK,
+          difficulty: BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY,
+          targetBlockTime: BLOCKCHAIN_CONSTANTS.MINING.TARGET_BLOCK_TIME,
+          targetTimespan: BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIMESPAN,
+          maxForkDepth: BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
+          emergencyPowThreshold: BLOCKCHAIN_CONSTANTS.MINING.EMERGENCY_POW_THRESHOLD,
+          minPowNodes: BLOCKCHAIN_CONSTANTS.MINING.MIN_POW_NODES,
+          propagationWindow: BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
+          difficultyAdjustmentInterval: BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
+          forkResolutionTimeout: BLOCKCHAIN_CONSTANTS.MINING.FORK_RESOLUTION_TIMEOUT,
+          hashBatchSize: BLOCKCHAIN_CONSTANTS.MINING.HASH_BATCH_SIZE,
+          initialDifficulty: BLOCKCHAIN_CONSTANTS.MINING.INITIAL_DIFFICULTY,
+          minPowScore: BLOCKCHAIN_CONSTANTS.MINING.MIN_POW_SCORE,
+          maxPropagationTime: BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_TIME,
+          maxTarget: BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET,
+          minDifficulty: BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY,
+          nodeSelectionThreshold: BLOCKCHAIN_CONSTANTS.MINING.NODE_SELECTION_THRESHOLD,
+          orphanWindow: BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW,
+          minHashthreshold: BLOCKCHAIN_CONSTANTS.MINING.MIN_HASHRATE,
+        },
+        votingConstants: {
+          votingPeriodBlocks:
+          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS,
+        votingPeriodMs: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_MS,
+        minPowWork: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_WORK,
+        cooldownBlocks: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS,
+        maxVotesPerPeriod:
+          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_PERIOD,
+        minAccountAge: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_ACCOUNT_AGE,
+        minPeerCount: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_PEER_COUNT,
+        voteEncryptionVersion:
+          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_ENCRYPTION_VERSION,
+        maxVoteSizeBytes:
+          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTE_SIZE_BYTES,
+        votingWeight: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
+        minVotesForValidity:
+          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTES_FOR_VALIDITY,
+        votePowerDecay: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_POWER_DECAY,
+        },
+
+        consensus: {
+          powWeight: BLOCKCHAIN_CONSTANTS.CONSENSUS.POW_WEIGHT,
+          voteWeight: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
+          minPowHashrate: BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_POW_HASH_RATE,
+          minVoterCount: BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_VOTER_COUNT,
+          minPeriodLength: BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PERIOD_LENGTH,
+          votingPeriod: BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_PERIOD,
+          minParticipation: BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PARTICIPATION,
+          nodeSelectionTimeout:
+            BLOCKCHAIN_CONSTANTS.CONSENSUS.NODE_SELECTION_TIMEOUT,
+          votePowerCap: BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTE_POWER_CAP,
+          votingDayPeriod: BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_DAY_PERIOD,
+          consensusTimeout: BLOCKCHAIN_CONSTANTS.CONSENSUS.CONSENSUS_TIMEOUT,
+          emergencyTimeout: BLOCKCHAIN_CONSTANTS.CONSENSUS.EMERGENCY_TIMEOUT,
+        },
+        util: {
+          retryAttempts: BLOCKCHAIN_CONSTANTS.UTIL.RETRY_ATTEMPTS,
+        retryDelayMs: BLOCKCHAIN_CONSTANTS.UTIL.RETRY_DELAY_MS,
+        cacheTtlHours: BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL_HOURS,
+        validationTimeoutMs: BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS,
+        initialRetryDelay: BLOCKCHAIN_CONSTANTS.UTIL.INITIAL_RETRY_DELAY,
+        maxRetryDelay: BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRY_DELAY,
+        backoffFactor: BLOCKCHAIN_CONSTANTS.UTIL.BACKOFF_FACTOR,
+        maxRetries: BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRIES,
+        cacheTtl: BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL,
+        pruneThreshold: BLOCKCHAIN_CONSTANTS.UTIL.PRUNE_THRESHOLD,
+        },
+        wallet: {
+          address: "",
+        publicKey: async (): Promise<string> => {
+          const keyPair = await KeyManager.generateKeyPair();
+          return typeof keyPair.publicKey === "function"
+            ? await keyPair.publicKey()
+            : keyPair.publicKey;
+        },
+        privateKey: async (): Promise<string> => {
+          const keyPair = await KeyManager.generateKeyPair();
+          return typeof keyPair.privateKey === "function"
+            ? await keyPair.privateKey()
+            : keyPair.privateKey;
+        },
         },
       });
 

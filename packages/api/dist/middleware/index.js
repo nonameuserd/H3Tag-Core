@@ -14,7 +14,7 @@ exports.rateLimiter = (0, express_rate_limit_1.default)({
     message: "Too many requests from this IP, please try again later",
 });
 // Error handling middleware
-const errorHandler = (err, req, res, next) => {
+const errorHandler = (err, req, res) => {
     shared_1.Logger.error("Unhandled error:", err);
     res.status(shared_1.StatusCodes.INTERNAL_SERVER_ERROR).json({
         error: "Internal server error",
@@ -86,4 +86,3 @@ const timeout = (req, res, next) => {
     next();
 };
 exports.timeout = timeout;
-//# sourceMappingURL=index.js.map

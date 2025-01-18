@@ -39,7 +39,26 @@ let BlockchainController = class BlockchainController {
     }
     async getBlock(hash) {
         try {
-            return await this.blockchainService.getBlock(hash);
+            const block = await this.blockchainService.getBlock(hash);
+            const currentHeight = await this.blockchainService.getHeight();
+            return {
+                ...block,
+                timestamp: Date.now(),
+                height: block.height,
+                hash: block.hash,
+                previousHash: block.previousHash,
+                merkleRoot: block.merkleRoot,
+                transactions: block.transactions.map((tx) => ({
+                    hash: tx.hash,
+                    amount: Number(tx.outputs[0]?.amount) || 0,
+                    confirmations: currentHeight - block.height + 1,
+                    timestamp: tx.timestamp,
+                    type: tx.type,
+                    status: tx.status,
+                    fromAddress: tx.inputs[0]?.address || '',
+                    toAddress: tx.outputs[0]?.address || ''
+                })),
+            };
         }
         catch (error) {
             shared_1.Logger.error("Failed to get block:", error);
@@ -267,4 +286,3 @@ exports.BlockchainController = BlockchainController = __decorate([
     (0, swagger_1.ApiTags)("Blockchain"),
     (0, common_1.Controller)("blockchain")
 ], BlockchainController);
-//# sourceMappingURL=blockchain.controller.js.map

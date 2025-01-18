@@ -1989,7 +1989,7 @@ export class Mempool {
 
       // Add existing outputs
       for (const output of transaction.outputs) {
-        await txBuilder.addOutput(output.address, output.amount);
+        await txBuilder.addOutput(output.address, output.amount, output.confirmations);
       }
 
       // Build updated transaction
@@ -2038,6 +2038,7 @@ export class Mempool {
     output: {
       address: string;
       amount: bigint;
+      confirmations: number;
     }
   ): Promise<boolean> {
     // Add input validation
@@ -2046,7 +2047,7 @@ export class Mempool {
       return false;
     }
 
-    if (!output?.address || !output?.amount || output.amount <= BigInt(0)) {
+    if (!output?.address || !output?.amount || output.amount <= BigInt(0) || !output.confirmations) {
       Logger.warn("Invalid output parameters");
       return false;
     }
@@ -2080,12 +2081,13 @@ export class Mempool {
       for (const existingOutput of transaction.outputs) {
         await txBuilder.addOutput(
           existingOutput.address,
-          existingOutput.amount
+          existingOutput.amount,
+          existingOutput.confirmations
         );
       }
 
       // Add new output - script will be generated in TransactionBuilder.addOutput
-      await txBuilder.addOutput(output.address, output.amount);
+      await txBuilder.addOutput(output.address, output.amount, output.confirmations);
 
       // Build updated transaction
       const updatedTx = await txBuilder.build();

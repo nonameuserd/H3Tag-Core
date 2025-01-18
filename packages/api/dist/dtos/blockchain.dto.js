@@ -6,7 +6,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BlockchainInfoDto = exports.BestBlockHashDto = exports.DifficultyResponseDto = exports.ChainTipDto = exports.TransactionValidationRequestDto = exports.TransactionValidationResponseDto = exports.FirstTransactionResponseDto = exports.UtxoDto = exports.BlockResponseDto = exports.TransactionSubmitDto = exports.BlockchainStatsDto = void 0;
+exports.BlockTransactionDto = exports.BlockchainInfoDto = exports.BestBlockHashDto = exports.DifficultyResponseDto = exports.ChainTipDto = exports.TransactionValidationRequestDto = exports.TransactionValidationResponseDto = exports.FirstTransactionResponseDto = exports.UtxoDto = exports.BlockResponseDto = exports.TransactionSubmitDto = exports.BlockchainStatsDto = void 0;
 const swagger_1 = require("@nestjs/swagger");
 class BlockchainStatsDto {
 }
@@ -53,6 +53,12 @@ __decorate([
         example: "base64_encoded_signature",
     })
 ], TransactionSubmitDto.prototype, "signature", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({
+        description: "Transaction confirmations",
+        example: 6,
+    })
+], TransactionSubmitDto.prototype, "confirmations", void 0);
 class BlockResponseDto {
 }
 exports.BlockResponseDto = BlockResponseDto;
@@ -197,4 +203,30 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({ description: "Chain tips information" })
 ], BlockchainInfoDto.prototype, "chainTips", void 0);
-//# sourceMappingURL=blockchain.dto.js.map
+class BlockTransactionDto {
+}
+exports.BlockTransactionDto = BlockTransactionDto;
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Transaction hash" })
+], BlockTransactionDto.prototype, "hash", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Transaction amount" })
+], BlockTransactionDto.prototype, "amount", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Number of confirmations" })
+], BlockTransactionDto.prototype, "confirmations", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Transaction timestamp" })
+], BlockTransactionDto.prototype, "timestamp", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Transaction type" })
+], BlockTransactionDto.prototype, "type", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Transaction status" })
+], BlockTransactionDto.prototype, "status", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Sender address" })
+], BlockTransactionDto.prototype, "fromAddress", void 0);
+__decorate([
+    (0, swagger_1.ApiProperty)({ description: "Recipient address" })
+], BlockTransactionDto.prototype, "toAddress", void 0);

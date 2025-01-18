@@ -263,4 +263,3 @@ router.get("/best-block-hash", blockchainController.getBestBlockHash);
  */
 router.get("/info", blockchainController.getBlockchainInfo);
 exports.default = router;
-//# sourceMappingURL=blockchain.routes.js.map

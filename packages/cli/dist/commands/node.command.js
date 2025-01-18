@@ -143,4 +143,3 @@ exports.nodeCommand
         process.exit(1);
     }
 });
-//# sourceMappingURL=node.command.js.map

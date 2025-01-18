@@ -9,6 +9,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.NodeService = void 0;
 const common_1 = require("@nestjs/common");
 const core_1 = require("@h3tag-blockchain/core");
+const crypto_1 = require("@h3tag-blockchain/crypto");
 /**
  * @swagger
  * tags:
@@ -46,13 +47,108 @@ let NodeService = class NodeService {
      */
     async createNode(params) {
         try {
-            // Initialize blockchain
+            // Initialize blockchain with complete config
             const blockchain = await core_1.Blockchain.create({
                 network: {
                     type: params.networkType,
                     port: params.port || 8333,
                     host: params.host || "localhost",
                     seedDomains: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.seedDomains[params.networkType],
+                },
+                currency: {
+                    name: 'H3TAG',
+                    symbol: 'TAG',
+                    decimals: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
+                    initialSupply: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.INITIAL_SUPPLY,
+                    maxSupply: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY,
+                    units: {
+                        MACRO: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MACRO,
+                        MICRO: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MICRO,
+                        MILLI: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MILLI,
+                        TAG: core_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.TAG,
+                    },
+                },
+                mining: {
+                    blocksPerYear: core_1.BLOCKCHAIN_CONSTANTS.MINING.BLOCKS_PER_YEAR,
+                    initialReward: core_1.BLOCKCHAIN_CONSTANTS.MINING.INITIAL_REWARD,
+                    blockTime: core_1.BLOCKCHAIN_CONSTANTS.MINING.BLOCK_TIME,
+                    halvingInterval: core_1.BLOCKCHAIN_CONSTANTS.MINING.HALVING_INTERVAL,
+                    maxHalvings: core_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_HALVINGS,
+                    maxDifficulty: core_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_DIFFICULTY,
+                    targetTimePerBlock: core_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK,
+                    difficulty: core_1.BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY,
+                    targetBlockTime: core_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_BLOCK_TIME,
+                    targetTimespan: core_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIMESPAN,
+                    maxForkDepth: core_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
+                    emergencyPowThreshold: core_1.BLOCKCHAIN_CONSTANTS.MINING.EMERGENCY_POW_THRESHOLD,
+                    minPowNodes: core_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_POW_NODES,
+                    propagationWindow: core_1.BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
+                    difficultyAdjustmentInterval: core_1.BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
+                    forkResolutionTimeout: core_1.BLOCKCHAIN_CONSTANTS.MINING.FORK_RESOLUTION_TIMEOUT,
+                    hashBatchSize: core_1.BLOCKCHAIN_CONSTANTS.MINING.HASH_BATCH_SIZE,
+                    initialDifficulty: core_1.BLOCKCHAIN_CONSTANTS.MINING.INITIAL_DIFFICULTY,
+                    minPowScore: core_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_POW_SCORE,
+                    maxPropagationTime: core_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_TIME,
+                    maxTarget: core_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET,
+                    minDifficulty: core_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY,
+                    nodeSelectionThreshold: core_1.BLOCKCHAIN_CONSTANTS.MINING.NODE_SELECTION_THRESHOLD,
+                    orphanWindow: core_1.BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW,
+                    minHashthreshold: core_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_HASHRATE,
+                },
+                votingConstants: {
+                    votingPeriodBlocks: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS,
+                    votingPeriodMs: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_MS,
+                    minPowWork: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_WORK,
+                    cooldownBlocks: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS,
+                    maxVotesPerPeriod: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_PERIOD,
+                    minAccountAge: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_ACCOUNT_AGE,
+                    minPeerCount: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_PEER_COUNT,
+                    voteEncryptionVersion: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_ENCRYPTION_VERSION,
+                    maxVoteSizeBytes: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTE_SIZE_BYTES,
+                    votingWeight: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
+                    minVotesForValidity: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTES_FOR_VALIDITY,
+                    votePowerDecay: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_POWER_DECAY,
+                },
+                consensus: {
+                    powWeight: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.POW_WEIGHT,
+                    voteWeight: core_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
+                    minPowHashrate: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_POW_HASH_RATE,
+                    minVoterCount: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_VOTER_COUNT,
+                    minPeriodLength: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PERIOD_LENGTH,
+                    votingPeriod: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_PERIOD,
+                    minParticipation: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PARTICIPATION,
+                    nodeSelectionTimeout: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.NODE_SELECTION_TIMEOUT,
+                    votePowerCap: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTE_POWER_CAP,
+                    votingDayPeriod: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_DAY_PERIOD,
+                    consensusTimeout: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.CONSENSUS_TIMEOUT,
+                    emergencyTimeout: core_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.EMERGENCY_TIMEOUT,
+                },
+                util: {
+                    retryAttempts: core_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_ATTEMPTS,
+                    retryDelayMs: core_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_DELAY_MS,
+                    cacheTtlHours: core_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL_HOURS,
+                    validationTimeoutMs: core_1.BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS,
+                    initialRetryDelay: core_1.BLOCKCHAIN_CONSTANTS.UTIL.INITIAL_RETRY_DELAY,
+                    maxRetryDelay: core_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRY_DELAY,
+                    backoffFactor: core_1.BLOCKCHAIN_CONSTANTS.UTIL.BACKOFF_FACTOR,
+                    maxRetries: core_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRIES,
+                    cacheTtl: core_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL,
+                    pruneThreshold: core_1.BLOCKCHAIN_CONSTANTS.UTIL.PRUNE_THRESHOLD,
+                },
+                wallet: {
+                    address: "",
+                    publicKey: async () => {
+                        const keyPair = await crypto_1.KeyManager.generateKeyPair();
+                        return typeof keyPair.publicKey === "function"
+                            ? await keyPair.publicKey()
+                            : keyPair.publicKey;
+                    },
+                    privateKey: async () => {
+                        const keyPair = await crypto_1.KeyManager.generateKeyPair();
+                        return typeof keyPair.privateKey === "function"
+                            ? await keyPair.privateKey()
+                            : keyPair.privateKey;
+                    },
                 },
             });
             // Create mempool
@@ -234,4 +330,3 @@ exports.NodeService = NodeService;
 exports.NodeService = NodeService = __decorate([
     (0, common_1.Injectable)()
 ], NodeService);
-//# sourceMappingURL=node.service.js.map

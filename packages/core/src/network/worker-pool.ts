@@ -192,14 +192,14 @@ class Queue<T> {
   }
 }
 
-interface Task {
+export interface Task {
   resolve: (worker: Worker) => void;
   timestamp: number;
 }
 
-interface WorkerOptions {
+export interface WorkerOptions {
   env?: NodeJS.ProcessEnv;
-  workerData?: any;
+  workerData?: { [key: string]: unknown };
   stdin?: boolean;
   stdout?: boolean;
   stderr?: boolean;

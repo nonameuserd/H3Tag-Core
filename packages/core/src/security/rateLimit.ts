@@ -30,9 +30,9 @@ interface RateLimitConfig {
     qudraticVote: number;
     default: number;
   };
-  keyGenerator?: (req: any) => string;
-  handler?: (req: any, res: any, next: Function) => void;
-  skip?: (req: any) => boolean;
+  keyGenerator?: (req: Request) => string;
+  handler?: (req: Request, res: Response, next: (err?: Error) => void) => void;
+  skip?: (req: Request) => boolean;
   keyPrefix?: string;
   skipFailedRequests?: boolean;
   headers?: boolean;
@@ -323,11 +323,11 @@ export class RateLimit {
     return !info.blocked;
   }
 
-  public on(event: string, listener: (...args: any[]) => void): void {
+  public on(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
-  public off(event: string, listener: (...args: any[]) => void): void {
+  public off(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.off(event, listener);
   }
 

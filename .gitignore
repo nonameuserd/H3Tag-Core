@@ -16,3 +16,6 @@ secret.json
 .tsbuildinfo
 .log
 .xml
+.nx/cache
+.nx/workspace-data
+.yarn/cache

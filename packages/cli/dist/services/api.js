@@ -8,4 +8,3 @@ const axios_1 = __importDefault(require("axios"));
 exports.api = axios_1.default.create({
     baseURL: "http://localhost:3000/api/v1",
 });
-//# sourceMappingURL=api.js.map

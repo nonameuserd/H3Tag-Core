@@ -24,4 +24,3 @@ const applyMiddleware = (app) => {
     app.use(index_1.errorHandler);
 };
 exports.applyMiddleware = applyMiddleware;
-//# sourceMappingURL=apply.js.map

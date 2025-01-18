@@ -246,8 +246,8 @@ export class UTXOSet {
    * Add a UTXO to the set
    */
   async add(utxo: UTXO): Promise<void> {
-    const mutex = await this.mutex.acquire();
     try {
+      await this.mutex.waitForUnlock();
       // Check rate limit
       if (!this.checkRateLimit()) {
         throw new UTXOError("Rate limit exceeded");

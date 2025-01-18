@@ -152,13 +152,13 @@ export class DecodedTransactionDto {
     description: "Transaction inputs",
     type: [Object],
   })
-  vin: any[];
+  vin: TransactionInputDto[];
 
   @ApiProperty({
     description: "Transaction outputs",
     type: [Object],
   })
-  vout: any[];
+  vout: TransactionOutputDto[];
 }
 
 export class EstimateFeeRequestDto {

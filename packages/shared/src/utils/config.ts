@@ -1,7 +1,9 @@
-import { NetworkType } from "@h3tag-blockchain/shared";
-
-export interface NetworkConfig {
-  type: NetworkType;
+  export interface NetworkConfig {
+  type: {
+    MAINNET: string;
+    TESTNET: string;
+    DEVNET: string;
+  };
   port: {
     MAINNET: number;
     TESTNET: number;
@@ -46,7 +48,7 @@ export interface MiningConfig {
   hashBatchSize: number;
   maxTarget: bigint;
   minDifficulty: number;
-  chainDecisionThreshold: number;
+  nodeSelectionThreshold: number;
   orphanWindow: number;
   propagationWindow: number;
   maxPropagationTime: number;
@@ -83,7 +85,7 @@ export interface ConsensusConfig {
   votingDayPeriod: number;
   consensusTimeout: number;
   emergencyTimeout: number;
-  chainSelectionTimeout: number;
+  nodeSelectionTimeout: number;
   voteCollectionTimeout: number;
   initialReward: bigint;
   baseReward: bigint;
@@ -118,6 +120,12 @@ export interface VotingConfig {
   minPowContribution: number;
   reputationThreshold: number;
   rateLimitWindow: number;
+}
+
+export interface WalletConfig {
+  address: string;
+  privateKey: string;
+  publicKey: string;
 }
 
 export interface UtilConfig {
@@ -221,11 +229,16 @@ export interface BlockchainConfig {
   minRelayTxFee: number;
   minPeers: number;
   message: MessageConfig;
+  wallet: WalletConfig;
 }
 
 const defaultConfig: BlockchainConfig = {
   network: {
-    type: NetworkType.MAINNET,
+    type: {
+      MAINNET: "mainnet",
+      TESTNET: "testnet",
+      DEVNET: "devnet",
+    },
     port: {
       MAINNET: 8333,
       TESTNET: 10001,
@@ -280,7 +293,7 @@ const defaultConfig: BlockchainConfig = {
     hashBatchSize: 10000,
     maxTarget: BigInt("0x0000000000ffff0000000000000000000000000000000000000000000000000000"),
     minDifficulty: 2,
-    chainDecisionThreshold: 0.67,
+    nodeSelectionThreshold: 0.67,
     orphanWindow: 100,
     propagationWindow: 50,
     maxPropagationTime: 30000,
@@ -306,7 +319,7 @@ const defaultConfig: BlockchainConfig = {
     safeConfirmationTime: 3600000,
   },
   consensus: {
-    powWeight: 10000,
+    powWeight: 0.6,
     minPowHashRate: 1000000,
     minVoterCount: 1000,
     minPeriodLength: 1000,
@@ -316,7 +329,7 @@ const defaultConfig: BlockchainConfig = {
     votingDayPeriod: 690 * 24 * 60 * 60 * 1000,
     consensusTimeout: 30 * 60 * 1000,
     emergencyTimeout: 60 * 60 * 1000,
-    chainSelectionTimeout: 5 * 60 * 1000,
+    nodeSelectionTimeout: 5 * 60 * 1000,
     voteCollectionTimeout: 3 * 60 * 1000,
     initialReward: BigInt(546),
     baseReward: 100n * 10n ** 18n,
@@ -436,5 +449,10 @@ const defaultConfig: BlockchainConfig = {
     prefix: "\x18H3Tag Signed Message:\n",
     maxLength: 100000,
     minLength: 1,
+  },
+  wallet: {
+    address: "",
+    privateKey: "",
+    publicKey: "",
   },
 };

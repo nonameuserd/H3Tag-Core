@@ -202,4 +202,3 @@ exports.peerCommand
         console.error("Failed to get network info:", error.response?.data?.error || error.message);
     }
 });
-//# sourceMappingURL=peer.command.js.map

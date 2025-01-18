@@ -9,4 +9,3 @@ const PORT = config_1.default.network.port || 3000;
 app_1.default.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
-//# sourceMappingURL=server.js.map

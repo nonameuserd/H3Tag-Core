@@ -11,6 +11,7 @@ const common_1 = require("@nestjs/common");
 const core_1 = require("@h3tag-blockchain/core");
 const shared_1 = require("@h3tag-blockchain/shared");
 const core_2 = require("@h3tag-blockchain/core");
+const core_3 = require("@h3tag-blockchain/core");
 /**
  * @swagger
  * components:
@@ -64,7 +65,7 @@ let PeerService = class PeerService {
             // Create new peer instance
             const peer = new core_1.Peer(host, port, {
                 version: this.configService.get("PEER_VERSION") || 1,
-                services: 1, // NODE_NETWORK
+                services: [core_3.PeerServices.NODE],
                 minPingInterval: 120000,
                 connectionTimeout: 10000,
                 handshakeTimeout: 30000,
@@ -72,18 +73,18 @@ let PeerService = class PeerService {
             // Attempt to connect to the peer
             await peer.connect();
             // Get peer info after successful connection
-            const peerInfo = peer.getInfo();
+            const peerInfo = await peer.getInfo();
             // Store peer instance
             this.peers.set(peer.getId(), peer);
             return {
                 peerId: peer.getId(),
                 address: createPeerDto.address,
                 status: peer.getState(),
-                version: (await peer.getInfo()).version,
-                lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
-                latency: (await peer.getInfo()).latency,
-                height: (await peer.getInfo()).height,
-                services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
+                version: peerInfo.version,
+                lastSeen: new Date(peerInfo.lastSeen).toISOString(),
+                latency: peerInfo.latency,
+                height: peerInfo.height,
+                services: peerInfo.services.reduce((acc, service) => acc | service, 0),
             };
         }
         catch (error) {
@@ -111,16 +112,16 @@ let PeerService = class PeerService {
         try {
             const peerResponses = [];
             for (const peer of this.peers.values()) {
-                const peerInfo = peer.getInfo();
+                const peerInfo = await peer.getInfo();
                 peerResponses.push({
                     peerId: peer.getId(),
                     address: `${peer.getAddress()}`,
                     status: peer.getState(),
-                    version: (await peer.getInfo()).version,
-                    lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
-                    latency: (await peer.getInfo()).latency,
-                    height: (await peer.getInfo()).height,
-                    services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
+                    version: peerInfo.version,
+                    lastSeen: new Date(peerInfo.lastSeen).toISOString(),
+                    latency: peerInfo.latency,
+                    height: peerInfo.height,
+                    services: peerInfo.services.reduce((acc, service) => acc | service, 0),
                 });
             }
             return peerResponses;
@@ -181,16 +182,16 @@ let PeerService = class PeerService {
         try {
             // Set maximum ban score to trigger ban
             peer.adjustPeerScore(Number.MAX_SAFE_INTEGER);
-            const peerInfo = peer.getInfo();
+            const peerInfo = await peer.getInfo();
             return {
                 peerId: peer.getId(),
                 address: peer.getAddress(),
                 status: core_1.PeerState.BANNED,
-                version: (await peer.getInfo()).version,
-                lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
-                latency: (await peer.getInfo()).latency,
-                height: (await peer.getInfo()).height,
-                services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
+                version: peerInfo.version,
+                lastSeen: new Date(peerInfo.lastSeen).toISOString(),
+                latency: peerInfo.latency,
+                height: peerInfo.height,
+                services: peerInfo.services.reduce((acc, service) => acc | service, 0),
             };
         }
         catch (error) {
@@ -429,4 +430,3 @@ exports.PeerService = PeerService;
 exports.PeerService = PeerService = __decorate([
     (0, common_1.Injectable)()
 ], PeerService);
-//# sourceMappingURL=peer.service.js.map

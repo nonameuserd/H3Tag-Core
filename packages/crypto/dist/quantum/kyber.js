@@ -158,4 +158,3 @@ Kyber.PRIVATE_KEY_SIZE = 2400;
 Kyber.CIPHERTEXT_SIZE = 1088;
 Kyber.SHARED_SECRET_SIZE = 32;
 Kyber.DEFAULT_SECURITY_LEVEL = types_1.SecurityLevel.HIGH;
-//# sourceMappingURL=kyber.js.map

@@ -149,4 +149,3 @@ __decorate([
         type: [String],
     })
 ], MempoolEntryDto.prototype, "depends", void 0);
-//# sourceMappingURL=mempool.dto.js.map

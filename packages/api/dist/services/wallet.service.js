@@ -314,4 +314,3 @@ exports.WalletService = WalletService;
 exports.WalletService = WalletService = __decorate([
     (0, common_1.Injectable)()
 ], WalletService);
-//# sourceMappingURL=wallet.service.js.map

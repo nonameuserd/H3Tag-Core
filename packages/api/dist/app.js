@@ -77,4 +77,3 @@ app.get("/api-docs.json", (req, res) => {
 // Routes
 app.use("/api/v1", routes_1.default);
 exports.default = app;
-//# sourceMappingURL=app.js.map

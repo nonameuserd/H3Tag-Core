@@ -12,4 +12,3 @@ async function loadWasmModule(modulePath) {
     }
 }
 exports.loadWasmModule = loadWasmModule;
-//# sourceMappingURL=wasm-loader.js.map

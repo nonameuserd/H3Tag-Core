@@ -38,8 +38,8 @@ export declare class DecodedTransactionDto {
     txid: string;
     hash: string;
     version: number;
-    vin: any[];
-    vout: any[];
+    vin: TransactionInputDto[];
+    vout: TransactionOutputDto[];
 }
 export declare class EstimateFeeRequestDto {
     targetBlocks?: number;

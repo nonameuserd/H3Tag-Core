@@ -1,4 +1,4 @@
-import { Transaction, TransactionType } from "../models/transaction.model";
+import { Transaction, TransactionType, TxInput } from "../models/transaction.model";
 import { UTXO, UTXOSet } from "../models/utxo.model";
 import { Logger } from "@h3tag-blockchain/shared";
 import { HybridCrypto } from "@h3tag-blockchain/crypto";
@@ -503,7 +503,7 @@ export class TransactionValidator {
   }
 
   private static async verifyInputSignature(
-    input: any,
+    input: TxInput,
     txId: string
   ): Promise<boolean> {
     if (!input?.signature || !input?.publicKey) {

@@ -97,4 +97,3 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({ description: "Number of blacklisted peers" })
 ], MetricsResponseDto.prototype, "blacklistedPeers", void 0);
-//# sourceMappingURL=metrics.dto.js.map

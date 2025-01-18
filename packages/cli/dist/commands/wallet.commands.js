@@ -216,4 +216,3 @@ exports.walletCommand
         console.error("Failed to get transaction output:", error.response?.data?.error || error.message);
     }
 });
-//# sourceMappingURL=wallet.commands.js.map

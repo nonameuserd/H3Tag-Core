@@ -258,4 +258,3 @@ X509CRL.CRLTemplate = asn1_js_1.asn1.define("CertificateList", function () {
         .seq()
         .obj(this.key("algorithm").objid(), this.key("parameters").optional().any()), this.key("signature").bitstr());
 });
-//# sourceMappingURL=x509.js.map

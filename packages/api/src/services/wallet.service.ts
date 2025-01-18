@@ -3,13 +3,12 @@ import { Wallet } from "@h3tag-blockchain/core";
 import {
   CreateWalletDto,
   WalletResponseDto,
-  ExportPrivateKeyDto,
   ImportPrivateKeyDto,
   TxOutDto,
 } from "../dtos/wallet.dto";
 import { Transaction } from "@h3tag-blockchain/core";
 import { UnspentOutputDto } from "../dtos/wallet.dto";
-import { UTXOSet, UTXODatabase } from "@h3tag-blockchain/core";
+import { UTXOSet } from "@h3tag-blockchain/core";
 import { BLOCKCHAIN_CONSTANTS } from "@h3tag-blockchain/core";
 
 /**

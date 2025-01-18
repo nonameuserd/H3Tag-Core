@@ -308,7 +308,7 @@ export class ShardManager {
   private async cleanupStaleData(): Promise<void> {
     const release = await this.mutex.acquire();
     try {
-      for (const [shardId, shard] of this.shards) {
+      for (const shard of this.shards.values()) {
         const staleItems = Array.from(shard).filter(async (item) => {
           const lastAccess = await this.db.getLastAccess(item);
           return (

@@ -228,4 +228,3 @@ exports.PeerController = PeerController = __decorate([
     (0, swagger_1.ApiTags)("Peers"),
     (0, common_1.Controller)("peers")
 ], PeerController);
-//# sourceMappingURL=peer.controller.js.map

@@ -1,4 +1,4 @@
-import { Blockchain, Transaction } from "@h3tag-blockchain/core";
+import { Blockchain } from "@h3tag-blockchain/core";
 import { BlockchainStatsDto, TransactionSubmitDto, ChainTipDto, BlockchainInfoDto } from "../dtos/blockchain.dto";
 import { Node } from "@h3tag-blockchain/core";
 /**
@@ -121,43 +121,19 @@ export declare class BlockchainService {
      *         description: Block not found
      */
     getBlock(hash: string): Promise<{
-        hash: string;
-        height: number;
-        previousHash: string;
-        timestamp: number;
-        transactions: Transaction[];
-        merkleRoot: string;
+        hash: any;
+        height: any;
+        previousHash: any;
+        timestamp: any;
+        transactions: any;
+        merkleRoot: any;
     }>;
-    getCurrencyDetails(): Promise<{
-        name: string;
-        symbol: string;
-        decimals: number;
-        totalSupply: number;
-        maxSupply: number;
-        circulatingSupply: number;
-    }>;
-    getFirstTransactionForAddress(address: string): Promise<{
-        blockHeight: number;
-    }>;
+    getCurrencyDetails(): Promise<any>;
+    getFirstTransactionForAddress(address: string): Promise<any>;
     validateTransactionAmount(tx: TransactionSubmitDto): Promise<boolean>;
-    getConfirmedUtxos(address: string): Promise<{
-        txid: string;
-        vout: number;
-        amount: number;
-        confirmations: number;
-    }[]>;
+    getConfirmedUtxos(address: string): Promise<any>;
     private buildTransaction;
-    getNode(): Promise<{
-        networkType: import("packages/core/dist/network/dnsSeed").NetworkType;
-        port: number;
-        peersCount: number;
-        version: number;
-        isRunning: boolean;
-        syncStatus: {
-            synced: boolean;
-            height: number;
-        };
-    }>;
+    getNode(): Promise<any>;
     /**
      * @swagger
      * /blockchain/chain-tips:
@@ -220,6 +196,6 @@ export declare class BlockchainService {
      *               $ref: '#/components/schemas/BlockchainInfoDto'
      */
     getBlockchainInfo(): Promise<BlockchainInfoDto>;
-    sendRawTransaction(rawTx: string, allowHighFees?: boolean): Promise<string>;
+    sendRawTransaction(rawTx: string): Promise<string>;
     getBlockchain(): Blockchain;
 }

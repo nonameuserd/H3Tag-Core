@@ -164,6 +164,7 @@ import { MetricsCollector } from "../monitoring/metrics-collector";
 import { retry } from "../utils/retry";
 import { performance } from "perf_hooks";
 import { Transaction } from "../models/transaction.model";
+import { BlockchainStatsError } from "./utils/blockchain-stats-error";
 
 // Create interface for what BlockchainStats needs
 interface IBlockchainData {
@@ -201,7 +202,7 @@ interface IBlockchainData {
 
 export class BlockchainStats {
   private readonly blockchain: IBlockchainData;
-  private readonly statsCache: Map<string, { value: any; timestamp: number }>;
+  private readonly statsCache: Map<string, { value: unknown; timestamp: number }>;
   private readonly maxCacheSize = 1000; // Prevent unlimited growth
   private readonly metricsCollector: MetricsCollector;
   private circuitBreaker = new Map<
@@ -269,7 +270,7 @@ export class BlockchainStats {
         cached &&
         now - cached.timestamp < BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL
       ) {
-        return cached.value;
+        return cached.value as T;
       }
 
       const value = await this.executeWithCircuitBreaker(key, () =>
@@ -642,9 +643,9 @@ export class BlockchainStats {
    * @param validator Validator function
    * @param errorMessage Error message
    */
-  private validateInput(
-    value: any,
-    validator: (v: any) => boolean,
+  private validateInput<T>(
+    value: T,
+    validator: (v: T) => boolean,
     errorMessage: string
   ): void {
     if (!validator(value)) {

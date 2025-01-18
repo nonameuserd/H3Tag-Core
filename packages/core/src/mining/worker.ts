@@ -188,7 +188,6 @@ export class MiningWorker {
 
       for (let nonce = start; nonce < end; nonce += batchSize) {
         // Prevent overflow
-        const batchEnd = Math.min(nonce + batchSize, end);
         const headerWithNonce = `${headerBase}${nonce}`;
 
         // Use SIMD for parallel hash computation

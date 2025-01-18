@@ -313,7 +313,7 @@ export class Blockchain {
    * Creates a new blockchain instance with the specified configuration
    * @param config Optional blockchain configuration parameters
    */
-  constructor(config?: Partial<BlockchainConfig>) {
+  constructor(config?: BlockchainConfig) {
     this.metrics = new MetricsCollector("blockchain", 60000);
     this.errorMonitor = new ErrorMonitor();
     this.auditManager = new AuditManager();
@@ -505,7 +505,7 @@ export class Blockchain {
    * @throws Error if initialization fails
    */
   private async initializeAsync(
-    config?: Partial<BlockchainConfig>
+    config?: BlockchainConfig
   ): Promise<void> {
     try {
       await KeyManager.initialize();
@@ -615,7 +615,7 @@ export class Blockchain {
    * @returns Promise<Blockchain> New blockchain instance
    */
   public static async create(
-    config?: Partial<BlockchainConfig>
+    config?: BlockchainConfig
   ): Promise<Blockchain> {
     if (!Blockchain.instance) {
       Blockchain.instance = new Blockchain(config);
@@ -642,6 +642,8 @@ export class Blockchain {
         miner: "0".repeat(40),
         totalTAG: 0,
         blockReward: 50,
+        locator: [],
+        hashStop: "",
         fees: 0,
         consensusData: {
           powScore: 0,
@@ -1286,7 +1288,7 @@ export class Blockchain {
    * @returns Blockchain configuration
    */
   private initializeConfig(
-    config?: Partial<BlockchainConfig>
+    config?: BlockchainConfig
   ): BlockchainConfig {
     return {
       currency: config?.currency || {
@@ -1305,6 +1307,8 @@ export class Blockchain {
         minPeriodLength: BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PERIOD_LENGTH,
         votingPeriod: BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_PERIOD,
         minParticipation: BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PARTICIPATION,
+        nodeSelectionTimeout:
+          BLOCKCHAIN_CONSTANTS.CONSENSUS.NODE_SELECTION_TIMEOUT,
         votePowerCap: BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTE_POWER_CAP,
         votingDayPeriod: BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_DAY_PERIOD,
         consensusTimeout: BLOCKCHAIN_CONSTANTS.CONSENSUS.CONSENSUS_TIMEOUT,
@@ -1332,8 +1336,8 @@ export class Blockchain {
         initialDifficulty: BLOCKCHAIN_CONSTANTS.MINING.INITIAL_DIFFICULTY,
         hashBatchSize: BLOCKCHAIN_CONSTANTS.MINING.HASH_BATCH_SIZE,
         minDifficulty: BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY,
-        chainDecisionThreshold:
-          BLOCKCHAIN_CONSTANTS.MINING.CHAIN_DECISION_THRESHOLD,
+        nodeSelectionThreshold:
+          BLOCKCHAIN_CONSTANTS.MINING.NODE_SELECTION_THRESHOLD,
         orphanWindow: BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW,
         propagationWindow: BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
         maxPropagationTime: BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_TIME,
@@ -2388,7 +2392,7 @@ export class Blockchain {
     return this.consensusPublicKey.publicKey;
   }
 
-  public static getInstance(config?: Partial<BlockchainConfig>): Blockchain {
+  public static getInstance(config?: BlockchainConfig): Blockchain {
     if (!Blockchain.instance) {
       Blockchain.instance = new Blockchain(config);
     }

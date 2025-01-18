@@ -96,4 +96,3 @@ exports.VotingService = VotingService;
 exports.VotingService = VotingService = __decorate([
     (0, common_1.Injectable)()
 ], VotingService);
-//# sourceMappingURL=voting.service.js.map

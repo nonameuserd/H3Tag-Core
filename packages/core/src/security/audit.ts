@@ -399,7 +399,7 @@ export class AuditManager {
   }
 
   private async calculateEventHash(event: AuditEvent): Promise<string> {
-    const { hash, ...eventWithoutHash } = event;
+    const { ...eventWithoutHash } = event;
     const data = Buffer.from(JSON.stringify(eventWithoutHash));
     return HybridCrypto.generateSharedSecret(data);
   }
@@ -459,7 +459,7 @@ export class AuditManager {
 
   async log(
     eventType: AuditEventType,
-    data: { [key: string]: any }
+    data: { [key: string]: unknown }
   ): Promise<void> {
     const auditLog = {
       eventType,
@@ -513,11 +513,11 @@ export class AuditManager {
     Logger.info("Audit manager disposed");
   }
 
-  public on(event: string, listener: (...args: any[]) => void): void {
+  public on(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
-  public off(event: string, listener: (...args: any[]) => void): void {
+  public off(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.off(event, listener);
   }
 

@@ -1,10 +1,8 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "module": "commonjs",
+    "outDir": "./dist",
     "rootDir": "./src",
-    "declaration": true,
-    "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
       "@h3tag-blockchain/shared": ["src/*"]

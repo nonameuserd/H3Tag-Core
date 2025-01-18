@@ -95,4 +95,3 @@ exports.miningCommand
         process.exit(1);
     }
 });
-//# sourceMappingURL=mining.command.js.map

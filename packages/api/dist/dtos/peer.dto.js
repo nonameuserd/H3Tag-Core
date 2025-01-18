@@ -245,4 +245,3 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({ description: "Peer user agent" })
 ], PeerDetailedInfoDto.prototype, "userAgent", void 0);
-//# sourceMappingURL=peer.dto.js.map

@@ -111,4 +111,3 @@ exports.metricsCommand
         process.exit(1);
     }
 });
-//# sourceMappingURL=metrics.command.js.map

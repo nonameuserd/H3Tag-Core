@@ -1,0 +1,2819 @@
+{
+  "version": "6.0",
+  "nxVersion": "20.3.2",
+  "pathMappings": {
+    "@h3tag-blockchain/api": [
+      "packages/api/src/*"
+    ],
+    "@h3tag-blockchain/cli": [
+      "packages/cli/src/*"
+    ],
+    "@h3tag-blockchain/core": [
+      "packages/core/src/*"
+    ],
+    "@h3tag-blockchain/crypto": [
+      "packages/crypto/src/*"
+    ],
+    "@h3tag-blockchain/shared": [
+      "packages/shared/src/*"
+    ]
+  },
+  "nxJsonPlugins": [],
+  "fileMap": {
+    "nonProjectFiles": [
+      {
+        "file": ".gitignore",
+        "hash": "9398799317977106334"
+      },
+      {
+        "file": "CMakeLists.txt",
+        "hash": "3630017326077841618"
+      },
+      {
+        "file": "CODE-OF-CONDUCT.md",
+        "hash": "11655408418986378124"
+      },
+      {
+        "file": "CONTRIBUTING.md",
+        "hash": "5972434851998657749"
+      },
+      {
+        "file": "LICENSE",
+        "hash": "11147920346946615554"
+      },
+      {
+        "file": "README.md",
+        "hash": "7329516298639680228"
+      },
+      {
+        "file": "eslint.config.mjs",
+        "hash": "4369972487175784277"
+      },
+      {
+        "file": "jest.config.ts",
+        "hash": "7208815643393429001"
+      },
+      {
+        "file": "jest.setup.ts",
+        "hash": "14125678873286092607"
+      },
+      {
+        "file": "lerna.json",
+        "hash": "8221724280854734888"
+      },
+      {
+        "file": "nx.json",
+        "hash": "9583944319703649724"
+      },
+      {
+        "file": "package.json",
+        "hash": "8553531112583915104"
+      },
+      {
+        "file": "packages/core/.gitignore",
+        "hash": "5771437382142666318"
+      },
+      {
+        "file": "packages/core/LICENSE",
+        "hash": "11147920346946615554"
+      },
+      {
+        "file": "packages/core/binding.gyp",
+        "hash": "7989093997193847723"
+      },
+      {
+        "file": "packages/core/build/Makefile",
+        "hash": "14893498116613930123"
+      },
+      {
+        "file": "packages/core/build/Release/.deps/Release/quantum.node.d",
+        "hash": "10137039469252061540"
+      },
+      {
+        "file": "packages/core/build/Release/quantum.node",
+        "hash": "2708757139300226934"
+      },
+      {
+        "file": "packages/core/build/binding.Makefile",
+        "hash": "17115660717743376772"
+      },
+      {
+        "file": "packages/core/build/config.gypi",
+        "hash": "11396801176783304921"
+      },
+      {
+        "file": "packages/core/build/gyp-mac-tool",
+        "hash": "7753253876066119513"
+      },
+      {
+        "file": "packages/core/build/node_gyp_bins/python3",
+        "hash": "16723408866342774623"
+      },
+      {
+        "file": "packages/core/build/quantum.target.mk",
+        "hash": "13335812935158150667"
+      },
+      {
+        "file": "packages/core/jest.config.ts",
+        "hash": "15071577955307702882"
+      },
+      {
+        "file": "packages/core/src/.gitkeep",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/blockchain/blockchain-stats.ts",
+        "hash": "5476326480004199257"
+      },
+      {
+        "file": "packages/core/src/blockchain/blockchain.ts",
+        "hash": "10358290761231855232"
+      },
+      {
+        "file": "packages/core/src/blockchain/consensus/hybrid-direct.ts",
+        "hash": "11338458323259705083"
+      },
+      {
+        "file": "packages/core/src/blockchain/consensus/pow.ts",
+        "hash": "7518123944964138984"
+      },
+      {
+        "file": "packages/core/src/blockchain/consensus/voting.ts",
+        "hash": "6012263733987273757"
+      },
+      {
+        "file": "packages/core/src/blockchain/consensus/voting/util.ts",
+        "hash": "443123699055685201"
+      },
+      {
+        "file": "packages/core/src/blockchain/mempool.ts",
+        "hash": "9128931472458889936"
+      },
+      {
+        "file": "packages/core/src/blockchain/utils/blockchain-stats-error.ts",
+        "hash": "2642977179871982861"
+      },
+      {
+        "file": "packages/core/src/blockchain/utils/consensus.error.ts",
+        "hash": "2834574893309744587"
+      },
+      {
+        "file": "packages/core/src/blockchain/utils/constants.ts",
+        "hash": "2447257816224325948"
+      },
+      {
+        "file": "packages/core/src/blockchain/utils/validation.error.ts",
+        "hash": "7088168597037371271"
+      },
+      {
+        "file": "packages/core/src/blockchain/utils/voting-error.ts",
+        "hash": "234626539203090035"
+      },
+      {
+        "file": "packages/core/src/database/backup-manager.ts",
+        "hash": "6052303861189294696"
+      },
+      {
+        "file": "packages/core/src/database/blockchain-schema.ts",
+        "hash": "9884361122167691200"
+      },
+      {
+        "file": "packages/core/src/database/config.database.ts",
+        "hash": "4006000131640816383"
+      },
+      {
+        "file": "packages/core/src/database/database-transaction.ts",
+        "hash": "7757007925026377835"
+      },
+      {
+        "file": "packages/core/src/database/keystore-schema.ts",
+        "hash": "11954439134919063636"
+      },
+      {
+        "file": "packages/core/src/database/mining-schema.ts",
+        "hash": "11231990194194623043"
+      },
+      {
+        "file": "packages/core/src/database/uxo-schema.ts",
+        "hash": "9273789188479453780"
+      },
+      {
+        "file": "packages/core/src/database/voting-schema.ts",
+        "hash": "16379740877065967185"
+      },
+      {
+        "file": "packages/core/src/database/voting-shard-storage.ts",
+        "hash": "4674743671660520481"
+      },
+      {
+        "file": "packages/core/src/database/wallet-schema.ts",
+        "hash": "16292041362645431673"
+      },
+      {
+        "file": "packages/core/src/index.ts",
+        "hash": "449742685411850472"
+      },
+      {
+        "file": "packages/core/src/mining/difficulty.ts",
+        "hash": "9089766557098162463"
+      },
+      {
+        "file": "packages/core/src/mining/gpu-advanced.ts",
+        "hash": "14611150664467060210"
+      },
+      {
+        "file": "packages/core/src/mining/gpu-circuit-breaker.ts",
+        "hash": "10333963404757966933"
+      },
+      {
+        "file": "packages/core/src/mining/gpu-memory.ts",
+        "hash": "1813753730564920740"
+      },
+      {
+        "file": "packages/core/src/mining/gpu.ts",
+        "hash": "17244037409468711925"
+      },
+      {
+        "file": "packages/core/src/mining/types/gpu-api.d.ts",
+        "hash": "4860064193717388680"
+      },
+      {
+        "file": "packages/core/src/mining/worker.ts",
+        "hash": "15469248019889958145"
+      },
+      {
+        "file": "packages/core/src/mining/zero-copy.ts",
+        "hash": "9792934178401098152"
+      },
+      {
+        "file": "packages/core/src/models/analytics.model.ts",
+        "hash": "10592233728821824167"
+      },
+      {
+        "file": "packages/core/src/models/block.model.ts",
+        "hash": "16643764993396025038"
+      },
+      {
+        "file": "packages/core/src/models/peer.model.ts",
+        "hash": "344936220109201236"
+      },
+      {
+        "file": "packages/core/src/models/transaction.model.ts",
+        "hash": "5883823404403520292"
+      },
+      {
+        "file": "packages/core/src/models/utxo.model.ts",
+        "hash": "15260481205919037841"
+      },
+      {
+        "file": "packages/core/src/models/validator.ts",
+        "hash": "9692383084199867532"
+      },
+      {
+        "file": "packages/core/src/models/vote.model.ts",
+        "hash": "13003885171088468940"
+      },
+      {
+        "file": "packages/core/src/monitoring/health.ts",
+        "hash": "4224597624158460467"
+      },
+      {
+        "file": "packages/core/src/monitoring/metrics-collector.ts",
+        "hash": "17678693266228218127"
+      },
+      {
+        "file": "packages/core/src/monitoring/metrics.ts",
+        "hash": "2472761145181902279"
+      },
+      {
+        "file": "packages/core/src/monitoring/monitoring.ts",
+        "hash": "9963507749467940300"
+      },
+      {
+        "file": "packages/core/src/monitoring/performance-metrics.ts",
+        "hash": "12167272611772081018"
+      },
+      {
+        "file": "packages/core/src/monitoring/performance-monitor.ts",
+        "hash": "2315186040106777390"
+      },
+      {
+        "file": "packages/core/src/monitoring/performance.ts",
+        "hash": "18365684811317316076"
+      },
+      {
+        "file": "packages/core/src/network/.gitignore",
+        "hash": "13603088859507085958"
+      },
+      {
+        "file": "packages/core/src/network/aws-stack/LICENSE",
+        "hash": "11147920346946615554"
+      },
+      {
+        "file": "packages/core/src/network/aws-stack/bootstrap-regions.ts",
+        "hash": "5127503176631102361"
+      },
+      {
+        "file": "packages/core/src/network/aws-stack/deploy.ts",
+        "hash": "4722742352899080638"
+      },
+      {
+        "file": "packages/core/src/network/aws-stack/script/node-initializer.ts",
+        "hash": "12740568240962408281"
+      },
+      {
+        "file": "packages/core/src/network/aws-stack/seed-server-stack.ts",
+        "hash": "7089207814367228214"
+      },
+      {
+        "file": "packages/core/src/network/aws-stack/seedServer.ts",
+        "hash": "9998312833666887529"
+      },
+      {
+        "file": "packages/core/src/network/circuit-breaker.ts",
+        "hash": "9890602285270776197"
+      },
+      {
+        "file": "packages/core/src/network/discovery-error.ts",
+        "hash": "2130282851762651679"
+      },
+      {
+        "file": "packages/core/src/network/discovery.ts",
+        "hash": "9392630291863074465"
+      },
+      {
+        "file": "packages/core/src/network/dnsSeed.ts",
+        "hash": "4233397666217332084"
+      },
+      {
+        "file": "packages/core/src/network/error-monitor.ts",
+        "hash": "850131310737657842"
+      },
+      {
+        "file": "packages/core/src/network/network-error.ts",
+        "hash": "10667799257881348313"
+      },
+      {
+        "file": "packages/core/src/network/network-stats.ts",
+        "hash": "3903250305969818507"
+      },
+      {
+        "file": "packages/core/src/network/node.ts",
+        "hash": "6979257960141412853"
+      },
+      {
+        "file": "packages/core/src/network/peer.ts",
+        "hash": "14697243002091049916"
+      },
+      {
+        "file": "packages/core/src/network/sync.ts",
+        "hash": "17625315950512310955"
+      },
+      {
+        "file": "packages/core/src/network/verification.ts",
+        "hash": "8004356748874596948"
+      },
+      {
+        "file": "packages/core/src/network/worker-pool.ts",
+        "hash": "3619562476023580086"
+      },
+      {
+        "file": "packages/core/src/scaling/cache-metrics.ts",
+        "hash": "9330339735622025836"
+      },
+      {
+        "file": "packages/core/src/scaling/cache.ts",
+        "hash": "799289679637516593"
+      },
+      {
+        "file": "packages/core/src/scaling/sharding.ts",
+        "hash": "14641613624507357467"
+      },
+      {
+        "file": "packages/core/src/security/audit.ts",
+        "hash": "12746322730790056233"
+      },
+      {
+        "file": "packages/core/src/security/ddos.ts",
+        "hash": "14027726861212836525"
+      },
+      {
+        "file": "packages/core/src/security/default-audit-storage.ts",
+        "hash": "14913664304394534857"
+      },
+      {
+        "file": "packages/core/src/security/fileAuditStorage.ts",
+        "hash": "11770749227480023468"
+      },
+      {
+        "file": "packages/core/src/security/in-memory-audit.ts",
+        "hash": "11058588569363395813"
+      },
+      {
+        "file": "packages/core/src/security/rateLimit.ts",
+        "hash": "10316787023147364259"
+      },
+      {
+        "file": "packages/core/src/utils/merkle.ts",
+        "hash": "12006133325963515203"
+      },
+      {
+        "file": "packages/core/src/utils/retry.ts",
+        "hash": "6963344813412230138"
+      },
+      {
+        "file": "packages/core/src/utils/wasm-loader.ts",
+        "hash": "7257162411315250383"
+      },
+      {
+        "file": "packages/core/src/validators/block.validator.ts",
+        "hash": "2492269310388370001"
+      },
+      {
+        "file": "packages/core/src/validators/transaction-validation-error.ts",
+        "hash": "17674542453864829654"
+      },
+      {
+        "file": "packages/core/src/validators/transaction.validator.ts",
+        "hash": "3858518705806221048"
+      },
+      {
+        "file": "packages/core/src/wallet/keystore-types.ts",
+        "hash": "18266406891495194759"
+      },
+      {
+        "file": "packages/core/src/wallet/keystore.ts",
+        "hash": "8388662738358373075"
+      },
+      {
+        "file": "packages/core/src/wallet/wallet.ts",
+        "hash": "14274765550684061939"
+      },
+      {
+        "file": "packages/core/src/wasm/Cargo.lock",
+        "hash": "2373403871504694131"
+      },
+      {
+        "file": "packages/core/src/wasm/src/lib.rs",
+        "hash": "4349093917886687489"
+      },
+      {
+        "file": "packages/core/src/wasm/target/CACHEDIR.TAG",
+        "hash": "16967703401657512646"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.cargo-lock",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/bumpalo-e59df2e91788c439/dep-lib-bumpalo",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/bumpalo-e59df2e91788c439/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/bumpalo-e59df2e91788c439/lib-bumpalo",
+        "hash": "17632567251355079164"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/crossbeam-utils-b58c75ed612c113e/build-script-build-script-build",
+        "hash": "12462463023465016630"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/crossbeam-utils-b58c75ed612c113e/dep-build-script-build-script-build",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/crossbeam-utils-b58c75ed612c113e/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/log-985b35910e2fece7/dep-lib-log",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/log-985b35910e2fece7/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/log-985b35910e2fece7/lib-log",
+        "hash": "16438472776940127317"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/proc-macro2-063e5dd77a931a6a/build-script-build-script-build",
+        "hash": "8721284509022364260"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/proc-macro2-063e5dd77a931a6a/dep-build-script-build-script-build",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/proc-macro2-063e5dd77a931a6a/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/proc-macro2-8773d5a6131593c7/dep-lib-proc_macro2",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/proc-macro2-8773d5a6131593c7/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/proc-macro2-8773d5a6131593c7/lib-proc_macro2",
+        "hash": "17016393630977206889"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/proc-macro2-98644f9fe2a3dbf0/run-build-script-build-script-build",
+        "hash": "17708806110403547158"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/quote-bf9e4d09ed7d227e/dep-lib-quote",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/quote-bf9e4d09ed7d227e/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/quote-bf9e4d09ed7d227e/lib-quote",
+        "hash": "8465506220371393791"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/rayon-core-b45c646b64f98d14/build-script-build-script-build",
+        "hash": "2159960059671677932"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/rayon-core-b45c646b64f98d14/dep-build-script-build-script-build",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/rayon-core-b45c646b64f98d14/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/serde-c80afe9613bcebf7/build-script-build-script-build",
+        "hash": "2250468210099150227"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/serde-c80afe9613bcebf7/dep-build-script-build-script-build",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/serde-c80afe9613bcebf7/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/serde_derive-f54f87110e6fdc01/dep-lib-serde_derive",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/serde_derive-f54f87110e6fdc01/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/serde_derive-f54f87110e6fdc01/lib-serde_derive",
+        "hash": "12891957469587482442"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/syn-773f3530478add58/dep-lib-syn",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/syn-773f3530478add58/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/syn-773f3530478add58/lib-syn",
+        "hash": "13004822663355523420"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/unicode-ident-515993bd3456839b/dep-lib-unicode_ident",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/unicode-ident-515993bd3456839b/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/unicode-ident-515993bd3456839b/lib-unicode_ident",
+        "hash": "4247197540395699900"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-9aa5b0df44c1ebf9/build-script-build-script-build",
+        "hash": "7394436820324745142"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-9aa5b0df44c1ebf9/dep-build-script-build-script-build",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-9aa5b0df44c1ebf9/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-backend-937774ec6dfede19/dep-lib-wasm_bindgen_backend",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-backend-937774ec6dfede19/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-backend-937774ec6dfede19/lib-wasm_bindgen_backend",
+        "hash": "121777122076538712"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-macro-7ae0720d37fc8206/dep-lib-wasm_bindgen_macro",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-macro-7ae0720d37fc8206/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-macro-7ae0720d37fc8206/lib-wasm_bindgen_macro",
+        "hash": "2431232197883983848"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-macro-support-c08de0ae0f030e65/dep-lib-wasm_bindgen_macro_support",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-macro-support-c08de0ae0f030e65/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-macro-support-c08de0ae0f030e65/lib-wasm_bindgen_macro_support",
+        "hash": "2002196763601421511"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-shared-b857b406f214d630/build-script-build-script-build",
+        "hash": "5138039556264802412"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-shared-b857b406f214d630/dep-build-script-build-script-build",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-shared-b857b406f214d630/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-shared-c272621914132751/dep-lib-wasm_bindgen_shared",
+        "hash": "12025348319196264050"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-shared-c272621914132751/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-shared-c272621914132751/lib-wasm_bindgen_shared",
+        "hash": "2218313209573389560"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/.fingerprint/wasm-bindgen-shared-f6179abf0e065992/run-build-script-build-script-build",
+        "hash": "8954975587680700089"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/crossbeam-utils-b58c75ed612c113e/build-script-build",
+        "hash": "9693965169152397894"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/crossbeam-utils-b58c75ed612c113e/build_script_build-b58c75ed612c113e",
+        "hash": "9693965169152397894"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/crossbeam-utils-b58c75ed612c113e/build_script_build-b58c75ed612c113e.d",
+        "hash": "10889306421808207376"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/proc-macro2-063e5dd77a931a6a/build-script-build",
+        "hash": "9650316169754564611"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/proc-macro2-063e5dd77a931a6a/build_script_build-063e5dd77a931a6a",
+        "hash": "9650316169754564611"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/proc-macro2-063e5dd77a931a6a/build_script_build-063e5dd77a931a6a.d",
+        "hash": "6382055420549261781"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/proc-macro2-98644f9fe2a3dbf0/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/proc-macro2-98644f9fe2a3dbf0/output",
+        "hash": "8339275564695838134"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/proc-macro2-98644f9fe2a3dbf0/root-output",
+        "hash": "154463433313281212"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/proc-macro2-98644f9fe2a3dbf0/stderr",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/rayon-core-b45c646b64f98d14/build-script-build",
+        "hash": "5585972148804141677"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/rayon-core-b45c646b64f98d14/build_script_build-b45c646b64f98d14",
+        "hash": "5585972148804141677"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/rayon-core-b45c646b64f98d14/build_script_build-b45c646b64f98d14.d",
+        "hash": "5536126914303938409"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/serde-c80afe9613bcebf7/build-script-build",
+        "hash": "17184402641691447272"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/serde-c80afe9613bcebf7/build_script_build-c80afe9613bcebf7",
+        "hash": "17184402641691447272"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/serde-c80afe9613bcebf7/build_script_build-c80afe9613bcebf7.d",
+        "hash": "13355802673240549788"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-9aa5b0df44c1ebf9/build-script-build",
+        "hash": "10973682046978509998"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-9aa5b0df44c1ebf9/build_script_build-9aa5b0df44c1ebf9",
+        "hash": "10973682046978509998"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-9aa5b0df44c1ebf9/build_script_build-9aa5b0df44c1ebf9.d",
+        "hash": "10890329256547341050"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-shared-b857b406f214d630/build-script-build",
+        "hash": "10033513520264285825"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-shared-b857b406f214d630/build_script_build-b857b406f214d630",
+        "hash": "10033513520264285825"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-shared-b857b406f214d630/build_script_build-b857b406f214d630.d",
+        "hash": "5510256950750903510"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-shared-f6179abf0e065992/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-shared-f6179abf0e065992/output",
+        "hash": "2680890653237496583"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-shared-f6179abf0e065992/root-output",
+        "hash": "17556854698587248975"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/build/wasm-bindgen-shared-f6179abf0e065992/stderr",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/bumpalo-e59df2e91788c439.d",
+        "hash": "14249452335257246825"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libbumpalo-e59df2e91788c439.rlib",
+        "hash": "2479645335698359376"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libbumpalo-e59df2e91788c439.rmeta",
+        "hash": "14453165656094523731"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/liblog-985b35910e2fece7.rlib",
+        "hash": "9391340084806375871"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/liblog-985b35910e2fece7.rmeta",
+        "hash": "12223411772471876804"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libproc_macro2-8773d5a6131593c7.rlib",
+        "hash": "9109061174742301647"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libproc_macro2-8773d5a6131593c7.rmeta",
+        "hash": "15251060849587088868"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libquote-bf9e4d09ed7d227e.rlib",
+        "hash": "6325461769403042784"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libquote-bf9e4d09ed7d227e.rmeta",
+        "hash": "1817932833223034556"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libserde_derive-f54f87110e6fdc01.dylib",
+        "hash": "4639808501142084853"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libsyn-773f3530478add58.rlib",
+        "hash": "13076498587874173010"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libsyn-773f3530478add58.rmeta",
+        "hash": "14084351468602755619"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libunicode_ident-515993bd3456839b.rlib",
+        "hash": "2080285479054757897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libunicode_ident-515993bd3456839b.rmeta",
+        "hash": "7346961708748603342"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libwasm_bindgen_backend-937774ec6dfede19.rlib",
+        "hash": "16414659829813346156"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libwasm_bindgen_backend-937774ec6dfede19.rmeta",
+        "hash": "6178929743784825541"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libwasm_bindgen_macro-7ae0720d37fc8206.dylib",
+        "hash": "8209382923624869100"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libwasm_bindgen_macro_support-c08de0ae0f030e65.rlib",
+        "hash": "17182195617277105127"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libwasm_bindgen_macro_support-c08de0ae0f030e65.rmeta",
+        "hash": "4411803940741909341"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libwasm_bindgen_shared-c272621914132751.rlib",
+        "hash": "7977961578898589006"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/libwasm_bindgen_shared-c272621914132751.rmeta",
+        "hash": "2906554460865449035"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/log-985b35910e2fece7.d",
+        "hash": "1124740097006935812"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/proc_macro2-8773d5a6131593c7.d",
+        "hash": "2194386572065330889"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/quote-bf9e4d09ed7d227e.d",
+        "hash": "9126083275102719372"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/serde_derive-f54f87110e6fdc01.d",
+        "hash": "10018241440618186963"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/syn-773f3530478add58.d",
+        "hash": "14810647570353980930"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/unicode_ident-515993bd3456839b.d",
+        "hash": "3212503868402819553"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/wasm_bindgen_backend-937774ec6dfede19.d",
+        "hash": "14571015535280941134"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/wasm_bindgen_macro-7ae0720d37fc8206.d",
+        "hash": "13833282286188830573"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/wasm_bindgen_macro_support-c08de0ae0f030e65.d",
+        "hash": "10094301562687230670"
+      },
+      {
+        "file": "packages/core/src/wasm/target/release/deps/wasm_bindgen_shared-c272621914132751.d",
+        "hash": "6367795678907349744"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/CACHEDIR.TAG",
+        "hash": "16967703401657512646"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.cargo-lock",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/cfg-if-6960a4843151969c/dep-lib-cfg_if",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/cfg-if-6960a4843151969c/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/cfg-if-6960a4843151969c/lib-cfg_if",
+        "hash": "17120264028198239743"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-deque-fe6bae3ce11bb801/dep-lib-crossbeam_deque",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-deque-fe6bae3ce11bb801/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-deque-fe6bae3ce11bb801/lib-crossbeam_deque",
+        "hash": "8703620191170313059"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-epoch-33b4cf6a8b20ce90/dep-lib-crossbeam_epoch",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-epoch-33b4cf6a8b20ce90/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-epoch-33b4cf6a8b20ce90/lib-crossbeam_epoch",
+        "hash": "8634266270656692164"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-utils-2e4f9ce6415a24c4/dep-lib-crossbeam_utils",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-utils-2e4f9ce6415a24c4/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-utils-2e4f9ce6415a24c4/lib-crossbeam_utils",
+        "hash": "17850906237643449570"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/crossbeam-utils-d350994d7556a50e/run-build-script-build-script-build",
+        "hash": "3162027348759208435"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/either-5a42c4c948a9d9f3/dep-lib-either",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/either-5a42c4c948a9d9f3/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/either-5a42c4c948a9d9f3/lib-either",
+        "hash": "4212868630443154885"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/js-sys-7921b290029deed7/dep-lib-js_sys",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/js-sys-7921b290029deed7/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/js-sys-7921b290029deed7/lib-js_sys",
+        "hash": "10378779037834035064"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/once_cell-0c1d83effca50d78/dep-lib-once_cell",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/once_cell-0c1d83effca50d78/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/once_cell-0c1d83effca50d78/lib-once_cell",
+        "hash": "16265054114402411165"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/rayon-8802964194453c8b/dep-lib-rayon",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/rayon-8802964194453c8b/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/rayon-8802964194453c8b/lib-rayon",
+        "hash": "8373218207819347170"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/rayon-core-67e3784e41d6901b/dep-lib-rayon_core",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/rayon-core-67e3784e41d6901b/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/rayon-core-67e3784e41d6901b/lib-rayon_core",
+        "hash": "7634746907201903584"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/rayon-core-7ff3b2ddaa6e3355/run-build-script-build-script-build",
+        "hash": "89918512176552505"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/serde-c8115ffc036a7eb5/run-build-script-build-script-build",
+        "hash": "10200130800822087000"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/serde-c8807adf40b57fb9/dep-lib-serde",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/serde-c8807adf40b57fb9/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/serde-c8807adf40b57fb9/lib-serde",
+        "hash": "6238264262012561776"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/serde-wasm-bindgen-817a78c9d745f723/dep-lib-serde_wasm_bindgen",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/serde-wasm-bindgen-817a78c9d745f723/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/serde-wasm-bindgen-817a78c9d745f723/lib-serde_wasm_bindgen",
+        "hash": "16560722515949368238"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/vote-processor-652eeaf05bbb8091/dep-lib-vote_processor",
+        "hash": "18274523611085764489"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/vote-processor-652eeaf05bbb8091/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/vote-processor-652eeaf05bbb8091/lib-vote_processor",
+        "hash": "15272779883922558562"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-881f2d8dc46e5768/run-build-script-build-script-build",
+        "hash": "8013665606963081987"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-a8ec64f4937c757b/dep-lib-wasm_bindgen",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-a8ec64f4937c757b/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/wasm-bindgen-a8ec64f4937c757b/lib-wasm_bindgen",
+        "hash": "5242146145684834100"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/web-sys-6b91468191add6f5/dep-lib-web_sys",
+        "hash": "14374147212387527897"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/web-sys-6b91468191add6f5/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/.fingerprint/web-sys-6b91468191add6f5/lib-web_sys",
+        "hash": "1668605002836932621"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/crossbeam-utils-d350994d7556a50e/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/crossbeam-utils-d350994d7556a50e/output",
+        "hash": "15038196850756742393"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/crossbeam-utils-d350994d7556a50e/root-output",
+        "hash": "10558501591311201981"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/crossbeam-utils-d350994d7556a50e/stderr",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/rayon-core-7ff3b2ddaa6e3355/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/rayon-core-7ff3b2ddaa6e3355/output",
+        "hash": "15795687909726918499"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/rayon-core-7ff3b2ddaa6e3355/root-output",
+        "hash": "15228420466429149754"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/rayon-core-7ff3b2ddaa6e3355/stderr",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/serde-c8115ffc036a7eb5/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/serde-c8115ffc036a7eb5/output",
+        "hash": "9419431523550801926"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/serde-c8115ffc036a7eb5/root-output",
+        "hash": "9356725564037685879"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/serde-c8115ffc036a7eb5/stderr",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/wasm-bindgen-881f2d8dc46e5768/invoked.timestamp",
+        "hash": "9473132339987615029"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/wasm-bindgen-881f2d8dc46e5768/output",
+        "hash": "15795687909726918499"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/wasm-bindgen-881f2d8dc46e5768/root-output",
+        "hash": "15253791016527891708"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/build/wasm-bindgen-881f2d8dc46e5768/stderr",
+        "hash": "3244421341483603138"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/cfg_if-6960a4843151969c.d",
+        "hash": "9557196456060898063"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/crossbeam_deque-fe6bae3ce11bb801.d",
+        "hash": "13464342130618637967"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/crossbeam_epoch-33b4cf6a8b20ce90.d",
+        "hash": "17561455226049344900"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/crossbeam_utils-2e4f9ce6415a24c4.d",
+        "hash": "10002462504498334895"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/either-5a42c4c948a9d9f3.d",
+        "hash": "5959417999330666152"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/js_sys-7921b290029deed7.d",
+        "hash": "13733799328423268274"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcfg_if-6960a4843151969c.rlib",
+        "hash": "995207348652670526"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcfg_if-6960a4843151969c.rmeta",
+        "hash": "1592379026846183012"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcrossbeam_deque-fe6bae3ce11bb801.rlib",
+        "hash": "13956811371234581074"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcrossbeam_deque-fe6bae3ce11bb801.rmeta",
+        "hash": "10480293783178576695"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcrossbeam_epoch-33b4cf6a8b20ce90.rlib",
+        "hash": "16457152516834190355"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcrossbeam_epoch-33b4cf6a8b20ce90.rmeta",
+        "hash": "6057856555168494142"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcrossbeam_utils-2e4f9ce6415a24c4.rlib",
+        "hash": "15988299951995585400"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libcrossbeam_utils-2e4f9ce6415a24c4.rmeta",
+        "hash": "10316849913788702380"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libeither-5a42c4c948a9d9f3.rlib",
+        "hash": "505828389711644028"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libeither-5a42c4c948a9d9f3.rmeta",
+        "hash": "5032290100421804829"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libjs_sys-7921b290029deed7.rlib",
+        "hash": "1861140013661855993"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libjs_sys-7921b290029deed7.rmeta",
+        "hash": "7409296542250782063"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libonce_cell-0c1d83effca50d78.rlib",
+        "hash": "11516910742955169871"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libonce_cell-0c1d83effca50d78.rmeta",
+        "hash": "4439084914138421574"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/librayon-8802964194453c8b.rlib",
+        "hash": "15607507910622274857"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/librayon-8802964194453c8b.rmeta",
+        "hash": "15512695754164940763"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/librayon_core-67e3784e41d6901b.rlib",
+        "hash": "6704408037826399909"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/librayon_core-67e3784e41d6901b.rmeta",
+        "hash": "1572828442316259726"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libserde-c8807adf40b57fb9.rlib",
+        "hash": "14938294009966701681"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libserde-c8807adf40b57fb9.rmeta",
+        "hash": "12173627577501655377"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libserde_wasm_bindgen-817a78c9d745f723.rlib",
+        "hash": "14421256195239945758"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libserde_wasm_bindgen-817a78c9d745f723.rmeta",
+        "hash": "15728232370620549759"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libwasm_bindgen-a8ec64f4937c757b.rlib",
+        "hash": "10705509583077697532"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libwasm_bindgen-a8ec64f4937c757b.rmeta",
+        "hash": "8103684735815267288"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libweb_sys-6b91468191add6f5.rlib",
+        "hash": "2789096405924163399"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/libweb_sys-6b91468191add6f5.rmeta",
+        "hash": "16993713533072364009"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/once_cell-0c1d83effca50d78.d",
+        "hash": "4258325912216439720"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/rayon-8802964194453c8b.d",
+        "hash": "1527683270091744021"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/rayon_core-67e3784e41d6901b.d",
+        "hash": "1607459718589197878"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/serde-c8807adf40b57fb9.d",
+        "hash": "15070457456842836506"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/serde_wasm_bindgen-817a78c9d745f723.d",
+        "hash": "11582960833689762853"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/vote_processor.d",
+        "hash": "1291516784096625741"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/vote_processor.wasm",
+        "hash": "2670262946704872191"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/wasm_bindgen-a8ec64f4937c757b.d",
+        "hash": "16332994399627102136"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/deps/web_sys-6b91468191add6f5.d",
+        "hash": "2060283537870110756"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/vote_processor.d",
+        "hash": "7561607525777239007"
+      },
+      {
+        "file": "packages/core/src/wasm/target/wasm32-unknown-unknown/release/vote_processor.wasm",
+        "hash": "2670262946704872191"
+      },
+      {
+        "file": "packages/core/src/wasm/types.d.ts",
+        "hash": "4915448544174218317"
+      },
+      {
+        "file": "packages/core/src/wasm/vote-processor.d.ts",
+        "hash": "4288533310783742732"
+      },
+      {
+        "file": "packages/core/src/wasm/vote-processor.js",
+        "hash": "14160816019098664688"
+      },
+      {
+        "file": "packages/core/src/wasm/vote-processor.js.map",
+        "hash": "791965695476296726"
+      },
+      {
+        "file": "packages/core/src/wasm/vote-processor.rs",
+        "hash": "5461552027921691899"
+      },
+      {
+        "file": "packages/core/src/wasm/vote-processor.ts",
+        "hash": "10940127329131372595"
+      },
+      {
+        "file": "src/video-frame.ts",
+        "hash": "12850915974871872680"
+      },
+      {
+        "file": "tsconfig.json",
+        "hash": "5067265690059014046"
+      },
+      {
+        "file": "types/global.d.ts",
+        "hash": "8501157180332736503"
+      },
+      {
+        "file": "yarn.lock",
+        "hash": "6778545843273770216"
+      }
+    ],
+    "projectFileMap": {
+      "@h3tag-blockchain/crypto": [
+        {
+          "file": "packages/crypto/LICENSE",
+          "hash": "11147920346946615554"
+        },
+        {
+          "file": "packages/crypto/README.md",
+          "hash": "1909937800189534168"
+        },
+        {
+          "file": "packages/crypto/dist/hash.d.ts",
+          "hash": "6291338832965034577"
+        },
+        {
+          "file": "packages/crypto/dist/hash.js",
+          "hash": "10384044201440000666"
+        },
+        {
+          "file": "packages/crypto/dist/hash.js.map",
+          "hash": "1114533181343327320"
+        },
+        {
+          "file": "packages/crypto/dist/hybrid.d.ts",
+          "hash": "3949091022885976583"
+        },
+        {
+          "file": "packages/crypto/dist/hybrid.js",
+          "hash": "17409543974308056138"
+        },
+        {
+          "file": "packages/crypto/dist/hybrid.js.map",
+          "hash": "15965887001387229075"
+        },
+        {
+          "file": "packages/crypto/dist/index.d.ts",
+          "hash": "8760709623579475529"
+        },
+        {
+          "file": "packages/crypto/dist/index.js",
+          "hash": "3927782485103273468"
+        },
+        {
+          "file": "packages/crypto/dist/index.js.map",
+          "hash": "7887515643676652749"
+        },
+        {
+          "file": "packages/crypto/dist/keys.d.ts",
+          "hash": "18394658553487544568"
+        },
+        {
+          "file": "packages/crypto/dist/keys.js",
+          "hash": "6161074280199918175"
+        },
+        {
+          "file": "packages/crypto/dist/keys.js.map",
+          "hash": "1010022505640581169"
+        },
+        {
+          "file": "packages/crypto/dist/native/quantum.node.d.ts",
+          "hash": "13289932893439476700"
+        },
+        {
+          "file": "packages/crypto/dist/native/quantum.node.js",
+          "hash": "17998435625227966073"
+        },
+        {
+          "file": "packages/crypto/dist/native/quantum.node.js.map",
+          "hash": "2547521231226321663"
+        },
+        {
+          "file": "packages/crypto/dist/native/types.d.ts",
+          "hash": "154525717082241040"
+        },
+        {
+          "file": "packages/crypto/dist/native/types.js",
+          "hash": "7721132886784876052"
+        },
+        {
+          "file": "packages/crypto/dist/native/types.js.map",
+          "hash": "1314699876209611646"
+        },
+        {
+          "file": "packages/crypto/dist/quantum-wrapper.d.ts",
+          "hash": "6516468357160370020"
+        },
+        {
+          "file": "packages/crypto/dist/quantum-wrapper.js",
+          "hash": "2064611659834109366"
+        },
+        {
+          "file": "packages/crypto/dist/quantum-wrapper.js.map",
+          "hash": "15283698957307076554"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/dilithium.d.ts",
+          "hash": "6064427681758626044"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/dilithium.js",
+          "hash": "8982689271413473011"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/dilithium.js.map",
+          "hash": "16825482971124959634"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/index.d.ts",
+          "hash": "10502301148820159858"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/index.js",
+          "hash": "9477173805851035948"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/index.js.map",
+          "hash": "7266658600306334210"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/kyber.d.ts",
+          "hash": "18445507842309592213"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/kyber.js",
+          "hash": "10783829717361682529"
+        },
+        {
+          "file": "packages/crypto/dist/quantum/kyber.js.map",
+          "hash": "155289699501825255"
+        },
+        {
+          "file": "packages/crypto/dist/sha3.d.ts",
+          "hash": "18058440522428361834"
+        },
+        {
+          "file": "packages/crypto/dist/sha3.js",
+          "hash": "6433666120035565334"
+        },
+        {
+          "file": "packages/crypto/dist/sha3.js.map",
+          "hash": "6022767955300306861"
+        },
+        {
+          "file": "packages/crypto/dist/simd.d.ts",
+          "hash": "12678808932481354882"
+        },
+        {
+          "file": "packages/crypto/dist/simd.js",
+          "hash": "9751329555057275767"
+        },
+        {
+          "file": "packages/crypto/dist/simd.js.map",
+          "hash": "14544943072827690054"
+        },
+        {
+          "file": "packages/crypto/dist/wasm-loader.d.ts",
+          "hash": "6733373508002759958"
+        },
+        {
+          "file": "packages/crypto/dist/wasm-loader.js",
+          "hash": "15029812618678406204"
+        },
+        {
+          "file": "packages/crypto/dist/wasm-loader.js.map",
+          "hash": "12015157841250834955"
+        },
+        {
+          "file": "packages/crypto/dist/x509.d.ts",
+          "hash": "8402743019613191414"
+        },
+        {
+          "file": "packages/crypto/dist/x509.js",
+          "hash": "17526017186457583159"
+        },
+        {
+          "file": "packages/crypto/dist/x509.js.map",
+          "hash": "11985874927504628524"
+        },
+        {
+          "file": "packages/crypto/package.json",
+          "hash": "3368648140155030950",
+          "deps": [
+            "npm:@types/config",
+            "npm:@types/jest",
+            "npm:jest",
+            "npm:rimraf@5.0.10",
+            "npm:typescript@4.9.5",
+            "npm:asn1.js",
+            "npm:config",
+            "npm:node-addon-api",
+            "npm:winston",
+            "npm:winston-daily-rotate-file",
+            "@h3tag-blockchain/shared"
+          ]
+        },
+        {
+          "file": "packages/crypto/src/hash.d.ts",
+          "hash": "9707242629636647117"
+        },
+        {
+          "file": "packages/crypto/src/hash.js",
+          "hash": "3182759685231740986"
+        },
+        {
+          "file": "packages/crypto/src/hash.js.map",
+          "hash": "11977175419344540972"
+        },
+        {
+          "file": "packages/crypto/src/hash.ts",
+          "hash": "9870009424052395420"
+        },
+        {
+          "file": "packages/crypto/src/hybrid.d.ts",
+          "hash": "11393404806802263518"
+        },
+        {
+          "file": "packages/crypto/src/hybrid.js",
+          "hash": "11350967657941796281"
+        },
+        {
+          "file": "packages/crypto/src/hybrid.js.map",
+          "hash": "17952331968959125704"
+        },
+        {
+          "file": "packages/crypto/src/hybrid.ts",
+          "hash": "5008426176323668892"
+        },
+        {
+          "file": "packages/crypto/src/index.ts",
+          "hash": "8760709623579475529"
+        },
+        {
+          "file": "packages/crypto/src/keys.d.ts",
+          "hash": "4902989522009953043"
+        },
+        {
+          "file": "packages/crypto/src/keys.js",
+          "hash": "2723265119170768919"
+        },
+        {
+          "file": "packages/crypto/src/keys.js.map",
+          "hash": "8686041018318836777"
+        },
+        {
+          "file": "packages/crypto/src/keys.ts",
+          "hash": "5936882472879160937"
+        },
+        {
+          "file": "packages/crypto/src/native/memory.h",
+          "hash": "5177075683024798917"
+        },
+        {
+          "file": "packages/crypto/src/native/quantum.cpp",
+          "hash": "9770225199843826280"
+        },
+        {
+          "file": "packages/crypto/src/native/quantum.h",
+          "hash": "6406347679269104299"
+        },
+        {
+          "file": "packages/crypto/src/native/quantum.node.d.ts",
+          "hash": "15678244311518887355"
+        },
+        {
+          "file": "packages/crypto/src/native/quantum.node.js",
+          "hash": "5588527137959962770"
+        },
+        {
+          "file": "packages/crypto/src/native/quantum.node.js.map",
+          "hash": "876669475632947486"
+        },
+        {
+          "file": "packages/crypto/src/native/quantum.node.ts",
+          "hash": "6388790488563862795"
+        },
+        {
+          "file": "packages/crypto/src/native/types.d.ts",
+          "hash": "2163763906023231727"
+        },
+        {
+          "file": "packages/crypto/src/native/types.js",
+          "hash": "4095601600967867700"
+        },
+        {
+          "file": "packages/crypto/src/native/types.js.map",
+          "hash": "5745104082448574873"
+        },
+        {
+          "file": "packages/crypto/src/native/types.ts",
+          "hash": "4714493518825237798"
+        },
+        {
+          "file": "packages/crypto/src/package.json",
+          "hash": "17697536740482338889"
+        },
+        {
+          "file": "packages/crypto/src/quantum-wrapper.d.ts",
+          "hash": "6822940220833949083"
+        },
+        {
+          "file": "packages/crypto/src/quantum-wrapper.js",
+          "hash": "16807417683353080754"
+        },
+        {
+          "file": "packages/crypto/src/quantum-wrapper.js.map",
+          "hash": "730329527554897853"
+        },
+        {
+          "file": "packages/crypto/src/quantum-wrapper.ts",
+          "hash": "10862794244139274191"
+        },
+        {
+          "file": "packages/crypto/src/quantum/dilithium.d.ts",
+          "hash": "8650910225759397756"
+        },
+        {
+          "file": "packages/crypto/src/quantum/dilithium.js",
+          "hash": "14236729414347478688"
+        },
+        {
+          "file": "packages/crypto/src/quantum/dilithium.js.map",
+          "hash": "2303706434388878177"
+        },
+        {
+          "file": "packages/crypto/src/quantum/dilithium.ts",
+          "hash": "1261396078681911969"
+        },
+        {
+          "file": "packages/crypto/src/quantum/index.js",
+          "hash": "867353982108853889"
+        },
+        {
+          "file": "packages/crypto/src/quantum/index.js.map",
+          "hash": "9497544557324071082"
+        },
+        {
+          "file": "packages/crypto/src/quantum/index.ts",
+          "hash": "13348695247514742502"
+        },
+        {
+          "file": "packages/crypto/src/quantum/kyber.d.ts",
+          "hash": "10048651407866687999"
+        },
+        {
+          "file": "packages/crypto/src/quantum/kyber.js",
+          "hash": "6054449798761006745"
+        },
+        {
+          "file": "packages/crypto/src/quantum/kyber.js.map",
+          "hash": "17821369801615070815"
+        },
+        {
+          "file": "packages/crypto/src/quantum/kyber.ts",
+          "hash": "14047192489017916857"
+        },
+        {
+          "file": "packages/crypto/src/sha3.ts",
+          "hash": "15777820417930195055"
+        },
+        {
+          "file": "packages/crypto/src/simd.ts",
+          "hash": "2024231113342678503"
+        },
+        {
+          "file": "packages/crypto/src/wasm-loader.ts",
+          "hash": "15089925699333135296"
+        },
+        {
+          "file": "packages/crypto/src/x509.ts",
+          "hash": "10629263526857033380"
+        },
+        {
+          "file": "packages/crypto/tsconfig.json",
+          "hash": "13800869366885937214"
+        },
+        {
+          "file": "packages/crypto/types/asni.js.d.ts",
+          "hash": "3717801059722210465"
+        },
+        {
+          "file": "packages/crypto/types/pm2.ts",
+          "hash": "10067170276853714323"
+        }
+      ],
+      "@h3tag-blockchain/api": [
+        {
+          "file": "packages/api/LICENSE",
+          "hash": "11147920346946615554"
+        },
+        {
+          "file": "packages/api/README.md",
+          "hash": "8142912056045612895"
+        },
+        {
+          "file": "packages/api/dist/app.d.ts",
+          "hash": "18122269732137894113"
+        },
+        {
+          "file": "packages/api/dist/app.js",
+          "hash": "11681262966228389180"
+        },
+        {
+          "file": "packages/api/dist/app.js.map",
+          "hash": "9049488003889777505"
+        },
+        {
+          "file": "packages/api/dist/controllers/blockchain.controller.d.ts",
+          "hash": "837925513181826802"
+        },
+        {
+          "file": "packages/api/dist/controllers/blockchain.controller.js",
+          "hash": "6281759138965005490"
+        },
+        {
+          "file": "packages/api/dist/controllers/blockchain.controller.js.map",
+          "hash": "13253963633923236893"
+        },
+        {
+          "file": "packages/api/dist/controllers/mempool.controller.d.ts",
+          "hash": "14967168075409393922"
+        },
+        {
+          "file": "packages/api/dist/controllers/mempool.controller.js",
+          "hash": "16573807108573835815"
+        },
+        {
+          "file": "packages/api/dist/controllers/mempool.controller.js.map",
+          "hash": "17592982243356209754"
+        },
+        {
+          "file": "packages/api/dist/controllers/metrics.controller.d.ts",
+          "hash": "6372261180138122058"
+        },
+        {
+          "file": "packages/api/dist/controllers/metrics.controller.js",
+          "hash": "17959457916570277372"
+        },
+        {
+          "file": "packages/api/dist/controllers/metrics.controller.js.map",
+          "hash": "15507358886934136376"
+        },
+        {
+          "file": "packages/api/dist/controllers/mining.controller.d.ts",
+          "hash": "8203271960546216262"
+        },
+        {
+          "file": "packages/api/dist/controllers/mining.controller.js",
+          "hash": "649625004044274598"
+        },
+        {
+          "file": "packages/api/dist/controllers/mining.controller.js.map",
+          "hash": "16683684217909048374"
+        },
+        {
+          "file": "packages/api/dist/controllers/node.controller.d.ts",
+          "hash": "1440373022123764179"
+        },
+        {
+          "file": "packages/api/dist/controllers/node.controller.js",
+          "hash": "5147133485619923026"
+        },
+        {
+          "file": "packages/api/dist/controllers/node.controller.js.map",
+          "hash": "5252852162402485214"
+        },
+        {
+          "file": "packages/api/dist/controllers/peer.controller.d.ts",
+          "hash": "16337672571898861624"
+        },
+        {
+          "file": "packages/api/dist/controllers/peer.controller.js",
+          "hash": "750953886283868380"
+        },
+        {
+          "file": "packages/api/dist/controllers/peer.controller.js.map",
+          "hash": "15886773787919641827"
+        },
+        {
+          "file": "packages/api/dist/controllers/transaction.controller.d.ts",
+          "hash": "9574599089200667380"
+        },
+        {
+          "file": "packages/api/dist/controllers/transaction.controller.js",
+          "hash": "3070025805566302934"
+        },
+        {
+          "file": "packages/api/dist/controllers/transaction.controller.js.map",
+          "hash": "9719738125931626656"
+        },
+        {
+          "file": "packages/api/dist/controllers/voting.controller.d.ts",
+          "hash": "17050613305613833200"
+        },
+        {
+          "file": "packages/api/dist/controllers/voting.controller.js",
+          "hash": "16450508668671044134"
+        },
+        {
+          "file": "packages/api/dist/controllers/voting.controller.js.map",
+          "hash": "16935710754735590547"
+        },
+        {
+          "file": "packages/api/dist/controllers/wallet.controller.d.ts",
+          "hash": "10007419550261097308"
+        },
+        {
+          "file": "packages/api/dist/controllers/wallet.controller.js",
+          "hash": "3663323279214889840"
+        },
+        {
+          "file": "packages/api/dist/controllers/wallet.controller.js.map",
+          "hash": "7918495943072569260"
+        },
+        {
+          "file": "packages/api/dist/dtos/blockchain.dto.d.ts",
+          "hash": "6265385328148610086"
+        },
+        {
+          "file": "packages/api/dist/dtos/blockchain.dto.js",
+          "hash": "15723023836450219429"
+        },
+        {
+          "file": "packages/api/dist/dtos/blockchain.dto.js.map",
+          "hash": "3363072742396874187"
+        },
+        {
+          "file": "packages/api/dist/dtos/mempool.dto.d.ts",
+          "hash": "2877655123638281785"
+        },
+        {
+          "file": "packages/api/dist/dtos/mempool.dto.js",
+          "hash": "10699656922314148741"
+        },
+        {
+          "file": "packages/api/dist/dtos/mempool.dto.js.map",
+          "hash": "16396778374168928726"
+        },
+        {
+          "file": "packages/api/dist/dtos/metrics.dto.d.ts",
+          "hash": "11164209729447962861"
+        },
+        {
+          "file": "packages/api/dist/dtos/metrics.dto.js",
+          "hash": "5162452157474307848"
+        },
+        {
+          "file": "packages/api/dist/dtos/metrics.dto.js.map",
+          "hash": "14652277224941606319"
+        },
+        {
+          "file": "packages/api/dist/dtos/mining.dto.d.ts",
+          "hash": "13061670040630456261"
+        },
+        {
+          "file": "packages/api/dist/dtos/mining.dto.js",
+          "hash": "10997873442596312085"
+        },
+        {
+          "file": "packages/api/dist/dtos/mining.dto.js.map",
+          "hash": "3748202692049306901"
+        },
+        {
+          "file": "packages/api/dist/dtos/node.dto.d.ts",
+          "hash": "7205054942881016789"
+        },
+        {
+          "file": "packages/api/dist/dtos/node.dto.js",
+          "hash": "1127971285524807941"
+        },
+        {
+          "file": "packages/api/dist/dtos/node.dto.js.map",
+          "hash": "5598591051516792756"
+        },
+        {
+          "file": "packages/api/dist/dtos/peer.dto.d.ts",
+          "hash": "8893919936838667349"
+        },
+        {
+          "file": "packages/api/dist/dtos/peer.dto.js",
+          "hash": "12731249710225036564"
+        },
+        {
+          "file": "packages/api/dist/dtos/peer.dto.js.map",
+          "hash": "3262969766418801834"
+        },
+        {
+          "file": "packages/api/dist/dtos/transaction.dto.d.ts",
+          "hash": "3869279091202061963"
+        },
+        {
+          "file": "packages/api/dist/dtos/transaction.dto.js",
+          "hash": "7521383511643769177"
+        },
+        {
+          "file": "packages/api/dist/dtos/transaction.dto.js.map",
+          "hash": "13183064241583949811"
+        },
+        {
+          "file": "packages/api/dist/dtos/voting.dto.d.ts",
+          "hash": "17353352910295649086"
+        },
+        {
+          "file": "packages/api/dist/dtos/voting.dto.js",
+          "hash": "15835674263497135783"
+        },
+        {
+          "file": "packages/api/dist/dtos/voting.dto.js.map",
+          "hash": "4415330870345448548"
+        },
+        {
+          "file": "packages/api/dist/dtos/wallet.dto.d.ts",
+          "hash": "15742680569732646697"
+        },
+        {
+          "file": "packages/api/dist/dtos/wallet.dto.js",
+          "hash": "1243146620150636133"
+        },
+        {
+          "file": "packages/api/dist/dtos/wallet.dto.js.map",
+          "hash": "14097306512987396405"
+        },
+        {
+          "file": "packages/api/dist/middleware/apply.d.ts",
+          "hash": "7950948223643966335"
+        },
+        {
+          "file": "packages/api/dist/middleware/apply.js",
+          "hash": "16967808467164605223"
+        },
+        {
+          "file": "packages/api/dist/middleware/apply.js.map",
+          "hash": "11673111226145966203"
+        },
+        {
+          "file": "packages/api/dist/middleware/index.d.ts",
+          "hash": "17745764955481075981"
+        },
+        {
+          "file": "packages/api/dist/middleware/index.js",
+          "hash": "11485960151699784699"
+        },
+        {
+          "file": "packages/api/dist/middleware/index.js.map",
+          "hash": "6839538030184522401"
+        },
+        {
+          "file": "packages/api/dist/routes/blockchain.routes.d.ts",
+          "hash": "16920837678067187762"
+        },
+        {
+          "file": "packages/api/dist/routes/blockchain.routes.js",
+          "hash": "13886432815395088947"
+        },
+        {
+          "file": "packages/api/dist/routes/blockchain.routes.js.map",
+          "hash": "8284022912809758516"
+        },
+        {
+          "file": "packages/api/dist/routes/index.d.ts",
+          "hash": "16496594847115060228"
+        },
+        {
+          "file": "packages/api/dist/routes/index.js",
+          "hash": "3212239413327312042"
+        },
+        {
+          "file": "packages/api/dist/routes/index.js.map",
+          "hash": "17219012083043871496"
+        },
+        {
+          "file": "packages/api/dist/routes/mempool.routes.d.ts",
+          "hash": "1057102997980876067"
+        },
+        {
+          "file": "packages/api/dist/routes/mempool.routes.js",
+          "hash": "12899224353122935281"
+        },
+        {
+          "file": "packages/api/dist/routes/mempool.routes.js.map",
+          "hash": "14787328051220986065"
+        },
+        {
+          "file": "packages/api/dist/routes/metrics.routes.d.ts",
+          "hash": "2913251143467393657"
+        },
+        {
+          "file": "packages/api/dist/routes/metrics.routes.js",
+          "hash": "10910153544203232736"
+        },
+        {
+          "file": "packages/api/dist/routes/metrics.routes.js.map",
+          "hash": "7526620572158564273"
+        },
+        {
+          "file": "packages/api/dist/routes/mining.routes.d.ts",
+          "hash": "16892517239115018867"
+        },
+        {
+          "file": "packages/api/dist/routes/mining.routes.js",
+          "hash": "13785371232665898608"
+        },
+        {
+          "file": "packages/api/dist/routes/mining.routes.js.map",
+          "hash": "4882658172967791357"
+        },
+        {
+          "file": "packages/api/dist/routes/node.routes.d.ts",
+          "hash": "8767536267267838260"
+        },
+        {
+          "file": "packages/api/dist/routes/node.routes.js",
+          "hash": "15957708568537647427"
+        },
+        {
+          "file": "packages/api/dist/routes/node.routes.js.map",
+          "hash": "12281000996545944543"
+        },
+        {
+          "file": "packages/api/dist/routes/peer.routes.d.ts",
+          "hash": "4821638206370994868"
+        },
+        {
+          "file": "packages/api/dist/routes/peer.routes.js",
+          "hash": "2389167116388324445"
+        },
+        {
+          "file": "packages/api/dist/routes/peer.routes.js.map",
+          "hash": "6084775909588829617"
+        },
+        {
+          "file": "packages/api/dist/routes/transaction.routes.d.ts",
+          "hash": "6253752218198773927"
+        },
+        {
+          "file": "packages/api/dist/routes/transaction.routes.js",
+          "hash": "13967860926802672435"
+        },
+        {
+          "file": "packages/api/dist/routes/transaction.routes.js.map",
+          "hash": "1780170786191803550"
+        },
+        {
+          "file": "packages/api/dist/routes/voting.routes.d.ts",
+          "hash": "18133343781476632137"
+        },
+        {
+          "file": "packages/api/dist/routes/voting.routes.js",
+          "hash": "8795985430944680286"
+        },
+        {
+          "file": "packages/api/dist/routes/voting.routes.js.map",
+          "hash": "4549277272964982382"
+        },
+        {
+          "file": "packages/api/dist/routes/wallet.routes.d.ts",
+          "hash": "4821638206370994868"
+        },
+        {
+          "file": "packages/api/dist/routes/wallet.routes.js",
+          "hash": "4510949078156297010"
+        },
+        {
+          "file": "packages/api/dist/routes/wallet.routes.js.map",
+          "hash": "3694208163715757034"
+        },
+        {
+          "file": "packages/api/dist/server.d.ts",
+          "hash": "4595979742548113990"
+        },
+        {
+          "file": "packages/api/dist/server.js",
+          "hash": "15036367316569883346"
+        },
+        {
+          "file": "packages/api/dist/server.js.map",
+          "hash": "9656996143187104987"
+        },
+        {
+          "file": "packages/api/dist/services/blockchain.service.d.ts",
+          "hash": "9269696779320085160"
+        },
+        {
+          "file": "packages/api/dist/services/blockchain.service.js",
+          "hash": "8412225131208181637"
+        },
+        {
+          "file": "packages/api/dist/services/blockchain.service.js.map",
+          "hash": "18185501287396689696"
+        },
+        {
+          "file": "packages/api/dist/services/mempool.service.d.ts",
+          "hash": "2913389594163909481"
+        },
+        {
+          "file": "packages/api/dist/services/mempool.service.js",
+          "hash": "10513663015245208579"
+        },
+        {
+          "file": "packages/api/dist/services/mempool.service.js.map",
+          "hash": "4576804535319664646"
+        },
+        {
+          "file": "packages/api/dist/services/metrics.service.d.ts",
+          "hash": "11165706515531859292"
+        },
+        {
+          "file": "packages/api/dist/services/metrics.service.js",
+          "hash": "212303594340623612"
+        },
+        {
+          "file": "packages/api/dist/services/metrics.service.js.map",
+          "hash": "3195379638630219567"
+        },
+        {
+          "file": "packages/api/dist/services/mining.service.d.ts",
+          "hash": "3032474965118401964"
+        },
+        {
+          "file": "packages/api/dist/services/mining.service.js",
+          "hash": "17116050221266104629"
+        },
+        {
+          "file": "packages/api/dist/services/mining.service.js.map",
+          "hash": "5068333155270841583"
+        },
+        {
+          "file": "packages/api/dist/services/node.service.d.ts",
+          "hash": "9174773387016722325"
+        },
+        {
+          "file": "packages/api/dist/services/node.service.js",
+          "hash": "18217105985121692908"
+        },
+        {
+          "file": "packages/api/dist/services/node.service.js.map",
+          "hash": "3551600045949166909"
+        },
+        {
+          "file": "packages/api/dist/services/peer.service.d.ts",
+          "hash": "17291207164623954880"
+        },
+        {
+          "file": "packages/api/dist/services/peer.service.js",
+          "hash": "12368568827564830206"
+        },
+        {
+          "file": "packages/api/dist/services/peer.service.js.map",
+          "hash": "8097954030223278322"
+        },
+        {
+          "file": "packages/api/dist/services/transaction.service.d.ts",
+          "hash": "6943545502351087356"
+        },
+        {
+          "file": "packages/api/dist/services/transaction.service.js",
+          "hash": "1528284126390391931"
+        },
+        {
+          "file": "packages/api/dist/services/transaction.service.js.map",
+          "hash": "3130076243560231789"
+        },
+        {
+          "file": "packages/api/dist/services/voting.service.d.ts",
+          "hash": "6840812249711442834"
+        },
+        {
+          "file": "packages/api/dist/services/voting.service.js",
+          "hash": "3107610352707759615"
+        },
+        {
+          "file": "packages/api/dist/services/voting.service.js.map",
+          "hash": "1736887164921287672"
+        },
+        {
+          "file": "packages/api/dist/services/wallet.service.d.ts",
+          "hash": "6158720397731378917"
+        },
+        {
+          "file": "packages/api/dist/services/wallet.service.js",
+          "hash": "16890916200793781478"
+        },
+        {
+          "file": "packages/api/dist/services/wallet.service.js.map",
+          "hash": "16569370513260494811"
+        },
+        {
+          "file": "packages/api/package.json",
+          "hash": "15932111352438709889",
+          "deps": [
+            "npm:@types/cors",
+            "npm:@types/express",
+            "npm:@types/jest",
+            "npm:@types/swagger-jsdoc",
+            "npm:@types/swagger-ui-express",
+            "npm:@types/uuid",
+            "npm:jest",
+            "npm:rimraf@5.0.10",
+            "npm:ts-node-dev",
+            "npm:typescript",
+            "npm:prettier",
+            "npm:eslint",
+            "@h3tag-blockchain/shared",
+            "@h3tag-blockchain/crypto",
+            "npm:@nestjs/common",
+            "npm:@nestjs/core",
+            "npm:@nestjs/swagger",
+            "npm:class-transformer",
+            "npm:class-validator",
+            "npm:cors",
+            "npm:express",
+            "npm:helmet@4.6.0",
+            "npm:reflect-metadata",
+            "npm:swagger-jsdoc",
+            "npm:swagger-ui-express",
+            "npm:uuid@9.0.1",
+            "npm:zod"
+          ]
+        },
+        {
+          "file": "packages/api/src/.gitkeep",
+          "hash": "3244421341483603138"
+        },
+        {
+          "file": "packages/api/src/app.ts",
+          "hash": "14371117667621217088"
+        },
+        {
+          "file": "packages/api/src/controllers/blockchain.controller.ts",
+          "hash": "7124241427139574793"
+        },
+        {
+          "file": "packages/api/src/controllers/mempool.controller.ts",
+          "hash": "4811966714927308681"
+        },
+        {
+          "file": "packages/api/src/controllers/metrics.controller.ts",
+          "hash": "17060696248531383749"
+        },
+        {
+          "file": "packages/api/src/controllers/mining.controller.ts",
+          "hash": "13855436031543347319"
+        },
+        {
+          "file": "packages/api/src/controllers/node.controller.ts",
+          "hash": "9215465947452740781"
+        },
+        {
+          "file": "packages/api/src/controllers/peer.controller.ts",
+          "hash": "15211738858215266173"
+        },
+        {
+          "file": "packages/api/src/controllers/transaction.controller.ts",
+          "hash": "11599586295972513515"
+        },
+        {
+          "file": "packages/api/src/controllers/voting.controller.ts",
+          "hash": "2275680436046303848"
+        },
+        {
+          "file": "packages/api/src/controllers/wallet.controller.ts",
+          "hash": "840919708174886671"
+        },
+        {
+          "file": "packages/api/src/dtos/blockchain.dto.ts",
+          "hash": "7131439566657881399"
+        },
+        {
+          "file": "packages/api/src/dtos/mempool.dto.ts",
+          "hash": "14068049287645824452"
+        },
+        {
+          "file": "packages/api/src/dtos/metrics.dto.ts",
+          "hash": "6527625922034071789"
+        },
+        {
+          "file": "packages/api/src/dtos/mining.dto.ts",
+          "hash": "6239415013246939687"
+        },
+        {
+          "file": "packages/api/src/dtos/node.dto.ts",
+          "hash": "15559375866365940098"
+        },
+        {
+          "file": "packages/api/src/dtos/peer.dto.ts",
+          "hash": "13203758873869902478"
+        },
+        {
+          "file": "packages/api/src/dtos/transaction.dto.ts",
+          "hash": "16840931182442125038"
+        },
+        {
+          "file": "packages/api/src/dtos/voting.dto.ts",
+          "hash": "3873956187350638956"
+        },
+        {
+          "file": "packages/api/src/dtos/wallet.dto.ts",
+          "hash": "16967075213873467056"
+        },
+        {
+          "file": "packages/api/src/middleware/apply.ts",
+          "hash": "3348366186415104467"
+        },
+        {
+          "file": "packages/api/src/middleware/index.ts",
+          "hash": "638618378649460088"
+        },
+        {
+          "file": "packages/api/src/routes/blockchain.routes.ts",
+          "hash": "4368022029734591378"
+        },
+        {
+          "file": "packages/api/src/routes/index.ts",
+          "hash": "4520280371583373448"
+        },
+        {
+          "file": "packages/api/src/routes/mempool.routes.ts",
+          "hash": "97857839796603542"
+        },
+        {
+          "file": "packages/api/src/routes/metrics.routes.ts",
+          "hash": "13452818236638193118"
+        },
+        {
+          "file": "packages/api/src/routes/mining.routes.ts",
+          "hash": "5724732276771849816"
+        },
+        {
+          "file": "packages/api/src/routes/node.routes.ts",
+          "hash": "1817405909699235805"
+        },
+        {
+          "file": "packages/api/src/routes/peer.routes.ts",
+          "hash": "14755032166623190977"
+        },
+        {
+          "file": "packages/api/src/routes/transaction.routes.ts",
+          "hash": "8866739824842909433"
+        },
+        {
+          "file": "packages/api/src/routes/voting.routes.ts",
+          "hash": "17974299458737148572"
+        },
+        {
+          "file": "packages/api/src/routes/wallet.routes.ts",
+          "hash": "10046571016530845933"
+        },
+        {
+          "file": "packages/api/src/server.ts",
+          "hash": "14381140429373027514"
+        },
+        {
+          "file": "packages/api/src/services/blockchain.service.ts",
+          "hash": "370085953052588294"
+        },
+        {
+          "file": "packages/api/src/services/mempool.service.ts",
+          "hash": "11738036235945141289"
+        },
+        {
+          "file": "packages/api/src/services/metrics.service.ts",
+          "hash": "1877907710450767472"
+        },
+        {
+          "file": "packages/api/src/services/mining.service.ts",
+          "hash": "17526689535547092805"
+        },
+        {
+          "file": "packages/api/src/services/node.service.ts",
+          "hash": "1164853864524561998"
+        },
+        {
+          "file": "packages/api/src/services/peer.service.ts",
+          "hash": "1210855356706283351"
+        },
+        {
+          "file": "packages/api/src/services/transaction.service.ts",
+          "hash": "1977456881882228378"
+        },
+        {
+          "file": "packages/api/src/services/voting.service.ts",
+          "hash": "9950255208770096009"
+        },
+        {
+          "file": "packages/api/src/services/wallet.service.ts",
+          "hash": "5532406530946165612"
+        },
+        {
+          "file": "packages/api/tsconfig.json",
+          "hash": "12753557348799342821"
+        },
+        {
+          "file": "packages/api/tsconfig.tsbuildinfo",
+          "hash": "10771197136859986926"
+        }
+      ],
+      "@h3tag-blockchain/shared": [
+        {
+          "file": "packages/shared/LICENSE",
+          "hash": "11147920346946615554"
+        },
+        {
+          "file": "packages/shared/README.md",
+          "hash": "8531701236106762793"
+        },
+        {
+          "file": "packages/shared/dist/index.d.ts",
+          "hash": "9165229683084655364"
+        },
+        {
+          "file": "packages/shared/dist/index.js",
+          "hash": "17885860123577507493"
+        },
+        {
+          "file": "packages/shared/dist/index.js.map",
+          "hash": "8660229959226818087"
+        },
+        {
+          "file": "packages/shared/dist/utils/config.d.ts",
+          "hash": "7827916515199052223"
+        },
+        {
+          "file": "packages/shared/dist/utils/config.js",
+          "hash": "9829690559949189509"
+        },
+        {
+          "file": "packages/shared/dist/utils/config.js.map",
+          "hash": "10391822402556612614"
+        },
+        {
+          "file": "packages/shared/dist/utils/constants.d.ts",
+          "hash": "15618282827669855827"
+        },
+        {
+          "file": "packages/shared/dist/utils/constants.js",
+          "hash": "13098690128198677173"
+        },
+        {
+          "file": "packages/shared/dist/utils/constants.js.map",
+          "hash": "13032979785820028214"
+        },
+        {
+          "file": "packages/shared/dist/utils/currency-constants.d.ts",
+          "hash": "10418788920976190601"
+        },
+        {
+          "file": "packages/shared/dist/utils/currency-constants.js",
+          "hash": "953295668660551867"
+        },
+        {
+          "file": "packages/shared/dist/utils/currency-constants.js.map",
+          "hash": "16353405642129766211"
+        },
+        {
+          "file": "packages/shared/dist/utils/logger.d.ts",
+          "hash": "10829434699224111652"
+        },
+        {
+          "file": "packages/shared/dist/utils/logger.js",
+          "hash": "14041677668618368780"
+        },
+        {
+          "file": "packages/shared/dist/utils/logger.js.map",
+          "hash": "13460305011959051266"
+        },
+        {
+          "file": "packages/shared/dist/utils/status-codes.d.ts",
+          "hash": "10505426844884092404"
+        },
+        {
+          "file": "packages/shared/dist/utils/status-codes.js",
+          "hash": "432034177700079943"
+        },
+        {
+          "file": "packages/shared/dist/utils/status-codes.js.map",
+          "hash": "1663825019869660433"
+        },
+        {
+          "file": "packages/shared/package.json",
+          "hash": "13037667533354579975",
+          "deps": [
+            "npm:@types/config",
+            "npm:@types/jest",
+            "npm:jest",
+            "npm:rimraf@5.0.10",
+            "npm:typescript@4.9.5",
+            "npm:ts-node",
+            "npm:prettier",
+            "npm:eslint",
+            "npm:config",
+            "npm:node-addon-api",
+            "npm:winston",
+            "npm:winston-daily-rotate-file"
+          ]
+        },
+        {
+          "file": "packages/shared/src/.gitignore",
+          "hash": "11389852532291360061"
+        },
+        {
+          "file": "packages/shared/src/.gitkeep",
+          "hash": "3244421341483603138"
+        },
+        {
+          "file": "packages/shared/src/index.ts",
+          "hash": "9165229683084655364"
+        },
+        {
+          "file": "packages/shared/src/utils/config.ts",
+          "hash": "15209483118396645827"
+        },
+        {
+          "file": "packages/shared/src/utils/constants.ts",
+          "hash": "1363913010068564961"
+        },
+        {
+          "file": "packages/shared/src/utils/currency-constants.ts",
+          "hash": "17599330796004011463"
+        },
+        {
+          "file": "packages/shared/src/utils/logger.ts",
+          "hash": "2237628334469786705"
+        },
+        {
+          "file": "packages/shared/src/utils/status-codes.ts",
+          "hash": "2304493580024541562"
+        },
+        {
+          "file": "packages/shared/tsconfig.json",
+          "hash": "3348951798251915755"
+        }
+      ],
+      "@h3tag-blockchain/cli": [
+        {
+          "file": "packages/cli/.gitignore",
+          "hash": "13603088859507085958"
+        },
+        {
+          "file": "packages/cli/LICENSE",
+          "hash": "11147920346946615554"
+        },
+        {
+          "file": "packages/cli/README.md",
+          "hash": "15381143966801369776"
+        },
+        {
+          "file": "packages/cli/dist/commands/blockchain.command.d.ts",
+          "hash": "1951035319632622005"
+        },
+        {
+          "file": "packages/cli/dist/commands/blockchain.command.js",
+          "hash": "12309456562924843777"
+        },
+        {
+          "file": "packages/cli/dist/commands/blockchain.command.js.map",
+          "hash": "15922688059947844314"
+        },
+        {
+          "file": "packages/cli/dist/commands/mempool.command.d.ts",
+          "hash": "15753976307406571219"
+        },
+        {
+          "file": "packages/cli/dist/commands/mempool.command.js",
+          "hash": "6772487923428491143"
+        },
+        {
+          "file": "packages/cli/dist/commands/mempool.command.js.map",
+          "hash": "1606379458957842375"
+        },
+        {
+          "file": "packages/cli/dist/commands/metrics.command.d.ts",
+          "hash": "16814296935312422762"
+        },
+        {
+          "file": "packages/cli/dist/commands/metrics.command.js",
+          "hash": "10669261774168073978"
+        },
+        {
+          "file": "packages/cli/dist/commands/metrics.command.js.map",
+          "hash": "4835823475257399333"
+        },
+        {
+          "file": "packages/cli/dist/commands/mining.command.d.ts",
+          "hash": "3948058478701035419"
+        },
+        {
+          "file": "packages/cli/dist/commands/mining.command.js",
+          "hash": "3954252760389695384"
+        },
+        {
+          "file": "packages/cli/dist/commands/mining.command.js.map",
+          "hash": "4932668452506689450"
+        },
+        {
+          "file": "packages/cli/dist/commands/node.command.d.ts",
+          "hash": "10977321233371448972"
+        },
+        {
+          "file": "packages/cli/dist/commands/node.command.js",
+          "hash": "13627062788468786888"
+        },
+        {
+          "file": "packages/cli/dist/commands/node.command.js.map",
+          "hash": "10611280361842970506"
+        },
+        {
+          "file": "packages/cli/dist/commands/peer.command.d.ts",
+          "hash": "14054451869536504999"
+        },
+        {
+          "file": "packages/cli/dist/commands/peer.command.js",
+          "hash": "8042558269949662131"
+        },
+        {
+          "file": "packages/cli/dist/commands/peer.command.js.map",
+          "hash": "7664400423521067522"
+        },
+        {
+          "file": "packages/cli/dist/commands/transaction.command.d.ts",
+          "hash": "16624902961330569344"
+        },
+        {
+          "file": "packages/cli/dist/commands/transaction.command.js",
+          "hash": "7357502705974583702"
+        },
+        {
+          "file": "packages/cli/dist/commands/transaction.command.js.map",
+          "hash": "17158766804950835221"
+        },
+        {
+          "file": "packages/cli/dist/commands/voting.command.d.ts",
+          "hash": "12356262554473178469"
+        },
+        {
+          "file": "packages/cli/dist/commands/voting.command.js",
+          "hash": "16073386115660848298"
+        },
+        {
+          "file": "packages/cli/dist/commands/voting.command.js.map",
+          "hash": "1923224455372152484"
+        },
+        {
+          "file": "packages/cli/dist/commands/wallet.commands.d.ts",
+          "hash": "4541220371503716797"
+        },
+        {
+          "file": "packages/cli/dist/commands/wallet.commands.js",
+          "hash": "13569431003569215848"
+        },
+        {
+          "file": "packages/cli/dist/commands/wallet.commands.js.map",
+          "hash": "4649676640300050419"
+        },
+        {
+          "file": "packages/cli/dist/index.d.ts",
+          "hash": "4595979742548113990"
+        },
+        {
+          "file": "packages/cli/dist/index.js",
+          "hash": "14871981094917207864"
+        },
+        {
+          "file": "packages/cli/dist/index.js.map",
+          "hash": "14201708257998875292"
+        },
+        {
+          "file": "packages/cli/dist/services/api.d.ts",
+          "hash": "17249761869798625143"
+        },
+        {
+          "file": "packages/cli/dist/services/api.js",
+          "hash": "786373331203694766"
+        },
+        {
+          "file": "packages/cli/dist/services/api.js.map",
+          "hash": "11859414632818397442"
+        },
+        {
+          "file": "packages/cli/package.json",
+          "hash": "5785644045073641995",
+          "deps": [
+            "npm:@types/commander",
+            "npm:@types/node@20.17.14",
+            "npm:ts-node",
+            "npm:typescript",
+            "npm:prettier",
+            "npm:eslint",
+            "@h3tag-blockchain/shared",
+            "npm:axios",
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/blockchain.command.ts",
+          "hash": "7347572442964673757"
+        },
+        {
+          "file": "packages/cli/src/commands/mempool.command.ts",
+          "hash": "13847246042466783068"
+        },
+        {
+          "file": "packages/cli/src/commands/metrics.command.ts",
+          "hash": "12284086658997954423"
+        },
+        {
+          "file": "packages/cli/src/commands/mining.command.ts",
+          "hash": "6749865667973630260"
+        },
+        {
+          "file": "packages/cli/src/commands/node.command.ts",
+          "hash": "1097519981948938058"
+        },
+        {
+          "file": "packages/cli/src/commands/peer.command.ts",
+          "hash": "6895069028389023069"
+        },
+        {
+          "file": "packages/cli/src/commands/transaction.command.ts",
+          "hash": "5197588982763833228"
+        },
+        {
+          "file": "packages/cli/src/commands/voting.command.ts",
+          "hash": "12676612503955214034"
+        },
+        {
+          "file": "packages/cli/src/commands/wallet.commands.ts",
+          "hash": "9545265214275940554"
+        },
+        {
+          "file": "packages/cli/src/index.ts",
+          "hash": "6829205522219640392"
+        },
+        {
+          "file": "packages/cli/src/services/api.ts",
+          "hash": "6676020315166842638"
+        },
+        {
+          "file": "packages/cli/tsconfig.json",
+          "hash": "9949684741582803449"
+        }
+      ]
+    }
+  }
+}

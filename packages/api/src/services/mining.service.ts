@@ -6,7 +6,6 @@ import { TransactionResponseDto } from "../dtos/transaction.dto";
 import { AuditManager, Transaction } from "@h3tag-blockchain/core";
 import { BlockTemplateDto } from "../dtos/mining.dto";
 import { ProofOfWork } from "@h3tag-blockchain/core";
-import { Block } from "@h3tag-blockchain/core";
 import { SubmitBlockDto } from "../dtos/mining.dto";
 import { BlockBuilder } from "@h3tag-blockchain/core";
 import { Mempool } from "@h3tag-blockchain/core";

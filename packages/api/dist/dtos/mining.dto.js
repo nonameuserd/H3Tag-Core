@@ -115,4 +115,3 @@ __decorate([
         ],
     })
 ], SubmitBlockDto.prototype, "transactions", void 0);
-//# sourceMappingURL=mining.dto.js.map

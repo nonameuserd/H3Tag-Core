@@ -52,8 +52,12 @@ export function setupMetricsRoutes(router: Router): void {
         : undefined;
       const metrics = metricsController.getMetrics({ timeWindow });
       res.json(metrics);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get metrics" });
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            res.status(500).json({ message: error.message });
+        } else {
+            res.status(500).json({ message: "Failed to get metrics" });
+        }
     }
   });
 
@@ -79,8 +83,12 @@ export function setupMetricsRoutes(router: Router): void {
         timeWindow,
       });
       res.json({ averageTAGFees });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get average TAG fees" });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to get average TAG fees" });
+      }
     }
   });
 
@@ -106,8 +114,12 @@ export function setupMetricsRoutes(router: Router): void {
         timeWindow,
       });
       res.json({ averageTAGVolume });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get average TAG volume" });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to get average TAG volume" });
+      }
     }
   });
 
@@ -133,8 +145,12 @@ export function setupMetricsRoutes(router: Router): void {
         timeWindow,
       });
       res.json({ averageHashRate });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get average hash rate" });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        res.status(500).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to get average hash rate" });
+      }
     }
   });
 }

@@ -63,4 +63,3 @@ exports.MempoolService = MempoolService;
 exports.MempoolService = MempoolService = __decorate([
     (0, common_1.Injectable)()
 ], MempoolService);
-//# sourceMappingURL=mempool.service.js.map

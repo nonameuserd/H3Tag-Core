@@ -189,4 +189,3 @@ exports.MiningService = MiningService;
 exports.MiningService = MiningService = __decorate([
     (0, common_1.Injectable)()
 ], MiningService);
-//# sourceMappingURL=mining.service.js.map

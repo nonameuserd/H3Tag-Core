@@ -4,7 +4,7 @@ import { Vote, VotingPeriod } from "../models/vote.model";
 import { Transaction, TransactionType } from "../models/transaction.model";
 import { retry } from "../utils/retry";
 import { Mutex } from "async-mutex";
-import { Block } from "../models/block.model";
+import { Block, BlockHeader } from "../models/block.model";
 import { Cache } from "../scaling/cache";
 import { databaseConfig } from "./config.database";
 import { IVotingSchema } from "./voting-schema";
@@ -211,7 +211,7 @@ export class BlockchainSchema {
   private readonly auditManager: AuditManager;
   private readonly eventEmitter: EventEmitter;
   private readonly metricsCollector: MetricsCollector;
-  private readonly cache: Cache<
+  readonly cache: Cache<
     Block | { signature: string } | { balance: bigint; holdingPeriod: number }
   >;
   private readonly dbPath: string;
@@ -2861,6 +2861,83 @@ export class BlockchainSchema {
     } catch (error) {
       Logger.error("Failed to mark UTXO as pending:", error);
       throw error;
+    }
+  }
+
+  /**
+   * Get block height by hash
+   * @param hash Block hash
+   * @returns Promise<number | null> Block height or null if not found
+   */
+  async getBlockHeight(hash: string): Promise<number | null> {
+    try {
+      const block = await this.getBlock(hash);
+      return block ? block.header.height : null;
+    } catch (error) {
+      Logger.error("Failed to get block height:", error);
+      return null;
+    }
+  }
+
+  public async hasBlock(hash: string): Promise<boolean> {
+    try {
+      const key = `block:${hash}`;
+      const cached = this.cache.get(key);
+      if (cached) return true;
+      
+      await this.db.get(key);
+      return true;
+    } catch (error) {
+      if (error.notFound) return false;
+      throw error;
+    }
+  }
+
+  public async hasTransaction(hash: string): Promise<boolean> {
+    try {
+      const key = `tx:${hash}`;
+      const cached = this.transactionCache.get(key);
+      if (cached) return true;
+      
+      await this.db.get(key);
+      return true;
+    } catch (error) {
+      if (error.notFound) return false;
+      throw error;
+    }
+  }
+
+  async getHeaders(locator: string[], hashStop: string): Promise<BlockHeader[]> {
+    try {
+      const headers = [];
+      for await (const [value] of this.db.iterator({
+        gte: `header:${locator[0]}`,
+        lte: `header:${hashStop}`,
+        limit: 1000,
+      })) {
+        headers.push(JSON.parse(value));
+      }
+      return headers;
+    } catch (error) {
+      Logger.error("Failed to get headers:", error);
+      return [];
+    }
+  }
+
+  async getBlocks(locator: string[], hashStop: string): Promise<Block[]> {
+    try {
+      const blocks = [];
+      for await (const [value] of this.db.iterator({
+        gte: `block:${locator[0]}`,
+        lte: `block:${hashStop}`,
+        limit: 1000,
+      })) {
+        blocks.push(JSON.parse(value));
+      }
+      return blocks;
+    } catch (error) {
+      Logger.error("Failed to get blocks:", error);
+      return [];
     }
   }
 }

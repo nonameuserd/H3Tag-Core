@@ -19,4 +19,3 @@ class WasmSHA3 {
     }
 }
 exports.WasmSHA3 = WasmSHA3;
-//# sourceMappingURL=sha3.js.map

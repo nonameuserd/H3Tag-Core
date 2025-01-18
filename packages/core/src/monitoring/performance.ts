@@ -24,7 +24,7 @@ import { HybridDirectConsensus } from "../blockchain/consensus/hybrid-direct";
  */
 export class Performance {
   private static instance: Performance;
-  private static metrics: Map<string, any> = new Map();
+  private static metrics: Map<string, { startTime: number; count: number; total: number; min: number; max: number; avg: number }> = new Map();
   private static readonly MAX_METRICS_AGE = 24 * 60 * 60 * 1000; // 24 hours
   private static readonly CLEANUP_INTERVAL = 3600000; // 1 hour
   private cleanupTimer: NodeJS.Timeout;
@@ -62,10 +62,38 @@ export class Performance {
         return;
       }
 
-      Performance.metrics.set("cache_hit_rate", cacheMetrics.hitRate);
-      Performance.metrics.set("cache_size", cacheMetrics.size);
-      Performance.metrics.set("cache_evictions", cacheMetrics.evictionCount);
-      Performance.metrics.set("cache_memory_usage", cacheMetrics.memoryUsage);
+      Performance.metrics.set("cache_hit_rate", {
+        startTime: Date.now(),
+        count: 0,
+        total: 0,
+        min: Infinity,
+        max: -Infinity,
+        avg: 0,
+      });
+      Performance.metrics.set("cache_size", {
+        startTime: Date.now(),
+        count: 0,
+        total: 0,
+        min: Infinity,
+        max: -Infinity,
+        avg: 0,
+      });
+      Performance.metrics.set("cache_evictions", {
+        startTime: Date.now(),
+        count: 0,
+        total: 0,
+        min: Infinity,
+        max: -Infinity,
+        avg: 0,
+      });
+      Performance.metrics.set("cache_memory_usage", {
+        startTime: Date.now(),
+        count: 0,
+        total: 0,
+        min: Infinity,
+        max: -Infinity,
+        avg: 0,
+      });
 
       // Alert if cache performance degrades
       if (cacheMetrics.hitRate < 0.3) {
@@ -122,7 +150,7 @@ export class Performance {
     }
 
     try {
-      const metric = this.metrics.get(marker);
+      const metric = this.metrics.get(marker) as { startTime: number };
       if (!metric?.startTime) {
         Logger.warn("No start time found for marker:", marker);
         return 0;
@@ -148,6 +176,7 @@ export class Performance {
 
     try {
       const current = this.metrics.get(label) || {
+        startTime: Date.now(),
         count: 0,
         total: 0,
         min: Infinity,
