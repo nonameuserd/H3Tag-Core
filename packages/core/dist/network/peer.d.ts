@@ -1,10 +1,10 @@
-/// <reference types="node" />
 import { EventEmitter } from "events";
-import { ConfigService } from "@h3tag-blockchain/shared";
 import { BlockchainSchema } from "../database/blockchain-schema";
-import { PeerInfo, PeerMessageType } from "../models/peer.model";
+import { MessagePayload, PeerInfo, PeerMessageType, PeerServices } from "../models/peer.model";
 import { Transaction } from "../models/transaction.model";
 import { BlockInFlight } from "../blockchain/consensus/pow";
+import { Metric } from "../monitoring/performance-metrics";
+import { ConfigService } from "@h3tag-blockchain/shared";
 export declare enum PeerState {
     DISCONNECTED = "disconnected",
     CONNECTING = "connecting",
@@ -13,9 +13,35 @@ export declare enum PeerState {
     SYNCING = "syncing",
     BANNED = "banned"
 }
-interface PeerConfig {
+export interface Ban {
+    address: string;
+    timestamp: number;
+    expiration: number;
+    reason: string;
+    banScore: number;
+    timeRemaining: number;
+}
+export interface PeerUpdateInfo {
     version: number;
-    services: number;
+    services: PeerServices[];
+    startHeight: number;
+    userAgent?: string;
+    lastSeen: number;
+}
+export interface VersionPayload {
+    version: number;
+    services?: PeerServices[];
+    startHeight?: number;
+    userAgent?: string;
+    timestamp: number;
+    inventory?: {
+        type: string;
+        hash: string;
+    }[];
+}
+export interface PeerConfig {
+    version: number;
+    services: PeerServices[];
     minPingInterval: number;
     connectionTimeout: number;
     handshakeTimeout: number;
@@ -34,8 +60,9 @@ interface PeerConfig {
 }
 export interface PeerMessage {
     type: PeerMessageType;
-    payload: any;
+    payload: MessagePayload;
     checksum?: string;
+    version?: string;
 }
 export interface PeerDetailedInfo {
     id: string;
@@ -43,7 +70,7 @@ export interface PeerDetailedInfo {
     port: number;
     version: string;
     state: PeerState;
-    services: number;
+    services: PeerServices[];
     lastSeen: number;
     lastSend: number;
     lastReceive: number;
@@ -77,7 +104,6 @@ export declare class Peer {
     private readonly pendingRequests;
     private lastPing;
     private pingInterval?;
-    private reconnectAttempts;
     private reconnectTimer?;
     private handshakeTimer?;
     private bytesReceived;
@@ -100,15 +126,17 @@ export declare class Peer {
     private id;
     private peerState;
     private database;
+    private votingDatabase;
     private inbound;
     private syncedHeaders;
     private syncedBlocks;
-    private inflightBlocks;
     private isWhitelisted;
     private isBlacklisted;
     private readonly blocksInFlight;
     private readonly peers;
     private height;
+    private messageTimestamps;
+    private lastBytesReceived;
     constructor(address: string, port: number, config: Partial<PeerConfig>, configService: ConfigService, database: BlockchainSchema, isInbound?: boolean);
     private setupEventHandlers;
     connect(): Promise<void>;
@@ -116,8 +144,8 @@ export declare class Peer {
     private performHandshake;
     private handleIncomingMessage;
     private processMessage;
-    send(type: PeerMessageType, payload: any): Promise<void>;
-    request(type: PeerMessageType, payload: any, timeout?: number): Promise<any>;
+    send(type: PeerMessageType, payload: MessagePayload): Promise<void>;
+    request(type: PeerMessageType, payload: MessagePayload, timeout?: number): Promise<MessagePayload>;
     disconnect(code?: number, reason?: string): void;
     private cleanup;
     isConnected(): boolean;
@@ -129,7 +157,7 @@ export declare class Peer {
     getAddress(): string;
     getVersion(): number | undefined;
     getLastSeen(): number;
-    getMetrics(): any;
+    getMetrics(): Metric;
     getNodeInfo(): Promise<{
         isMiner: boolean;
         publicKey: string;
@@ -155,7 +183,7 @@ export declare class Peer {
     private handleClose;
     handshake(): Promise<{
         version: number;
-        services: number;
+        services: PeerServices[];
         height: number;
         peers: number;
         isMiner: boolean;
@@ -176,6 +204,8 @@ export declare class Peer {
     private handleVerack;
     private handlePing;
     private handleInventory;
+    private handleBlockInventory;
+    private handleTransactionInventory;
     adjustPeerScore(adjustment: number): void;
     private updatePeerState;
     getBlockHeight(): Promise<number>;
@@ -254,5 +284,11 @@ export declare class Peer {
     getInflightBlocks(): BlockInFlight[];
     getHeight(): number;
     setHeight(height: number): void;
+    getVotingPower(): Promise<bigint>;
+    updateInfo(info: PeerUpdateInfo): Promise<void>;
+    private handleBlockMessage;
+    private handleGetVotes;
+    private handleGetHeaders;
+    private handleGetBlocks;
+    private handleGetNodeInfo;
 }
-export {};

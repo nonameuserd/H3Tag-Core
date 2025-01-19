@@ -204,4 +204,3 @@ QuantumCrypto.isModuleInitialized = false;
 QuantumCrypto.nativeQuantum = quantum_node_1.default;
 __exportStar(require("./dilithium"), exports);
 __exportStar(require("./kyber"), exports);
-//# sourceMappingURL=index.js.map

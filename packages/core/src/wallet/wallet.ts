@@ -152,14 +152,16 @@ export class Wallet {
         failedAttempts: 0,
       });
       this.eventEmitter.emit("unlocked", { address: this.address });
-    } catch (error) {
-      this.updateState({
-        failedAttempts: this.state.failedAttempts + 1,
-      });
-      throw new WalletError(
-        "Failed to unlock wallet",
-        WalletErrorCode.KEYSTORE_ERROR
-      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        this.updateState({
+          failedAttempts: this.state.failedAttempts + 1,
+        });
+        throw new WalletError(
+          "Failed to unlock wallet",
+          WalletErrorCode.KEYSTORE_ERROR
+        );
+      }
     }
   }
 
@@ -198,13 +200,24 @@ export class Wallet {
   }
 
   async backup(password: string): Promise<string> {
-    try {
-      return await Keystore.backup(this.address);
-    } catch (error) {
+    if (!password) {
       throw new WalletError(
-        "Failed to backup wallet",
-        WalletErrorCode.KEYSTORE_ERROR
+        "Password is required for backup",
+        WalletErrorCode.INVALID_PASSWORD
       );
+    }
+
+    try {
+      // Verify password before backup
+      await Keystore.decrypt(this.keystore, password);
+      return await Keystore.backup(this.address);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new WalletError(
+          "Failed to backup wallet",
+          WalletErrorCode.KEYSTORE_ERROR
+        );
+      }
     }
   }
 
@@ -212,11 +225,13 @@ export class Wallet {
     try {
       await Keystore.rotateKey(this.address, password);
       this.eventEmitter.emit("keysRotated", { address: this.address });
-    } catch (error) {
-      throw new WalletError(
-        "Failed to rotate keys",
-        WalletErrorCode.KEYSTORE_ERROR
-      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new WalletError(
+          "Failed to rotate keys",
+          WalletErrorCode.KEYSTORE_ERROR
+        );
+      }
     }
   }
 
@@ -229,12 +244,14 @@ export class Wallet {
       const wallet = await this.fromMnemonic(mnemonic, password);
 
       return { wallet, mnemonic };
-    } catch (error) {
-      Logger.error("Wallet creation with mnemonic failed:", error);
-      throw new WalletError(
-        "Failed to create wallet with mnemonic",
-        WalletErrorCode.INITIALIZATION_ERROR
-      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.error("Wallet creation with mnemonic failed:", error);
+        throw new WalletError(
+          "Failed to create wallet with mnemonic",
+          WalletErrorCode.INITIALIZATION_ERROR
+        );
+      }
     }
   }
 
@@ -305,8 +322,10 @@ export class Wallet {
       const address = await KeyManager.deriveAddress(keyPair.publicKey);
 
       return address === this.address;
-    } catch (error) {
-      return false;
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        return false;
+      }
     }
   }
 
@@ -356,7 +375,15 @@ export class Wallet {
         status: TransactionStatus.PENDING,
         signature: "",
         nonce: 0,
+        transaction: {
+          hash: "",
+          timestamp: Date.now(),
+          fee: BigInt(amount),
+          lockTime: 0,
+          signature: "",
+        },
         currency: {
+          name: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
           symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
           decimals: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
         },
@@ -392,8 +419,10 @@ export class Wallet {
     try {
       const address = await KeyManager.deriveAddress(this.keyPair.publicKey);
       return address === this.address;
-    } catch (error) {
-      return false;
+    } catch (error: unknown ) {
+      if (error instanceof Error) {
+        return false;
+      }
     }
   }
 

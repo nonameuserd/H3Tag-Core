@@ -118,6 +118,7 @@ class BackupManager {
             await (0, promises_1.pipeline)((0, fs_2.createReadStream)(filePath), async function* (source) {
                 for await (const chunk of source) {
                     hash.update(chunk);
+                    yield chunk;
                 }
             });
         }
@@ -347,4 +348,3 @@ class BackupManager {
     }
 }
 exports.BackupManager = BackupManager;
-//# sourceMappingURL=backup-manager.js.map

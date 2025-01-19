@@ -14,7 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-// Export blockchain modules
+exports.PeerServices = void 0;
 __exportStar(require("./blockchain/blockchain"), exports);
 __exportStar(require("./blockchain/mempool"), exports);
 __exportStar(require("./wallet/keystore"), exports);
@@ -63,5 +63,6 @@ __exportStar(require("./database/uxo-schema"), exports);
 __exportStar(require("./blockchain/consensus/pow"), exports);
 __exportStar(require("./utils/merkle"), exports);
 __exportStar(require("./network/network-stats"), exports);
-__exportStar(require("./blockchain/consensus/direct-voting"), exports);
-//# sourceMappingURL=index.js.map
+__exportStar(require("./blockchain/consensus/voting"), exports);
+var peer_model_1 = require("./models/peer.model");
+Object.defineProperty(exports, "PeerServices", { enumerable: true, get: function () { return peer_model_1.PeerServices; } });

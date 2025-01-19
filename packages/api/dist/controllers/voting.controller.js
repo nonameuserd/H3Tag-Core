@@ -103,4 +103,3 @@ exports.VotingController = VotingController = __decorate([
     (0, swagger_1.ApiTags)("Voting"),
     (0, common_1.Controller)("voting")
 ], VotingController);
-//# sourceMappingURL=voting.controller.js.map

@@ -5,6 +5,7 @@ import { Mutex } from "async-mutex";
 import { retry } from "../utils/retry";
 import { UTXO } from "../models/utxo.model";
 import { databaseConfig } from "./config.database";
+import { AbstractChainedBatch } from "abstract-leveldown";
 
 /**
  * @fileoverview UTXODatabase implements persistent storage and management of Unspent Transaction Outputs (UTXOs).
@@ -36,7 +37,7 @@ export class UTXODatabase {
   private readonly db: Level;
   private readonly mutex: Mutex;
   private readonly cache: Cache<UTXO>;
-  private batch: any = null;
+  private batch: AbstractChainedBatch<string, string> | null = null;
   private readonly CACHE_TTL = 300000; // 5 minutes
   private initialized = false;
   private transactionInProgress = false;
@@ -122,7 +123,9 @@ export class UTXODatabase {
         }
 
         if (!this.batch) {
-          await batch.write();
+          await batch.write((err) => {
+            if (err) throw err;
+          });
         }
 
         this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
@@ -274,7 +277,9 @@ export class UTXODatabase {
         throw new Error("No transaction in progress");
       }
       if (this.batch) {
-        await this.batch.write();
+        await (this.batch).write((err) => {
+          if (err) throw err;
+        });
         this.batch = null;
         this.transactionInProgress = false;
       }

@@ -22,7 +22,7 @@ export class VideoFrameImpl implements VideoFrame {
     this.codedHeight = codedHeight;
   }
 
-  allocationSize(options?: VideoFrameCopyToOptions): number {
+  allocationSize(): number {
     return 0;
   }
 
@@ -39,7 +39,6 @@ export class VideoFrameImpl implements VideoFrame {
 
   copyTo(
     destination: BufferSource,
-    options?: VideoFrameCopyToOptions
   ): Promise<PlaneLayout[]> {
     if (
       !(destination instanceof ArrayBuffer || ArrayBuffer.isView(destination))

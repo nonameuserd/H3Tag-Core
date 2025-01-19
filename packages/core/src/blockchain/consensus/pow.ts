@@ -924,6 +924,8 @@ export class ProofOfWork {
           merkleRoot: calculatedMerkleRoot,
           validatorMerkleRoot: block.validatorMerkleRoot || "",
           difficulty: block.difficulty,
+          locator: block.locator || [],
+          hashStop: block.hashStop || "",
           nonce: block.nonce,
           miner: block.miner || "",
           totalTAG: block.totalTAG || 0,
@@ -989,6 +991,7 @@ export class ProofOfWork {
       header.difficulty +
       header.nonce;
 
+      // this can be replaced with a faster more secured hashing algorithm
     return createHash("sha3-256").update(data).digest("hex");
   }
 
@@ -999,72 +1002,51 @@ export class ProofOfWork {
    */
   public async getBlock(height: number): Promise<Block> {
     try {
-      const result = await this.db.query(
-        `
-                SELECT 
-                    b.height,
-                    b.version,
-                    b.previous_hash,
-                    b.merkle_root,
-                    b.timestamp,
-                    b.difficulty,
-                    b.nonce,
-                    b.hash,
-                    b.transactions,
-                    b.votes
-                FROM blocks b 
-                WHERE b.height = $1 
-                LIMIT 1
-            `,
-        [height]
-      );
-
-      if (!result.rows[0]) {
+      // Get block using height index
+      const blockData = await this.db.get(`block:height:${height}`);
+      
+      if (!blockData) {
         throw new Error(`Block at height ${height} not found`);
       }
 
+      const block = JSON.parse(blockData);
+
       return {
         header: {
-          version: result.rows[0].version || 1,
-          height: result.rows[0].height,
-          timestamp: result.rows[0].timestamp,
-          previousHash: result.rows[0].previous_hash,
-          merkleRoot: result.rows[0].merkle_root,
-          validatorMerkleRoot: result.rows[0].validator_merkle_root || "",
-          difficulty: result.rows[0].difficulty,
-          nonce: result.rows[0].nonce,
-          miner: result.rows[0].miner || "",
-          totalTAG: result.rows[0].total_tag || 0,
-          blockReward: result.rows[0].block_reward || 0,
-          fees: result.rows[0].fees || 0,
-          consensusData: result.rows[0].consensus_data || {},
-          signature: result.rows[0].signature || {},
-          publicKey: result.rows[0].public_key || "",
-          hash: result.rows[0].hash || "",
-          minerAddress: result.rows[0].miner_address || "",
-          target: result.rows[0].target || "",
+          version: block.version || 1,
+          height: block.height,
+          timestamp: block.timestamp,
+          previousHash: block.previous_hash,
+          merkleRoot: block.merkle_root,
+          validatorMerkleRoot: block.validator_merkle_root || "",
+          difficulty: block.difficulty,
+          locator: block.locator || [],
+          hashStop: block.hash_stop || "",
+          nonce: block.nonce,
+          miner: block.miner || "",
+          totalTAG: block.total_tag || 0,
+          blockReward: block.block_reward || 0,
+          fees: block.fees || 0,
+          consensusData: block.consensus_data || {},
+          signature: block.signature || {},
+          publicKey: block.public_key || "",
+          hash: block.hash || "",
+          minerAddress: block.miner_address || "",
+          target: block.target || "",
         },
-        hash: result.rows[0].hash || "",
-        transactions: JSON.parse(result.rows[0].transactions),
-        votes: result.rows[0].votes ? JSON.parse(result.rows[0].votes) : [],
-        validators: result.rows[0].validators
-          ? JSON.parse(result.rows[0].validators)
-          : [],
-        timestamp: result.rows[0].timestamp,
+        hash: block.hash,
+        transactions: block.transactions,
+        votes: block.votes || [],
+        validators: block.validators || [],
+        timestamp: block.timestamp,
         verifyHash: async () => {
-          const calculatedHash = await HybridCrypto.hash(
-            JSON.stringify(result.rows[0])
-          );
-          return calculatedHash === result.rows[0].hash;
+          const calculatedHash = await HybridCrypto.hash(JSON.stringify(block));
+          return calculatedHash === block.hash;
         },
         verifySignature: async () => {
-          return HybridCrypto.verify(
-            result.rows[0].hash,
-            result.rows[0].signature,
-            result.rows[0].public_key
-          );
+          return HybridCrypto.verify(block.hash, block.signature, block.public_key);
         },
-        getHeaderBase: () => result.rows[0].getHeaderBase(),
+        getHeaderBase: () => block.getHeaderBase(),
         isComplete(): boolean {
           return !!(
             this.hash &&
@@ -1909,6 +1891,13 @@ export class ProofOfWork {
   ): Promise<Transaction> {
     const tx: Transaction = {
       type: TransactionType.POW_REWARD,
+      transaction: {
+        hash: "",
+        timestamp: Date.now(),
+        fee: 0n,
+        lockTime: 0,
+        signature: "",
+      },
       sender: "coinbase",
       inputs: [],
       outputs: [
@@ -1917,10 +1906,12 @@ export class ProofOfWork {
           amount: reward,
           script: await this.generateCoinbaseScript(), // Generate coinbase script
           currency: {
+            name: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
             symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
             decimals: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
           },
           index: 0,
+          confirmations: 0,
         },
       ],
       timestamp: Date.now(),
@@ -1928,6 +1919,7 @@ export class ProofOfWork {
       version: 1,
       status: TransactionStatus.PENDING,
       currency: {
+        name: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
         symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         decimals: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
       },
@@ -2004,7 +1996,7 @@ export class ProofOfWork {
         // Circuit breaker pattern
         this.miningFailures++;
         if (this.miningFailures >= this.MAX_FAILURES) {
-          await this.stopMining();
+          this.stopMining();
           Logger.error("Mining stopped due to repeated failures");
           break;
         }

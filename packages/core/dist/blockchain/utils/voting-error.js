@@ -19,4 +19,3 @@ class VotingError extends Error {
     }
 }
 exports.VotingError = VotingError;
-//# sourceMappingURL=voting-error.js.map

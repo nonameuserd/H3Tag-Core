@@ -397,6 +397,7 @@ export declare class Mempool {
     addTransactionOutput(txId: string, output: {
         address: string;
         amount: bigint;
+        confirmations: number;
     }): Promise<boolean>;
     private cleanupCache;
     private initializeCleanupInterval;

@@ -189,4 +189,3 @@ __decorate([
 __decorate([
     (0, swagger_1.ApiProperty)({ description: "Whether output is spendable" })
 ], TxOutDto.prototype, "spendable", void 0);
-//# sourceMappingURL=wallet.dto.js.map

@@ -20,4 +20,3 @@ class BlockValidationError extends Error {
     }
 }
 exports.BlockValidationError = BlockValidationError;
-//# sourceMappingURL=validation.error.js.map

@@ -122,4 +122,3 @@ exports.MetricsController = MetricsController = __decorate([
     (0, swagger_1.ApiTags)("Metrics"),
     (0, common_1.Controller)("metrics")
 ], MetricsController);
-//# sourceMappingURL=metrics.controller.js.map

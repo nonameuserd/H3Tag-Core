@@ -25,7 +25,7 @@ var NetworkErrorCode;
     NetworkErrorCode["PEER_BANNED"] = "PEER_BANNED";
     NetworkErrorCode["PEER_NOT_FOUND"] = "PEER_NOT_FOUND";
     NetworkErrorCode["NETWORK_INFO_FAILED"] = "NETWORK_INFO_FAILED";
-})(NetworkErrorCode = exports.NetworkErrorCode || (exports.NetworkErrorCode = {}));
+})(NetworkErrorCode || (exports.NetworkErrorCode = NetworkErrorCode = {}));
 class NetworkError extends Error {
     constructor(message, code, details) {
         super(message);
@@ -55,4 +55,3 @@ class NetworkError extends Error {
     }
 }
 exports.NetworkError = NetworkError;
-//# sourceMappingURL=network-error.js.map

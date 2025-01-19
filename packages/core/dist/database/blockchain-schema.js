@@ -36,7 +36,7 @@ class BlockchainSchema {
             maxSize: 1000,
         });
         this.slashingHistoryCache = new cache_1.Cache({
-            ttl: 300000,
+            ttl: 300000, // 5 minutes
             maxSize: 1000,
         });
         this.shardMutex = new async_mutex_1.Mutex();
@@ -2348,7 +2348,87 @@ class BlockchainSchema {
             throw error;
         }
     }
+    /**
+     * Get block height by hash
+     * @param hash Block hash
+     * @returns Promise<number | null> Block height or null if not found
+     */
+    async getBlockHeight(hash) {
+        try {
+            const block = await this.getBlock(hash);
+            return block ? block.header.height : null;
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get block height:", error);
+            return null;
+        }
+    }
+    async hasBlock(hash) {
+        try {
+            const key = `block:${hash}`;
+            const cached = this.cache.get(key);
+            if (cached)
+                return true;
+            await this.db.get(key);
+            return true;
+        }
+        catch (error) {
+            if (error.notFound)
+                return false;
+            throw error;
+        }
+    }
+    async hasTransaction(hash) {
+        try {
+            const key = `tx:${hash}`;
+            const cached = this.transactionCache.get(key);
+            if (cached)
+                return true;
+            await this.db.get(key);
+            return true;
+        }
+        catch (error) {
+            if (error.notFound)
+                return false;
+            throw error;
+        }
+    }
+    async getHeaders(locator, hashStop) {
+        try {
+            const headers = [];
+            for await (const [value] of this.db.iterator({
+                gte: `header:${locator[0]}`,
+                lte: `header:${hashStop}`,
+                limit: 1000,
+            })) {
+                headers.push(JSON.parse(value));
+            }
+            return headers;
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get headers:", error);
+            return [];
+        }
+    }
+    async getBlocks(locator, hashStop) {
+        try {
+            const blocks = [];
+            for await (const [value] of this.db.iterator({
+                gte: `block:${locator[0]}`,
+                lte: `block:${hashStop}`,
+                limit: 1000,
+            })) {
+                blocks.push(JSON.parse(value));
+            }
+            return blocks;
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get blocks:", error);
+            return [];
+        }
+    }
 }
+exports.BlockchainSchema = BlockchainSchema;
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], BlockchainSchema.prototype, "createVotingPeriod", null);
@@ -2369,5 +2449,3 @@ __decorate([
         exponentialBackoff: true,
     })
 ], BlockchainSchema.prototype, "getRecentTransactions", null);
-exports.BlockchainSchema = BlockchainSchema;
-//# sourceMappingURL=blockchain-schema.js.map

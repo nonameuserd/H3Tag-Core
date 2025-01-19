@@ -4,7 +4,6 @@ import { VotingService } from "../services/voting.service";
 import {
   DirectVoting,
   BlockchainSchema,
-  Node,
   AuditManager,
 } from "@h3tag-blockchain/core";
 

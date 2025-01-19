@@ -1,6 +1,40 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.PeerDiscovery = exports.PeerType = exports.DiscoveryState = void 0;
+const dns = __importStar(require("dns"));
 const events_1 = require("events");
 const peer_1 = require("./peer");
 const rateLimit_1 = require("../security/rateLimit");
@@ -16,14 +50,14 @@ var DiscoveryState;
     DiscoveryState["ACTIVE"] = "ACTIVE";
     DiscoveryState["SYNCING"] = "SYNCING";
     DiscoveryState["ERROR"] = "ERROR";
-})(DiscoveryState = exports.DiscoveryState || (exports.DiscoveryState = {}));
+})(DiscoveryState || (exports.DiscoveryState = DiscoveryState = {}));
 var PeerType;
 (function (PeerType) {
     PeerType["MINER"] = "miner";
     PeerType["FULL_NODE"] = "full_node";
     PeerType["LIGHT_NODE"] = "light_node";
     PeerType["VALIDATOR"] = "validator";
-})(PeerType = exports.PeerType || (exports.PeerType = {}));
+})(PeerType || (exports.PeerType = PeerType = {}));
 class PeerDiscovery {
     constructor(config, mempool, utxoSet) {
         this.statePromise = Promise.resolve();
@@ -124,7 +158,9 @@ class PeerDiscovery {
                 this.updatePeerScore(candidate.url, 1);
             }
             catch (error) {
-                this.updatePeerScore(candidate.url, -1);
+                if (error instanceof Error) {
+                    this.updatePeerScore(candidate.url, -1);
+                }
             }
         }
     }
@@ -290,8 +326,10 @@ class PeerDiscovery {
             shared_1.Logger.info("Peer discovery shutdown complete");
         }
         catch (error) {
-            await this.setState(DiscoveryState.ERROR);
-            throw new discovery_error_1.DiscoveryError("Shutdown failed", "SHUTDOWN_ERROR");
+            if (error instanceof Error) {
+                await this.setState(DiscoveryState.ERROR);
+                throw new discovery_error_1.DiscoveryError("Shutdown failed", "SHUTDOWN_ERROR");
+            }
         }
     }
     isValidPeer(peerInfo) {
@@ -377,7 +415,9 @@ class PeerDiscovery {
                 this.updatePeerScore(candidate.url, 1);
             }
             catch (error) {
-                this.updatePeerScore(candidate.url, -1);
+                if (error instanceof Error) {
+                    this.updatePeerScore(candidate.url, -1);
+                }
             }
         }
     }
@@ -386,7 +426,6 @@ class PeerDiscovery {
     }
     async resolveDnsSeed(seed) {
         try {
-            const dns = require("dns");
             const addresses = await new Promise((resolve, reject) => {
                 dns.resolve(seed, (err, addresses) => {
                     if (err)
@@ -398,7 +437,9 @@ class PeerDiscovery {
             return addresses.filter((addr) => this.isValidAddress(addr));
         }
         catch (error) {
-            shared_1.Logger.warn(`DNS resolution failed for ${seed}:`, error);
+            if (error instanceof Error) {
+                shared_1.Logger.warn(`DNS resolution failed for ${seed}:`, error);
+            }
             return [];
         }
     }
@@ -458,13 +499,21 @@ class PeerDiscovery {
         try {
             switch (message.type) {
                 case peer_model_1.PeerMessageType.VERSION:
-                    await this.handleVersion(message.payload);
+                    await this.handleVersion({
+                        version: message.payload.version,
+                        services: message.payload.services,
+                    });
                     break;
                 case peer_model_1.PeerMessageType.ADDR:
-                    await this.handleAddr(message.payload);
+                    await this.handleAddr({
+                        addresses: message.payload.addresses,
+                    });
                     break;
                 case peer_model_1.PeerMessageType.INV:
-                    await this.handleInventory(message.payload);
+                    await this.handleInventory({
+                        type: message.payload.type,
+                        hash: message.payload.hash,
+                    });
                     break;
                 default:
                     shared_1.Logger.debug(`Unhandled message type: ${message.type}`);
@@ -476,31 +525,74 @@ class PeerDiscovery {
     }
     async handleVersion(payload) {
         try {
-            const { version, services, timestamp } = payload;
-            shared_1.Logger.debug(`Received version message: v${version}, services: ${services}`);
-            // Additional version handling logic here
+            if (!payload.nodeInfo) {
+                throw new discovery_error_1.DiscoveryError("Missing node info in version message", "INVALID_VERSION");
+            }
+            const { version, services, timestamp, startHeight, userAgent } = payload.nodeInfo;
+            // Validate version compatibility
+            const minVersion = (this.config.get("MIN_PROTOCOL_VERSION") || "1");
+            if (version < minVersion) {
+                throw new discovery_error_1.DiscoveryError(`Incompatible protocol version: ${version}`, "VERSION_MISMATCH");
+            }
+            // Update peer information
+            const peer = this.peers.get(payload.nodeInfo.id);
+            if (peer) {
+                await peer.updateInfo({
+                    version: Number(version),
+                    services,
+                    startHeight,
+                    userAgent,
+                    lastSeen: timestamp || Date.now()
+                });
+                // Emit version event for monitoring
+                this.eventEmitter.emit("version", {
+                    peerId: peer.getId(),
+                    version,
+                    services,
+                    startHeight
+                });
+                shared_1.Logger.debug(`Updated peer version info: ${peer.getId()}, v${version}, services: ${services}`);
+            }
         }
         catch (error) {
-            shared_1.Logger.error("Error handling version message:", error);
+            if (error instanceof Error) {
+                shared_1.Logger.error("Error handling version message:", error);
+                this.eventEmitter.emit("discovery_error", error);
+            }
         }
     }
     async handleAddr(payload) {
         try {
-            const addresses = payload.addresses || [];
-            for (const addr of addresses) {
+            if (!Array.isArray(payload.addresses)) {
+                throw new discovery_error_1.DiscoveryError("Invalid addr payload format", "INVALID_PAYLOAD");
+            }
+            const validAddresses = payload.addresses.filter(addr => addr.url &&
+                typeof addr.services === 'number' &&
+                this.isValidAddress(addr.url) &&
+                !this.bannedPeers.has(addr.url));
+            for (const addr of validAddresses) {
                 this.addPeerAddress({
                     url: addr.url,
-                    timestamp: Date.now(),
-                    services: addr.services || 0,
+                    timestamp: addr.timestamp || Date.now(),
+                    services: addr.services,
                     attempts: 0,
-                    lastSuccess: 0,
+                    lastSuccess: addr.lastSeen || 0,
                     lastAttempt: 0,
                     banScore: 0,
                 });
+                shared_1.Logger.debug(`Added new peer address: ${addr.url}`);
             }
+            // Update peer metrics
+            this.eventEmitter.emit('peerDiscovery', {
+                newAddresses: validAddresses.length,
+                totalPeers: this.peerAddresses.size
+            });
         }
         catch (error) {
-            shared_1.Logger.error("Error handling addr message:", error);
+            if (error instanceof Error) {
+                shared_1.Logger.error("Error handling addr message:", error);
+                this.eventEmitter.emit('discoveryError', error);
+            }
         }
     }
     async handleInventory(payload) {
@@ -510,7 +602,9 @@ class PeerDiscovery {
             this.eventEmitter.emit("inventory", payload);
         }
         catch (error) {
-            shared_1.Logger.error("Error handling inventory message:", error);
+            if (error instanceof Error) {
+                shared_1.Logger.error("Error handling inventory message:", error);
+            }
         }
     }
 }
@@ -522,4 +616,3 @@ PeerDiscovery.BAN_DURATION = 24 * 60 * 60 * 1000;
 PeerDiscovery.MAX_PEER_AGE = 3 * 24 * 60 * 60 * 1000;
 PeerDiscovery.MAX_RECONNECT_ATTEMPTS = 3;
 PeerDiscovery.RECONNECT_DELAY = 5000;
-//# sourceMappingURL=discovery.js.map

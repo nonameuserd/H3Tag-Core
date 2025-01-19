@@ -9,7 +9,6 @@ import * as os from "os";
 import { Construct } from "constructs";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as ssm from "aws-cdk-lib/aws-ssm";
-import { NetworkType } from "@h3tag-blockchain/shared";
 import * as kms from "aws-cdk-lib/aws-kms";
 
 interface SeedServerStackProps extends cdk.StackProps {
@@ -258,7 +257,7 @@ export class SeedServerStack extends cdk.Stack {
       parameterName: `/h3tag/${props.environment}/blockchain-config`,
       stringValue: JSON.stringify({
         network: {
-          type: NetworkType.MAINNET,
+          type: "MAINNET",
           port: {
             MAINNET: 8333,
             TESTNET: 10001,
@@ -316,7 +315,7 @@ export class SeedServerStack extends cdk.Stack {
           hashBatchSize: 10000,
           maxTarget: "0x0000000000ffff0000000000000000000000000000000000000000000000000000",
           minDifficulty: 2,
-          chainDecisionThreshold: 0.67,
+          nodeSelectionThreshold: 0.67,
           orphanWindow: 100,
           propagationWindow: 50,
           maxPropagationTime: 30000,
@@ -342,7 +341,7 @@ export class SeedServerStack extends cdk.Stack {
           safeConfirmationTime: 3600000,
         },
         consensus: {
-          powWeight: 10000,
+          powWeight: 0.6,
           minPowHashRate: 1000000,
           minVoterCount: 1000,
           minPeriodLength: 1000,
@@ -352,7 +351,7 @@ export class SeedServerStack extends cdk.Stack {
           votingDayPeriod: 59616000000,
           consensusTimeout: 1800000,
           emergencyTimeout: 3600000,
-          chainSelectionTimeout: 300000,
+          nodeSelectionTimeout: 300000,
           voteCollectionTimeout: 180000,
           initialReward: "546",
           baseReward: "100000000000000000000",

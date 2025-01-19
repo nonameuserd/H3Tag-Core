@@ -103,8 +103,8 @@ class UTXOSet {
      * Add a UTXO to the set
      */
     async add(utxo) {
-        const mutex = await this.mutex.acquire();
         try {
+            await this.mutex.waitForUnlock();
             // Check rate limit
             if (!this.checkRateLimit()) {
                 throw new UTXOError("Rate limit exceeded");
@@ -728,7 +728,7 @@ class UTXOSet {
                     amount: tx.outputs[i].amount,
                     address: tx.outputs[i].address,
                     script: tx.outputs[i].script,
-                    timestamp: tx.timestamp,
+                    timestamp: tx.timestamp, // Use tx timestamp instead of current time
                     spent: false,
                     currency: {
                         name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
@@ -1327,4 +1327,3 @@ UTXOSet.CACHE_DURATION = 1000;
 UTXOSet.MAX_UTXOS = 10000;
 UTXOSet.BATCH_SIZE = 100;
 UTXOSet.VERIFICATION_TIMEOUT = 5000; // 5 seconds
-//# sourceMappingURL=utxo.model.js.map

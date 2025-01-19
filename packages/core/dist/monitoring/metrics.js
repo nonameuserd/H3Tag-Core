@@ -299,4 +299,3 @@ class MiningMetrics {
     }
 }
 exports.MiningMetrics = MiningMetrics;
-//# sourceMappingURL=metrics.js.map

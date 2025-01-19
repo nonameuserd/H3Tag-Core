@@ -297,6 +297,7 @@ export class BackupManager {
       await pipeline(createReadStream(filePath), async function* (source) {
         for await (const chunk of source) {
           hash.update(chunk);
+          yield chunk;
         }
       });
     }

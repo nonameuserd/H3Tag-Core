@@ -33,7 +33,7 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
         this.workgroupSize = 256;
         // Add currency constants
         this.CURRENCY_CONSTANTS = {
-            REWARD_PRECISION: 100000000,
+            REWARD_PRECISION: 100000000, // 8 decimals for TAG
             SYMBOL: "TAG",
             NAME: "H3Tag",
         };
@@ -57,11 +57,11 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
         }
         // Increase buffer sizes to handle potential overflow
         this.blockBuffer = this.device.createBuffer({
-            size: 8,
+            size: 8, // Increase to 8 bytes for uint64
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         });
         this.resultBuffer = this.device.createBuffer({
-            size: 8,
+            size: 8, // Increase to handle both nonce and reward
             usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
         });
         // Add null check for adapter
@@ -205,8 +205,8 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
                     binding: 0,
                     resource: {
                         buffer: this.blockBuffer,
-                        offset: 0,
-                        size: this.blockBuffer.size,
+                        offset: offset * 4, // 4 bytes per uint32
+                        size: this.blockBuffer.size - (offset * 4),
                     },
                 },
                 {
@@ -230,7 +230,7 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
     async getResult() {
         // Create a buffer to read results
         const readBuffer = this.device.createBuffer({
-            size: 4,
+            size: 4, // uint32
             usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
         });
         // Copy result to readable buffer
@@ -284,4 +284,3 @@ class AdvancedGPUMiner extends gpu_1.GPUMiner {
     }
 }
 exports.AdvancedGPUMiner = AdvancedGPUMiner;
-//# sourceMappingURL=gpu-advanced.js.map

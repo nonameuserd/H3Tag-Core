@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
 import {
-  Transaction,
   TransactionBuilder,
   estimateFee,
 } from "@h3tag-blockchain/core";
@@ -130,8 +129,17 @@ export class TransactionService {
         txid: decodedTx.id,
         hash: decodedTx.hash,
         version: decodedTx.version,
-        vin: decodedTx.inputs,
-        vout: decodedTx.outputs,
+        vin: decodedTx.inputs.map((input) => ({
+          txId: input.txId,
+          outputIndex: input.outputIndex,
+          amount: input.amount.toString(),
+          address: input.address,
+        })),
+        vout: decodedTx.outputs.map((output) => ({
+          address: output.address,
+          amount: output.amount.toString(),
+          index: output.index,
+        })),
       };
     } catch (error) {
       throw new Error(`Failed to decode transaction: ${error.message}`);

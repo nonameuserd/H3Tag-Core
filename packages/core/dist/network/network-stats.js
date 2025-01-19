@@ -328,7 +328,7 @@ class NetworkStats {
                 throw new network_error_1.NetworkError("Invalid event type", network_error_1.NetworkErrorCode.MESSAGE_VALIDATION_FAILED);
             }
             const eventName = `peer_${event}`;
-            const listener = (data) => {
+            const listener = () => {
                 this.eventEmitter.emit(eventName, {
                     peerId,
                     args,
@@ -617,4 +617,3 @@ NetworkStats.MIN_DIFFICULTY = 1;
 NetworkStats.MAX_DIFFICULTY = Number.MAX_SAFE_INTEGER;
 NetworkStats.MIN_PROPAGATION_TIME = 0;
 NetworkStats.MAX_PROPAGATION_TIME = 30000; // 30 seconds
-//# sourceMappingURL=network-stats.js.map

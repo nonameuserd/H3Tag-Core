@@ -1,3 +1,6 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.BlockchainStatsError = void 0;
 class BlockchainStatsError extends Error {
     constructor(message, code, context) {
         super(message);
@@ -6,4 +9,4 @@ class BlockchainStatsError extends Error {
         this.name = "BlockchainStatsError";
     }
 }
-//# sourceMappingURL=blockchain-stats-error.js.map
+exports.BlockchainStatsError = BlockchainStatsError;

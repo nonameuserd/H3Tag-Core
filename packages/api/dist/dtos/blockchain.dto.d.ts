@@ -10,13 +10,14 @@ export declare class TransactionSubmitDto {
     recipient: string;
     amount: string;
     signature: string;
+    confirmations: number;
 }
 export declare class BlockResponseDto {
     hash: string;
     height: number;
     previousHash: string;
     timestamp: number;
-    transactions: any[];
+    transactions: BlockTransactionDto[];
     merkleRoot: string;
 }
 export declare class UtxoDto {
@@ -57,4 +58,14 @@ export declare class BlockchainInfoDto {
     initialBlockDownload: boolean;
     networkHashrate: number;
     chainTips: ChainTipDto[];
+}
+export declare class BlockTransactionDto {
+    hash: string;
+    amount: number;
+    confirmations: number;
+    timestamp: number;
+    type: string;
+    status: string;
+    fromAddress: string;
+    toAddress: string;
 }

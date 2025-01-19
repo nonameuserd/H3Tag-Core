@@ -1,4 +1,3 @@
-/// <reference types="@webgpu/types" />
 import { GPUMiner } from "./gpu";
 /**
  * @fileoverview AdvancedGPUMiner implements optimized GPU-based mining operations.

@@ -137,4 +137,3 @@ __decorate([
         example: "2024-03-21T15:30:00Z",
     })
 ], PeerConnectionResponseDto.prototype, "connectedAt", void 0);
-//# sourceMappingURL=node.dto.js.map

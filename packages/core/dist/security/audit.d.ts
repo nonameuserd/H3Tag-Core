@@ -37,11 +37,11 @@ export interface IAuditStorage {
     releaseLock(lockId: string): Promise<void>;
 }
 export declare enum AuditEventType {
-    CONSENSUS = "CONSENSUS",
-    POW_BLOCK = "POW_BLOCK",
-    VOTE = "VOTE",
-    SECURITY = "SECURITY",
-    VALIDATION = "VALIDATION",
+    CONSENSUS = "CONSENSUS",// Combined PoW + Direct Voting events
+    POW_BLOCK = "POW_BLOCK",// New block mined
+    VOTE = "VOTE",// Direct token holder vote
+    SECURITY = "SECURITY",// Security-related events
+    VALIDATION = "VALIDATION",// Block/transaction validation
     VOTING_HEALTH_CHECK_FAILED = "VOTING_HEALTH_CHECK_FAILED",
     CONSENSUS_HEALTH_CHECK_FAILED = "CONSENSUS_HEALTH_CHECK_FAILED",
     MEMPOOL_HEALTH_CHECK_FAILED = "MEMPOOL_HEALTH_CHECK_FAILED",
@@ -148,14 +148,14 @@ export declare class AuditManager {
         timestamp: number;
     }): Promise<string>;
     log(eventType: AuditEventType, data: {
-        [key: string]: any;
+        [key: string]: unknown;
     }): Promise<void>;
     getAuditorsConsensus(): AuditorsConsensus;
     getAuditorSignature(auditorId: string, voteId: string): Promise<string>;
     cleanup(): Promise<void>;
     dispose(): Promise<void>;
-    on(event: string, listener: (...args: any[]) => void): void;
-    off(event: string, listener: (...args: any[]) => void): void;
+    on(event: string, listener: (...args: unknown[]) => void): void;
+    off(event: string, listener: (...args: unknown[]) => void): void;
     removeAllListeners(): void;
 }
 export interface AuditorsConsensus {

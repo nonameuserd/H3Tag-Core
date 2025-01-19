@@ -3,10 +3,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.HybridDirectConsensus = void 0;
 const events_1 = require("events");
 const pow_1 = require("./pow");
-const direct_voting_1 = require("./direct-voting");
+const voting_1 = require("./voting");
 const shared_1 = require("@h3tag-blockchain/shared");
 const async_mutex_1 = require("async-mutex");
-const util_1 = require("./direct-voting/util");
+const util_1 = require("./voting/util");
 const consensus_error_1 = require("../utils/consensus.error");
 const validation_error_1 = require("../utils/validation.error");
 const blockchain_schema_1 = require("../../database/blockchain-schema");
@@ -205,7 +205,7 @@ class HybridDirectConsensus {
         this.pow = new pow_1.ProofOfWork(this.blockchain);
         this.blockchainSync = new sync_1.BlockchainSync(this.blockchain, this.mempool, this.peers, { publicKey: this.consensusPublicKey }, this.db);
         // Initialize after dependencies
-        this.directVoting = new direct_voting_1.DirectVoting(this.db, this.db.getVotingSchema(), this.auditManager, new util_1.DirectVotingUtil(this.db, this.auditManager), this.blockchain.getNode(), this.blockchainSync);
+        this.directVoting = new voting_1.DirectVoting(this.db, this.db.getVotingSchema(), this.auditManager, new util_1.DirectVotingUtil(this.db, this.auditManager), this.blockchain.getNode(), this.blockchainSync);
         // Add async initialization method
         this.initialize().catch((error) => shared_1.Logger.error("Failed to initialize HybridDirectConsensus:", error));
         // Add cleanup handler
@@ -943,4 +943,3 @@ class HybridDirectConsensus {
     }
 }
 exports.HybridDirectConsensus = HybridDirectConsensus;
-//# sourceMappingURL=hybrid-direct.js.map

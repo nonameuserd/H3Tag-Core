@@ -131,7 +131,7 @@ class Monitoring {
      * @throws {MonitoringError} If metrics update fails
      */
     async updateMetrics(data) {
-        let release = await this.mutex.acquire();
+        const release = await this.mutex.acquire();
         try {
             if (typeof data.powNodes === "number" && data.powNodes >= 0) {
                 this.metrics.powNodeCount.set({ status: "active" }, data.powNodes);
@@ -245,4 +245,3 @@ class Monitoring {
     }
 }
 exports.Monitoring = Monitoring;
-//# sourceMappingURL=monitoring.js.map

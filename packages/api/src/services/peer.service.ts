@@ -11,6 +11,7 @@ import {
 } from "../dtos/peer.dto";
 import { Logger } from "@h3tag-blockchain/shared";
 import { NetworkStats } from "@h3tag-blockchain/core";
+import { PeerServices } from "@h3tag-blockchain/core";
 
 /**
  * @swagger
@@ -75,7 +76,7 @@ export class PeerService {
         port,
         {
           version: this.configService.get("PEER_VERSION") || 1,
-          services: 1, // NODE_NETWORK
+          services: [PeerServices.NODE],
           minPingInterval: 120000,
           connectionTimeout: 10000,
           handshakeTimeout: 30000,
@@ -88,7 +89,7 @@ export class PeerService {
       await peer.connect();
 
       // Get peer info after successful connection
-      const peerInfo = peer.getInfo();
+      const peerInfo = await peer.getInfo();
 
       // Store peer instance
       this.peers.set(peer.getId(), peer);
@@ -97,11 +98,11 @@ export class PeerService {
         peerId: peer.getId(),
         address: createPeerDto.address,
         status: peer.getState(),
-        version: (await peer.getInfo()).version,
-        lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
-        latency: (await peer.getInfo()).latency,
-        height: (await peer.getInfo()).height,
-        services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
+        version: peerInfo.version,
+        lastSeen: new Date(peerInfo.lastSeen).toISOString(),
+        latency: peerInfo.latency,
+        height: peerInfo.height,
+        services: peerInfo.services.reduce((acc, service) => acc | service, 0),
       };
     } catch (error) {
       Logger.error("Failed to add peer:", error);
@@ -130,17 +131,17 @@ export class PeerService {
       const peerResponses: PeerResponseDto[] = [];
 
       for (const peer of this.peers.values()) {
-        const peerInfo = peer.getInfo();
+        const peerInfo = await peer.getInfo();
 
         peerResponses.push({
           peerId: peer.getId(),
           address: `${peer.getAddress()}`,
           status: peer.getState(),
-          version: (await peer.getInfo()).version,
-          lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
-          latency: (await peer.getInfo()).latency,
-          height: (await peer.getInfo()).height,
-          services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
+          version: peerInfo.version,
+          lastSeen: new Date(peerInfo.lastSeen).toISOString(),
+          latency: peerInfo.latency,
+          height: peerInfo.height,
+          services: peerInfo.services.reduce((acc, service) => acc | service, 0),
         });
       }
 
@@ -207,17 +208,17 @@ export class PeerService {
       // Set maximum ban score to trigger ban
       peer.adjustPeerScore(Number.MAX_SAFE_INTEGER);
 
-      const peerInfo = peer.getInfo();
+      const peerInfo = await peer.getInfo();
 
       return {
         peerId: peer.getId(),
         address: peer.getAddress(),
         status: PeerState.BANNED,
-        version: (await peer.getInfo()).version,
-        lastSeen: new Date((await peer.getInfo()).lastSeen).toISOString(),
-        latency: (await peer.getInfo()).latency,
-        height: (await peer.getInfo()).height,
-        services: (await peer.getInfo()).services.reduce((acc, service) => acc | service, 0),
+        version: peerInfo.version,
+        lastSeen: new Date(peerInfo.lastSeen).toISOString(),
+        latency: peerInfo.latency,
+        height: peerInfo.height,
+        services: peerInfo.services.reduce((acc, service) => acc | service, 0),
       };
     } catch (error) {
       Logger.error("Failed to ban peer:", error);

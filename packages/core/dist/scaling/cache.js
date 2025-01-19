@@ -21,7 +21,7 @@ class Cache {
         this.priorityQueue = new Map();
         this.eventEmitter = new events_1.EventEmitter();
         this.MEMORY_LIMITS = {
-            MAX_ENTRY_SIZE: 5 * 1024 * 1024,
+            MAX_ENTRY_SIZE: 5 * 1024 * 1024, // 5MB per entry
             TOTAL_CACHE_SIZE: 500 * 1024 * 1024, // 500MB total
         };
         this.options = { ...Cache.DEFAULT_OPTIONS, ...options };
@@ -236,7 +236,7 @@ class Cache {
     }
     entries() {
         return Array.from(this.items.entries())
-            .filter(([_, item]) => !this.isExpired(item))
+            .filter(([, item]) => !this.isExpired(item))
             .map(([key, item]) => [key, item.value]);
     }
     size() {
@@ -345,4 +345,3 @@ Cache.DEFAULT_OPTIONS = {
     },
     currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
 };
-//# sourceMappingURL=cache.js.map

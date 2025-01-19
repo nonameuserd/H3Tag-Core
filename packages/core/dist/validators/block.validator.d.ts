@@ -52,7 +52,7 @@ export declare class BlockValidator {
     private static validateBlockValidators;
     private static verifyValidatorSignatures;
     private static cleanupValidatorSet;
-    on(event: string, listener: (...args: any[]) => void): void;
-    off(event: string, listener: (...args: any[]) => void): void;
+    on(event: string, listener: (...args: unknown[]) => void): void;
+    off(event: string, listener: (...args: unknown[]) => void): void;
     removeAllListeners(): void;
 }

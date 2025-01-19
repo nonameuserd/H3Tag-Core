@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.RetryStrategy = exports.retry = void 0;
+exports.RetryStrategy = void 0;
+exports.retry = retry;
 function retry(config) {
     return function (_target, _propertyKey, descriptor) {
         const originalMethod = descriptor.value;
@@ -23,7 +24,6 @@ function retry(config) {
         return descriptor;
     };
 }
-exports.retry = retry;
 function isRetryableError(error, patterns) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return patterns.some((pattern) => pattern instanceof RegExp
@@ -80,4 +80,3 @@ function calculateDelay(attempt, config) {
     }
     return Math.floor(delay);
 }
-//# sourceMappingURL=retry.js.map

@@ -33,7 +33,7 @@ class ShardManager {
         this.performanceMonitor = new performance_monitor_1.PerformanceMonitor("shard_manager");
         this.auditManager = new audit_1.AuditManager();
         this.cache = new cache_1.Cache({
-            ttl: 300000,
+            ttl: 300000, // 5 minutes
             maxSize: 10000,
             compression: true,
         });
@@ -253,7 +253,7 @@ class ShardManager {
     async cleanupStaleData() {
         const release = await this.mutex.acquire();
         try {
-            for (const [shardId, shard] of this.shards) {
+            for (const shard of this.shards.values()) {
                 const staleItems = Array.from(shard).filter(async (item) => {
                     const lastAccess = await this.db.getLastAccess(item);
                     return (Date.now() - lastAccess > constants_1.BLOCKCHAIN_CONSTANTS.UTIL.STALE_THRESHOLD);
@@ -332,6 +332,7 @@ class ShardManager {
         }, this.MAINTENANCE_INTERVAL);
     }
 }
+exports.ShardManager = ShardManager;
 __decorate([
     (0, retry_1.retry)({
         maxAttempts: 3,
@@ -339,5 +340,3 @@ __decorate([
         exponentialBackoff: true,
     })
 ], ShardManager.prototype, "getTransaction", null);
-exports.ShardManager = ShardManager;
-//# sourceMappingURL=sharding.js.map

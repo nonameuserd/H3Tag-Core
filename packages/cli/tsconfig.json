@@ -6,5 +6,4 @@
     "module": "commonjs"
   },
   "include": ["src/**/*"],
-  "references": [{ "path": "../shared" }]
 }

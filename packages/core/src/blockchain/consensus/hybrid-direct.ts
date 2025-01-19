@@ -1,10 +1,10 @@
 import { EventEmitter } from "events";
 import { Block } from "../../models/block.model";
 import { ProofOfWork } from "./pow";
-import { DirectVoting } from "./direct-voting";
+import { DirectVoting } from "./voting";
 import { Logger } from "@h3tag-blockchain/shared";
 import { Mutex } from "async-mutex";
-import { DirectVotingUtil } from "./direct-voting/util";
+import { DirectVotingUtil } from "./voting/util";
 import { ConsensusError } from "../utils/consensus.error";
 import { BlockValidationError } from "../utils/validation.error";
 import { BlockchainSchema } from "../../database/blockchain-schema";

@@ -112,8 +112,17 @@ let TransactionService = class TransactionService {
                 txid: decodedTx.id,
                 hash: decodedTx.hash,
                 version: decodedTx.version,
-                vin: decodedTx.inputs,
-                vout: decodedTx.outputs,
+                vin: decodedTx.inputs.map((input) => ({
+                    txId: input.txId,
+                    outputIndex: input.outputIndex,
+                    amount: input.amount.toString(),
+                    address: input.address,
+                })),
+                vout: decodedTx.outputs.map((output) => ({
+                    address: output.address,
+                    amount: output.amount.toString(),
+                    index: output.index,
+                })),
             };
         }
         catch (error) {
@@ -164,4 +173,3 @@ exports.TransactionService = TransactionService;
 exports.TransactionService = TransactionService = __decorate([
     (0, common_1.Injectable)()
 ], TransactionService);
-//# sourceMappingURL=transaction.service.js.map

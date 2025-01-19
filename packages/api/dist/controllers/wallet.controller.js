@@ -41,7 +41,7 @@ let WalletController = class WalletController {
         try {
             const builder = new core_1.TransactionBuilder();
             const withInput = await builder.addInput(signTransactionDto.transaction.fromAddress, 0, signTransactionDto.transaction.publicKey, BigInt(signTransactionDto.transaction.amount));
-            const withOutput = await withInput.addOutput(signTransactionDto.transaction.toAddress, BigInt(signTransactionDto.transaction.amount));
+            const withOutput = await withInput.addOutput(signTransactionDto.transaction.toAddress, BigInt(signTransactionDto.transaction.amount), signTransactionDto.transaction.confirmations);
             const transaction = await withOutput.build();
             const signature = await this.walletService.signTransaction(address, transaction, signTransactionDto.password);
             return { signature };
@@ -245,4 +245,3 @@ exports.WalletController = WalletController = __decorate([
     (0, swagger_1.ApiTags)("Wallets"),
     (0, common_1.Controller)("wallets")
 ], WalletController);
-//# sourceMappingURL=wallet.controller.js.map

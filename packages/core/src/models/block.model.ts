@@ -13,6 +13,7 @@ import { Validator } from "./validator";
 import { Mutex } from "async-mutex";
 import { AuditEventType, AuditSeverity, AuditManager } from "../security/audit";
 import { HybridCrypto, HybridKeyPair } from "@h3tag-blockchain/crypto";
+import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
 
 /**
  * @class BlockError
@@ -46,6 +47,8 @@ export class BlockError extends Error {
  * @property {number} blockReward - Mining reward for this block
  * @property {number} fees - Total transaction fees
  * @property {string} target - Mining target difficulty
+ * @property {string[]} locator - Locator for the block
+ * @property {string} hashStop - Hash stop for the block
  * @property {Object} consensusData - Consensus-related metrics
  * @property {number} consensusData.powScore - Proof of work score
  * @property {number} consensusData.votingScore - Voting score
@@ -70,6 +73,8 @@ export interface BlockHeader {
   blockReward: number;
   fees: number;
   target: string;
+  locator: string[];
+  hashStop: string;
   consensusData: {
     powScore: number;
     votingScore: number;
@@ -175,6 +180,8 @@ export class BlockBuilder {
       timestamp: Date.now(),
       merkleRoot: "",
       difficulty,
+      locator: [],
+      hashStop: "",
       nonce: 0,
       miner: "",
       validatorMerkleRoot: "",
@@ -317,6 +324,10 @@ export class BlockBuilder {
       for (const tx of transactions) {
         totalSize += JSON.stringify(tx).length;
         totalFees += BigInt(tx.fee);
+
+        if (totalSize > BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE) {
+          throw new BlockError("Block size exceeds maximum limit");
+        }
       }
 
       // Update block header and transaction list

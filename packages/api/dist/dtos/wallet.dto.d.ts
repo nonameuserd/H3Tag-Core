@@ -15,6 +15,7 @@ export interface SignTransactionDto {
         toAddress: string;
         amount: number;
         publicKey: string;
+        confirmations: number;
         fee?: number;
     };
     password: string;

@@ -92,9 +92,7 @@ class DDoSProtection {
                         this.circuitBreaker.failures = 0;
                     }
                     else {
-                        return res
-                            .status(503)
-                            .json({ error: "Service temporarily unavailable" });
+                        return res.status(503).json({ err: "Service temporarily unavailable" });
                     }
                 }
                 const ip = this.getClientIP(req);
@@ -227,8 +225,10 @@ class DDoSProtection {
     }
     getClientIP(req) {
         const ip = this.config.trustProxy
-            ? req.ip || req.headers["x-forwarded-for"]?.split(",")[0]
-            : req.connection.remoteAddress;
+            ? req.ip || (typeof req.headers["x-forwarded-for"] === 'string'
+                ? req.headers["x-forwarded-for"].split(",")[0]
+                : req.headers["x-forwarded-for"]?.[0])
+            : req.socket.remoteAddress;
         if (!ip || typeof ip !== "string") {
             throw new DDoSError("Invalid IP address", "INVALID_IP");
         }
@@ -396,8 +396,8 @@ DDoSProtection.PRIORITIES = {
 DDoSProtection.DEFAULT_CONFIG = {
     windowMs: 60000,
     maxRequests: {
-        pow: 200,
-        qudraticVote: 100,
+        pow: 200, // Higher throughput for PoW mining
+        qudraticVote: 100, // Reasonable limit for voting
         default: 50, // Conservative default
     },
     blockDuration: 3600000,
@@ -409,4 +409,3 @@ DDoSProtection.DEFAULT_CONFIG = {
     cleanupInterval: 300000,
     currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
 };
-//# sourceMappingURL=ddos.js.map

@@ -102,6 +102,8 @@ class PerformanceMetrics {
             maxDuration: duration,
             minDuration: duration,
             lastUpdated: timestamp,
+            average: duration,
+            last24Hours: [duration],
         };
     }
     async updateMetric(metric, duration, now) {
@@ -163,11 +165,8 @@ class PerformanceMetrics {
                     if (recentDurations.length === 0)
                         continue;
                     result[key] = {
+                        ...metric,
                         average: metric.totalDuration / metric.count,
-                        count: metric.count,
-                        totalDuration: metric.totalDuration,
-                        maxDuration: metric.maxDuration,
-                        minDuration: metric.minDuration,
                         last24Hours: recentDurations,
                         lastUpdated: metric.lastUpdated,
                     };
@@ -223,4 +222,3 @@ class PerformanceMetrics {
     }
 }
 exports.PerformanceMetrics = PerformanceMetrics;
-//# sourceMappingURL=performance-metrics.js.map

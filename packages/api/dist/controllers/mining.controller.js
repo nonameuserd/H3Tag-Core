@@ -121,4 +121,3 @@ exports.MiningController = MiningController = __decorate([
     (0, swagger_1.ApiTags)("Mining"),
     (0, common_1.Controller)("mining")
 ], MiningController);
-//# sourceMappingURL=mining.controller.js.map

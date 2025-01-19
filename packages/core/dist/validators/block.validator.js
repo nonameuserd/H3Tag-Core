@@ -29,7 +29,6 @@ class BlockValidator {
         this.eventEmitter = new events_1.EventEmitter();
     }
     static async validateBlock(block, previousBlock, utxoSet) {
-        const startTime = Date.now();
         try {
             await Promise.race([
                 this.performValidation(block, previousBlock, utxoSet),
@@ -424,20 +423,21 @@ class BlockValidator {
         this.eventEmitter.removeAllListeners();
     }
 }
+exports.BlockValidator = BlockValidator;
 BlockValidator.BLOCK_CONSTANTS = {
-    MIN_BLOCK_SIZE: 1000000,
-    MAX_BLOCK_SIZE: 32000000,
-    TARGET_BLOCK_TIME: 600,
-    ADJUSTMENT_FACTOR: 1.2,
+    MIN_BLOCK_SIZE: 1000000, // 1MB minimum
+    MAX_BLOCK_SIZE: 32000000, // 32MB maximum
+    TARGET_BLOCK_TIME: 600, // 10 minutes
+    ADJUSTMENT_FACTOR: 1.2, // 20% adjustment limit
     MAX_TRANSACTIONS: 2000,
-    MIN_TIMESTAMP_OFFSET: -2 * 60 * 60 * 1000,
-    MAX_TIMESTAMP_OFFSET: 2 * 60 * 60 * 1000,
+    MIN_TIMESTAMP_OFFSET: -2 * 60 * 60 * 1000, // 2 hours in the past
+    MAX_TIMESTAMP_OFFSET: 2 * 60 * 60 * 1000, // 2 hours in the future
     MAX_VALIDATION_TIME: 30000, // 30 seconds
 };
 BlockValidator.REWARD_CONSTANTS = {
-    INITIAL_REWARD: BigInt(50),
-    HALVING_INTERVAL: 210000,
-    MAX_HALVINGS: 64,
+    INITIAL_REWARD: BigInt(50), // 50 coins in smallest unit
+    HALVING_INTERVAL: 210000, // Blocks per halving
+    MAX_HALVINGS: 64, // Prevent infinite halvings
     MIN_REWARD: BigInt(1), // Minimum reward amount
 };
 BlockValidator.CACHE_DURATION = 60000; // 1 minute cache
@@ -459,5 +459,3 @@ __decorate([
         exponentialBackoff: true,
     })
 ], BlockValidator, "validateBlock", null);
-exports.BlockValidator = BlockValidator;
-//# sourceMappingURL=block.validator.js.map

@@ -163,4 +163,3 @@ exports.votingCommand
         console.error("Failed to calculate voting power:", error.message);
     }
 });
-//# sourceMappingURL=voting.command.js.map

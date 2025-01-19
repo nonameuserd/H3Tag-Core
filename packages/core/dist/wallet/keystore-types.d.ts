@@ -10,7 +10,7 @@ export interface KeystoreAuditLog {
     timestamp: number;
     eventType: "access" | "rotation" | "backup" | "alert" | "error";
     address?: string;
-    metadata: Record<string, any>;
+    metadata: Record<string, unknown>;
 }
 export interface KeyRotationMetadata {
     lastRotation: number;

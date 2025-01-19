@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.estimateFee = exports.TransactionBuilder = exports.TransactionStatus = exports.TransactionType = exports.TransactionError = void 0;
+exports.TransactionBuilder = exports.TransactionStatus = exports.TransactionType = exports.TransactionError = void 0;
+exports.estimateFee = estimateFee;
 const shared_1 = require("@h3tag-blockchain/shared");
 const merkle_1 = require("../utils/merkle");
 const constants_1 = require("../blockchain/utils/constants");
@@ -68,7 +69,7 @@ var TransactionType;
     TransactionType["TRANSFER"] = "transfer";
     TransactionType["COINBASE"] = "coinbase";
     TransactionType["REGULAR"] = "regular";
-})(TransactionType = exports.TransactionType || (exports.TransactionType = {}));
+})(TransactionType || (exports.TransactionType = TransactionType = {}));
 /**
  * @enum TransactionStatus
  * @description Status states for transactions
@@ -82,7 +83,7 @@ var TransactionStatus;
     TransactionStatus["PENDING"] = "pending";
     TransactionStatus["CONFIRMED"] = "confirmed";
     TransactionStatus["FAILED"] = "failed";
-})(TransactionStatus = exports.TransactionStatus || (exports.TransactionStatus = {}));
+})(TransactionStatus || (exports.TransactionStatus = TransactionStatus = {}));
 /**
  * @class TransactionBuilder
  * @description Builder pattern implementation for creating new transactions
@@ -180,7 +181,7 @@ class TransactionBuilder {
             const input = {
                 txId,
                 outputIndex,
-                signature: "",
+                signature: "", // Set during signing
                 publicKey,
                 amount,
                 currency: {
@@ -240,15 +241,19 @@ class TransactionBuilder {
      * Adds an output to the transaction
      * @param {string} address - Recipient's address
      * @param {bigint} amount - Amount to send
+     * @param {number} confirmations - Confirmations
      * @returns {Promise<this>} Builder instance for chaining
      * @throws {TransactionError} If output parameters are invalid
      */
     async addOutput(address, // Recipient's address
-    amount // Amount to send
-    ) {
+    amount, // Amount to send
+    confirmations) {
         // Output validation
         if (!this.isValidAddress(address)) {
             throw new TransactionError("Invalid address format");
+        }
+        if (confirmations < 0) {
+            throw new TransactionError("Invalid confirmations");
         }
         if (amount <= 0) {
             throw new TransactionError("Invalid amount");
@@ -262,10 +267,12 @@ class TransactionBuilder {
             amount,
             script,
             currency: {
+                name: "H3TAG",
                 symbol: "TAG",
                 decimals: 8,
             },
             index: this.outputs.length,
+            confirmations: confirmations,
         });
         return this;
     }
@@ -361,7 +368,6 @@ class TransactionBuilder {
                 throw new TransactionError("Insufficient input amount");
             }
             const fee = inputAmount - outputAmount;
-            // 4. Generate transaction hash
             const hash = await this.calculateTransactionHash();
             const tx = {
                 id: hash,
@@ -376,8 +382,15 @@ class TransactionBuilder {
                 signature: "",
                 sender: await this.deriveSenderAddress(this.inputs[0].publicKey),
                 currency: {
+                    name: "H3TAG",
                     symbol: "TAG",
                     decimals: 8,
+                },
+                transaction: {
+                    hash: hash,
+                    timestamp: Date.now(),
+                    fee: fee,
+                    signature: "",
                 },
                 recipient: "",
                 memo: "",
@@ -1010,19 +1023,19 @@ class TransactionBuilder {
                     outputIndex: input.outputIndex,
                     signature: input.signature,
                     publicKey: input.publicKey,
-                    amount: input.amount.toString(),
+                    amount: input.amount.toString(), // Convert BigInt to string
                     script: input.script,
                     address: input.address,
                 })),
                 outputs: tx.outputs.map((output) => ({
                     address: output.address,
-                    amount: output.amount.toString(),
+                    amount: output.amount.toString(), // Convert BigInt to string
                     script: output.script,
                     index: output.index,
                     currency: output.currency,
                 })),
                 timestamp: tx.timestamp,
-                fee: tx.fee.toString(),
+                fee: tx.fee.toString(), // Convert BigInt to string
                 signature: tx.signature,
                 sender: tx.sender,
                 recipient: tx.recipient,
@@ -1401,7 +1414,6 @@ async function estimateFee(targetBlocks = 6) {
         throw new TransactionError("Failed to estimate fee");
     }
 }
-exports.estimateFee = estimateFee;
 /**
  * Get network conditions multiplier for fee adjustment
  * @returns {Promise<number>} Network conditions multiplier
@@ -1424,4 +1436,3 @@ async function getNetworkConditionsMultiplier() {
         return 1.0; // Conservative fallback
     }
 }
-//# sourceMappingURL=transaction.model.js.map

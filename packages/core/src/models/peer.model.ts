@@ -5,19 +5,25 @@
  * @module PeerModel
  */
 
+import { BlockHeader } from "./block.model";
+
+import { Block } from "./block.model";
+import { Transaction } from "./transaction.model";
+import { Vote } from "./vote.model";
+
 /**
  * @interface PeerMessage
  * @description Defines the structure of messages exchanged between peers
  *
  * @property {PeerMessageType} type - Type of peer message
- * @property {any} data - Message payload data
+ * @property {MessagePayload} data - Message payload data
  * @property {number} timestamp - Message creation timestamp
  * @property {string} id - Unique message identifier
  * @property {boolean} [success] - Optional success indicator
  */
 export interface PeerMessage {
   type: PeerMessageType;
-  data: any;
+  data: MessagePayload;
   timestamp: number;
   id: string;
   success?: boolean;
@@ -95,6 +101,9 @@ export interface PeerInfo {
     blockReward: number;
   };
   services: PeerServices[];
+  timestamp: number;
+  startHeight?: number;
+  userAgent?: string;
 }
 
 /**
@@ -202,4 +211,36 @@ export enum PeerMessageType {
   NEW_BLOCK = "new_block",
   NEW_TRANSACTION = "new_transaction",
   GET_VOTES = "get_votes",
+}
+
+export interface MessagePayload {
+  addresses?:{ url: string; services: number; timestamp: number; lastSeen?: number; hash?: string, type?: string }[];
+  inventory?: { type: string; hash: string }[];
+  data?: { type: string; hash: string }[];
+  type?: string;
+  requestId?: string;
+  publicKey?: string;
+  startHeight?: number;
+  signature?: string;
+  isMiner?: boolean;
+  timestamp?: number;
+  version?: number;
+  services?: PeerServices[];
+  hash?: string;
+  minedBlocks?: number;
+  endHeight?: number;
+  height?: number;
+  tagInfo?: {
+    lastVoteHeight: number;
+  };
+  metric?: string;
+  currency?: { name: string; symbol: string; decimals: number };
+  block?: Block;
+  blocks?: Block[];
+  transaction?: Transaction;
+  votes?: Vote[];
+  nodeInfo?: PeerInfo;
+  headers?: BlockHeader[];
+  nonce?: number;
+  balance?: number;
 }

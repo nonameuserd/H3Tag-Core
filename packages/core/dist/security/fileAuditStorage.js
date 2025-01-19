@@ -159,4 +159,3 @@ FileAuditStorage.DEFAULT_CONFIG = {
     maxConcurrentWrites: 5,
     currency: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
 };
-//# sourceMappingURL=fileAuditStorage.js.map

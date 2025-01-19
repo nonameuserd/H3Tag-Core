@@ -1,3 +1,4 @@
+import * as dns from 'dns';
 import { EventEmitter } from "events";
 import { Peer, PeerMessage } from "./peer";
 import { RateLimit } from "../security/rateLimit";
@@ -6,7 +7,7 @@ import { AuditManager } from "../security/audit";
 import { FileAuditStorage } from "../security/fileAuditStorage";
 import { Mempool } from "../blockchain/mempool";
 import { UTXOSet } from "../models/utxo.model";
-import { PeerInfo, PeerMessageType } from "../models/peer.model";
+import { MessagePayload, PeerInfo, PeerMessageType } from "../models/peer.model";
 import { Logger } from "@h3tag-blockchain/shared";
 import { ConfigService } from "@h3tag-blockchain/shared";
 import { DiscoveryError } from "./discovery-error";
@@ -34,6 +35,15 @@ interface PeerAddress {
   lastSuccess: number;
   lastAttempt: number;
   banScore: number;
+}
+
+export interface AddrPayload {
+  addresses: Array<{
+    url: string;
+    services: number;
+    timestamp: number;
+    lastSeen?: number;
+  }>;
 }
 
 export class PeerDiscovery {
@@ -184,8 +194,10 @@ export class PeerDiscovery {
       try {
         await this.connectToPeer(candidate.url);
         this.updatePeerScore(candidate.url, 1);
-      } catch (error) {
-        this.updatePeerScore(candidate.url, -1);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          this.updatePeerScore(candidate.url, -1);
+        }
       }
     }
   }
@@ -395,9 +407,11 @@ export class PeerDiscovery {
       this.peerCache.clear();
 
       Logger.info("Peer discovery shutdown complete");
-    } catch (error) {
-      await this.setState(DiscoveryState.ERROR);
-      throw new DiscoveryError("Shutdown failed", "SHUTDOWN_ERROR");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        await this.setState(DiscoveryState.ERROR);
+        throw new DiscoveryError("Shutdown failed", "SHUTDOWN_ERROR");
+      }
     }
   }
 
@@ -501,8 +515,10 @@ export class PeerDiscovery {
       try {
         await this.connectToPeer(candidate.url);
         this.updatePeerScore(candidate.url, 1);
-      } catch (error) {
-        this.updatePeerScore(candidate.url, -1);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          this.updatePeerScore(candidate.url, -1);
+        }
       }
     }
   }
@@ -513,7 +529,6 @@ export class PeerDiscovery {
 
   private async resolveDnsSeed(seed: string): Promise<string[]> {
     try {
-      const dns = require("dns");
       const addresses = await new Promise<string[]>((resolve, reject) => {
         dns.resolve(seed, (err: Error, addresses: string[]) => {
           if (err) reject(err);
@@ -521,8 +536,10 @@ export class PeerDiscovery {
         });
       });
       return addresses.filter((addr) => this.isValidAddress(addr));
-    } catch (error) {
-      Logger.warn(`DNS resolution failed for ${seed}:`, error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.warn(`DNS resolution failed for ${seed}:`, error);
+      }
       return [];
     }
   }
@@ -590,13 +607,21 @@ export class PeerDiscovery {
     try {
       switch (message.type) {
         case PeerMessageType.VERSION:
-          await this.handleVersion(message.payload);
+          await this.handleVersion({
+            version: message.payload.version,
+            services: message.payload.services,
+          });
           break;
         case PeerMessageType.ADDR:
-          await this.handleAddr(message.payload);
+          await this.handleAddr({
+            addresses: message.payload.addresses,
+          });
           break;
         case PeerMessageType.INV:
-          await this.handleInventory(message.payload);
+          await this.handleInventory({
+            type: message.payload.type,
+            hash: message.payload.hash,
+          });
           break;
         default:
           Logger.debug(`Unhandled message type: ${message.type}`);
@@ -606,44 +631,102 @@ export class PeerDiscovery {
     }
   }
 
-  private async handleVersion(payload: any): Promise<void> {
+  private async handleVersion(payload: MessagePayload): Promise<void> {
     try {
-      const { version, services, timestamp } = payload;
-      Logger.debug(
-        `Received version message: v${version}, services: ${services}`
-      );
-      // Additional version handling logic here
+      if (!payload.nodeInfo) {
+        throw new DiscoveryError("Missing node info in version message", "INVALID_VERSION");
+      }
+
+      const { version, services, timestamp, startHeight, userAgent } = payload.nodeInfo;
+
+      // Validate version compatibility
+      const minVersion = (this.config.get("MIN_PROTOCOL_VERSION") || "1");
+      if (version < minVersion) {
+        throw new DiscoveryError(`Incompatible protocol version: ${version}`, "VERSION_MISMATCH");
+      }
+
+      // Update peer information
+      const peer = this.peers.get(payload.nodeInfo.id);
+      if (peer) {
+        await peer.updateInfo({
+          version: Number(version),
+          services,
+          startHeight,
+          userAgent,
+          lastSeen: timestamp || Date.now()
+        });
+
+        // Emit version event for monitoring
+        this.eventEmitter.emit("version", {
+          peerId: peer.getId(),
+          version,
+          services,
+          startHeight
+        });
+
+        Logger.debug(
+          `Updated peer version info: ${peer.getId()}, v${version}, services: ${services}`
+        );
+      }
+
     } catch (error) {
-      Logger.error("Error handling version message:", error);
+      if (error instanceof Error) {
+        Logger.error("Error handling version message:", error);
+        this.eventEmitter.emit("discovery_error", error);
+      }
     }
   }
 
-  private async handleAddr(payload: any): Promise<void> {
+  private async handleAddr(payload: AddrPayload): Promise<void> {
     try {
-      const addresses = payload.addresses || [];
-      for (const addr of addresses) {
+      if (!Array.isArray(payload.addresses)) {
+        throw new DiscoveryError("Invalid addr payload format", "INVALID_PAYLOAD");
+      }
+
+      const validAddresses = payload.addresses.filter(addr => 
+        addr.url && 
+        typeof addr.services === 'number' &&
+        this.isValidAddress(addr.url) &&
+        !this.bannedPeers.has(addr.url)
+      );
+
+      for (const addr of validAddresses) {
         this.addPeerAddress({
           url: addr.url,
-          timestamp: Date.now(),
-          services: addr.services || 0,
+          timestamp: addr.timestamp || Date.now(),
+          services: addr.services,
           attempts: 0,
-          lastSuccess: 0,
+          lastSuccess: addr.lastSeen || 0,
           lastAttempt: 0,
           banScore: 0,
         });
+
+        Logger.debug(`Added new peer address: ${addr.url}`);
       }
+
+      // Update peer metrics
+      this.eventEmitter.emit('peerDiscovery', {
+        newAddresses: validAddresses.length,
+        totalPeers: this.peerAddresses.size
+      });
+
     } catch (error) {
-      Logger.error("Error handling addr message:", error);
+      if (error instanceof Error) {
+        Logger.error("Error handling addr message:", error);
+        this.eventEmitter.emit('discoveryError', error);
+      }
     }
   }
 
-  private async handleInventory(payload: any): Promise<void> {
+  private async handleInventory(payload: MessagePayload): Promise<void> {
     try {
       // Handle inventory announcements (new blocks, transactions, etc)
       Logger.debug("Received inventory message:", payload);
       this.eventEmitter.emit("inventory", payload);
-    } catch (error) {
-      Logger.error("Error handling inventory message:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.error("Error handling inventory message:", error);
+      }
     }
   }
 }

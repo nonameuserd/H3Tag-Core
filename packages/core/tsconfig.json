@@ -1,18 +1,19 @@
 {
   "extends": "../../tsconfig.json",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "compilerOptions": {
+    "target": "ES2020",
+    "module": "commonjs",
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
-    "target": "es2020",
     "moduleResolution": "node",
-    "module": "commonjs",
     "baseUrl": ".",
     "paths": {
-      "@h3tag-blockchain/core/*": ["src/*"]
+      "@h3tag-blockchain/core": ["src/*"]
     }
   },
-  "references": [{ "path": "../shared" }, { "path": "../crypto" }],
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "**/*.test.ts"]
+  "exclude": ["node_modules", "dist"]
 }

@@ -1,5 +1,3 @@
-/// <reference types="node" />
-/// <reference types="node" />
 import { Worker } from "worker_threads";
 export declare class WorkerPool {
     private readonly scriptPath;
@@ -28,11 +26,16 @@ export declare class WorkerPool {
         totalErrors: number;
     };
 }
-interface WorkerOptions {
+export interface Task {
+    resolve: (worker: Worker) => void;
+    timestamp: number;
+}
+export interface WorkerOptions {
     env?: NodeJS.ProcessEnv;
-    workerData?: any;
+    workerData?: {
+        [key: string]: unknown;
+    };
     stdin?: boolean;
     stdout?: boolean;
     stderr?: boolean;
 }
-export {};

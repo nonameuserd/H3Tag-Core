@@ -1,3 +1,23 @@
+import { PeerServices } from "../models/peer.model";
+export interface Metric {
+    average?: number;
+    durations?: number[];
+    timestamps?: number[];
+    count?: number;
+    totalDuration?: number;
+    maxDuration?: number;
+    last24Hours?: number[];
+    minDuration?: number;
+    lastUpdated?: number;
+    bytesReceived?: number;
+    bytesSent?: number;
+    messagesReceived?: number;
+    messagesSent?: number;
+    lastSeen?: number;
+    state?: string;
+    version?: number;
+    services?: PeerServices[];
+}
 /**
  * @fileoverview Performance metrics tracking system for the H3Tag blockchain. Includes operation timing,
  * statistical analysis, and performance monitoring for blockchain operations.
@@ -49,7 +69,7 @@ export declare class PerformanceMetrics {
      */
     recordMetric(operation: string, duration: number, metadata: {
         context: string;
-        [key: string]: any;
+        [key: string]: unknown;
     }): Promise<void>;
     private initializeMetric;
     private updateMetric;
@@ -63,6 +83,6 @@ export declare class PerformanceMetrics {
      * @param {string} [context] - Optional context filter
      * @returns {Record<string, any>} Filtered metrics
      */
-    getMetrics(context?: string): Record<string, any>;
+    getMetrics(context?: string): Record<string, Metric>;
     private cleanupOldMetrics;
 }

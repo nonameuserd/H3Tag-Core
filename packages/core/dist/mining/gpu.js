@@ -209,4 +209,3 @@ class GPUMiner {
     }
 }
 exports.GPUMiner = GPUMiner;
-//# sourceMappingURL=gpu.js.map

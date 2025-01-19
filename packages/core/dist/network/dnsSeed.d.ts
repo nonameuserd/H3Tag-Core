@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import { ConfigService } from "@h3tag-blockchain/shared";
 import { BlockchainSchema } from "../database/blockchain-schema";
 import { EventEmitter } from "events";

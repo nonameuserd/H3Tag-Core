@@ -170,7 +170,6 @@ const constants_1 = require("./utils/constants");
 const block_validator_1 = require("../validators/block.validator");
 const blockchain_stats_1 = require("./blockchain-stats");
 const block_model_1 = require("../models/block.model");
-const dnsSeed_1 = require("../network/dnsSeed");
 const cache_1 = require("../scaling/cache");
 const sharding_1 = require("../scaling/sharding");
 const health_1 = require("../monitoring/health");
@@ -253,7 +252,7 @@ class Blockchain {
         this.hybridCrypto = crypto_1.HybridCrypto;
         // Initialize caches with appropriate options
         this.blockCache = new cache_1.Cache({
-            ttl: 3600,
+            ttl: 3600, // 1 hour
             maxSize: 1000,
             compression: true,
             priorityLevels: {
@@ -262,12 +261,12 @@ class Blockchain {
             },
         });
         this.transactionCache = new cache_1.Cache({
-            ttl: 1800,
+            ttl: 1800, // 30 minutes
             maxSize: 5000,
             compression: true,
         });
         this.utxoCache = new cache_1.Cache({
-            ttl: 300000,
+            ttl: 300000, // 5 minutes
             maxSize: 100000,
             compression: true,
         });
@@ -285,7 +284,7 @@ class Blockchain {
             });
         }, 60000);
         // Initialize peer manager
-        this.peerManager = new peer_1.Peer(this.config.network.host, this.config.network.port || 8333, {
+        this.peerManager = new peer_1.Peer(this.config.network.host[this.config.network.type.MAINNET], this.config.network.port[this.config.network.type.MAINNET] || 8333, {
             minPingInterval: 30000,
             handshakeTimeout: 5000,
             maxBanScore: 100,
@@ -484,6 +483,8 @@ class Blockchain {
                 miner: "0".repeat(40),
                 totalTAG: 0,
                 blockReward: 50,
+                locator: [],
+                hashStop: "",
                 fees: 0,
                 consensusData: {
                     powScore: 0,
@@ -1023,75 +1024,224 @@ class Blockchain {
                 name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                 symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
                 decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
-                maxSupply: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY,
-                initialSupply: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.INITIAL_SUPPLY,
-                units: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS,
+                initialSupply: BigInt(constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.INITIAL_SUPPLY),
+                maxSupply: BigInt(constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY),
+                units: {
+                    MACRO: BigInt(constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MACRO),
+                    MICRO: BigInt(constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MICRO),
+                    MILLI: BigInt(constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MILLI),
+                    TAG: BigInt(constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.TAG),
+                },
             },
-            consensus: config?.consensus || {
-                powWeight: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.POW_WEIGHT,
-                voteWeight: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
-                minPowHashrate: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_POW_HASH_RATE,
-                minVoterCount: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_VOTER_COUNT,
-                minPeriodLength: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PERIOD_LENGTH,
-                votingPeriod: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_PERIOD,
-                minParticipation: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PARTICIPATION,
-                votePowerCap: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTE_POWER_CAP,
-                votingDayPeriod: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_DAY_PERIOD,
-                consensusTimeout: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.CONSENSUS_TIMEOUT,
-                emergencyTimeout: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.EMERGENCY_TIMEOUT,
+            network: config?.network || {
+                type: {
+                    MAINNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type.MAINNET,
+                    TESTNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type.TESTNET,
+                    DEVNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type.DEVNET,
+                },
+                port: {
+                    MAINNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.port.MAINNET,
+                    TESTNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.port.TESTNET,
+                    DEVNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.port.DEVNET,
+                },
+                host: {
+                    MAINNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.host.MAINNET,
+                    TESTNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.host.TESTNET,
+                    DEVNET: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.host.DEVNET,
+                },
+                seedDomains: {
+                    MAINNET: process.env.SEED_NODES_MAINNET
+                        ? JSON.parse(process.env.SEED_NODES_MAINNET)
+                        : [],
+                    TESTNET: process.env.SEED_NODES_TESTNET
+                        ? JSON.parse(process.env.SEED_NODES_TESTNET)
+                        : [],
+                    DEVNET: process.env.SEED_NODES_DEVNET
+                        ? JSON.parse(process.env.SEED_NODES_DEVNET)
+                        : [],
+                },
             },
             mining: config?.mining || {
+                adjustmentInterval: constants_1.BLOCKCHAIN_CONSTANTS.MINING.ADJUSTMENT_INTERVAL,
+                maxAttempts: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_ATTEMPTS,
+                currentVersion: constants_1.BLOCKCHAIN_CONSTANTS.MINING.CURRENT_VERSION,
+                maxVersion: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_VERSION,
+                minVersion: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_VERSION,
+                autoMine: constants_1.BLOCKCHAIN_CONSTANTS.MINING.AUTO_MINE,
+                batchSize: constants_1.BLOCKCHAIN_CONSTANTS.MINING.BATCH_SIZE,
                 blocksPerYear: constants_1.BLOCKCHAIN_CONSTANTS.MINING.BLOCKS_PER_YEAR,
                 initialReward: constants_1.BLOCKCHAIN_CONSTANTS.MINING.INITIAL_REWARD,
+                minReward: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_REWARD,
+                blockReward: constants_1.BLOCKCHAIN_CONSTANTS.MINING.BLOCK_REWARD,
                 halvingInterval: constants_1.BLOCKCHAIN_CONSTANTS.MINING.HALVING_INTERVAL,
                 maxHalvings: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_HALVINGS,
                 blockTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.BLOCK_TIME,
+                maxBlockTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_TIME,
+                cacheTtl: constants_1.BLOCKCHAIN_CONSTANTS.MINING.CACHE_TTL,
+                difficulty: constants_1.BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY,
+                difficultyAdjustmentInterval: constants_1.BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
                 maxDifficulty: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_DIFFICULTY,
                 targetTimePerBlock: constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK,
-                difficulty: constants_1.BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY,
-                minHashthreshold: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_HASHRATE,
+                minHashrate: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_HASHRATE,
                 minPowNodes: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_POW_NODES,
                 maxForkDepth: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
                 emergencyPowThreshold: constants_1.BLOCKCHAIN_CONSTANTS.MINING.EMERGENCY_POW_THRESHOLD,
                 minPowScore: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_POW_SCORE,
+                forkResolutionTimeoutMs: constants_1.BLOCKCHAIN_CONSTANTS.MINING.FORK_RESOLUTION_TIMEOUT_MS,
                 forkResolutionTimeout: constants_1.BLOCKCHAIN_CONSTANTS.MINING.FORK_RESOLUTION_TIMEOUT,
-                difficultyAdjustmentInterval: constants_1.BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
-                initialDifficulty: constants_1.BLOCKCHAIN_CONSTANTS.MINING.INITIAL_DIFFICULTY,
                 hashBatchSize: constants_1.BLOCKCHAIN_CONSTANTS.MINING.HASH_BATCH_SIZE,
+                maxTarget: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET,
                 minDifficulty: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY,
-                chainDecisionThreshold: constants_1.BLOCKCHAIN_CONSTANTS.MINING.CHAIN_DECISION_THRESHOLD,
+                initialDifficulty: constants_1.BLOCKCHAIN_CONSTANTS.MINING.INITIAL_DIFFICULTY,
+                maxAdjustmentFactor: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_ADJUSTMENT_FACTOR,
+                voteInfluence: constants_1.BLOCKCHAIN_CONSTANTS.MINING.VOTE_INFLUENCE,
+                minVotesWeight: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_VOTES_WEIGHT,
+                maxChainLength: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_CHAIN_LENGTH,
+                minRewardContribution: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_REWARD_CONTRIBUTION,
+                maxBlockSize: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE,
+                minBlockSize: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCK_SIZE,
+                maxTransactions: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_TRANSACTIONS,
+                minBlocksMined: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCKS_MINED,
+                maxTxSize: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_TX_SIZE,
+                minFeePerByte: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MIN_FEE_PER_BYTE,
+                maxSupply: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_SUPPLY,
+                safeConfirmationTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.SAFE_CONFIRMATION_TIME,
+                maxPropagationTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_TIME,
+                nodeSelectionThreshold: constants_1.BLOCKCHAIN_CONSTANTS.MINING.NODE_SELECTION_THRESHOLD,
                 orphanWindow: constants_1.BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW,
                 propagationWindow: constants_1.BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
-                maxPropagationTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_TIME,
                 targetTimespan: constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIMESPAN,
                 targetBlockTime: constants_1.BLOCKCHAIN_CONSTANTS.MINING.TARGET_BLOCK_TIME,
-                maxTarget: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET,
             },
-            util: config?.util || {
-                retryAttempts: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_ATTEMPTS,
-                retryDelayMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_DELAY_MS,
-                cacheTtlHours: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL_HOURS,
-                validationTimeoutMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS,
-                initialRetryDelay: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.INITIAL_RETRY_DELAY,
-                maxRetryDelay: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRY_DELAY,
-                backoffFactor: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.BACKOFF_FACTOR,
-                maxRetries: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRIES,
-                cacheTtl: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL,
-                pruneThreshold: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.PRUNE_THRESHOLD,
+            consensus: config?.consensus || {
+                baseDifficulty: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_DIFFICULTY,
+                baseReward: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_REWARD,
+                consensusTimeout: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.CONSENSUS_TIMEOUT,
+                emergencyTimeout: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.EMERGENCY_TIMEOUT,
+                halvingInterval: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.HALVING_INTERVAL,
+                initialReward: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.INITIAL_REWARD,
+                maxForkLength: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MAX_FORK_LENGTH,
+                maxSafeReward: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MAX_SAFE_REWARD,
+                minParticipation: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PARTICIPATION,
+                minPeriodLength: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PERIOD_LENGTH,
+                minPowHashRate: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_POW_HASH_RATE,
+                minReward: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_REWARD,
+                minVoterCount: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_VOTER_COUNT,
+                nodeSelectionTimeout: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.NODE_SELECTION_TIMEOUT,
+                powWeight: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.POW_WEIGHT,
+                votingPeriod: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_PERIOD,
+                votePowerCap: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTE_POWER_CAP,
+                votingDayPeriod: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_DAY_PERIOD,
+                validatorWeight: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VALIDATOR_WEIGHT,
+                voteCollectionTimeout: constants_1.BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTE_COLLECTION_TIMEOUT,
             },
             votingConstants: config?.votingConstants || {
-                votingPeriodBlocks: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS,
-                votingPeriodMs: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_MS,
-                minPowWork: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_WORK,
+                cacheDuration: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.CACHE_DURATION,
                 cooldownBlocks: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS,
+                maturityPeriod: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MATURITY_PERIOD,
+                maxVoteSizeBytes: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTE_SIZE_BYTES,
                 maxVotesPerPeriod: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_PERIOD,
+                maxVotesPerWindow: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW,
+                maxVotingPower: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTING_POWER,
                 minAccountAge: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_ACCOUNT_AGE,
                 minPeerCount: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_PEER_COUNT,
-                voteEncryptionVersion: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_ENCRYPTION_VERSION,
-                maxVoteSizeBytes: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTE_SIZE_BYTES,
-                votingWeight: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
+                minPowContribution: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_CONTRIBUTION,
+                minPowWork: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_WORK,
+                periodCheckInterval: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.PERIOD_CHECK_INTERVAL,
+                votingPeriodBlocks: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS,
+                votingPeriodMs: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_MS,
+                minVoteAmount: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTE_AMOUNT,
                 minVotesForValidity: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTES_FOR_VALIDITY,
+                minVotingPower: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTING_POWER,
+                rateLimitWindow: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.RATE_LIMIT_WINDOW,
+                reputationThreshold: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.REPUTATION_THRESHOLD,
+                voteEncryptionVersion: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_ENCRYPTION_VERSION,
+                votingWeight: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
                 votePowerDecay: constants_1.BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_POWER_DECAY,
+            },
+            util: config?.util || {
+                processingTimeoutMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS,
+                retryAttempts: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_ATTEMPTS,
+                absoluteMaxSize: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.ABSOLUTE_MAX_SIZE,
+                backoffFactor: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.BACKOFF_FACTOR,
+                baseMaxSize: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.BASE_MAX_SIZE,
+                cacheTtlHours: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL_HOURS,
+                retryDelayMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.RETRY_DELAY_MS,
+                cacheTtl: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL,
+                cache: {
+                    ttlMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL,
+                    ttlHours: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL_HOURS,
+                    cleanupIntervalMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.CACHE.CLEANUP_INTERVAL_MS,
+                },
+                initialRetryDelay: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.INITIAL_RETRY_DELAY,
+                maxRetries: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRIES,
+                maxRetryDelay: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRY_DELAY,
+                pruneThreshold: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.PRUNE_THRESHOLD,
+                staleThreshold: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.STALE_THRESHOLD,
+                validationTimeoutMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS,
+                retry: {
+                    backoffFactor: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.BACKOFF_FACTOR,
+                    initialDelayMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.INITIAL_RETRY_DELAY,
+                    maxAttempts: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRIES,
+                    maxDelayMs: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.MAX_RETRY_DELAY,
+                },
+            },
+            transaction: config?.transaction || {
+                currentVersion: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION,
+                maxInputs: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_INPUTS,
+                maxOutputs: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_OUTPUTS,
+                maxSize: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE,
+                amountLimits: {
+                    min: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MIN,
+                    max: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.MAX,
+                    decimals: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.AMOUNT_LIMITS.DECIMALS,
+                },
+                maxMessageAge: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_MESSAGE_AGE,
+                maxPubkeySize: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_PUBKEY_SIZE,
+                maxScriptSize: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SCRIPT_SIZE,
+                maxTimeDrift: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TIME_DRIFT,
+                maxSignatureSize: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIGNATURE_SIZE,
+                maxTotalInput: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TOTAL_INPUT,
+                maxTxVersion: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TX_VERSION,
+                mempool: {
+                    highCongestionThreshold: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.HIGH_CONGESTION_THRESHOLD,
+                    maxMb: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MB,
+                    evictionInterval: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.EVICTION_INTERVAL,
+                    feeRateMultiplier: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.FEE_RATE_MULTIPLIER,
+                    minFeeRate: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
+                    cleanupInterval: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.CLEANUP_INTERVAL,
+                    maxMemoryUsage: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MEMORY_USAGE,
+                    minSize: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_SIZE,
+                },
+                minInputAge: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_INPUT_AGE,
+                minTxVersion: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_TX_VERSION,
+                processingTimeout: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.PROCESSING_TIMEOUT,
+                required: constants_1.BLOCKCHAIN_CONSTANTS.TRANSACTION.REQUIRED,
+            },
+            validator: {
+                minBlockProduction: constants_1.BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_BLOCK_PRODUCTION,
+                minValidatorUptime: constants_1.BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_VALIDATOR_UPTIME,
+                minVoteParticipation: constants_1.BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_VOTE_PARTICIPATION,
+            },
+            backupValidatorConfig: config?.backupValidatorConfig || {
+                maxBackupAttempts: constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MAX_BACKUP_ATTEMPTS,
+                backupSelectionTimeout: constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.BACKUP_SELECTION_TIMEOUT,
+                minBackupReputation: constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MIN_BACKUP_REPUTATION,
+                minBackupUptime: constants_1.BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MIN_BACKUP_UPTIME,
+            },
+            version: 1, // Set the version
+            minSafeConfirmations: 6,
+            maxSafeUtxoAmount: 1000000000000,
+            coinbaseMaturity: 100,
+            userAgent: "/H3Tag:1.0.0/",
+            protocolVersion: 1,
+            maxMempoolSize: 50000,
+            minRelayTxFee: 0.00001,
+            minPeers: 3,
+            message: {
+                prefix: "\x18H3Tag Signed Message:\n",
+                maxLength: 100000,
+                minLength: 1,
             },
             wallet: config?.wallet || {
                 address: "",
@@ -1107,14 +1257,6 @@ class Blockchain {
                         ? await keyPair.privateKey()
                         : keyPair.privateKey;
                 },
-            },
-            network: config?.network || {
-                type: dnsSeed_1.NetworkType.MAINNET,
-                port: 3000,
-                seedDomains: process.env.SEED_NODES
-                    ? JSON.parse(process.env.SEED_DOMAINS)
-                    : [],
-                host: `https://${config?.network?.host || "localhost"}:${config?.network?.port || 3000}`,
             },
         };
     }
@@ -1171,7 +1313,7 @@ class Blockchain {
                 this.sync?.dispose(),
                 this.mempool?.dispose(),
                 this.consensus?.dispose(),
-                this.db?.close(),
+                this.db?.close(), // Add database closure
                 ...Array.from(this.circuitBreakers.values()).map((breaker) => breaker.dispose()),
             ];
             await Promise.allSettled(cleanupTasks);
@@ -1545,7 +1687,7 @@ class Blockchain {
      */
     async addPeer(peerUrl) {
         try {
-            const peer = new peer_1.Peer(peerUrl, this.config.network.port || 8333, {
+            const peer = new peer_1.Peer(peerUrl, this.config.network.port[this.config.network.type.MAINNET] || 8333, {
                 minPingInterval: 30000,
                 handshakeTimeout: 5000,
                 maxBanScore: 100,
@@ -1567,7 +1709,6 @@ class Blockchain {
      */
     handlePeerBanned(data) {
         shared_1.Logger.warn(`Peer banned: ${data.address}`);
-        // Additional handling like notifying other peers
         this.eventEmitter.emit("peer_banned", data);
     }
     /**
@@ -2094,6 +2235,7 @@ class Blockchain {
         await this.updatePostBlockAdd(block);
     }
 }
+exports.Blockchain = Blockchain;
 __decorate([
     (0, retry_1.retry)({
         maxAttempts: 3,
@@ -2111,5 +2253,3 @@ __decorate([
         maxDelay: 5000,
     })
 ], Blockchain.prototype, "retryPostBlockAdd", null);
-exports.Blockchain = Blockchain;
-//# sourceMappingURL=blockchain.js.map

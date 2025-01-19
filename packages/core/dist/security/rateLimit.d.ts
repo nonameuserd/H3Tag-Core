@@ -20,9 +20,9 @@ interface RateLimitConfig {
         qudraticVote: number;
         default: number;
     };
-    keyGenerator?: (req: any) => string;
-    handler?: (req: any, res: any, next: Function) => void;
-    skip?: (req: any) => boolean;
+    keyGenerator?: (req: Request) => string;
+    handler?: (req: Request, res: Response, next: (err?: Error) => void) => void;
+    skip?: (req: Request) => boolean;
     keyPrefix?: string;
     skipFailedRequests?: boolean;
     headers?: boolean;
@@ -65,8 +65,8 @@ export declare class RateLimit {
     resetLimit(key: string): void;
     shutdown(): Promise<void>;
     checkLimit(key: string, type?: "pow" | "quadraticVote" | "default"): Promise<boolean>;
-    on(event: string, listener: (...args: any[]) => void): void;
-    off(event: string, listener: (...args: any[]) => void): void;
+    on(event: string, listener: (...args: unknown[]) => void): void;
+    off(event: string, listener: (...args: unknown[]) => void): void;
     removeAllListeners(): void;
     getActiveKeys(): string[];
     getLastAccess(key: string): number;

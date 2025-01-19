@@ -10,4 +10,3 @@ class TransactionValidationError extends Error {
     }
 }
 exports.TransactionValidationError = TransactionValidationError;
-//# sourceMappingURL=transaction-validation-error.js.map

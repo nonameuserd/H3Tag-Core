@@ -5,7 +5,6 @@
  *
  * @module AdaptiveGPUMemory
  */
-/// <reference types="@webgpu/types" />
 /**
  * AdaptiveGPUMemory manages GPU memory allocation with dynamic pooling and scaling.
  *

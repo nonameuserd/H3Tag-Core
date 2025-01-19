@@ -1,4 +1,15 @@
 import { Peer } from "./peer";
+type NetworkStatsEvent = {
+    timestamp: number;
+    peerId?: string;
+    data?: unknown;
+    metrics?: {
+        count?: number;
+        latency?: number;
+        hashRate?: number;
+        propagationTime?: number;
+    };
+};
 export declare class NetworkStats {
     private readonly eventEmitter;
     blockPropagationTimes: number[];
@@ -35,8 +46,8 @@ export declare class NetworkStats {
     updatePeerScore(peerId: string, delta: number): void;
     private banPeer;
     private getAveragePeerScore;
-    on(event: string, listener: (...args: any[]) => void): void;
-    off(event: string, listener: (...args: any[]) => void): void;
+    on(event: string, listener: (eventData: NetworkStatsEvent) => void): void;
+    off(event: string, listener: (...args: NetworkStatsEvent[]) => void): void;
     removeAllListeners(): void;
     private readonly h3TagMetrics;
     private static readonly MIN_DIFFICULTY;
@@ -136,3 +147,4 @@ export declare class NetworkStats {
     private isVersionOutdated;
     private isSynced;
 }
+export {};

@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { WalletController } from "../controllers/wallet.controller";
 import { WalletService } from "../services/wallet.service";
-import { ExportPrivateKeyDto, ImportPrivateKeyDto } from "../dtos/wallet.dto";
 
 const router = Router();
 const walletService = new WalletService();

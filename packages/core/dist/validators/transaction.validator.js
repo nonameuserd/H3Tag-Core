@@ -394,4 +394,3 @@ TransactionValidator.VOTE_HEIGHT_KEY_PREFIX = "vote_height:";
 TransactionValidator.db = new blockchain_schema_1.BlockchainSchema(); // Assuming Database is imported
 TransactionValidator.voteLock = new async_mutex_1.Mutex();
 TransactionValidator.voteHeightCache = new Map();
-//# sourceMappingURL=transaction.validator.js.map

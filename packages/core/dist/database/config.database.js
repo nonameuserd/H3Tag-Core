@@ -42,11 +42,10 @@ exports.databaseConfig = {
         createIfMissing: true,
         errorIfExists: false,
         compression: true,
-        cacheSize: 8 * 1024 * 1024,
-        writeBufferSize: 4 * 1024 * 1024,
+        cacheSize: 8 * 1024 * 1024, // 8MB
+        writeBufferSize: 4 * 1024 * 1024, // 4MB
         blockSize: 4096,
         maxOpenFiles: 1000,
         sync: false, // Set to true for stronger durability guarantees
     },
 };
-//# sourceMappingURL=config.database.js.map

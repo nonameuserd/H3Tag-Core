@@ -190,4 +190,3 @@ exports.blockchainCommand
         process.exit(1);
     }
 });
-//# sourceMappingURL=blockchain.command.js.map

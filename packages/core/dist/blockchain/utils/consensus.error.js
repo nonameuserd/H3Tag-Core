@@ -20,4 +20,3 @@ class ConsensusError extends Error {
     }
 }
 exports.ConsensusError = ConsensusError;
-//# sourceMappingURL=consensus.error.js.map

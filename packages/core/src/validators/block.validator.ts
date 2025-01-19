@@ -4,7 +4,7 @@ import { UTXOSet } from "../models/utxo.model";
 import { EventEmitter } from "events";
 import { TransactionType } from "../models/transaction.model";
 import { Vote } from "../models/vote.model";
-import { HybridCrypto, QuantumCrypto } from "@h3tag-blockchain/crypto";
+import { HybridCrypto } from "@h3tag-blockchain/crypto";
 import { createHash } from "crypto";
 import { Mempool } from "../blockchain/mempool";
 import { BlockchainStats } from "../blockchain/blockchain-stats";
@@ -65,8 +65,6 @@ export class BlockValidator {
     previousBlock: Block | null,
     utxoSet: UTXOSet
   ): Promise<boolean> {
-    const startTime = Date.now();
-
     try {
       await Promise.race([
         this.performValidation(block, previousBlock, utxoSet),
@@ -658,11 +656,11 @@ export class BlockValidator {
   }
 
   // Add methods to expose event emitter functionality
-  public on(event: string, listener: (...args: any[]) => void): void {
+  public on(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
-  public off(event: string, listener: (...args: any[]) => void): void {
+  public off(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.off(event, listener);
   }
 

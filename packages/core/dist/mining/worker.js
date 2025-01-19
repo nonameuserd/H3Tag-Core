@@ -146,7 +146,6 @@ class MiningWorker {
             const targetBigInt = BigInt(target);
             for (let nonce = start; nonce < end; nonce += batchSize) {
                 // Prevent overflow
-                const batchEnd = Math.min(nonce + batchSize, end);
                 const headerWithNonce = `${headerBase}${nonce}`;
                 // Use SIMD for parallel hash computation
                 const hashes = await crypto_1.SIMD.batchHashSHA3(headerWithNonce);
@@ -228,4 +227,3 @@ process.on("SIGTERM", () => {
         process.exit(0);
     }
 });
-//# sourceMappingURL=worker.js.map

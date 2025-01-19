@@ -5,9 +5,7 @@ import { Peer } from "./peer";
 import { Blockchain } from "../blockchain/blockchain";
 import { Mempool } from "../blockchain/mempool";
 import { BlockchainSchema } from "../database/blockchain-schema";
-import { PeerMessageType } from "../models/peer.model";
-import { Vote } from "../models/vote.model";
-import { VoteData, WasmVoteProcessor } from "../wasm/vote-processor";
+import { MessagePayload, PeerMessageType } from "../models/peer.model";
 import { Logger } from "@h3tag-blockchain/shared";
 import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
 import { Mutex } from "async-mutex";
@@ -136,7 +134,7 @@ export class BlockchainSync {
       "new_transaction",
       async (transaction: Transaction) => {
         try {
-          await this.handleNewTransaction(transaction, peer);
+          await this.handleNewTransaction({ transaction }, peer);
         } catch (error) {
           Logger.error(
             `Error handling new transaction from peer ${(await peer.getInfo()).url}:`,
@@ -408,7 +406,7 @@ export class BlockchainSync {
 
   private async syncBlocks(peer: Peer): Promise<void> {
     // Process blocks in parallel batches
-    for (const [height, header] of this.headerSync.headers) {
+    for (const [height] of this.headerSync.headers) {
       const batch = new Set<number>();
 
       // Create batch of block requests
@@ -571,11 +569,11 @@ export class BlockchainSync {
   }
 
   private async handleNewTransaction(
-    transaction: Transaction,
+    transaction: { transaction: Transaction },
     peer: Peer
   ): Promise<void> {
     try {
-      await this.mempool.addTransaction(transaction);
+      await this.mempool.addTransaction(transaction.transaction);
       this.eventEmitter.emit("new_transaction", transaction);
 
       // Broadcast to other peers
@@ -587,7 +585,7 @@ export class BlockchainSync {
 
   private async broadcastToPeers(
     type: PeerMessageType,
-    data: any,
+    data: MessagePayload,
     excludePeer: Peer
   ): Promise<void> {
     const broadcastPromises = Array.from(this.peers.values())
@@ -622,130 +620,9 @@ export class BlockchainSync {
     }
   }
 
-  private async syncVotes(peer: Peer): Promise<void> {
-    try {
-      const response = await peer.request(PeerMessageType.GET_VOTES, {
-        fromHeight: this.lastSyncHeight,
-        toHeight: (await this.syncingPeer?.getInfo()).height,
-      });
-
-      if (!Array.isArray(response.votes)) {
-        throw new SyncError("Invalid votes response from peer");
-      }
-
-      // Process votes in parallel
-      await Promise.all(
-        response.votes.map(async (vote) => {
-          try {
-            await this.processVote(vote);
-            await peer.recordVote();
-          } catch (error) {
-            Logger.error(`Error processing vote:`, error);
-          }
-        })
-      );
-    } catch (error) {
-      Logger.error("Vote sync failed:", error);
-      throw new SyncError(`Failed to sync votes: ${error.message}`);
-    }
-  }
-
-  private async processVote(vote: Vote): Promise<void> {
-    try {
-      // Validate vote format
-      if (!vote || !vote.signature || !vote.blockHash) {
-        throw new SyncError("Invalid vote format");
-      }
-
-      // Use the WASM vote processor
-      const voteProcessor = new WasmVoteProcessor();
-      const voteData: VoteData = {
-        balance: vote.balance.toString() || "0",
-        approved: vote.approve ? 1 : 0,
-        voter: vote.voter,
-      };
-
-      const result = await voteProcessor.processVoteChunk([voteData]);
-
-      if (result.approved > 0) {
-        await this.blockchain.processVote(vote);
-        this.eventEmitter.emit("vote_processed", {
-          blockHash: vote.blockHash,
-          timestamp: Date.now(),
-        });
-      }
-    } catch (error) {
-      Logger.error("Failed to process vote:", error);
-      throw new SyncError(`Vote processing failed: ${error.message}`);
-    }
-  }
-
   public async dispose(): Promise<void> {
     await this.stop();
     await this.blockchain.dispose();
-  }
-
-  private async requestBlocksWithRetry(
-    peer: Peer,
-    startHeight: number,
-    endHeight: number
-  ): Promise<Block[]> {
-    for (
-      let attempt = 0;
-      attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST;
-      attempt++
-    ) {
-      try {
-        return await Promise.race([
-          peer.request(PeerMessageType.GET_BLOCKS, { startHeight, endHeight }),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Timeout")),
-              BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST
-            )
-          ),
-        ]);
-      } catch (error) {
-        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
-          throw error;
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (attempt + 1))
-        );
-      }
-    }
-    throw new Error("Max retries exceeded");
-  }
-
-  private async processBlocksInBatches(blocks: Block[]): Promise<void> {
-    for (let i = 0; i < blocks.length; i += BlockchainSync.BATCH_SIZES.BLOCKS) {
-      const batch = blocks.slice(i, i + BlockchainSync.BATCH_SIZES.BLOCKS);
-      await Promise.all(
-        batch.map(async (block) => {
-          try {
-            await this.blockchain.addBlock(block);
-            this.syncStats.blocksProcessed++;
-            this.emitDetailedProgress();
-          } catch (error) {
-            Logger.error(
-              `Block processing failed at height ${block.header.height}:`,
-              error
-            );
-            throw error;
-          }
-        })
-      );
-    }
-  }
-
-  private emitDetailedProgress(): void {
-    const progress = {
-      ...this.syncStats,
-      currentTime: Date.now(),
-      blocksPerSecond: this.calculateBlocksPerSecond(),
-      estimatedTimeRemaining: this.calculateEstimatedTime(),
-      failureRate: this.calculateFailureRate(),
-    };
-    this.eventEmitter.emit("sync_detailed_progress", progress);
   }
 
   private async validatePeerBeforeSync(peer: Peer): Promise<boolean> {
@@ -764,29 +641,7 @@ export class BlockchainSync {
     }
   }
 
-  private calculateBlocksPerSecond(): number {
-    const elapsedSeconds = (Date.now() - this.syncStats.startTime) / 1000;
-    return elapsedSeconds > 0
-      ? this.syncStats.blocksProcessed / elapsedSeconds
-      : 0;
-  }
-
-  private async calculateEstimatedTime(): Promise<number> {
-    const blocksPerSecond = this.calculateBlocksPerSecond();
-    const remainingBlocks =
-      (await this.syncingPeer?.getInfo()).height - this.lastSyncHeight;
-    return blocksPerSecond > 0 ? (remainingBlocks / blocksPerSecond) * 1000 : 0;
-  }
-
-  private calculateFailureRate(): number {
-    const totalAttempts =
-      this.syncStats.blocksProcessed + this.syncStats.failedAttempts;
-    return totalAttempts > 0
-      ? (this.syncStats.failedAttempts / totalAttempts) * 100
-      : 0;
-  }
-
-  public on(event: string, listener: (...args: any[]) => void): void {
+  public on(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
@@ -798,7 +653,7 @@ export class BlockchainSync {
     this.eventEmitter.emit("sync_error", error);
   }
 
-  public off(event: string, listener: (...args: any[]) => void): void {
+  public off(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.removeListener(event, listener);
   }
 
@@ -806,7 +661,7 @@ export class BlockchainSync {
     const currentHeight = this.blockchain.getHeight();
 
     for (let height = 1; height <= currentHeight; height++) {
-      const block = await this.blockchain.getBlockByHeight(height);
+      const block = this.blockchain.getBlockByHeight(height);
       if (!block || !(await this.blockchain.verifyBlock(block))) {
         throw new SyncError(`Chain verification failed at height ${height}`);
       }
@@ -820,27 +675,18 @@ export class BlockchainSync {
     startHeight: number,
     endHeight: number
   ): Promise<Block[]> {
-    for (
-      let attempt = 0;
-      attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST;
-      attempt++
-    ) {
+    for (let attempt = 0; attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST; attempt++) {
       try {
-        return await Promise.race([
+        const response = await Promise.race([
           peer.request(PeerMessageType.GETHEADERS, { startHeight, endHeight }),
           new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Timeout")),
-              BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST
-            )
+            setTimeout(() => reject(new Error("Timeout")), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST)
           ),
         ]);
+        return response.blocks;
       } catch (error) {
-        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
-          throw error;
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (attempt + 1))
-        );
+        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
       }
     }
     throw new Error("Max retries exceeded");
@@ -905,27 +751,16 @@ export class BlockchainSync {
     peer: Peer,
     height: number
   ): Promise<Block> {
-    for (
-      let attempt = 0;
-      attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST;
-      attempt++
-    ) {
+    for (let attempt = 0; attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST; attempt++) {
       try {
-        return await Promise.race([
+        const response = await Promise.race([
           peer.request(PeerMessageType.GET_BLOCK, { height }),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () => reject(new Error("Timeout")),
-              BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST
-            )
-          ),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST))
         ]);
+        return response.block as Block;
       } catch (error) {
-        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
-          throw error;
-        await new Promise((resolve) =>
-          setTimeout(resolve, 1000 * (attempt + 1))
-        );
+        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1) throw error;
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
       }
     }
     throw new Error("Max retries exceeded");
@@ -934,7 +769,7 @@ export class BlockchainSync {
   public async getVerificationProgress(): Promise<number> {
     if (this.state !== SyncState.SYNCING) return 1;
     const currentHeight = this.blockchain.getCurrentHeight();
-    const targetHeight = (await this.syncingPeer?.getInfo()).height || currentHeight;
+    const targetHeight = (await this.syncingPeer.getInfo()).height || currentHeight;
     return targetHeight ? currentHeight / targetHeight : 1;
   }
 

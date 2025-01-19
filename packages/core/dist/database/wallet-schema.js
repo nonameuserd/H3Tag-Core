@@ -192,7 +192,7 @@ class WalletDatabase {
     async listWallets() {
         const addresses = [];
         try {
-            for await (const [key, value] of this.db.iterator({
+            for await (const [key] of this.db.iterator({
                 gte: "address:",
                 lte: "address:\xFF",
             })) {
@@ -289,8 +289,7 @@ class WalletDatabase {
         });
     }
 }
+exports.WalletDatabase = WalletDatabase;
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], WalletDatabase.prototype, "saveKeystore", null);
-exports.WalletDatabase = WalletDatabase;
-//# sourceMappingURL=wallet-schema.js.map

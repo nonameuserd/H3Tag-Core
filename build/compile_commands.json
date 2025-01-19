@@ -1,8 +1,0 @@
-[
-{
-  "directory": "/Users/dami/Documents/quantum-blockchain/build",
-  "command": "/usr/bin/clang++ -Dquantum_safe_blockchain_EXPORTS -I/opt/homebrew/Cellar/liboqs/0.12.0/include -I/Users/dami/Documents/quantum-blockchain/src/crypto/native -g -std=gnu++17 -arch arm64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX15.0.sdk -fPIC -o CMakeFiles/quantum-safe-blockchain.dir/packages/core/src/crypto/native/quantum.cpp.o -c /Users/dami/Documents/quantum-blockchain/packages/core/src/crypto/native/quantum.cpp",
-  "file": "/Users/dami/Documents/quantum-blockchain/packages/core/src/crypto/native/quantum.cpp",
-  "output": "CMakeFiles/quantum-safe-blockchain.dir/packages/core/src/crypto/native/quantum.cpp.o"
-}
-]

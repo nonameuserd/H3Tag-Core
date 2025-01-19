@@ -7,6 +7,7 @@ import { Transaction } from "../models/transaction.model";
 import { AuditManager } from "../security/audit";
 import { ConfigService } from "@h3tag-blockchain/shared";
 import { NetworkType } from "./dnsSeed";
+import { PeerServices } from "../models/peer.model";
 interface NodeConfig {
     networkType: NetworkType;
     port: number;
@@ -19,7 +20,7 @@ interface NodeConfig {
     pruneInterval: number;
     maxOrphans: number;
     maxReorg: number;
-    services: number;
+    services: PeerServices[];
 }
 export declare class Node {
     private readonly blockchain;

@@ -24,7 +24,7 @@ var PeerServices;
     PeerServices[PeerServices["VALIDATOR"] = 4] = "VALIDATOR";
     PeerServices[PeerServices["RELAY"] = 8] = "RELAY";
     PeerServices[PeerServices["ARCHIVE"] = 16] = "ARCHIVE";
-})(PeerServices = exports.PeerServices || (exports.PeerServices = {}));
+})(PeerServices || (exports.PeerServices = PeerServices = {}));
 /**
  * @enum PeerMessageType
  * @description Types of messages that can be exchanged between peers
@@ -80,5 +80,4 @@ var PeerMessageType;
     PeerMessageType["NEW_BLOCK"] = "new_block";
     PeerMessageType["NEW_TRANSACTION"] = "new_transaction";
     PeerMessageType["GET_VOTES"] = "get_votes";
-})(PeerMessageType = exports.PeerMessageType || (exports.PeerMessageType = {}));
-//# sourceMappingURL=peer.model.js.map
+})(PeerMessageType || (exports.PeerMessageType = PeerMessageType = {}));

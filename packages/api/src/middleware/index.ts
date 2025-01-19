@@ -15,7 +15,6 @@ export const errorHandler = (
   err: Error,
   req: Request,
   res: Response,
-  next: NextFunction
 ) => {
   Logger.error("Unhandled error:", err);
   res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({

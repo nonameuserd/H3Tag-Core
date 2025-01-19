@@ -212,7 +212,11 @@ export class DatabaseTransaction {
             const value = await this.db.db.get(op.key);
             keyStates.set(op.key, value);
           } catch (err) {
-            keyStates.set(op.key, null);
+            if (err instanceof Error) {
+              keyStates.set(op.key, JSON.stringify({ value: null, timestamp: Date.now() }));
+            } else {
+              throw err;
+            }
           }
         }
       }

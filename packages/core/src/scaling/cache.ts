@@ -74,7 +74,7 @@ export class Cache<T> {
   private static readonly MAX_COMPRESSION_SIZE = 50 * 1024 * 1024; // 50MB
   private readonly maxItems: number;
 
-  private static readonly DEFAULT_OPTIONS: Required<CacheOptions<any>> = {
+  private static readonly DEFAULT_OPTIONS: Required<CacheOptions<unknown>> = {
     ttl: 3600,
     maxSize: 1000,
     checkPeriod: 600,
@@ -97,7 +97,7 @@ export class Cache<T> {
   };
 
   constructor(options: CacheOptions<T> = {}) {
-    this.options = { ...Cache.DEFAULT_OPTIONS, ...options };
+    this.options = { ...Cache.DEFAULT_OPTIONS, ...options } as Required<CacheOptions<T>>;
     this.items = new Map();
     this.stats = {
       hits: 0,
@@ -123,7 +123,7 @@ export class Cache<T> {
     return size <= this.MEMORY_LIMITS.MAX_ENTRY_SIZE;
   }
 
-  private getObjectSize(obj: any): number {
+  private getObjectSize(obj: T): number {
     const str = JSON.stringify(obj);
     return str.length * 2; // Rough estimate in bytes
   }
@@ -350,7 +350,7 @@ export class Cache<T> {
 
   public entries(): [string, T][] {
     return Array.from(this.items.entries())
-      .filter(([_, item]) => !this.isExpired(item))
+      .filter(([,item]) => !this.isExpired(item))
       .map(([key, item]) => [key, item.value]);
   }
 

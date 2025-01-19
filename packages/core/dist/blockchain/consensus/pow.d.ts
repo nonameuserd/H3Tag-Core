@@ -1,4 +1,3 @@
-/// <reference types="node" />
 import { Block } from "../../models/block.model";
 import { Blockchain } from "../blockchain";
 import { Transaction } from "../../models/transaction.model";

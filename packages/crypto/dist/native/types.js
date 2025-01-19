@@ -7,4 +7,3 @@ var SecurityLevel;
     SecurityLevel[SecurityLevel["HIGH"] = 2] = "HIGH";
     SecurityLevel[SecurityLevel["PARANOID"] = 3] = "PARANOID";
 })(SecurityLevel = exports.SecurityLevel || (exports.SecurityLevel = {}));
-//# sourceMappingURL=types.js.map

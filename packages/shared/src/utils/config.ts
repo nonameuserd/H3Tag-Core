@@ -1,7 +1,11 @@
-import { NetworkType } from "@h3tag-blockchain/shared";
+import { CurrencyConstants } from "./currency-constants";
 
 export interface NetworkConfig {
-  type: NetworkType;
+  type: {
+    MAINNET: string;
+    TESTNET: string;
+    DEVNET: string;
+  };
   port: {
     MAINNET: number;
     TESTNET: number;
@@ -46,7 +50,7 @@ export interface MiningConfig {
   hashBatchSize: number;
   maxTarget: bigint;
   minDifficulty: number;
-  chainDecisionThreshold: number;
+  nodeSelectionThreshold: number;
   orphanWindow: number;
   propagationWindow: number;
   maxPropagationTime: number;
@@ -83,7 +87,7 @@ export interface ConsensusConfig {
   votingDayPeriod: number;
   consensusTimeout: number;
   emergencyTimeout: number;
-  chainSelectionTimeout: number;
+  nodeSelectionTimeout: number;
   voteCollectionTimeout: number;
   initialReward: bigint;
   baseReward: bigint;
@@ -120,6 +124,12 @@ export interface VotingConfig {
   rateLimitWindow: number;
 }
 
+export interface WalletConfig {
+  address: string;
+  privateKey: string | (() => Promise<string>);
+  publicKey: string | (() => Promise<string>);
+}
+
 export interface UtilConfig {
   retry: {
     maxAttempts: number;
@@ -149,7 +159,6 @@ export interface UtilConfig {
 }
 
 export interface TransactionConfig {
-  baseFee: bigint;
   currentVersion: number;
   maxInputs: number;
   maxOutputs: number;
@@ -161,7 +170,6 @@ export interface TransactionConfig {
   };
   mempool: {
     highCongestionThreshold: number;
-    maxSize: bigint;
     maxMb: number;
     minFeeRate: bigint;
     feeRateMultiplier: number;
@@ -203,6 +211,7 @@ export interface MessageConfig {
 }
 
 export interface BlockchainConfig {
+  currency: CurrencyConstants;
   network: NetworkConfig;
   mining: MiningConfig;
   consensus: ConsensusConfig;
@@ -221,11 +230,29 @@ export interface BlockchainConfig {
   minRelayTxFee: number;
   minPeers: number;
   message: MessageConfig;
+  wallet: WalletConfig;
 }
 
-const defaultConfig: BlockchainConfig = {
+export const defaultConfig: BlockchainConfig = {
+  currency: {
+    name: "H3TAG",
+    symbol: "TAG",
+    decimals: 8,
+    initialSupply: BigInt(21000000),
+    maxSupply: BigInt(696900000),
+    units: {
+      MACRO: 1n,
+      MICRO: 1000000n,
+      MILLI: 1000000000n,
+      TAG: 1000000000000n,
+    },
+  },
   network: {
-    type: NetworkType.MAINNET,
+    type: {
+      MAINNET: "mainnet",
+      TESTNET: "testnet",
+      DEVNET: "devnet",
+    },
     port: {
       MAINNET: 8333,
       TESTNET: 10001,
@@ -278,9 +305,11 @@ const defaultConfig: BlockchainConfig = {
     difficultyAdjustmentInterval: 2016,
     initialDifficulty: 0x1d0000ffff,
     hashBatchSize: 10000,
-    maxTarget: BigInt("0x0000000000ffff0000000000000000000000000000000000000000000000000000"),
+    maxTarget: BigInt(
+      "0x0000000000ffff0000000000000000000000000000000000000000000000000000"
+    ),
     minDifficulty: 2,
-    chainDecisionThreshold: 0.67,
+    nodeSelectionThreshold: 0.67,
     orphanWindow: 100,
     propagationWindow: 50,
     maxPropagationTime: 30000,
@@ -306,7 +335,7 @@ const defaultConfig: BlockchainConfig = {
     safeConfirmationTime: 3600000,
   },
   consensus: {
-    powWeight: 10000,
+    powWeight: 0.6,
     minPowHashRate: 1000000,
     minVoterCount: 1000,
     minPeriodLength: 1000,
@@ -316,7 +345,7 @@ const defaultConfig: BlockchainConfig = {
     votingDayPeriod: 690 * 24 * 60 * 60 * 1000,
     consensusTimeout: 30 * 60 * 1000,
     emergencyTimeout: 60 * 60 * 1000,
-    chainSelectionTimeout: 5 * 60 * 1000,
+    nodeSelectionTimeout: 5 * 60 * 1000,
     voteCollectionTimeout: 3 * 60 * 1000,
     initialReward: BigInt(546),
     baseReward: 100n * 10n ** 18n,
@@ -379,7 +408,6 @@ const defaultConfig: BlockchainConfig = {
     staleThreshold: 7 * 24 * 60 * 60 * 1000,
   },
   transaction: {
-    baseFee: BigInt(100),
     currentVersion: 1,
     maxInputs: 1000,
     maxOutputs: 1000,
@@ -391,7 +419,6 @@ const defaultConfig: BlockchainConfig = {
     },
     mempool: {
       highCongestionThreshold: 50000,
-      maxSize: BigInt(300000),
       maxMb: 300,
       minFeeRate: BigInt(1),
       feeRateMultiplier: 1.5,
@@ -436,5 +463,10 @@ const defaultConfig: BlockchainConfig = {
     prefix: "\x18H3Tag Signed Message:\n",
     maxLength: 100000,
     minLength: 1,
+  },
+  wallet: {
+    address: "",
+    privateKey: "",
+    publicKey: "",
   },
 };

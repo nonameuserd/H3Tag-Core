@@ -1,4 +1,3 @@
-/// <reference types="@webgpu/types" />
 /**
  * @fileoverview ZeroCopyCompression provides GPU-accelerated zero-copy compression using WebGPU.
  * It allows for efficient data compression with minimal memory overhead and high performance.

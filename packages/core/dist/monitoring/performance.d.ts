@@ -52,7 +52,14 @@ export declare class Performance {
      * @returns {Object} Current metrics
      */
     getMetrics(): {
-        [k: string]: any;
+        [k: string]: {
+            startTime: number;
+            count: number;
+            total: number;
+            min: number;
+            max: number;
+            avg: number;
+        };
     };
     /**
      * Cleans up resources

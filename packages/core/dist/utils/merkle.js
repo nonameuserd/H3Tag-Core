@@ -211,4 +211,3 @@ class MerkleTree {
     }
 }
 exports.MerkleTree = MerkleTree;
-//# sourceMappingURL=merkle.js.map

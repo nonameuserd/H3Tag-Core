@@ -1,4 +1,5 @@
 import { AuditManager } from "./audit";
+import { Request, Response } from 'express';
 export declare class DDoSError extends Error {
     readonly code: string;
     constructor(message: string, code: string);
@@ -47,7 +48,7 @@ export declare class DDoSProtection {
     private validateConfig;
     private initializeMetrics;
     initialize(): Promise<void>;
-    middleware(): (req: any, res: any, next: Function) => Promise<any>;
+    middleware(): (req: Request, res: Response, next: (err?: Error) => void) => Promise<Response<any, Record<string, any>>>;
     private handleFailure;
     private getRequestType;
     private recordRequest;

@@ -149,7 +149,7 @@ class PerformanceMonitor {
     getMetrics(operation) {
         const metrics = {};
         for (const [markerId, data] of this.metrics.entries()) {
-            const [context, op] = markerId.split("_");
+            const [op] = markerId.split("_");
             if (!operation || op === operation) {
                 const stats = this.calculateStats(data.measurements);
                 metrics[op] = {
@@ -188,4 +188,3 @@ class PerformanceMonitor {
     }
 }
 exports.PerformanceMonitor = PerformanceMonitor;
-//# sourceMappingURL=performance-monitor.js.map

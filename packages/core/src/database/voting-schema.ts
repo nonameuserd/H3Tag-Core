@@ -51,6 +51,7 @@ export interface IVotingSchema {
   getVotesByAddress(address: string): Promise<Vote[]>;
   storeVote(vote: Vote): Promise<void>;
   updateVotingPeriod(period: VotingPeriod): Promise<void>;
+  getVotes(): Promise<Vote[]>;
 }
 
 export class VotingDatabase implements IVotingSchema {
@@ -213,7 +214,7 @@ export class VotingDatabase implements IVotingSchema {
     const voters = new Set<string>();
 
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [,value] of this.db.iterator({
         gte: `vote:${periodId}:`,
         lte: `vote:${periodId}:\xFF`,
       })) {
@@ -253,7 +254,7 @@ export class VotingDatabase implements IVotingSchema {
    */
   async getLatestVote(voterAddress: string): Promise<Vote | null> {
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [,value] of this.db.iterator({
         gte: `vote:${voterAddress}:`,
         lte: `vote:${voterAddress}:\xFF`,
         reverse: true,
@@ -290,7 +291,7 @@ export class VotingDatabase implements IVotingSchema {
   async getVotesByVoter(voterAddress: string): Promise<Vote[]> {
     const votes: Vote[] = [];
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [,value] of this.db.iterator({
         gte: `vote:${voterAddress}:`,
         lte: `vote:${voterAddress}:\xFF`,
       })) {
@@ -313,11 +314,14 @@ export class VotingDatabase implements IVotingSchema {
   async getTotalVotes(): Promise<number> {
     let count = 0;
     try {
-      for await (const [key] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: "vote:",
         lte: "vote:\xFF",
       })) {
-        count++;
+        const vote = this.safeParse<Vote>(value);
+        if (vote && this.validateVote(vote)) {
+          count++;
+        }
       }
       return count;
     } catch (error) {
@@ -381,7 +385,7 @@ export class VotingDatabase implements IVotingSchema {
   async getVotesByPeriod(periodId: number): Promise<Vote[]> {
     const votes: Vote[] = [];
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [,value] of this.db.iterator({
         gte: `vote:${periodId}:`,
         lte: `vote:${periodId}:\xFF`,
       })) {
@@ -404,7 +408,7 @@ export class VotingDatabase implements IVotingSchema {
   async getTotalEligibleVoters(): Promise<number> {
     try {
       const voters = new Set<string>();
-      for await (const [key, value] of this.db.iterator({
+      for await (const [,value] of this.db.iterator({
         gte: "voter:",
         lte: "voter:\xFF",
       })) {
@@ -486,6 +490,10 @@ export class VotingDatabase implements IVotingSchema {
     );
   }
 
+  public getValidateVote(vote: Vote): boolean {
+    return this.validateVote(vote);
+  }
+
   private safeParse<T>(value: string): T | null {
     try {
       return JSON.parse(value) as T;
@@ -493,6 +501,10 @@ export class VotingDatabase implements IVotingSchema {
       Logger.error("Failed to parse stored value:", error);
       return null;
     }
+  }
+
+  public getSafeParse<T>(value: string): T | null {
+    return this.safeParse<T>(value);
   }
 
   /**
@@ -552,5 +564,25 @@ export class VotingDatabase implements IVotingSchema {
         throw error;
       }
     });
+  }
+
+  async getVotes(): Promise<Vote[]> {
+    const votes: Vote[] = [];
+    try {
+      for await (const [value] of this.db.iterator({
+        gte: "vote:",
+        lte: "vote:\xFF",
+        limit: 1000,
+      })) {
+        const vote = this.safeParse<Vote>(value);
+        if (vote && this.validateVote(vote)) {
+          votes.push(vote);
+        }
+      }
+      return votes;
+    } catch (error) {
+      Logger.error("Failed to get votes:", error);
+      return [];
+    }
   }
 }

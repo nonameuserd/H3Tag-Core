@@ -5,24 +5,29 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "yarn build:all",
-    "build:all": "yarn build:crypto && yarn build:shared && yarn build:core && yarn build:api && yarn build:cli",
-    "build:shared": "cd packages/shared && yarn build",
-    "build:crypto": "cd packages/crypto && yarn build",
-    "build:core": "cd packages/core && yarn build",
-    "build:api": "cd packages/api && yarn build",
-    "build:cli": "cd packages/cli && yarn build",
-    "test": "node --max-old-space-size=2048 ./node_modules/.bin/jest",
-    "clean": "npm run clean:modules && npm run clean:dist",
-    "clean:modules": "rimraf '**/node_modules' '**/package-lock.json'",
-    "clean:dist": "rimraf '**/dist' '**/*.tsbuildinfo' '**/index.d.ts'",
-    "clean:js": "rimraf '**/*.js' '**/*.js.map' '!node_modules/**'",
-    "deploy": "cd packages/core && yarn deploy",
-    "bootstrap": "cd packages/core && yarn bootstrap"
+    "build": "nx run-many --target=build --all --parallel=false",
+    "test": "npx lerna run test",
+    "clean": "npx lerna clean",
+    "graph": "npx nx graph",
+    "format": "prettier --write .",
+    "lint": "eslint ."
   },
   "devDependencies": {
-    "typescript": "^4.5.2",
-    "lerna": "^8.1.9"
-  },
-  "postinstall": ""
+    "@nx/eslint": "20.3.2",
+    "@nx/jest": "20.3.2",
+    "@nx/node": "20.3.2",
+    "eslint": "~8.57.0",
+    "jest": "^29.7.0",
+    "lerna": "^8.1.9",
+    "nx": "20.3.2",
+    "typescript": "^5.7.3",
+    "prettier": "^2.0.5"
+    },
+  "dependencies": {
+    "@h3tag-blockchain/api": "0.1.0",
+    "@h3tag-blockchain/cli": "0.1.0",
+    "@h3tag-blockchain/core": "0.1.0",
+    "@h3tag-blockchain/crypto": "0.1.0",
+    "@h3tag-blockchain/shared": "0.1.0"
+  }
 }

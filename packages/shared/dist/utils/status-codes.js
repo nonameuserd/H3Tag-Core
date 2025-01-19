@@ -19,14 +19,13 @@ exports.StatusCodes = {
     // Server error responses
     INTERNAL_SERVER_ERROR: 500,
     NOT_IMPLEMENTED: 501,
-    SERVICE_UNAVAILABLE: 503
+    SERVICE_UNAVAILABLE: 503,
 };
 exports.StatusMessages = {
-    [exports.StatusCodes.OK]: 'Success',
-    [exports.StatusCodes.CREATED]: 'Resource created successfully',
-    [exports.StatusCodes.BAD_REQUEST]: 'Invalid request',
-    [exports.StatusCodes.NOT_FOUND]: 'Resource not found',
-    [exports.StatusCodes.INTERNAL_SERVER_ERROR]: 'Internal server error',
-    [exports.StatusCodes.REQUEST_TIMEOUT]: 'Request timeout'
+    [exports.StatusCodes.OK]: "Success",
+    [exports.StatusCodes.CREATED]: "Resource created successfully",
+    [exports.StatusCodes.BAD_REQUEST]: "Invalid request",
+    [exports.StatusCodes.NOT_FOUND]: "Resource not found",
+    [exports.StatusCodes.INTERNAL_SERVER_ERROR]: "Internal server error",
+    [exports.StatusCodes.REQUEST_TIMEOUT]: "Request timeout",
 };
-//# sourceMappingURL=status-codes.js.map

@@ -236,7 +236,7 @@ class MiningDatabase {
     async getMinerSolutions(minerAddress, limit = 100) {
         const solutions = [];
         try {
-            for await (const [key, value] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: `miner:${minerAddress}:`,
                 lte: `miner:${minerAddress}:\xFF`,
                 limit,
@@ -253,7 +253,7 @@ class MiningDatabase {
     async getMetricsInRange(startTime, endTime) {
         const metrics = [];
         try {
-            for await (const [key, value] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: `metrics:time:${startTime}`,
                 lte: `metrics:time:${endTime}`,
             })) {
@@ -324,6 +324,7 @@ class MiningDatabase {
         }
     }
 }
+exports.MiningDatabase = MiningDatabase;
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], MiningDatabase.prototype, "storePowSolution", null);
@@ -336,5 +337,3 @@ __decorate([
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], MiningDatabase.prototype, "storeConsensusPeriod", null);
-exports.MiningDatabase = MiningDatabase;
-//# sourceMappingURL=mining-schema.js.map

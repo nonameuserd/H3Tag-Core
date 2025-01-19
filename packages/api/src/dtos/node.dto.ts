@@ -1,12 +1,11 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { NetworkType } from "@h3tag-blockchain/shared";
 
 export class CreateNodeDto {
   @ApiProperty({
     enum: ["MAINNET", "TESTNET"],
     description: "Network type for the node",
   })
-  networkType: NetworkType;
+  networkType: "MAINNET" | "TESTNET";
 
   @ApiProperty({ required: false })
   region?: string;

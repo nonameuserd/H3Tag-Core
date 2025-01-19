@@ -6,6 +6,37 @@ const client_cloudwatch_1 = require("@aws-sdk/client-cloudwatch");
 const client_route_53_1 = require("@aws-sdk/client-route-53");
 const shared_1 = require("@h3tag-blockchain/shared");
 const merkle_1 = require("../../utils/merkle");
+async function main() {
+    const PORT = process.env.SEED_PORT ? parseInt(process.env.SEED_PORT) : 8333;
+    try {
+        if (!process.env.AWS_REGION) {
+            throw new Error("AWS_REGION environment variable is required");
+        }
+        if (!process.env.AWS_ACCESS_KEY_ID) {
+            throw new Error("AWS_ACCESS_KEY_ID environment variable is required");
+        }
+        if (!process.env.AWS_SECRET_ACCESS_KEY) {
+            throw new Error("AWS_SECRET_ACCESS_KEY environment variable is required");
+        }
+        const seedServer = new SeedServer(PORT);
+        await seedServer.start();
+        // Handle shutdown gracefully
+        process.on("SIGTERM", async () => {
+            shared_1.Logger.info("SIGTERM received. Starting graceful shutdown...");
+            await seedServer.shutdown();
+            process.exit(0);
+        });
+        process.on("SIGINT", async () => {
+            shared_1.Logger.info("SIGINT received. Starting graceful shutdown...");
+            await seedServer.shutdown();
+            process.exit(0);
+        });
+    }
+    catch (error) {
+        shared_1.Logger.error("Failed to start seed server:", error);
+        process.exit(1);
+    }
+}
 class SeedServer {
     constructor(port = 8333) {
         this.knownNodes = new Map();
@@ -157,37 +188,5 @@ class SeedServer {
 exports.SeedServer = SeedServer;
 // Start the server if this file is run directly
 if (require.main === module) {
-    const PORT = process.env.SEED_PORT ? parseInt(process.env.SEED_PORT) : 8333;
-    async function main() {
-        try {
-            if (!process.env.AWS_REGION) {
-                throw new Error("AWS_REGION environment variable is required");
-            }
-            if (!process.env.AWS_ACCESS_KEY_ID) {
-                throw new Error("AWS_ACCESS_KEY_ID environment variable is required");
-            }
-            if (!process.env.AWS_SECRET_ACCESS_KEY) {
-                throw new Error("AWS_SECRET_ACCESS_KEY environment variable is required");
-            }
-            const seedServer = new SeedServer(PORT);
-            await seedServer.start();
-            // Handle shutdown gracefully
-            process.on("SIGTERM", async () => {
-                shared_1.Logger.info("SIGTERM received. Starting graceful shutdown...");
-                await seedServer.shutdown();
-                process.exit(0);
-            });
-            process.on("SIGINT", async () => {
-                shared_1.Logger.info("SIGINT received. Starting graceful shutdown...");
-                await seedServer.shutdown();
-                process.exit(0);
-            });
-        }
-        catch (error) {
-            shared_1.Logger.error("Failed to start seed server:", error);
-            process.exit(1);
-        }
-    }
     main();
 }
-//# sourceMappingURL=seedServer.js.map

@@ -29,7 +29,7 @@ class Node {
         this.isRunning = false;
         this.config = {
             ...Node.DEFAULT_CONFIG,
-            ...configService.config,
+            ...configService.getConfig(),
         };
         this.peers = new Map();
         this.peerStates = new Map();
@@ -61,7 +61,7 @@ class Node {
         }, this.audit);
         this.audit = new audit_1.AuditManager();
         this.peerCache = new cache_1.Cache({
-            ttl: 3600000,
+            ttl: 3600000, // 1 hour
             maxSize: 1000,
         });
         this.discovery = new discovery_1.PeerDiscovery(configService, mempool, new utxo_model_1.UTXOSet());
@@ -231,19 +231,19 @@ class Node {
             }
             switch (message.type) {
                 case "block":
-                    await this.handleBlockMessage(peer, message.data);
+                    await this.handleBlockMessage(peer, message.data.block);
                     break;
                 case "tx":
-                    await this.handleTransactionMessage(peer, message.data);
+                    await this.handleTransactionMessage(peer, message.data.transaction);
                     break;
                 case "inv":
-                    await this.handleInventoryMessage(peer, message.data);
+                    await this.handleInventoryMessage(peer, message.data.inventory);
                     break;
                 case "getdata":
-                    await this.handleGetDataMessage(peer, message.data);
+                    await this.handleGetDataMessage(peer, message.data.data);
                     break;
                 case "ping":
-                    await peer.send(peer_model_1.PeerMessageType.PONG, { nonce: message.data.nonce });
+                    await peer.send(peer_model_1.PeerMessageType.PONG, { nonce: message.data.headers[0].nonce });
                     break;
                 default:
                     shared_1.Logger.warn("Unknown message type:", message.type);
@@ -312,8 +312,8 @@ class Node {
             address,
             port: this.config.port,
             version: 0,
-            services: 0,
-            lastSeen: 0,
+            services: [],
+            lastSeen: Date.now(),
             banScore: 0,
             synced: false,
             height: 0,
@@ -386,7 +386,7 @@ class Node {
         }
     }
     async broadcastTransaction(tx) {
-        const promises = Array.from(this.peers.values()).map((peer) => peer.send(peer_model_1.PeerMessageType.TX, tx));
+        const promises = Array.from(this.peers.values()).map((peer) => peer.send(peer_model_1.PeerMessageType.TX, { transaction: tx }));
         await Promise.allSettled(promises);
     }
     handlePeerConnect(peer) {
@@ -478,8 +478,8 @@ class Node {
         for (const item of data) {
             if (item.type === "block" && !this.blockchain.hasBlock(item.hash)) {
                 await peer.send(peer_model_1.PeerMessageType.GETDATA, {
-                    type: "block",
                     hash: item.hash,
+                    type: "block",
                 });
             }
             else if (item.type === "tx" &&
@@ -499,9 +499,9 @@ class Node {
                     await peer.send(peer_model_1.PeerMessageType.BLOCK, block);
             }
             else if (item.type === "tx") {
-                const tx = await this.mempool.getTransaction(item.hash);
+                const tx = this.mempool.getTransaction(item.hash);
                 if (tx)
-                    await peer.send(peer_model_1.PeerMessageType.TX, tx);
+                    await peer.send(peer_model_1.PeerMessageType.TX, { transaction: tx });
             }
         }
     }
@@ -627,11 +627,10 @@ Node.DEFAULT_CONFIG = {
     minPeers: 1,
     connectionTimeout: constants_1.BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS,
     syncInterval: 10000,
-    banTime: 86400000,
+    banTime: 86400000, // 24 hours
     maxBanScore: 100,
-    pruneInterval: 3600000,
+    pruneInterval: 3600000, // 1 hour
     maxOrphans: constants_1.BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW,
     maxReorg: constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
-    services: 1, // NODE_NETWORK
+    services: [peer_model_1.PeerServices.NODE],
 };
-//# sourceMappingURL=node.js.map

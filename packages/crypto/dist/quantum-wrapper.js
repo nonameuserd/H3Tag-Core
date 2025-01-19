@@ -190,4 +190,3 @@ class QuantumWrapper {
 exports.QuantumWrapper = QuantumWrapper;
 QuantumWrapper.KEY_SPLIT_RATIO = 0.5;
 QuantumWrapper.initialized = false;
-//# sourceMappingURL=quantum-wrapper.js.map

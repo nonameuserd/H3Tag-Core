@@ -1,4 +1,3 @@
-/// <reference types="@webgpu/types" />
 import { Block } from "../models/block.model";
 interface MiningResult {
     found: boolean;

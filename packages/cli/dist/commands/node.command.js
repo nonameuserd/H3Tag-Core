@@ -3,7 +3,6 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.nodeCommand = void 0;
 const commander_1 = require("commander");
 const api_1 = require("../services/api");
-const shared_1 = require("@h3tag-blockchain/shared");
 exports.nodeCommand = new commander_1.Command("node").description("Manage blockchain nodes");
 // Create testnet node command
 exports.nodeCommand
@@ -16,7 +15,7 @@ exports.nodeCommand
     .action(async (options) => {
     try {
         const response = await api_1.api.post("/nodes/testnet", {
-            networkType: shared_1.NetworkType.TESTNET,
+            networkType: "TESTNET",
             region: options.region,
             nodeType: options.type,
             port: parseInt(options.port),
@@ -39,7 +38,7 @@ exports.nodeCommand
     .action(async (options) => {
     try {
         const response = await api_1.api.post("/nodes/mainnet", {
-            networkType: shared_1.NetworkType.MAINNET,
+            networkType: "MAINNET",
             region: options.region,
             nodeType: options.type,
             port: parseInt(options.port),
@@ -143,4 +142,3 @@ exports.nodeCommand
         process.exit(1);
     }
 });
-//# sourceMappingURL=node.command.js.map

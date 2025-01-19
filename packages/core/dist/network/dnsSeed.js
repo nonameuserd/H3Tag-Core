@@ -17,7 +17,7 @@ var NetworkType;
     NetworkType["MAINNET"] = "mainnet";
     NetworkType["TESTNET"] = "testnet";
     NetworkType["DEVNET"] = "devnet";
-})(NetworkType = exports.NetworkType || (exports.NetworkType = {}));
+})(NetworkType || (exports.NetworkType = NetworkType = {}));
 class DNSSeederError extends Error {
     constructor(message, code) {
         super(message);
@@ -44,8 +44,8 @@ class DNSSeeder extends events_1.EventEmitter {
             timeout: 5000,
             retryDelay: 1000,
             maxRetries: 3,
-            cacheExpiry: 3600000,
-            requiredServices: 1,
+            cacheExpiry: 3600000, // 1 hour
+            requiredServices: 1, // NODE_NETWORK
             banThreshold: 5,
             seedRanking: true,
             ...config,
@@ -349,4 +349,3 @@ class DNSSeeder extends events_1.EventEmitter {
     }
 }
 exports.DNSSeeder = DNSSeeder;
-//# sourceMappingURL=dnsSeed.js.map

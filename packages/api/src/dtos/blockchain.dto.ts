@@ -41,6 +41,12 @@ export class TransactionSubmitDto {
     example: "base64_encoded_signature",
   })
   signature: string;
+
+  @ApiProperty({
+    description: "Transaction confirmations",
+    example: 6,
+  })
+  confirmations: number;
 }
 
 export class BlockResponseDto {
@@ -57,7 +63,7 @@ export class BlockResponseDto {
   timestamp: number;
 
   @ApiProperty({ description: "Block transactions" })
-  transactions: any[];
+  transactions: BlockTransactionDto[];
 
   @ApiProperty({ description: "Block merkle root" })
   merkleRoot: string;
@@ -176,4 +182,30 @@ export class BlockchainInfoDto {
 
   @ApiProperty({ description: "Chain tips information" })
   chainTips: ChainTipDto[];
+}
+
+export class BlockTransactionDto {
+  @ApiProperty({ description: "Transaction hash" })
+  hash: string;
+
+  @ApiProperty({ description: "Transaction amount" })
+  amount: number;
+
+  @ApiProperty({ description: "Number of confirmations" })
+  confirmations: number;
+
+  @ApiProperty({ description: "Transaction timestamp" })
+  timestamp: number;
+
+  @ApiProperty({ description: "Transaction type" })
+  type: string;
+
+  @ApiProperty({ description: "Transaction status" })
+  status: string;
+
+  @ApiProperty({ description: "Sender address" })
+  fromAddress: string;
+
+  @ApiProperty({ description: "Recipient address" })
+  toAddress: string;
 }

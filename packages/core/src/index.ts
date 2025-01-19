@@ -1,4 +1,3 @@
-// Export blockchain modules
 export * from "./blockchain/blockchain";
 export * from "./blockchain/mempool";
 export * from "./wallet/keystore";
@@ -47,4 +46,5 @@ export * from "./database/uxo-schema";
 export * from "./blockchain/consensus/pow";
 export * from "./utils/merkle";
 export * from "./network/network-stats";
-export * from "./blockchain/consensus/direct-voting";
+export * from "./blockchain/consensus/voting";
+export { PeerServices } from "./models/peer.model";

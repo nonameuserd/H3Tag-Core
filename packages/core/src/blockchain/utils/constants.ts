@@ -1,5 +1,3 @@
-import { NetworkType } from "@h3tag-blockchain/shared";
-
 export const BLOCKCHAIN_CONSTANTS = {
   CURRENCY: {
     NAME: "H3Tag",
@@ -15,9 +13,9 @@ export const BLOCKCHAIN_CONSTANTS = {
     },
     NETWORK: {
       type: {
-        MAINNET: "mainnet" as NetworkType,
-        TESTNET: "testnet" as NetworkType,
-        DEVNET: "devnet" as NetworkType,
+        MAINNET: "mainnet",
+        TESTNET: "testnet",
+        DEVNET: "devnet",
       },
       port: {
         MAINNET: 8333,
@@ -76,7 +74,7 @@ export const BLOCKCHAIN_CONSTANTS = {
       "0x0000000000ffff0000000000000000000000000000000000000000000000000000"
     ),
     MIN_DIFFICULTY: 2,
-    CHAIN_DECISION_THRESHOLD: 0.67,
+    NODE_SELECTION_THRESHOLD: 0.67,
     ORPHAN_WINDOW: 100,
     PROPAGATION_WINDOW: 50,
     MAX_PROPAGATION_TIME: 30000,
@@ -126,7 +124,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     RATE_LIMIT_WINDOW: 3600, // 1 hour in seconds
   },
   CONSENSUS: {
-    POW_WEIGHT: 10000,
+    POW_WEIGHT: 0.6,
     MIN_POW_HASH_RATE: 1000000,
     MIN_VOTER_COUNT: 1000,
     MIN_PERIOD_LENGTH: 1000,
@@ -136,7 +134,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     VOTING_DAY_PERIOD: 690 * 24 * 60 * 60 * 1000,
     CONSENSUS_TIMEOUT: 30 * 60 * 1000,
     EMERGENCY_TIMEOUT: 60 * 60 * 1000,
-    CHAIN_SELECTION_TIMEOUT: 5 * 60 * 1000,
+    NODE_SELECTION_TIMEOUT: 5 * 60 * 1000,
     VOTE_COLLECTION_TIMEOUT: 3 * 60 * 1000,
     INITIAL_REWARD: BigInt(546),
     BASE_REWARD: 100n * 10n ** 18n,
@@ -234,6 +232,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     MIN_LENGTH: 1,
   },
 };
+
 
 BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE = Math.floor(
   BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE * 0.8

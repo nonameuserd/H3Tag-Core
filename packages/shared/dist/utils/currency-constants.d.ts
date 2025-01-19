@@ -3,17 +3,27 @@ export declare const CurrencyConstants: {
     readonly symbol: "TAG";
     readonly decimals: 18;
     readonly initialSupply: 21000000;
-    readonly maxSupply: 69690000;
+    readonly maxSupply: 696900000;
     readonly units: {
-        readonly WEI: bigint;
-        readonly KWEI: bigint;
-        readonly MWEI: bigint;
-        readonly GWEI: bigint;
-        readonly MICROTAG: bigint;
-        readonly MILLITAG: bigint;
-        readonly TAG: bigint;
+        readonly MACRO: 1n;
+        readonly MICRO: 1000000n;
+        readonly MILLI: 1000000000n;
+        readonly TAG: 1000000000000n;
     };
 };
+export interface CurrencyConstants {
+    name: string;
+    symbol: string;
+    decimals: number;
+    initialSupply: bigint;
+    maxSupply: bigint;
+    units: {
+        MACRO: bigint;
+        MICRO: bigint;
+        MILLI: bigint;
+        TAG: bigint;
+    };
+}
 export declare const CurrencyUtils: {
     /**
      * Convert TAG to smallest unit (wei)

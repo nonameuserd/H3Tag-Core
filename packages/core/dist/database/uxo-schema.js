@@ -48,7 +48,7 @@ class UTXODatabase {
         this.db = new level_1.Level(`${dbPath}/utxo`, {
             valueEncoding: "json",
             createIfMissing: true,
-            cacheSize: 512 * 1024 * 1024,
+            cacheSize: 512 * 1024 * 1024, // 512MB cache
             compression: true,
             ...config_database_1.databaseConfig.options,
         });
@@ -114,7 +114,10 @@ class UTXODatabase {
                     batch.put(`unspent:${utxo.address}:${utxo.amount}:${utxo.txId}`, key);
                 }
                 if (!this.batch) {
-                    await batch.write();
+                    await batch.write((err) => {
+                        if (err)
+                            throw err;
+                    });
                 }
                 this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
                 shared_1.Logger.debug("UTXO inserted successfully", {
@@ -260,7 +263,10 @@ class UTXODatabase {
                 throw new Error("No transaction in progress");
             }
             if (this.batch) {
-                await this.batch.write();
+                await (this.batch).write((err) => {
+                    if (err)
+                        throw err;
+                });
                 this.batch = null;
                 this.transactionInProgress = false;
             }
@@ -307,8 +313,7 @@ class UTXODatabase {
         }
     }
 }
+exports.UTXODatabase = UTXODatabase;
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], UTXODatabase.prototype, "insertUTXO", null);
-exports.UTXODatabase = UTXODatabase;
-//# sourceMappingURL=uxo-schema.js.map

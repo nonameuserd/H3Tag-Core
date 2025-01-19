@@ -9,4 +9,3 @@ class DiscoveryError extends Error {
     }
 }
 exports.DiscoveryError = DiscoveryError;
-//# sourceMappingURL=discovery-error.js.map

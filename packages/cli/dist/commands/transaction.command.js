@@ -201,4 +201,3 @@ exports.transactionCommand
         process.exit(1);
     }
 });
-//# sourceMappingURL=transaction.command.js.map

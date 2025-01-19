@@ -13,6 +13,43 @@ interface NodeInfo {
   region: string;
 }
 
+async function main() {
+  const PORT = process.env.SEED_PORT ? parseInt(process.env.SEED_PORT) : 8333;
+  
+  try {
+    if (!process.env.AWS_REGION) {
+      throw new Error("AWS_REGION environment variable is required");
+    }
+    if (!process.env.AWS_ACCESS_KEY_ID) {
+      throw new Error("AWS_ACCESS_KEY_ID environment variable is required");
+    }
+    if (!process.env.AWS_SECRET_ACCESS_KEY) {
+      throw new Error(
+        "AWS_SECRET_ACCESS_KEY environment variable is required"
+      );
+    }
+
+    const seedServer = new SeedServer(PORT);
+    await seedServer.start();
+
+    // Handle shutdown gracefully
+    process.on("SIGTERM", async () => {
+      Logger.info("SIGTERM received. Starting graceful shutdown...");
+      await seedServer.shutdown();
+      process.exit(0);
+    });
+
+    process.on("SIGINT", async () => {
+      Logger.info("SIGINT received. Starting graceful shutdown...");
+      await seedServer.shutdown();
+      process.exit(0);
+    });
+  } catch (error) {
+    Logger.error("Failed to start seed server:", error);
+    process.exit(1);
+  }
+}
+
 export class SeedServer {
   private knownNodes: Map<string, NodeInfo> = new Map();
   private readonly port: number;
@@ -197,42 +234,5 @@ export class SeedServer {
 
 // Start the server if this file is run directly
 if (require.main === module) {
-  const PORT = process.env.SEED_PORT ? parseInt(process.env.SEED_PORT) : 8333;
-
-  async function main() {
-    try {
-      if (!process.env.AWS_REGION) {
-        throw new Error("AWS_REGION environment variable is required");
-      }
-      if (!process.env.AWS_ACCESS_KEY_ID) {
-        throw new Error("AWS_ACCESS_KEY_ID environment variable is required");
-      }
-      if (!process.env.AWS_SECRET_ACCESS_KEY) {
-        throw new Error(
-          "AWS_SECRET_ACCESS_KEY environment variable is required"
-        );
-      }
-
-      const seedServer = new SeedServer(PORT);
-      await seedServer.start();
-
-      // Handle shutdown gracefully
-      process.on("SIGTERM", async () => {
-        Logger.info("SIGTERM received. Starting graceful shutdown...");
-        await seedServer.shutdown();
-        process.exit(0);
-      });
-
-      process.on("SIGINT", async () => {
-        Logger.info("SIGINT received. Starting graceful shutdown...");
-        await seedServer.shutdown();
-        process.exit(0);
-      });
-    } catch (error) {
-      Logger.error("Failed to start seed server:", error);
-      process.exit(1);
-    }
-  }
-
   main();
 }

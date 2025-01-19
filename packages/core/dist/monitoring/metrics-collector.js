@@ -296,4 +296,3 @@ class MetricsCollector {
     }
 }
 exports.MetricsCollector = MetricsCollector;
-//# sourceMappingURL=metrics-collector.js.map

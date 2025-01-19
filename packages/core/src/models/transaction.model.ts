@@ -147,6 +147,7 @@ export interface TxOutput {
   script: string;
   publicKey?: string;
   currency: {
+    name: string; // "H3TAG"
     symbol: string; // "TAG"
     decimals: number; // 8
   };
@@ -157,6 +158,7 @@ export interface TxOutput {
     quadraticPower: bigint;
     timestamp: number;
   };
+  confirmations: number;
 }
 
 /**
@@ -184,6 +186,7 @@ export interface TxOutput {
  * @property {Object} [voteData] - Optional voting data
  * @property {boolean} [hasWitness] - Segregated witness flag
  * @property {Object} [witness] - Witness data
+ * @property {Object} transaction - Transaction data
  *
  * @method verify - Verifies transaction integrity
  * @method toHex - Converts transaction to hex string
@@ -197,6 +200,13 @@ export interface Transaction {
   status: TransactionStatus;
   inputs: TxInput[];
   outputs: TxOutput[];
+  transaction: {
+    hash: string;
+    timestamp: number;
+    fee: bigint;
+    lockTime?: number;
+    signature: string;
+  };
   timestamp: number;
   fee: bigint;
   lockTime?: number;
@@ -210,6 +220,7 @@ export interface Transaction {
   recipient: string;
   memo?: string;
   currency: {
+    name: string; // "H3TAG"
     symbol: string; // "TAG"
     decimals: number; // 8
   };
@@ -427,16 +438,21 @@ export class TransactionBuilder {
    * Adds an output to the transaction
    * @param {string} address - Recipient's address
    * @param {bigint} amount - Amount to send
+   * @param {number} confirmations - Confirmations
    * @returns {Promise<this>} Builder instance for chaining
    * @throws {TransactionError} If output parameters are invalid
    */
   async addOutput(
     address: string, // Recipient's address
-    amount: bigint // Amount to send
+    amount: bigint, // Amount to send
+    confirmations: number
   ): Promise<this> {
     // Output validation
     if (!this.isValidAddress(address)) {
       throw new TransactionError("Invalid address format");
+    }
+    if (confirmations < 0) {
+      throw new TransactionError("Invalid confirmations");
     }
     if (amount <= 0) {
       throw new TransactionError("Invalid amount");
@@ -452,10 +468,12 @@ export class TransactionBuilder {
       amount,
       script,
       currency: {
+        name: "H3TAG",
         symbol: "TAG",
         decimals: 8,
       },
       index: this.outputs.length,
+      confirmations: confirmations,
     });
 
     return this;
@@ -573,10 +591,7 @@ export class TransactionBuilder {
       }
 
       const fee = inputAmount - outputAmount;
-
-          // 4. Generate transaction hash
           const hash = await this.calculateTransactionHash();
-
           const tx: Transaction = {
             id: hash,
             version: BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION,
@@ -590,8 +605,15 @@ export class TransactionBuilder {
             signature: "",
             sender: await this.deriveSenderAddress(this.inputs[0].publicKey),
             currency: {
+              name: "H3TAG",
               symbol: "TAG",
               decimals: 8,
+            },
+            transaction: {
+              hash: hash,
+              timestamp: Date.now(),
+              fee: fee,
+              signature: "",
             },
             recipient: "",
             memo: "",

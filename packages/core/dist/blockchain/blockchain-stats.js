@@ -19,6 +19,7 @@ const constants_1 = require("./utils/constants");
 const metrics_collector_1 = require("../monitoring/metrics-collector");
 const retry_1 = require("../utils/retry");
 const perf_hooks_1 = require("perf_hooks");
+const blockchain_stats_error_1 = require("./utils/blockchain-stats-error");
 class BlockchainStats {
     /**
      * Constructor for BlockchainStats
@@ -398,12 +399,12 @@ class BlockchainStats {
      * @returns never
      */
     handleError(error, context) {
-        const errorCode = error instanceof BlockchainStatsError ? error.code : "UNKNOWN_ERROR";
+        const errorCode = error instanceof blockchain_stats_error_1.BlockchainStatsError ? error.code : "UNKNOWN_ERROR";
         this.metricsCollector.counter("blockchain_stats_errors").inc({
             context,
             error: errorCode,
         });
-        throw new BlockchainStatsError(error.message, errorCode, {
+        throw new blockchain_stats_error_1.BlockchainStatsError(error.message, errorCode, {
             context,
             originalError: error,
         });
@@ -425,6 +426,7 @@ class BlockchainStats {
         });
     }
 }
+exports.BlockchainStats = BlockchainStats;
 __decorate([
     (0, retry_1.retry)({
         maxAttempts: 3,
@@ -432,5 +434,3 @@ __decorate([
         exponentialBackoff: true,
     })
 ], BlockchainStats.prototype, "executeWithRetry", null);
-exports.BlockchainStats = BlockchainStats;
-//# sourceMappingURL=blockchain-stats.js.map

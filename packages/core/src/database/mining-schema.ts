@@ -469,7 +469,7 @@ export class MiningDatabase {
   ): Promise<PowSolution[]> {
     const solutions: PowSolution[] = [];
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [,value] of this.db.iterator({
         gte: `miner:${minerAddress}:`,
         lte: `miner:${minerAddress}:\xFF`,
         limit,
@@ -489,7 +489,7 @@ export class MiningDatabase {
   ): Promise<MiningMetrics[]> {
     const metrics: MiningMetrics[] = [];
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [,value] of this.db.iterator({
         gte: `metrics:time:${startTime}`,
         lte: `metrics:time:${endTime}`,
       })) {

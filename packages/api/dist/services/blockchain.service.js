@@ -76,7 +76,7 @@ let BlockchainService = class BlockchainService {
         try {
             const builder = new core_1.TransactionBuilder();
             const withInput = await builder.addInput(txData.sender, 0, txData.signature, BigInt(txData.amount));
-            const withOutput = await withInput.addOutput(txData.recipient, BigInt(txData.amount));
+            const withOutput = await withInput.addOutput(txData.recipient, BigInt(txData.amount), txData.confirmations);
             const transaction = await withOutput.build();
             const success = await this.blockchain.addTransaction(transaction);
             if (!success) {
@@ -190,7 +190,7 @@ let BlockchainService = class BlockchainService {
     async buildTransaction(tx) {
         const builder = new core_1.TransactionBuilder();
         const withInput = await builder.addInput(tx.sender, 0, tx.signature, BigInt(tx.amount));
-        const withOutput = await withInput.addOutput(tx.recipient, BigInt(tx.amount));
+        const withOutput = await withInput.addOutput(tx.recipient, BigInt(tx.amount), tx.confirmations);
         return withOutput.build();
     }
     async getNode() {
@@ -302,7 +302,7 @@ let BlockchainService = class BlockchainService {
             throw error;
         }
     }
-    async sendRawTransaction(rawTx, allowHighFees = false) {
+    async sendRawTransaction(rawTx) {
         return this.node.broadcastRawTransaction(rawTx);
     }
     getBlockchain() {
@@ -313,4 +313,3 @@ exports.BlockchainService = BlockchainService;
 exports.BlockchainService = BlockchainService = __decorate([
     (0, common_1.Injectable)()
 ], BlockchainService);
-//# sourceMappingURL=blockchain.service.js.map

@@ -148,7 +148,7 @@ class VotingDatabase {
         let totalVotes = 0;
         const voters = new Set();
         try {
-            for await (const [key, value] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: `vote:${periodId}:`,
                 lte: `vote:${periodId}:\xFF`,
             })) {
@@ -187,7 +187,7 @@ class VotingDatabase {
      */
     async getLatestVote(voterAddress) {
         try {
-            for await (const [key, value] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: `vote:${voterAddress}:`,
                 lte: `vote:${voterAddress}:\xFF`,
                 reverse: true,
@@ -225,7 +225,7 @@ class VotingDatabase {
     async getVotesByVoter(voterAddress) {
         const votes = [];
         try {
-            for await (const [key, value] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: `vote:${voterAddress}:`,
                 lte: `vote:${voterAddress}:\xFF`,
             })) {
@@ -248,11 +248,14 @@ class VotingDatabase {
     async getTotalVotes() {
         let count = 0;
         try {
-            for await (const [key] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: "vote:",
                 lte: "vote:\xFF",
             })) {
-                count++;
+                const vote = this.safeParse(value);
+                if (vote && this.validateVote(vote)) {
+                    count++;
+                }
             }
             return count;
         }
@@ -317,7 +320,7 @@ class VotingDatabase {
     async getVotesByPeriod(periodId) {
         const votes = [];
         try {
-            for await (const [key, value] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: `vote:${periodId}:`,
                 lte: `vote:${periodId}:\xFF`,
             })) {
@@ -340,7 +343,7 @@ class VotingDatabase {
     async getTotalEligibleVoters() {
         try {
             const voters = new Set();
-            for await (const [key, value] of this.db.iterator({
+            for await (const [, value] of this.db.iterator({
                 gte: "voter:",
                 lte: "voter:\xFF",
             })) {
@@ -416,6 +419,9 @@ class VotingDatabase {
             typeof vote.approve === "boolean" &&
             typeof vote.votingPower === "bigint");
     }
+    getValidateVote(vote) {
+        return this.validateVote(vote);
+    }
     safeParse(value) {
         try {
             return JSON.parse(value);
@@ -424,6 +430,9 @@ class VotingDatabase {
             shared_1.Logger.error("Failed to parse stored value:", error);
             return null;
         }
+    }
+    getSafeParse(value) {
+        return this.safeParse(value);
     }
     /**
      * Stores a vote
@@ -480,7 +489,28 @@ class VotingDatabase {
             }
         });
     }
+    async getVotes() {
+        const votes = [];
+        try {
+            for await (const [value] of this.db.iterator({
+                gte: "vote:",
+                lte: "vote:\xFF",
+                limit: 1000,
+            })) {
+                const vote = this.safeParse(value);
+                if (vote && this.validateVote(vote)) {
+                    votes.push(vote);
+                }
+            }
+            return votes;
+        }
+        catch (error) {
+            shared_1.Logger.error("Failed to get votes:", error);
+            return [];
+        }
+    }
 }
+exports.VotingDatabase = VotingDatabase;
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], VotingDatabase.prototype, "createVotingPeriod", null);
@@ -493,5 +523,3 @@ __decorate([
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], VotingDatabase.prototype, "updateVotingPeriod", null);
-exports.VotingDatabase = VotingDatabase;
-//# sourceMappingURL=voting-schema.js.map

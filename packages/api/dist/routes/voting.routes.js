@@ -177,4 +177,3 @@ router.get("/schedule", async (req, res) => {
     }
 });
 exports.default = router;
-//# sourceMappingURL=voting.routes.js.map

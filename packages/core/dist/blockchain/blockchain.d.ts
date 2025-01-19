@@ -227,12 +227,11 @@ export declare class Blockchain {
     private validationTimer;
     private ddosProtection;
     private readonly chainLock;
-    private cleanupTimer;
     /**
      * Creates a new blockchain instance with the specified configuration
      * @param config Optional blockchain configuration parameters
      */
-    constructor(config?: Partial<BlockchainConfig>);
+    constructor(config?: BlockchainConfig);
     /**
      * Initializes blockchain components asynchronously
      * @param config Optional blockchain configuration
@@ -254,7 +253,7 @@ export declare class Blockchain {
      * @param config Optional blockchain configuration
      * @returns Promise<Blockchain> New blockchain instance
      */
-    static create(config?: Partial<BlockchainConfig>): Promise<Blockchain>;
+    static create(config?: BlockchainConfig): Promise<Blockchain>;
     /**
      * Create the genesis block
      */
@@ -570,7 +569,7 @@ export declare class Blockchain {
      * @returns string The consensus public key
      */
     getConsensusPublicKey(): string;
-    static getInstance(config?: Partial<BlockchainConfig>): Blockchain;
+    static getInstance(config?: BlockchainConfig): Blockchain;
     /**
      * Gets information about all known chain tips
      * @returns Promise<ChainTip[]> Array of chain tips information

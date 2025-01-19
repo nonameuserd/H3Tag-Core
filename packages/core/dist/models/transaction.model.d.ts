@@ -45,11 +45,11 @@ export declare class TransactionError extends Error {
  * @property {string} REGULAR - Regular transaction
  */
 export declare enum TransactionType {
-    QUADRATIC_VOTE = "quadratic_vote",
-    POW_REWARD = "pow",
-    STANDARD = "standard",
-    TRANSFER = "transfer",
-    COINBASE = "coinbase",
+    QUADRATIC_VOTE = "quadratic_vote",// quadratic voting
+    POW_REWARD = "pow",// For PoW mining rewards
+    STANDARD = "standard",// Standard transaction
+    TRANSFER = "transfer",// Transfer transaction
+    COINBASE = "coinbase",// Coinbase transaction
     REGULAR = "regular"
 }
 /**
@@ -121,6 +121,7 @@ export interface TxOutput {
     script: string;
     publicKey?: string;
     currency: {
+        name: string;
         symbol: string;
         decimals: number;
     };
@@ -131,6 +132,7 @@ export interface TxOutput {
         quadraticPower: bigint;
         timestamp: number;
     };
+    confirmations: number;
 }
 /**
  * @interface Transaction
@@ -157,6 +159,7 @@ export interface TxOutput {
  * @property {Object} [voteData] - Optional voting data
  * @property {boolean} [hasWitness] - Segregated witness flag
  * @property {Object} [witness] - Witness data
+ * @property {Object} transaction - Transaction data
  *
  * @method verify - Verifies transaction integrity
  * @method toHex - Converts transaction to hex string
@@ -170,6 +173,13 @@ export interface Transaction {
     status: TransactionStatus;
     inputs: TxInput[];
     outputs: TxOutput[];
+    transaction: {
+        hash: string;
+        timestamp: number;
+        fee: bigint;
+        lockTime?: number;
+        signature: string;
+    };
     timestamp: number;
     fee: bigint;
     lockTime?: number;
@@ -183,6 +193,7 @@ export interface Transaction {
     recipient: string;
     memo?: string;
     currency: {
+        name: string;
         symbol: string;
         decimals: number;
     };
@@ -252,11 +263,13 @@ export declare class TransactionBuilder {
      * Adds an output to the transaction
      * @param {string} address - Recipient's address
      * @param {bigint} amount - Amount to send
+     * @param {number} confirmations - Confirmations
      * @returns {Promise<this>} Builder instance for chaining
      * @throws {TransactionError} If output parameters are invalid
      */
     addOutput(address: string, // Recipient's address
-    amount: bigint): Promise<this>;
+    amount: bigint, // Amount to send
+    confirmations: number): Promise<this>;
     private generateOutputScript;
     /**
      * Build the transaction

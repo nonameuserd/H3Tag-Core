@@ -1,12 +1,12 @@
 export declare class ConsensusError extends Error {
     readonly code?: string;
-    readonly details?: Record<string, any>;
-    constructor(message: string, code?: string, details?: Record<string, any>);
+    readonly details?: Record<string, unknown>;
+    constructor(message: string, code?: string, details?: Record<string, unknown>);
     toJSON(): {
         name: string;
         message: string;
         code: string;
-        details: Record<string, any>;
+        details: Record<string, unknown>;
         stack: string;
     };
 }

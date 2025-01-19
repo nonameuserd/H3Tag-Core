@@ -75,7 +75,7 @@ exports.BLOCKCHAIN_CONSTANTS = {
         HASH_BATCH_SIZE: 10000,
         MAX_TARGET: BigInt("0x0000000000ffff0000000000000000000000000000000000000000000000000000"),
         MIN_DIFFICULTY: 2,
-        CHAIN_DECISION_THRESHOLD: 0.67,
+        NODE_SELECTION_THRESHOLD: 0.67,
         ORPHAN_WINDOW: 100,
         PROPAGATION_WINDOW: 50,
         MAX_PROPAGATION_TIME: 30000,
@@ -125,7 +125,7 @@ exports.BLOCKCHAIN_CONSTANTS = {
         RATE_LIMIT_WINDOW: 3600, // 1 hour in seconds
     },
     CONSENSUS: {
-        POW_WEIGHT: 10000,
+        POW_WEIGHT: 0.6,
         MIN_POW_HASH_RATE: 1000000,
         MIN_VOTER_COUNT: 1000,
         MIN_PERIOD_LENGTH: 1000,
@@ -135,7 +135,7 @@ exports.BLOCKCHAIN_CONSTANTS = {
         VOTING_DAY_PERIOD: 690 * 24 * 60 * 60 * 1000,
         CONSENSUS_TIMEOUT: 30 * 60 * 1000,
         EMERGENCY_TIMEOUT: 60 * 60 * 1000,
-        CHAIN_SELECTION_TIMEOUT: 5 * 60 * 1000,
+        NODE_SELECTION_TIMEOUT: 5 * 60 * 1000,
         VOTE_COLLECTION_TIMEOUT: 3 * 60 * 1000,
         INITIAL_REWARD: BigInt(546),
         BASE_REWARD: 100n * 10n ** 18n,
@@ -190,19 +190,19 @@ exports.BLOCKCHAIN_CONSTANTS = {
             DECIMALS: 8,
         },
         MEMPOOL: {
-            MAX_SIZE: 300000,
+            MAX_SIZE: 300000, // 300K transactions
             HIGH_CONGESTION_THRESHOLD: 50000,
-            MAX_MB: 300,
+            MAX_MB: 300, // 300MB total size
             MIN_FEE_RATE: BigInt(1),
             FEE_RATE_MULTIPLIER: 1.5,
             EVICTION_INTERVAL: 600000,
             CLEANUP_INTERVAL: 60000,
-            MAX_MEMORY_USAGE: 536870912,
+            MAX_MEMORY_USAGE: 536870912, // 512MB memory limit
             MIN_SIZE: 1000, // Minimum transactions to maintain
         },
         PROCESSING_TIMEOUT: 30000,
-        MAX_SIZE: 1000000,
-        MAX_SCRIPT_SIZE: 1000000,
+        MAX_SIZE: 1000000, // 1MB limit
+        MAX_SCRIPT_SIZE: 1000000, // 1MB limit
         MAX_TOTAL_INPUT: BigInt("1000000000000000"),
         MAX_SIGNATURE_SIZE: 520,
         MAX_PUBKEY_SIZE: 65,
@@ -214,7 +214,7 @@ exports.BLOCKCHAIN_CONSTANTS = {
     },
     BACKUP_VALIDATOR_CONFIG: {
         MAX_BACKUP_ATTEMPTS: 3,
-        BACKUP_SELECTION_TIMEOUT: 30000,
+        BACKUP_SELECTION_TIMEOUT: 30000, // 30 seconds
         MIN_BACKUP_REPUTATION: 70,
         MIN_BACKUP_UPTIME: 0.95,
     },
@@ -234,4 +234,3 @@ exports.BLOCKCHAIN_CONSTANTS = {
     },
 };
 exports.BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE = Math.floor(exports.BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE * 0.8);
-//# sourceMappingURL=constants.js.map

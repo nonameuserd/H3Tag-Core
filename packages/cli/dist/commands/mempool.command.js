@@ -95,4 +95,3 @@ exports.mempoolCommand
         process.exit(1);
     }
 });
-//# sourceMappingURL=mempool.command.js.map

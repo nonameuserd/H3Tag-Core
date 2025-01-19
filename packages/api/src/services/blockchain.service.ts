@@ -92,7 +92,8 @@ export class BlockchainService {
       );
       const withOutput = await withInput.addOutput(
         txData.recipient,
-        BigInt(txData.amount)
+        BigInt(txData.amount),
+        txData.confirmations
       );
       const transaction = await withOutput.build();
 
@@ -225,7 +226,8 @@ export class BlockchainService {
     );
     const withOutput = await withInput.addOutput(
       tx.recipient,
-      BigInt(tx.amount)
+      BigInt(tx.amount),
+      tx.confirmations
     );
     return withOutput.build();
   }
@@ -346,7 +348,6 @@ export class BlockchainService {
 
   async sendRawTransaction(
     rawTx: string,
-    allowHighFees = false
   ): Promise<string> {
     return this.node.broadcastRawTransaction(rawTx);
   }

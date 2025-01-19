@@ -37,6 +37,8 @@ export declare class BlockError extends Error {
  * @property {number} blockReward - Mining reward for this block
  * @property {number} fees - Total transaction fees
  * @property {string} target - Mining target difficulty
+ * @property {string[]} locator - Locator for the block
+ * @property {string} hashStop - Hash stop for the block
  * @property {Object} consensusData - Consensus-related metrics
  * @property {number} consensusData.powScore - Proof of work score
  * @property {number} consensusData.votingScore - Voting score
@@ -61,6 +63,8 @@ export interface BlockHeader {
     blockReward: number;
     fees: number;
     target: string;
+    locator: string[];
+    hashStop: string;
     consensusData: {
         powScore: number;
         votingScore: number;

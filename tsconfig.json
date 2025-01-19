@@ -2,37 +2,33 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": ".",
-    "composite": true,
     "declaration": true,
     "experimentalDecorators": true,
-    "esModuleInterop": true,
     "module": "commonjs",
-    "target": "es2020",
+    "moduleResolution": "node",
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
-    "sourceMap": true,
     "baseUrl": "",
     "paths": {
-      "@h3tag-blockchain/shared": ["packages/shared/src/*"],
+      "@h3tag-blockchain/api": ["packages/api/src/*"],
+      "@h3tag-blockchain/cli": ["packages/cli/src/*"],
       "@h3tag-blockchain/core": ["packages/core/src/*"],
-      "@h3tag-blockchain/api": ["packages/api/src/*"]
+      "@h3tag-blockchain/crypto": ["packages/crypto/src/*"],
+      "@h3tag-blockchain/shared": ["packages/shared/src/*"]
     }
   },
-  "references": [
-    { "path": "./packages/shared" },
-    { "path": "./packages/core" },
-    { "path": "./packages/api" }
-  ],
   "include": [
     "./packages/shared/src/**/*",
+    "./packages/crypto/src/**/*",
     "./packages/core/src/**/*",
     "./packages/api/src/**/*",
+    "./packages/cli/src/**/*",
     "src/**/*",
     "types/**/*",
-    "packages/consensus/src/direct-voting.ts",
-    "packages/consensus/src/hybrid-direct.ts",
-    "packages/consensus/src/pow.ts",
-    "packages/consensus/src/utils"
+    "packages/core/jest.config.ts"
   ],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

@@ -175,4 +175,3 @@ class ValidatorSet {
     }
 }
 exports.ValidatorSet = ValidatorSet;
-//# sourceMappingURL=validator.js.map

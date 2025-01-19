@@ -144,4 +144,3 @@ router.delete("/bans", controller.clearBans);
 router.get("/ban/:ip", controller.getBanInfo);
 router.get("/network", controller.getNetworkInfo);
 exports.default = router;
-//# sourceMappingURL=peer.routes.js.map

@@ -51,7 +51,8 @@ export class ZeroCopyCompression {
 
     try {
       // Create shared memory with proper size validation
-      const shared = new SharedArrayBuffer(
+      const shared = await this.allocateSharedBuffer(
+        "compression",
         Math.min(buffer.size, Number.MAX_SAFE_INTEGER)
       );
       const view = new Uint8Array(shared);
@@ -63,12 +64,15 @@ export class ZeroCopyCompression {
           throw new Error(`Failed to map buffer: ${error.message}`);
         });
 
+      // Copy data from mapped buffer to shared array
+      view.set(new Uint8Array(mapped));
+
       // Create command encoder with proper error handling
       const commandEncoder = this.device.createCommandEncoder();
       const computePass = commandEncoder.beginComputePass();
 
       computePass.setPipeline(this.getCompressionPipeline());
-      computePass.setBindGroup(0, this.createBindGroup(mapped));
+      computePass.setBindGroup(0, this.createBindGroup(shared));
       computePass.dispatchWorkgroups(Math.ceil(buffer.size / 256));
 
       computePass.end();

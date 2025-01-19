@@ -12,6 +12,7 @@ const merkle_1 = require("../utils/merkle");
 const async_mutex_1 = require("async-mutex");
 const audit_1 = require("../security/audit");
 const crypto_1 = require("@h3tag-blockchain/crypto");
+const constants_1 = require("../blockchain/utils/constants");
 /**
  * @class BlockError
  * @extends Error
@@ -68,6 +69,8 @@ class BlockBuilder {
             timestamp: Date.now(),
             merkleRoot: "",
             difficulty,
+            locator: [],
+            hashStop: "",
             nonce: 0,
             miner: "",
             validatorMerkleRoot: "",
@@ -188,6 +191,9 @@ class BlockBuilder {
             for (const tx of transactions) {
                 totalSize += JSON.stringify(tx).length;
                 totalFees += BigInt(tx.fee);
+                if (totalSize > constants_1.BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE) {
+                    throw new BlockError("Block size exceeds maximum limit");
+                }
             }
             // Update block header and transaction list
             try {
@@ -289,7 +295,7 @@ class BlockBuilder {
                     ...this.header,
                     timestamp: this.header.timestamp || Date.now(), // Ensure timestamp exists
                 },
-                transactions: [...this.transactions],
+                transactions: [...this.transactions], // new array to prevent mutations
                 hash,
                 votes: [...this.votes],
                 validators: [...this.validators],
@@ -490,4 +496,3 @@ exports.BlockBuilder = BlockBuilder;
 BlockBuilder.CURRENT_VERSION = 1;
 BlockBuilder.MAX_TRANSACTIONS = 2000;
 BlockBuilder.MIN_DIFFICULTY = 1;
-//# sourceMappingURL=block.model.js.map

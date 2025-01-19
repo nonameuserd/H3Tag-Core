@@ -129,4 +129,3 @@ Dilithium.initialized = false;
 Dilithium.KEY_SIZE = 2528;
 Dilithium.SIGNATURE_SIZE = 3293;
 Dilithium.DEFAULT_SECURITY_LEVEL = types_1.SecurityLevel.HIGH;
-//# sourceMappingURL=dilithium.js.map

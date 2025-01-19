@@ -257,4 +257,3 @@ class DifficultyAdjuster {
     }
 }
 exports.DifficultyAdjuster = DifficultyAdjuster;
-//# sourceMappingURL=difficulty.js.map

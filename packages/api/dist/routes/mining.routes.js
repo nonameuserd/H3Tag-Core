@@ -119,4 +119,3 @@ router.get("/hashps", controller.getNetworkHashPS.bind(controller));
  */
 router.post("/template", controller.getBlockTemplate.bind(controller));
 exports.default = router;
-//# sourceMappingURL=mining.routes.js.map

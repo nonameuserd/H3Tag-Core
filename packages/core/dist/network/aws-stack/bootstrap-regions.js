@@ -44,4 +44,3 @@ if (failedCount > 0) {
     process.exit(1);
 }
 process.exit(0);
-//# sourceMappingURL=bootstrap-regions.js.map

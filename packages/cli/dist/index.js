@@ -19,4 +19,3 @@ commander_1.program.addCommand(blockchain_command_1.blockchainCommand);
 commander_1.program.addCommand(mining_command_1.miningCommand);
 commander_1.program.addCommand(mempool_command_1.mempoolCommand);
 commander_1.program.parse(process.argv);
-//# sourceMappingURL=index.js.map

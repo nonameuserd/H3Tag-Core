@@ -27,7 +27,7 @@ class Mempool {
         this.maxSize = 50000;
         this.maxTransactionAge = 72 * 60 * 60 * 1000; // 72 hours
         this.cache = new cache_1.Cache({
-            ttl: 300000,
+            ttl: 300000, // 5 minutes
             maxSize: 1000,
             onEvict: (key, value) => {
                 try {
@@ -84,7 +84,7 @@ class Mempool {
             },
         };
         this.powCache = new cache_1.Cache({
-            ttl: 300000,
+            ttl: 300000, // 5 minutes
             maxSize: 1000,
         });
         // Add new constants for absence penalties
@@ -136,7 +136,7 @@ class Mempool {
         // Initialize fee rate buckets
         this.initializeFeeRateBuckets();
         this.healthMonitor = new health_1.HealthMonitor({
-            interval: 60000,
+            interval: 60000, // 1 minute
             thresholds: {
                 minPowNodes: 3,
                 minPowHashrate: 1000000,
@@ -1406,7 +1406,7 @@ class Mempool {
             }
             // Add existing outputs
             for (const output of transaction.outputs) {
-                await txBuilder.addOutput(output.address, output.amount);
+                await txBuilder.addOutput(output.address, output.amount, output.confirmations);
             }
             // Build updated transaction
             const updatedTx = await txBuilder.build();
@@ -1447,7 +1447,7 @@ class Mempool {
             shared_1.Logger.warn("Invalid transaction ID format");
             return false;
         }
-        if (!output?.address || !output?.amount || output.amount <= BigInt(0)) {
+        if (!output?.address || !output?.amount || output.amount <= BigInt(0) || !output.confirmations) {
             shared_1.Logger.warn("Invalid output parameters");
             return false;
         }
@@ -1469,10 +1469,10 @@ class Mempool {
             }
             // Add existing outputs
             for (const existingOutput of transaction.outputs) {
-                await txBuilder.addOutput(existingOutput.address, existingOutput.amount);
+                await txBuilder.addOutput(existingOutput.address, existingOutput.amount, existingOutput.confirmations);
             }
             // Add new output - script will be generated in TransactionBuilder.addOutput
-            await txBuilder.addOutput(output.address, output.amount);
+            await txBuilder.addOutput(output.address, output.amount, output.confirmations);
             // Build updated transaction
             const updatedTx = await txBuilder.build();
             // Validate updated transaction
@@ -1532,8 +1532,8 @@ class Mempool {
             const SIZES = {
                 VERSION: 4,
                 LOCKTIME: 4,
-                INPUT_BASE: 41,
-                OUTPUT_BASE: 9,
+                INPUT_BASE: 41, // outpoint (36) + sequence (4) + varInt (1)
+                OUTPUT_BASE: 9, // value (8) + varInt (1)
                 WITNESS_FLAG: 2,
                 INPUT_SEQUENCE: 4,
             };
@@ -2138,4 +2138,3 @@ class Mempool {
     }
 }
 exports.Mempool = Mempool;
-//# sourceMappingURL=mempool.js.map

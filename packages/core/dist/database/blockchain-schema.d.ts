@@ -1,7 +1,8 @@
 import { Level } from "level";
 import { Vote } from "../models/vote.model";
 import { Transaction, TransactionType } from "../models/transaction.model";
-import { Block } from "../models/block.model";
+import { Block, BlockHeader } from "../models/block.model";
+import { Cache } from "../scaling/cache";
 import { IVotingSchema } from "./voting-schema";
 import { Validator } from "../models/validator";
 import { AbstractBatch } from "abstract-leveldown";
@@ -167,7 +168,12 @@ export declare class BlockchainSchema {
     private readonly auditManager;
     private readonly eventEmitter;
     private readonly metricsCollector;
-    private readonly cache;
+    readonly cache: Cache<Block | {
+        signature: string;
+    } | {
+        balance: bigint;
+        holdingPeriod: number;
+    }>;
     private readonly dbPath;
     private transactionCache;
     private blockCache;
@@ -737,5 +743,15 @@ export declare class BlockchainSchema {
     lockTransaction(txId: string): Promise<() => Promise<void>>;
     unlockTransaction(txId: string): Promise<void>;
     markUTXOPending(txId: string, outputIndex: number): Promise<void>;
+    /**
+     * Get block height by hash
+     * @param hash Block hash
+     * @returns Promise<number | null> Block height or null if not found
+     */
+    getBlockHeight(hash: string): Promise<number | null>;
+    hasBlock(hash: string): Promise<boolean>;
+    hasTransaction(hash: string): Promise<boolean>;
+    getHeaders(locator: string[], hashStop: string): Promise<BlockHeader[]>;
+    getBlocks(locator: string[], hashStop: string): Promise<Block[]>;
 }
 export {};

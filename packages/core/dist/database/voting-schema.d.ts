@@ -41,6 +41,7 @@ export interface IVotingSchema {
     getVotesByAddress(address: string): Promise<Vote[]>;
     storeVote(vote: Vote): Promise<void>;
     updateVotingPeriod(period: VotingPeriod): Promise<void>;
+    getVotes(): Promise<Vote[]>;
 }
 export declare class VotingDatabase implements IVotingSchema {
     private db;
@@ -178,7 +179,9 @@ export declare class VotingDatabase implements IVotingSchema {
      */
     getVotesByAddress(address: string): Promise<Vote[]>;
     private validateVote;
+    getValidateVote(vote: Vote): boolean;
     private safeParse;
+    getSafeParse<T>(value: string): T | null;
     /**
      * Stores a vote
      *
@@ -199,4 +202,5 @@ export declare class VotingDatabase implements IVotingSchema {
      * @throws {VotingError} If period not found or update fails
      */
     updateVotingPeriod(period: VotingPeriod): Promise<void>;
+    getVotes(): Promise<Vote[]>;
 }

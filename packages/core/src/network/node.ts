@@ -18,7 +18,7 @@ import { ConfigService } from "@h3tag-blockchain/shared";
 import { NetworkType } from "./dnsSeed";
 import { PeerDiscovery, PeerType } from "./discovery";
 import { UTXOSet } from "../models/utxo.model";
-import { PeerMessageType } from "../models/peer.model";
+import { MessagePayload, PeerMessageType, PeerServices } from "../models/peer.model";
 import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
 import { TransactionBuilder } from "../models/transaction.model";
 import { NodeVerifier } from "./verification";
@@ -35,7 +35,7 @@ interface NodeConfig {
   pruneInterval: number;
   maxOrphans: number;
   maxReorg: number;
-  services: number;
+  services: PeerServices[];
 }
 
 interface PeerState {
@@ -43,7 +43,7 @@ interface PeerState {
   address: string;
   port: number;
   version: number;
-  services: number;
+  services: PeerServices[];
   lastSeen: number;
   banScore: number;
   synced: boolean;
@@ -83,7 +83,7 @@ export class Node {
     pruneInterval: 3600000, // 1 hour
     maxOrphans: BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW,
     maxReorg: BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
-    services: 1, // NODE_NETWORK
+    services: [PeerServices.NODE],
   };
 
   constructor(
@@ -95,7 +95,7 @@ export class Node {
   ) {
     this.config = {
       ...Node.DEFAULT_CONFIG,
-      ...configService.config,
+      ...configService.getConfig(),
     };
 
     this.peers = new Map();
@@ -334,7 +334,10 @@ export class Node {
   }
 
   // Message Handling
-  private async handlePeerMessage(peer: Peer, message: any): Promise<void> {
+  private async handlePeerMessage(peer: Peer, message: {
+    type: PeerMessageType;
+    data: MessagePayload;
+  }): Promise<void> {
     try {
       if (!this.ddosProtection.checkRequest("peer_message", peer.getId())) {
         this.increasePeerBanScore(peer.getId(), 10);
@@ -343,19 +346,19 @@ export class Node {
 
       switch (message.type) {
         case "block":
-          await this.handleBlockMessage(peer, message.data);
+          await this.handleBlockMessage(peer, message.data.block);
           break;
         case "tx":
-          await this.handleTransactionMessage(peer, message.data);
+          await this.handleTransactionMessage(peer, message.data.transaction);
           break;
         case "inv":
-          await this.handleInventoryMessage(peer, message.data);
+          await this.handleInventoryMessage(peer, message.data.inventory);
           break;
         case "getdata":
-          await this.handleGetDataMessage(peer, message.data);
+          await this.handleGetDataMessage(peer, message.data.data);
           break;
         case "ping":
-          await peer.send(PeerMessageType.PONG, { nonce: message.data.nonce });
+          await peer.send(PeerMessageType.PONG, { nonce: message.data.headers[0].nonce });
           break;
         default:
           Logger.warn("Unknown message type:", message.type);
@@ -440,8 +443,8 @@ export class Node {
       address,
       port: this.config.port,
       version: 0,
-      services: 0,
-      lastSeen: 0,
+      services: [],
+      lastSeen: Date.now(),
       banScore: 0,
       synced: false,
       height: 0,
@@ -531,7 +534,7 @@ export class Node {
 
   public async broadcastTransaction(tx: Transaction): Promise<void> {
     const promises = Array.from(this.peers.values()).map((peer) =>
-      peer.send(PeerMessageType.TX, tx)
+      peer.send(PeerMessageType.TX, { transaction: tx })
     );
     await Promise.allSettled(promises);
   }
@@ -640,8 +643,8 @@ export class Node {
     for (const item of data) {
       if (item.type === "block" && !this.blockchain.hasBlock(item.hash)) {
         await peer.send(PeerMessageType.GETDATA, {
-          type: "block",
           hash: item.hash,
+          type: "block",
         });
       } else if (
         item.type === "tx" &&
@@ -664,8 +667,8 @@ export class Node {
         const block = await this.blockchain.getBlock(item.hash);
         if (block) await peer.send(PeerMessageType.BLOCK, block);
       } else if (item.type === "tx") {
-        const tx = await this.mempool.getTransaction(item.hash);
-        if (tx) await peer.send(PeerMessageType.TX, tx);
+        const tx = this.mempool.getTransaction(item.hash);
+        if (tx) await peer.send(PeerMessageType.TX, { transaction: tx });
       }
     }
   }

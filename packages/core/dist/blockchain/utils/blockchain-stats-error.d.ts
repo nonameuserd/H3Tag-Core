@@ -1,5 +1,5 @@
-declare class BlockchainStatsError extends Error {
+export declare class BlockchainStatsError extends Error {
     readonly code: string;
-    readonly context?: Record<string, any>;
-    constructor(message: string, code: string, context?: Record<string, any>);
+    readonly context?: Record<string, unknown>;
+    constructor(message: string, code: string, context?: Record<string, unknown>);
 }

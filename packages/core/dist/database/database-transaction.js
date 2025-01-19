@@ -188,7 +188,12 @@ class DatabaseTransaction {
                         keyStates.set(op.key, value);
                     }
                     catch (err) {
-                        keyStates.set(op.key, null);
+                        if (err instanceof Error) {
+                            keyStates.set(op.key, JSON.stringify({ value: null, timestamp: Date.now() }));
+                        }
+                        else {
+                            throw err;
+                        }
                     }
                 }
             }
@@ -277,4 +282,3 @@ class DatabaseTransaction {
     }
 }
 exports.DatabaseTransaction = DatabaseTransaction;
-//# sourceMappingURL=database-transaction.js.map

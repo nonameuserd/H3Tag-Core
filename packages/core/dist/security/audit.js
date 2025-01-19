@@ -71,7 +71,7 @@ var AuditEventType;
     AuditEventType["DDOS_VIOLATION"] = "DDOS_VIOLATION";
     AuditEventType["TRANSACTION_VALIDATION_FAILED"] = "TRANSACTION_VALIDATION_FAILED";
     AuditEventType["TRANSACTION_COMMIT"] = "TRANSACTION_COMMIT";
-})(AuditEventType = exports.AuditEventType || (exports.AuditEventType = {}));
+})(AuditEventType || (exports.AuditEventType = AuditEventType = {}));
 var AuditSeverity;
 (function (AuditSeverity) {
     AuditSeverity["INFO"] = "INFO";
@@ -79,7 +79,7 @@ var AuditSeverity;
     AuditSeverity["ERROR"] = "ERROR";
     AuditSeverity["CRITICAL"] = "CRITICAL";
     AuditSeverity["HIGH"] = "HIGH";
-})(AuditSeverity = exports.AuditSeverity || (exports.AuditSeverity = {}));
+})(AuditSeverity || (exports.AuditSeverity = AuditSeverity = {}));
 class AuditManager {
     constructor(storage) {
         this.eventEmitter = new events_1.EventEmitter();
@@ -246,7 +246,7 @@ class AuditManager {
         return crypto_1.HybridCrypto.generateSharedSecret(entropy);
     }
     async calculateEventHash(event) {
-        const { hash, ...eventWithoutHash } = event;
+        const { ...eventWithoutHash } = event;
         const data = Buffer.from(JSON.stringify(eventWithoutHash));
         return crypto_1.HybridCrypto.generateSharedSecret(data);
     }
@@ -386,4 +386,3 @@ class DefaultAuditorsConsensus {
     }
 }
 exports.DefaultAuditorsConsensus = DefaultAuditorsConsensus;
-//# sourceMappingURL=audit.js.map

@@ -231,4 +231,3 @@ exports.KeyManager = KeyManager;
 KeyManager.MIN_ENTROPY_LENGTH = 32;
 KeyManager.DEFAULT_ENTROPY_LENGTH = 64;
 KeyManager.initialized = false;
-//# sourceMappingURL=keys.js.map

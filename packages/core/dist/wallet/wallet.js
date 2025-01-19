@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Wallet = exports.WalletErrorCode = exports.WalletError = void 0;
 const crypto_1 = require("@h3tag-blockchain/crypto");
@@ -54,7 +64,7 @@ var WalletErrorCode;
     WalletErrorCode["INVALID_PASSWORD"] = "INVALID_PASSWORD";
     WalletErrorCode["CLEANUP_ERROR"] = "CLEANUP_ERROR";
     WalletErrorCode["LOCK_ERROR"] = "LOCK_ERROR";
-})(WalletErrorCode = exports.WalletErrorCode || (exports.WalletErrorCode = {}));
+})(WalletErrorCode || (exports.WalletErrorCode = WalletErrorCode = {}));
 class Wallet {
     updateState(update) {
         Object.assign(this.state, update);
@@ -146,10 +156,12 @@ class Wallet {
             this.eventEmitter.emit("unlocked", { address: this.address });
         }
         catch (error) {
-            this.updateState({
-                failedAttempts: this.state.failedAttempts + 1,
-            });
-            throw new WalletError("Failed to unlock wallet", WalletErrorCode.KEYSTORE_ERROR);
+            if (error instanceof Error) {
+                this.updateState({
+                    failedAttempts: this.state.failedAttempts + 1,
+                });
+                throw new WalletError("Failed to unlock wallet", WalletErrorCode.KEYSTORE_ERROR);
+            }
         }
     }
     async signTransaction(transaction, password) {
@@ -177,11 +189,18 @@ class Wallet {
         return !this.isLocked;
     }
     async backup(password) {
+        if (!password) {
+            throw new WalletError("Password is required for backup", WalletErrorCode.INVALID_PASSWORD);
+        }
         try {
+            // Verify password before backup
+            await keystore_1.Keystore.decrypt(this.keystore, password);
             return await keystore_1.Keystore.backup(this.address);
         }
         catch (error) {
-            throw new WalletError("Failed to backup wallet", WalletErrorCode.KEYSTORE_ERROR);
+            if (error instanceof Error) {
+                throw new WalletError("Failed to backup wallet", WalletErrorCode.KEYSTORE_ERROR);
+            }
         }
     }
     async rotateKeys(password) {
@@ -190,7 +209,9 @@ class Wallet {
             this.eventEmitter.emit("keysRotated", { address: this.address });
         }
         catch (error) {
-            throw new WalletError("Failed to rotate keys", WalletErrorCode.KEYSTORE_ERROR);
+            if (error instanceof Error) {
+                throw new WalletError("Failed to rotate keys", WalletErrorCode.KEYSTORE_ERROR);
+            }
         }
     }
     static async createWithMnemonic(password) {
@@ -201,8 +222,10 @@ class Wallet {
             return { wallet, mnemonic };
         }
         catch (error) {
-            logger_1.Logger.error("Wallet creation with mnemonic failed:", error);
-            throw new WalletError("Failed to create wallet with mnemonic", WalletErrorCode.INITIALIZATION_ERROR);
+            if (error instanceof Error) {
+                logger_1.Logger.error("Wallet creation with mnemonic failed:", error);
+                throw new WalletError("Failed to create wallet with mnemonic", WalletErrorCode.INITIALIZATION_ERROR);
+            }
         }
     }
     static async fromMnemonic(mnemonic, password) {
@@ -247,7 +270,9 @@ class Wallet {
             return address === this.address;
         }
         catch (error) {
-            return false;
+            if (error instanceof Error) {
+                return false;
+            }
         }
     }
     cleanup() {
@@ -279,11 +304,19 @@ class Wallet {
                 timestamp: Date.now(),
                 memo: memo || "",
                 type: transaction_model_1.TransactionType.TRANSFER,
-                hash: "",
+                hash: "", // Will be set after signing
                 status: transaction_model_1.TransactionStatus.PENDING,
                 signature: "",
                 nonce: 0,
+                transaction: {
+                    hash: "",
+                    timestamp: Date.now(),
+                    fee: BigInt(amount),
+                    lockTime: 0,
+                    signature: "",
+                },
                 currency: {
+                    name: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
                     symbol: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
                     decimals: constants_1.BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
                 },
@@ -315,7 +348,9 @@ class Wallet {
             return address === this.address;
         }
         catch (error) {
-            return false;
+            if (error instanceof Error) {
+                return false;
+            }
         }
     }
     /**
@@ -463,4 +498,3 @@ class Wallet {
 }
 exports.Wallet = Wallet;
 Wallet.DERIVATION_PATH = "m/44'/60'/0'/0/0";
-//# sourceMappingURL=wallet.js.map

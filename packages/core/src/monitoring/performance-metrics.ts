@@ -1,6 +1,26 @@
 import { Logger } from "@h3tag-blockchain/shared";
 import { Mutex } from "async-mutex";
+import { PeerServices } from "../models/peer.model";
 
+export interface Metric {
+  average?: number;
+  durations?: number[];
+  timestamps?: number[];
+  count?: number;
+  totalDuration?: number;
+  maxDuration?: number;
+  last24Hours?: number[];
+  minDuration?: number;
+  lastUpdated?: number;
+  bytesReceived?: number;
+  bytesSent?: number;
+  messagesReceived?: number;
+  messagesSent?: number;
+  lastSeen?: number;
+  state?: string;
+  version?: number;
+  services?: PeerServices[];
+}
 /**
  * @fileoverview Performance metrics tracking system for the H3Tag blockchain. Includes operation timing,
  * statistical analysis, and performance monitoring for blockchain operations.
@@ -35,18 +55,7 @@ export class PerformanceMetrics {
   private cleanupTimer: NodeJS.Timeout;
 
   private metrics: {
-    operations: Map<
-      string,
-      {
-        durations: number[];
-        timestamps: number[];
-        count: number;
-        totalDuration: number;
-        maxDuration: number;
-        minDuration: number;
-        lastUpdated: number;
-      }
-    >;
+    operations: Map<string, Metric>;
   };
 
   /**
@@ -86,7 +95,7 @@ export class PerformanceMetrics {
   public async recordMetric(
     operation: string,
     duration: number,
-    metadata: { context: string; [key: string]: any }
+    metadata: { context: string; [key: string]: unknown }
   ): Promise<void> {
     if (
       !operation ||
@@ -122,7 +131,7 @@ export class PerformanceMetrics {
     }
   }
 
-  private initializeMetric(duration: number, timestamp: number) {
+  private initializeMetric(duration: number, timestamp: number): Metric {
     return {
       durations: [duration],
       timestamps: [timestamp],
@@ -131,10 +140,12 @@ export class PerformanceMetrics {
       maxDuration: duration,
       minDuration: duration,
       lastUpdated: timestamp,
+      average: duration,
+      last24Hours: [duration],
     };
   }
 
-  private async updateMetric(metric: any, duration: number, now: number) {
+  private async updateMetric(metric: Metric, duration: number, now: number) {
     // Check for numeric overflow
     if (metric.totalDuration > Number.MAX_SAFE_INTEGER - duration) {
       await this.cleanupOldMetrics(now);
@@ -185,9 +196,9 @@ export class PerformanceMetrics {
    * @param {string} [context] - Optional context filter
    * @returns {Record<string, any>} Filtered metrics
    */
-  public getMetrics(context?: string): Record<string, any> {
+  public getMetrics(context?: string): Record<string, Metric> {
     try {
-      const result: Record<string, any> = {};
+      const result: Record<string, Metric> = {};
       const now = Date.now();
       const cutoff = now - this.MAX_METRICS_AGE;
 
@@ -202,11 +213,8 @@ export class PerformanceMetrics {
           if (recentDurations.length === 0) continue;
 
           result[key] = {
+            ...metric,
             average: metric.totalDuration / metric.count,
-            count: metric.count,
-            totalDuration: metric.totalDuration,
-            maxDuration: metric.maxDuration,
-            minDuration: metric.minDuration,
             last24Hours: recentDurations,
             lastUpdated: metric.lastUpdated,
           };

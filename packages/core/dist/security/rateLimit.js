@@ -231,4 +231,3 @@ RateLimit.DEFAULT_CONFIG = {
         default: 1,
     },
 };
-//# sourceMappingURL=rateLimit.js.map

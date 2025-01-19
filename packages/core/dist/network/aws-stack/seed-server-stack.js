@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SeedServerStack = void 0;
 const cdk = __importStar(require("aws-cdk-lib"));
@@ -34,7 +44,6 @@ const events = __importStar(require("aws-cdk-lib/aws-events"));
 const os = __importStar(require("os"));
 const s3 = __importStar(require("aws-cdk-lib/aws-s3"));
 const ssm = __importStar(require("aws-cdk-lib/aws-ssm"));
-const shared_1 = require("@h3tag-blockchain/shared");
 const kms = __importStar(require("aws-cdk-lib/aws-kms"));
 class SeedServerStack extends cdk.Stack {
     constructor(scope, id, props) {
@@ -221,7 +230,7 @@ class SeedServerStack extends cdk.Stack {
             parameterName: `/h3tag/${props.environment}/blockchain-config`,
             stringValue: JSON.stringify({
                 network: {
-                    type: shared_1.NetworkType.MAINNET,
+                    type: "MAINNET",
                     port: {
                         MAINNET: 8333,
                         TESTNET: 10001,
@@ -279,7 +288,7 @@ class SeedServerStack extends cdk.Stack {
                     hashBatchSize: 10000,
                     maxTarget: "0x0000000000ffff0000000000000000000000000000000000000000000000000000",
                     minDifficulty: 2,
-                    chainDecisionThreshold: 0.67,
+                    nodeSelectionThreshold: 0.67,
                     orphanWindow: 100,
                     propagationWindow: 50,
                     maxPropagationTime: 30000,
@@ -305,7 +314,7 @@ class SeedServerStack extends cdk.Stack {
                     safeConfirmationTime: 3600000,
                 },
                 consensus: {
-                    powWeight: 10000,
+                    powWeight: 0.6,
                     minPowHashRate: 1000000,
                     minVoterCount: 1000,
                     minPeriodLength: 1000,
@@ -315,7 +324,7 @@ class SeedServerStack extends cdk.Stack {
                     votingDayPeriod: 59616000000,
                     consensusTimeout: 1800000,
                     emergencyTimeout: 3600000,
-                    chainSelectionTimeout: 300000,
+                    nodeSelectionTimeout: 300000,
                     voteCollectionTimeout: 180000,
                     initialReward: "546",
                     baseReward: "100000000000000000000",
@@ -520,4 +529,3 @@ class SeedServerStack extends cdk.Stack {
     }
 }
 exports.SeedServerStack = SeedServerStack;
-//# sourceMappingURL=seed-server-stack.js.map

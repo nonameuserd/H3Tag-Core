@@ -1,1 +1,0 @@
-{"version":3,"file":"wasm-loader.js","sourceRoot":"","sources":["../../src/utils/wasm-loader.ts"],"names":[],"mappings":";;;AAAO,KAAK,UAAU,cAAc,CAClC,IAAY;IAEZ,MAAM,QAAQ,GAAG,MAAM,KAAK,CAAC,IAAI,CAAC,CAAC;IACnC,MAAM,KAAK,GAAG,MAAM,QAAQ,CAAC,WAAW,EAAE,CAAC;IAC3C,OAAO,WAAW,CAAC,OAAO,CAAC,KAAK,CAAC,CAAC;AACpC,CAAC;AAND,wCAMC"}

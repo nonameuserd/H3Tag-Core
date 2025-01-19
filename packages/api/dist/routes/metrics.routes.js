@@ -53,7 +53,12 @@ function setupMetricsRoutes(router) {
             res.json(metrics);
         }
         catch (error) {
-            res.status(500).json({ message: "Failed to get metrics" });
+            if (error instanceof Error) {
+                res.status(500).json({ message: error.message });
+            }
+            else {
+                res.status(500).json({ message: "Failed to get metrics" });
+            }
         }
     });
     /**
@@ -80,7 +85,12 @@ function setupMetricsRoutes(router) {
             res.json({ averageTAGFees });
         }
         catch (error) {
-            res.status(500).json({ message: "Failed to get average TAG fees" });
+            if (error instanceof Error) {
+                res.status(500).json({ message: error.message });
+            }
+            else {
+                res.status(500).json({ message: "Failed to get average TAG fees" });
+            }
         }
     });
     /**
@@ -107,7 +117,12 @@ function setupMetricsRoutes(router) {
             res.json({ averageTAGVolume });
         }
         catch (error) {
-            res.status(500).json({ message: "Failed to get average TAG volume" });
+            if (error instanceof Error) {
+                res.status(500).json({ message: error.message });
+            }
+            else {
+                res.status(500).json({ message: "Failed to get average TAG volume" });
+            }
         }
     });
     /**
@@ -134,8 +149,12 @@ function setupMetricsRoutes(router) {
             res.json({ averageHashRate });
         }
         catch (error) {
-            res.status(500).json({ message: "Failed to get average hash rate" });
+            if (error instanceof Error) {
+                res.status(500).json({ message: error.message });
+            }
+            else {
+                res.status(500).json({ message: "Failed to get average hash rate" });
+            }
         }
     });
 }
-//# sourceMappingURL=metrics.routes.js.map

@@ -6,8 +6,8 @@ class NodeInitializer {
         const defaultOptions = {
             createIfMissing: true,
             compression: true,
-            cacheSize: 32 * 1024 * 1024,
-            writeBufferSize: 8 * 1024 * 1024,
+            cacheSize: 32 * 1024 * 1024, // 32MB
+            writeBufferSize: 8 * 1024 * 1024, // 8MB
             blockSize: 8192,
             maxOpenFiles: 500,
         };
@@ -290,4 +290,3 @@ class NodeInitializer {
     }
 }
 exports.NodeInitializer = NodeInitializer;
-//# sourceMappingURL=node-initializer.js.map

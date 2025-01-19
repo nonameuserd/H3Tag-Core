@@ -20,4 +20,3 @@ class SIMD {
     }
 }
 exports.SIMD = SIMD;
-//# sourceMappingURL=simd.js.map

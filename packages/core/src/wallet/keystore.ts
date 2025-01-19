@@ -301,11 +301,13 @@ export class Keystore {
       const derivedKey = await scrypt(password, salt, params.dklen);
 
       return derivedKey.toString();
-    } catch (error) {
-      throw new KeystoreError(
-        "Key derivation failed",
-        KeystoreErrorCode.KDF_ERROR
-      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new KeystoreError(
+          "Key derivation failed",
+          KeystoreErrorCode.KDF_ERROR
+        );
+      }
     }
   }
 
@@ -387,19 +389,23 @@ export class Keystore {
   ): Promise<string> {
     try {
       return KeyManager.serializeKeyPair(keyPair);
-    } catch (error) {
-      throw new KeystoreError("Serialization failed", "SERIALIZATION_ERROR");
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new KeystoreError("Serialization failed", "SERIALIZATION_ERROR");
+      }
     }
   }
 
   private static async secureDeserialize(data: string): Promise<HybridKeyPair> {
     try {
       return KeyManager.deserializeKeyPair(data);
-    } catch (error) {
-      throw new KeystoreError(
-        "Deserialization failed",
-        "DESERIALIZATION_ERROR"
-      );
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new KeystoreError(
+          "Deserialization failed",
+          "DESERIALIZATION_ERROR"
+        );
+      }
     }
   }
 

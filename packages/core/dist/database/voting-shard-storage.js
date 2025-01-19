@@ -253,6 +253,7 @@ class VotingShardStorage {
         }
     }
 }
+exports.VotingShardStorage = VotingShardStorage;
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], VotingShardStorage.prototype, "getTransaction", null);
@@ -265,5 +266,3 @@ __decorate([
 __decorate([
     (0, retry_1.retry)({ maxAttempts: 3, delay: 1000 })
 ], VotingShardStorage.prototype, "replicateShard", null);
-exports.VotingShardStorage = VotingShardStorage;
-//# sourceMappingURL=voting-shard-storage.js.map

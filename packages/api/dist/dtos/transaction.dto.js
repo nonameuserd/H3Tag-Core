@@ -290,4 +290,3 @@ __decorate([
         enum: ["mainnet", "testnet", "devnet"],
     })
 ], ValidateAddressResponseDto.prototype, "network", void 0);
-//# sourceMappingURL=transaction.dto.js.map

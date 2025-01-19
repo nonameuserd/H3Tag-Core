@@ -1,4 +1,3 @@
-import { NetworkType } from "@h3tag-blockchain/shared";
 export declare const BLOCKCHAIN_CONSTANTS: {
     CURRENCY: {
         NAME: string;
@@ -14,9 +13,9 @@ export declare const BLOCKCHAIN_CONSTANTS: {
         };
         NETWORK: {
             type: {
-                MAINNET: NetworkType;
-                TESTNET: NetworkType;
-                DEVNET: NetworkType;
+                MAINNET: string;
+                TESTNET: string;
+                DEVNET: string;
             };
             port: {
                 MAINNET: number;
@@ -62,7 +61,7 @@ export declare const BLOCKCHAIN_CONSTANTS: {
         HASH_BATCH_SIZE: number;
         MAX_TARGET: bigint;
         MIN_DIFFICULTY: number;
-        CHAIN_DECISION_THRESHOLD: number;
+        NODE_SELECTION_THRESHOLD: number;
         ORPHAN_WINDOW: number;
         PROPAGATION_WINDOW: number;
         MAX_PROPAGATION_TIME: number;
@@ -122,7 +121,7 @@ export declare const BLOCKCHAIN_CONSTANTS: {
         VOTING_DAY_PERIOD: number;
         CONSENSUS_TIMEOUT: number;
         EMERGENCY_TIMEOUT: number;
-        CHAIN_SELECTION_TIMEOUT: number;
+        NODE_SELECTION_TIMEOUT: number;
         VOTE_COLLECTION_TIMEOUT: number;
         INITIAL_REWARD: bigint;
         BASE_REWARD: bigint;

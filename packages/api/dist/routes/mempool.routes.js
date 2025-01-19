@@ -122,4 +122,3 @@ router.get("/raw", controller.getRawMempool.bind(controller));
  */
 router.get("/entry/:txid", controller.getMempoolEntry.bind(controller));
 exports.default = router;
-//# sourceMappingURL=mempool.routes.js.map

@@ -24,7 +24,7 @@ include_directories(
 )
 
 add_library(${PROJECT_NAME} SHARED 
-    packages/core/src/crypto/native/quantum.cpp
+    packages/crypto/src/native/quantum.cpp
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES 

@@ -188,4 +188,3 @@ NodeVerifier.MIN_VOTING_POWER = "1000";
 NodeVerifier.MIN_PARTICIPATION_RATE = 0.1; // 10%
 NodeVerifier.MIN_POW_BLOCKS = 1;
 NodeVerifier.VERIFICATION_TIMEOUT = 10000; // 10 seconds
-//# sourceMappingURL=verification.js.map

@@ -149,4 +149,3 @@ class Queue {
         return this.items.length;
     }
 }
-//# sourceMappingURL=worker-pool.js.map

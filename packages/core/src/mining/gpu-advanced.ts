@@ -245,8 +245,8 @@ export class AdvancedGPUMiner extends GPUMiner {
           binding: 0,
           resource: {
             buffer: this.blockBuffer,
-            offset: 0,
-            size: this.blockBuffer.size,
+            offset: offset * 4, // 4 bytes per uint32
+            size: this.blockBuffer.size - (offset * 4),
           },
         },
         {

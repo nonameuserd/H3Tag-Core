@@ -1,6 +1,5 @@
-import { NetworkType } from "@h3tag-blockchain/shared";
 export declare class CreateNodeDto {
-    networkType: NetworkType;
+    networkType: "MAINNET" | "TESTNET";
     region?: string;
     nodeType?: "full" | "light" | "archive";
     port?: number;

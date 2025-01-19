@@ -50,10 +50,38 @@ class Performance {
                 shared_1.Logger.error("Failed to get cache metrics");
                 return;
             }
-            Performance.metrics.set("cache_hit_rate", cacheMetrics.hitRate);
-            Performance.metrics.set("cache_size", cacheMetrics.size);
-            Performance.metrics.set("cache_evictions", cacheMetrics.evictionCount);
-            Performance.metrics.set("cache_memory_usage", cacheMetrics.memoryUsage);
+            Performance.metrics.set("cache_hit_rate", {
+                startTime: Date.now(),
+                count: 0,
+                total: 0,
+                min: Infinity,
+                max: -Infinity,
+                avg: 0,
+            });
+            Performance.metrics.set("cache_size", {
+                startTime: Date.now(),
+                count: 0,
+                total: 0,
+                min: Infinity,
+                max: -Infinity,
+                avg: 0,
+            });
+            Performance.metrics.set("cache_evictions", {
+                startTime: Date.now(),
+                count: 0,
+                total: 0,
+                min: Infinity,
+                max: -Infinity,
+                avg: 0,
+            });
+            Performance.metrics.set("cache_memory_usage", {
+                startTime: Date.now(),
+                count: 0,
+                total: 0,
+                min: Infinity,
+                max: -Infinity,
+                avg: 0,
+            });
             // Alert if cache performance degrades
             if (cacheMetrics.hitRate < 0.3) {
                 shared_1.Logger.warn("Cache hit rate is low", {
@@ -128,6 +156,7 @@ class Performance {
         }
         try {
             const current = this.metrics.get(label) || {
+                startTime: Date.now(),
                 count: 0,
                 total: 0,
                 min: Infinity,
@@ -187,4 +216,3 @@ exports.Performance = Performance;
 Performance.metrics = new Map();
 Performance.MAX_METRICS_AGE = 24 * 60 * 60 * 1000; // 24 hours
 Performance.CLEANUP_INTERVAL = 3600000; // 1 hour
-//# sourceMappingURL=performance.js.map

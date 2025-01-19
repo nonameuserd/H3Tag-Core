@@ -220,6 +220,6 @@ export declare class BlockchainService {
      *               $ref: '#/components/schemas/BlockchainInfoDto'
      */
     getBlockchainInfo(): Promise<BlockchainInfoDto>;
-    sendRawTransaction(rawTx: string, allowHighFees?: boolean): Promise<string>;
+    sendRawTransaction(rawTx: string): Promise<string>;
     getBlockchain(): Blockchain;
 }

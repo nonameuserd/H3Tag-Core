@@ -13,6 +13,14 @@ export declare enum PeerType {
     LIGHT_NODE = "light_node",
     VALIDATOR = "validator"
 }
+export interface AddrPayload {
+    addresses: Array<{
+        url: string;
+        services: number;
+        timestamp: number;
+        lastSeen?: number;
+    }>;
+}
 export declare class PeerDiscovery {
     private readonly peers;
     private readonly miners;
