@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 project(quantum-safe-blockchain VERSION 0.1.0)
 
-# Add version check for liboqs
+# version check for liboqs
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBOQS REQUIRED IMPORTED_TARGET liboqs>=0.12.0)
 
