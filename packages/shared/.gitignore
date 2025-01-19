@@ -1,6 +1,10 @@
 .env
 node_modules/
 package-lock.json
+packages/api/dist 
+packages/shared/dist
+packages/core/dist
+packages/cli/dist
 *.pem 
 *.key
 *.crt
@@ -16,6 +20,7 @@ package-lock.json
 *.DS_Store
 .DS_Store
 .html
+dist/
 .js.*
 .ts.map
 .d.ts
