@@ -28,3 +28,6 @@ secret.json
 .vscode-test/*
 .vscode-test/.*
 .vscode-test/
+.nx/*
+.nx/.*
+build/
