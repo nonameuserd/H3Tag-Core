@@ -513,6 +513,458 @@
           "hash": "10067170276853714323"
         }
       ],
+      "@h3tag-blockchain/cli": [
+        {
+          "file": "packages/cli/.gitignore",
+          "hash": "13603088859507085958"
+        },
+        {
+          "file": "packages/cli/LICENSE",
+          "hash": "11147920346946615554"
+        },
+        {
+          "file": "packages/cli/README.md",
+          "hash": "15381143966801369776"
+        },
+        {
+          "file": "packages/cli/dist/commands/blockchain.command.d.ts",
+          "hash": "1951035319632622005",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/blockchain.command.js",
+          "hash": "12309456562924843777",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/blockchain.command.js.map",
+          "hash": "15922688059947844314"
+        },
+        {
+          "file": "packages/cli/dist/commands/mempool.command.d.ts",
+          "hash": "15753976307406571219",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/mempool.command.js",
+          "hash": "6772487923428491143",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/mempool.command.js.map",
+          "hash": "1606379458957842375"
+        },
+        {
+          "file": "packages/cli/dist/commands/metrics.command.d.ts",
+          "hash": "16814296935312422762",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/metrics.command.js",
+          "hash": "10669261774168073978",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/metrics.command.js.map",
+          "hash": "4835823475257399333"
+        },
+        {
+          "file": "packages/cli/dist/commands/mining.command.d.ts",
+          "hash": "3948058478701035419",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/mining.command.js",
+          "hash": "3954252760389695384",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/mining.command.js.map",
+          "hash": "4932668452506689450"
+        },
+        {
+          "file": "packages/cli/dist/commands/node.command.d.ts",
+          "hash": "10977321233371448972",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/node.command.js",
+          "hash": "13627062788468786888",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/node.command.js.map",
+          "hash": "10611280361842970506"
+        },
+        {
+          "file": "packages/cli/dist/commands/peer.command.d.ts",
+          "hash": "14054451869536504999",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/peer.command.js",
+          "hash": "8042558269949662131",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/peer.command.js.map",
+          "hash": "7664400423521067522"
+        },
+        {
+          "file": "packages/cli/dist/commands/transaction.command.d.ts",
+          "hash": "16624902961330569344",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/transaction.command.js",
+          "hash": "7357502705974583702",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/transaction.command.js.map",
+          "hash": "17158766804950835221"
+        },
+        {
+          "file": "packages/cli/dist/commands/voting.command.d.ts",
+          "hash": "12356262554473178469",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/voting.command.js",
+          "hash": "16073386115660848298",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/voting.command.js.map",
+          "hash": "1923224455372152484"
+        },
+        {
+          "file": "packages/cli/dist/commands/wallet.commands.d.ts",
+          "hash": "4541220371503716797",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/wallet.commands.js",
+          "hash": "13569431003569215848",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/commands/wallet.commands.js.map",
+          "hash": "4649676640300050419"
+        },
+        {
+          "file": "packages/cli/dist/index.d.ts",
+          "hash": "4595979742548113990"
+        },
+        {
+          "file": "packages/cli/dist/index.js",
+          "hash": "14871981094917207864",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/index.js.map",
+          "hash": "14201708257998875292"
+        },
+        {
+          "file": "packages/cli/dist/services/api.d.ts",
+          "hash": "17249761869798625143",
+          "deps": [
+            "npm:axios"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/services/api.js",
+          "hash": "786373331203694766",
+          "deps": [
+            "npm:axios"
+          ]
+        },
+        {
+          "file": "packages/cli/dist/services/api.js.map",
+          "hash": "11859414632818397442"
+        },
+        {
+          "file": "packages/cli/package.json",
+          "hash": "5785644045073641995",
+          "deps": [
+            "npm:@types/commander",
+            "npm:@types/node@20.17.14",
+            "npm:ts-node",
+            "npm:typescript",
+            "npm:prettier",
+            "npm:eslint",
+            "@h3tag-blockchain/shared",
+            "npm:axios",
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/blockchain.command.ts",
+          "hash": "7347572442964673757",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/mempool.command.ts",
+          "hash": "13847246042466783068",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/metrics.command.ts",
+          "hash": "12284086658997954423",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/mining.command.ts",
+          "hash": "6749865667973630260",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/node.command.ts",
+          "hash": "1097519981948938058",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/peer.command.ts",
+          "hash": "6895069028389023069",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/transaction.command.ts",
+          "hash": "5197588982763833228",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/voting.command.ts",
+          "hash": "12676612503955214034",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/commands/wallet.commands.ts",
+          "hash": "9545265214275940554",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/index.ts",
+          "hash": "6829205522219640392",
+          "deps": [
+            "npm:commander"
+          ]
+        },
+        {
+          "file": "packages/cli/src/services/api.ts",
+          "hash": "6676020315166842638",
+          "deps": [
+            "npm:axios"
+          ]
+        },
+        {
+          "file": "packages/cli/tsconfig.json",
+          "hash": "9949684741582803449"
+        }
+      ],
+      "@h3tag-blockchain/shared": [
+        {
+          "file": "packages/shared/LICENSE",
+          "hash": "11147920346946615554"
+        },
+        {
+          "file": "packages/shared/README.md",
+          "hash": "8531701236106762793"
+        },
+        {
+          "file": "packages/shared/dist/index.d.ts",
+          "hash": "9165229683084655364"
+        },
+        {
+          "file": "packages/shared/dist/index.js",
+          "hash": "17885860123577507493"
+        },
+        {
+          "file": "packages/shared/dist/index.js.map",
+          "hash": "8660229959226818087"
+        },
+        {
+          "file": "packages/shared/dist/utils/config.d.ts",
+          "hash": "7827916515199052223"
+        },
+        {
+          "file": "packages/shared/dist/utils/config.js",
+          "hash": "9829690559949189509"
+        },
+        {
+          "file": "packages/shared/dist/utils/config.js.map",
+          "hash": "10391822402556612614"
+        },
+        {
+          "file": "packages/shared/dist/utils/constants.d.ts",
+          "hash": "15618282827669855827"
+        },
+        {
+          "file": "packages/shared/dist/utils/constants.js",
+          "hash": "13098690128198677173"
+        },
+        {
+          "file": "packages/shared/dist/utils/constants.js.map",
+          "hash": "13032979785820028214"
+        },
+        {
+          "file": "packages/shared/dist/utils/currency-constants.d.ts",
+          "hash": "10418788920976190601"
+        },
+        {
+          "file": "packages/shared/dist/utils/currency-constants.js",
+          "hash": "953295668660551867"
+        },
+        {
+          "file": "packages/shared/dist/utils/currency-constants.js.map",
+          "hash": "16353405642129766211"
+        },
+        {
+          "file": "packages/shared/dist/utils/logger.d.ts",
+          "hash": "10829434699224111652",
+          "deps": [
+            "npm:winston"
+          ]
+        },
+        {
+          "file": "packages/shared/dist/utils/logger.js",
+          "hash": "14041677668618368780",
+          "deps": [
+            "npm:winston",
+            "npm:winston-daily-rotate-file"
+          ]
+        },
+        {
+          "file": "packages/shared/dist/utils/logger.js.map",
+          "hash": "13460305011959051266"
+        },
+        {
+          "file": "packages/shared/dist/utils/status-codes.d.ts",
+          "hash": "10505426844884092404"
+        },
+        {
+          "file": "packages/shared/dist/utils/status-codes.js",
+          "hash": "432034177700079943"
+        },
+        {
+          "file": "packages/shared/dist/utils/status-codes.js.map",
+          "hash": "1663825019869660433"
+        },
+        {
+          "file": "packages/shared/package.json",
+          "hash": "13037667533354579975",
+          "deps": [
+            "npm:@types/config",
+            "npm:@types/jest",
+            "npm:jest",
+            "npm:rimraf@5.0.10",
+            "npm:typescript@4.9.5",
+            "npm:ts-node",
+            "npm:prettier",
+            "npm:eslint",
+            "npm:config",
+            "npm:node-addon-api",
+            "npm:winston",
+            "npm:winston-daily-rotate-file"
+          ]
+        },
+        {
+          "file": "packages/shared/src/.gitignore",
+          "hash": "11389852532291360061"
+        },
+        {
+          "file": "packages/shared/src/.gitkeep",
+          "hash": "3244421341483603138"
+        },
+        {
+          "file": "packages/shared/src/index.ts",
+          "hash": "9165229683084655364"
+        },
+        {
+          "file": "packages/shared/src/utils/config.ts",
+          "hash": "15209483118396645827"
+        },
+        {
+          "file": "packages/shared/src/utils/constants.ts",
+          "hash": "1363913010068564961"
+        },
+        {
+          "file": "packages/shared/src/utils/currency-constants.ts",
+          "hash": "17599330796004011463"
+        },
+        {
+          "file": "packages/shared/src/utils/logger.ts",
+          "hash": "2237628334469786705",
+          "deps": [
+            "npm:winston",
+            "npm:winston-daily-rotate-file"
+          ]
+        },
+        {
+          "file": "packages/shared/src/utils/status-codes.ts",
+          "hash": "2304493580024541562"
+        },
+        {
+          "file": "packages/shared/tsconfig.json",
+          "hash": "3348951798251915755"
+        }
+      ],
       "@h3tag-blockchain/core": [
         {
           "file": "packages/core/package.json",
@@ -2222,311 +2674,6 @@
           "hash": "14367899467879126420"
         }
       ],
-      "@h3tag-blockchain/cli": [
-        {
-          "file": "packages/cli/.gitignore",
-          "hash": "13603088859507085958"
-        },
-        {
-          "file": "packages/cli/LICENSE",
-          "hash": "11147920346946615554"
-        },
-        {
-          "file": "packages/cli/README.md",
-          "hash": "15381143966801369776"
-        },
-        {
-          "file": "packages/cli/dist/commands/blockchain.command.d.ts",
-          "hash": "1951035319632622005",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/blockchain.command.js",
-          "hash": "12309456562924843777",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/blockchain.command.js.map",
-          "hash": "15922688059947844314"
-        },
-        {
-          "file": "packages/cli/dist/commands/mempool.command.d.ts",
-          "hash": "15753976307406571219",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/mempool.command.js",
-          "hash": "6772487923428491143",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/mempool.command.js.map",
-          "hash": "1606379458957842375"
-        },
-        {
-          "file": "packages/cli/dist/commands/metrics.command.d.ts",
-          "hash": "16814296935312422762",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/metrics.command.js",
-          "hash": "10669261774168073978",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/metrics.command.js.map",
-          "hash": "4835823475257399333"
-        },
-        {
-          "file": "packages/cli/dist/commands/mining.command.d.ts",
-          "hash": "3948058478701035419",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/mining.command.js",
-          "hash": "3954252760389695384",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/mining.command.js.map",
-          "hash": "4932668452506689450"
-        },
-        {
-          "file": "packages/cli/dist/commands/node.command.d.ts",
-          "hash": "10977321233371448972",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/node.command.js",
-          "hash": "13627062788468786888",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/node.command.js.map",
-          "hash": "10611280361842970506"
-        },
-        {
-          "file": "packages/cli/dist/commands/peer.command.d.ts",
-          "hash": "14054451869536504999",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/peer.command.js",
-          "hash": "8042558269949662131",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/peer.command.js.map",
-          "hash": "7664400423521067522"
-        },
-        {
-          "file": "packages/cli/dist/commands/transaction.command.d.ts",
-          "hash": "16624902961330569344",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/transaction.command.js",
-          "hash": "7357502705974583702",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/transaction.command.js.map",
-          "hash": "17158766804950835221"
-        },
-        {
-          "file": "packages/cli/dist/commands/voting.command.d.ts",
-          "hash": "12356262554473178469",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/voting.command.js",
-          "hash": "16073386115660848298",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/voting.command.js.map",
-          "hash": "1923224455372152484"
-        },
-        {
-          "file": "packages/cli/dist/commands/wallet.commands.d.ts",
-          "hash": "4541220371503716797",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/wallet.commands.js",
-          "hash": "13569431003569215848",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/commands/wallet.commands.js.map",
-          "hash": "4649676640300050419"
-        },
-        {
-          "file": "packages/cli/dist/index.d.ts",
-          "hash": "4595979742548113990"
-        },
-        {
-          "file": "packages/cli/dist/index.js",
-          "hash": "14871981094917207864",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/index.js.map",
-          "hash": "14201708257998875292"
-        },
-        {
-          "file": "packages/cli/dist/services/api.d.ts",
-          "hash": "17249761869798625143",
-          "deps": [
-            "npm:axios"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/services/api.js",
-          "hash": "786373331203694766",
-          "deps": [
-            "npm:axios"
-          ]
-        },
-        {
-          "file": "packages/cli/dist/services/api.js.map",
-          "hash": "11859414632818397442"
-        },
-        {
-          "file": "packages/cli/package.json",
-          "hash": "5785644045073641995",
-          "deps": [
-            "npm:@types/commander",
-            "npm:@types/node@20.17.14",
-            "npm:ts-node",
-            "npm:typescript",
-            "npm:prettier",
-            "npm:eslint",
-            "@h3tag-blockchain/shared",
-            "npm:axios",
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/blockchain.command.ts",
-          "hash": "7347572442964673757",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/mempool.command.ts",
-          "hash": "13847246042466783068",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/metrics.command.ts",
-          "hash": "12284086658997954423",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/mining.command.ts",
-          "hash": "6749865667973630260",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/node.command.ts",
-          "hash": "1097519981948938058",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/peer.command.ts",
-          "hash": "6895069028389023069",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/transaction.command.ts",
-          "hash": "5197588982763833228",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/voting.command.ts",
-          "hash": "12676612503955214034",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/commands/wallet.commands.ts",
-          "hash": "9545265214275940554",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/index.ts",
-          "hash": "6829205522219640392",
-          "deps": [
-            "npm:commander"
-          ]
-        },
-        {
-          "file": "packages/cli/src/services/api.ts",
-          "hash": "6676020315166842638",
-          "deps": [
-            "npm:axios"
-          ]
-        },
-        {
-          "file": "packages/cli/tsconfig.json",
-          "hash": "9949684741582803449"
-        }
-      ],
       "@h3tag-blockchain/api": [
         {
           "file": "packages/api/LICENSE",
@@ -3642,153 +3789,6 @@
         {
           "file": "packages/api/tsconfig.tsbuildinfo",
           "hash": "10771197136859986926"
-        }
-      ],
-      "@h3tag-blockchain/shared": [
-        {
-          "file": "packages/shared/LICENSE",
-          "hash": "11147920346946615554"
-        },
-        {
-          "file": "packages/shared/README.md",
-          "hash": "8531701236106762793"
-        },
-        {
-          "file": "packages/shared/dist/index.d.ts",
-          "hash": "9165229683084655364"
-        },
-        {
-          "file": "packages/shared/dist/index.js",
-          "hash": "17885860123577507493"
-        },
-        {
-          "file": "packages/shared/dist/index.js.map",
-          "hash": "8660229959226818087"
-        },
-        {
-          "file": "packages/shared/dist/utils/config.d.ts",
-          "hash": "7827916515199052223"
-        },
-        {
-          "file": "packages/shared/dist/utils/config.js",
-          "hash": "9829690559949189509"
-        },
-        {
-          "file": "packages/shared/dist/utils/config.js.map",
-          "hash": "10391822402556612614"
-        },
-        {
-          "file": "packages/shared/dist/utils/constants.d.ts",
-          "hash": "15618282827669855827"
-        },
-        {
-          "file": "packages/shared/dist/utils/constants.js",
-          "hash": "13098690128198677173"
-        },
-        {
-          "file": "packages/shared/dist/utils/constants.js.map",
-          "hash": "13032979785820028214"
-        },
-        {
-          "file": "packages/shared/dist/utils/currency-constants.d.ts",
-          "hash": "10418788920976190601"
-        },
-        {
-          "file": "packages/shared/dist/utils/currency-constants.js",
-          "hash": "953295668660551867"
-        },
-        {
-          "file": "packages/shared/dist/utils/currency-constants.js.map",
-          "hash": "16353405642129766211"
-        },
-        {
-          "file": "packages/shared/dist/utils/logger.d.ts",
-          "hash": "10829434699224111652",
-          "deps": [
-            "npm:winston"
-          ]
-        },
-        {
-          "file": "packages/shared/dist/utils/logger.js",
-          "hash": "14041677668618368780",
-          "deps": [
-            "npm:winston",
-            "npm:winston-daily-rotate-file"
-          ]
-        },
-        {
-          "file": "packages/shared/dist/utils/logger.js.map",
-          "hash": "13460305011959051266"
-        },
-        {
-          "file": "packages/shared/dist/utils/status-codes.d.ts",
-          "hash": "10505426844884092404"
-        },
-        {
-          "file": "packages/shared/dist/utils/status-codes.js",
-          "hash": "432034177700079943"
-        },
-        {
-          "file": "packages/shared/dist/utils/status-codes.js.map",
-          "hash": "1663825019869660433"
-        },
-        {
-          "file": "packages/shared/package.json",
-          "hash": "13037667533354579975",
-          "deps": [
-            "npm:@types/config",
-            "npm:@types/jest",
-            "npm:jest",
-            "npm:rimraf@5.0.10",
-            "npm:typescript@4.9.5",
-            "npm:ts-node",
-            "npm:prettier",
-            "npm:eslint",
-            "npm:config",
-            "npm:node-addon-api",
-            "npm:winston",
-            "npm:winston-daily-rotate-file"
-          ]
-        },
-        {
-          "file": "packages/shared/src/.gitignore",
-          "hash": "11389852532291360061"
-        },
-        {
-          "file": "packages/shared/src/.gitkeep",
-          "hash": "3244421341483603138"
-        },
-        {
-          "file": "packages/shared/src/index.ts",
-          "hash": "9165229683084655364"
-        },
-        {
-          "file": "packages/shared/src/utils/config.ts",
-          "hash": "15209483118396645827"
-        },
-        {
-          "file": "packages/shared/src/utils/constants.ts",
-          "hash": "1363913010068564961"
-        },
-        {
-          "file": "packages/shared/src/utils/currency-constants.ts",
-          "hash": "17599330796004011463"
-        },
-        {
-          "file": "packages/shared/src/utils/logger.ts",
-          "hash": "2237628334469786705",
-          "deps": [
-            "npm:winston",
-            "npm:winston-daily-rotate-file"
-          ]
-        },
-        {
-          "file": "packages/shared/src/utils/status-codes.ts",
-          "hash": "2304493580024541562"
-        },
-        {
-          "file": "packages/shared/tsconfig.json",
-          "hash": "3348951798251915755"
         }
       ]
     },
