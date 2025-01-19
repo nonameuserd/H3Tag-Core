@@ -42,13 +42,6 @@ The core package requires thorough testing. Here's what we test:
 
 ```bash
 
-# Build specific packages
-yarn build:shared
-yarn build:core
-yarn build:crypto
-yarn build:cli
-yarn build:api
-
 # Build all packages
 yarn build
 ```
