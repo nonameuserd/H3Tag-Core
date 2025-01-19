@@ -82,3 +82,4 @@ build/*
 dist/*
 .DS_Store
 yarn.lock
+packages/.DS_Store
