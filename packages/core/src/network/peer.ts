@@ -1,35 +1,35 @@
-import { EventEmitter } from "events";
-import WebSocket from "ws";
-import { Logger } from "@h3tag-blockchain/shared";
-import { CircuitBreaker } from "./circuit-breaker";
-import { MetricsCollector } from "../monitoring/metrics-collector";
-import { HybridCrypto } from "@h3tag-blockchain/crypto";
-import { Mutex } from "async-mutex";
-import { randomBytes } from "crypto";
-import { BlockchainSchema } from "../database/blockchain-schema";
+import { EventEmitter } from 'events';
+import WebSocket from 'ws';
+import { Logger } from '@h3tag-blockchain/shared';
+import { CircuitBreaker } from './circuit-breaker';
+import { MetricsCollector } from '../monitoring/metrics-collector';
+import { HybridCrypto } from '@h3tag-blockchain/crypto';
+import { Mutex } from 'async-mutex';
+import { randomBytes } from 'crypto';
+import { BlockchainSchema } from '../database/blockchain-schema';
 import {
   MessagePayload,
   PeerInfo,
   PeerMessageType,
   PeerServices,
-} from "../models/peer.model";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import { Transaction } from "../models/transaction.model";
-import { BlockInFlight } from "../blockchain/consensus/pow";
-import { BlockchainSync } from "./sync";
-import { Metric } from "../monitoring/performance-metrics";
-import { Vote } from "../models/vote.model";
-import { VotingDatabase } from "../database/voting-schema";
-import { BlockchainConfig } from "@h3tag-blockchain/shared";
-import { ConfigService } from "@h3tag-blockchain/shared";
+} from '../models/peer.model';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import { Transaction } from '../models/transaction.model';
+import { BlockInFlight } from '../blockchain/consensus/pow';
+import { BlockchainSync } from './sync';
+import { Metric } from '../monitoring/performance-metrics';
+import { Vote } from '../models/vote.model';
+import { VotingDatabase } from '../database/voting-schema';
+import { BlockchainConfig } from '@h3tag-blockchain/shared';
+import { ConfigService } from '@h3tag-blockchain/shared';
 
 export enum PeerState {
-  DISCONNECTED = "disconnected",
-  CONNECTING = "connecting",
-  CONNECTED = "connected",
-  READY = "ready",
-  SYNCING = "syncing",
-  BANNED = "banned",
+  DISCONNECTED = 'disconnected',
+  CONNECTING = 'connecting',
+  CONNECTED = 'connected',
+  READY = 'ready',
+  SYNCING = 'syncing',
+  BANNED = 'banned',
 }
 
 export interface Ban {
@@ -182,7 +182,7 @@ export class Peer {
     config: Partial<PeerConfig>,
     private readonly configService: ConfigService,
     database: BlockchainSchema,
-    isInbound: boolean = false
+    isInbound: boolean = false,
   ) {
     this.id = crypto.randomUUID();
 
@@ -218,15 +218,15 @@ export class Peer {
 
     // Check configured lists
     const whitelistedPeers =
-      (this.configService.get("WHITELISTED_PEERS") as string)?.split(",") || [];
+      (this.configService.get('WHITELISTED_PEERS') as string)?.split(',') || [];
     const blacklistedPeers =
-      (this.configService.get("BLACKLISTED_PEERS") as string)?.split(",") || [];
+      (this.configService.get('BLACKLISTED_PEERS') as string)?.split(',') || [];
 
     this.isWhitelisted = whitelistedPeers.includes(
-      `${this.address}:${this.port}`
+      `${this.address}:${this.port}`,
     );
     this.isBlacklisted = blacklistedPeers.includes(
-      `${this.address}:${this.port}`
+      `${this.address}:${this.port}`,
     );
 
     if (this.isBlacklisted) {
@@ -241,14 +241,14 @@ export class Peer {
   }
 
   private setupEventHandlers(): void {
-    this.eventEmitter.on("message", this.handleMessage.bind(this));
-    this.eventEmitter.on("error", this.handleError.bind(this));
-    this.eventEmitter.on("close", this.handleClose.bind(this));
+    this.eventEmitter.on('message', this.handleMessage.bind(this));
+    this.eventEmitter.on('error', this.handleError.bind(this));
+    this.eventEmitter.on('close', this.handleClose.bind(this));
   }
 
   public async connect(): Promise<void> {
     if (this.state !== PeerState.DISCONNECTED) {
-      throw new Error("Peer is not in disconnected state");
+      throw new Error('Peer is not in disconnected state');
     }
 
     const release = await this.mutex.acquire();
@@ -265,7 +265,7 @@ export class Peer {
 
       this.startPingInterval();
       this.state = PeerState.READY;
-      this.eventEmitter.emit("ready");
+      this.eventEmitter.emit('ready');
     } catch (error) {
       this.handleConnectionError(error);
       throw error;
@@ -275,34 +275,34 @@ export class Peer {
   }
 
   private async setupWebSocket(): Promise<void> {
-    if (!this.ws) throw new Error("WebSocket not initialized");
+    if (!this.ws) throw new Error('WebSocket not initialized');
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Connection timeout"));
+        reject(new Error('Connection timeout'));
       }, this.config.connectionTimeout);
 
-      this.ws!.on("open", () => {
+      this.ws!.on('open', () => {
         clearTimeout(timeout);
         this.state = PeerState.CONNECTED;
-        this.eventEmitter.emit("connect");
+        this.eventEmitter.emit('connect');
         resolve();
       })
-        .on("message", (data: WebSocket.Data) =>
-          this.handleIncomingMessage(data)
+        .on('message', (data: WebSocket.Data) =>
+          this.handleIncomingMessage(data),
         )
-        .on("error", (error: Error) => this.handleError(error))
-        .on("close", (code: number, reason: string) =>
-          this.handleClose(code, reason)
+        .on('error', (error: Error) => this.handleError(error))
+        .on('close', (code: number, reason: string) =>
+          this.handleClose(code, reason),
         )
-        .on("ping", () => this.ws?.pong())
-        .on("pong", () => this.handlePong());
+        .on('ping', () => this.ws?.pong())
+        .on('pong', () => this.handlePong());
     });
   }
 
   private async performHandshake(): Promise<void> {
     this.handshakeTimer = setTimeout(() => {
-      this.disconnect(1002, "Handshake timeout");
+      this.disconnect(1002, 'Handshake timeout');
     }, this.config.handshakeTimeout);
 
     await this.sendVersion();
@@ -314,7 +314,7 @@ export class Peer {
       this.updateMessageMetrics(data);
 
       if (!this.checkRateLimits()) {
-        this.eventEmitter.emit("error", new Error("Rate limit exceeded"));
+        this.eventEmitter.emit('error', new Error('Rate limit exceeded'));
         return;
       }
 
@@ -323,12 +323,12 @@ export class Peer {
 
       this.lastMessageTime = Date.now();
       this.messagesReceived++;
-      this.eventEmitter.emit("message", message);
+      this.eventEmitter.emit('message', message);
 
       await this.processMessage(message);
     } catch (error) {
-      Logger.error("Error handling incoming message:", error);
-      this.eventEmitter.emit("error", error);
+      Logger.error('Error handling incoming message:', error);
+      this.eventEmitter.emit('error', error);
     }
   }
 
@@ -374,16 +374,16 @@ export class Peer {
         await this.handleGetNodeInfo();
         break;
       default:
-        this.eventEmitter.emit("unknown_message", message);
+        this.eventEmitter.emit('unknown_message', message);
     }
   }
 
   public async send(
     type: PeerMessageType,
-    payload: MessagePayload
+    payload: MessagePayload,
   ): Promise<void> {
     if (!this.isConnected()) {
-      throw new Error("Peer not connected");
+      throw new Error('Peer not connected');
     }
 
     const message: PeerMessage = {
@@ -409,9 +409,9 @@ export class Peer {
   public async request(
     type: PeerMessageType,
     payload: MessagePayload,
-    timeout = this.config.messageTimeout
+    timeout = this.config.messageTimeout,
   ): Promise<MessagePayload> {
-    const requestId = randomBytes(32).toString("hex");
+    const requestId = randomBytes(32).toString('hex');
 
     return new Promise((resolve, reject) => {
       const timeoutId = setTimeout(() => {
@@ -428,7 +428,7 @@ export class Peer {
     });
   }
 
-  public disconnect(code = 1000, reason = "Normal closure"): void {
+  public disconnect(code = 1000, reason = 'Normal closure'): void {
     if (this.ws && this.isConnected()) {
       this.ws.close(code, reason);
     }
@@ -454,7 +454,7 @@ export class Peer {
 
   private async calculateChecksum(payload: MessagePayload): Promise<string> {
     const data =
-      typeof payload === "string" ? payload : JSON.stringify(payload);
+      typeof payload === 'string' ? payload : JSON.stringify(payload);
     return await HybridCrypto.hash(data);
   }
 
@@ -491,23 +491,23 @@ export class Peer {
       this.lastBytesReceived = this.bytesReceived;
       return true;
     } catch (error) {
-      Logger.error("Rate limit check failed:", error);
+      Logger.error('Rate limit check failed:', error);
       return false;
     }
   }
 
   private updateMessageMetrics(data: WebSocket.Data): void {
     this.bytesReceived += data.toString().length;
-    this.metrics.increment("bytes_received", data.toString().length);
-    this.metrics.increment("messages_received");
+    this.metrics.increment('bytes_received', data.toString().length);
+    this.metrics.increment('messages_received');
   }
 
   private updateSendMetrics(message: PeerMessage): void {
     const size = JSON.stringify(message).length;
     this.bytesSent += size;
     this.messagesSent++;
-    this.metrics.increment("bytes_sent", size);
-    this.metrics.increment("messages_sent");
+    this.metrics.increment('bytes_sent', size);
+    this.metrics.increment('messages_sent');
   }
 
   // Getters
@@ -554,8 +554,8 @@ export class Peer {
     const response = await this.request(PeerMessageType.GET_NODE_INFO, {});
     return {
       ...response,
-      publicKey: response.publicKey || "",
-      signature: response.signature || "",
+      publicKey: response.publicKey || '',
+      signature: response.signature || '',
       tagInfo: {
         ...response.tagInfo,
         lastVoteHeight: response.tagInfo.lastVoteHeight || 0,
@@ -572,13 +572,13 @@ export class Peer {
       id: this.peerId,
       url: `${this.address}:${this.port}`,
       timestamp: Date.now(),
-      version: this.version?.toString() || "1",
+      version: this.version?.toString() || '1',
       height: this.startHeight || 0,
       lastSeen: this.lastMessageTime,
       latency: this.getLatency(),
-      capabilities: ["sync", "transactions"],
+      capabilities: ['sync', 'transactions'],
       connectedAt: this.lastMessageTime,
-      consensusRole: "participant",
+      consensusRole: 'participant',
       consensusStats: {
         powContributions: await this.getMinedBlocks(),
         votingParticipation: await this.getVoteParticipation(),
@@ -598,7 +598,7 @@ export class Peer {
       },
       services: Object.values(PeerServices)
         .filter(
-          (service): service is PeerServices => typeof service === "number"
+          (service): service is PeerServices => typeof service === 'number',
         )
         .filter((service) => {
           const currentServices = this.services || [PeerServices.NODE];
@@ -626,7 +626,7 @@ export class Peer {
       const sum = this.latencyWindow.reduce((a, b) => a + b, 0);
       return Math.round(sum / this.latencyWindow.length);
     } catch (error) {
-      Logger.error("Failed to calculate latency:", error);
+      Logger.error('Failed to calculate latency:', error);
       return 0;
     }
   }
@@ -661,13 +661,13 @@ export class Peer {
   }
 
   private handleError(error: Error): void {
-    Logger.error("Peer error:", error);
-    this.eventEmitter.emit("error", error);
+    Logger.error('Peer error:', error);
+    this.eventEmitter.emit('error', error);
   }
 
   private handleClose(code: number, reason: string): void {
     this.cleanup();
-    this.eventEmitter.emit("close", code, reason);
+    this.eventEmitter.emit('close', code, reason);
   }
 
   public async handshake(): Promise<{
@@ -707,15 +707,15 @@ export class Peer {
       try {
         await this.send(PeerMessageType.PING, { timestamp: Date.now() });
       } catch (error) {
-        Logger.error("Ping failed:", error);
+        Logger.error('Ping failed:', error);
       }
     }, this.config.minPingInterval);
   }
 
   private handleConnectionError(error: Error): void {
-    Logger.error("Connection error:", error);
+    Logger.error('Connection error:', error);
     this.state = PeerState.DISCONNECTED;
-    this.eventEmitter.emit("error", error);
+    this.eventEmitter.emit('error', error);
     this.cleanup();
   }
 
@@ -737,7 +737,7 @@ export class Peer {
   private async waitForVerack(): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Verack timeout"));
+        reject(new Error('Verack timeout'));
       }, this.config.handshakeTimeout);
 
       this.eventEmitter.once(PeerMessageType.VERACK, () => {
@@ -754,12 +754,12 @@ export class Peer {
         !message.type ||
         !Object.values(PeerMessageType).includes(message.type)
       ) {
-        Logger.warn("Invalid message type received");
+        Logger.warn('Invalid message type received');
         return null;
       }
       return message;
     } catch (error) {
-      Logger.error("Failed to parse message:", error);
+      Logger.error('Failed to parse message:', error);
       return null;
     }
   }
@@ -785,17 +785,17 @@ export class Peer {
   }
 
   private async handleInventory(
-    inventory: Array<{ type: string; hash: string }>
+    inventory: Array<{ type: string; hash: string }>,
   ): Promise<void> {
     try {
       if (!Array.isArray(inventory)) {
-        throw new Error("Invalid inventory format");
+        throw new Error('Invalid inventory format');
       }
 
       // Process each inventory item
       for (const item of inventory) {
         if (!item.type || !item.hash) {
-          Logger.warn("Invalid inventory item format", item);
+          Logger.warn('Invalid inventory item format', item);
           continue;
         }
 
@@ -804,10 +804,10 @@ export class Peer {
 
         // Handle different inventory types
         switch (item.type) {
-          case "BLOCK":
+          case 'BLOCK':
             await this.handleBlockInventory(item.hash);
             break;
-          case "TX":
+          case 'TX':
             await this.handleTransactionInventory(item.hash);
             break;
           default:
@@ -816,9 +816,9 @@ export class Peer {
       }
 
       // Emit inventory event for external handlers
-      this.eventEmitter.emit("inventory", inventory);
+      this.eventEmitter.emit('inventory', inventory);
     } catch (error) {
-      Logger.error("Error processing inventory:", error);
+      Logger.error('Error processing inventory:', error);
       this.adjustPeerScore(1); // Penalize peer for invalid inventory
     }
   }
@@ -827,7 +827,7 @@ export class Peer {
     // Check if we already have this block
     const hasBlock = await this.database.hasBlock(hash);
     if (!hasBlock) {
-      this.eventEmitter.emit("new_block", { hash });
+      this.eventEmitter.emit('new_block', { hash });
     }
   }
 
@@ -835,7 +835,7 @@ export class Peer {
     // Check if we already have this transaction
     const hasTx = await this.database.hasTransaction(hash);
     if (!hasTx) {
-      this.eventEmitter.emit("new_transaction", { hash });
+      this.eventEmitter.emit('new_transaction', { hash });
     }
   }
 
@@ -844,7 +844,7 @@ export class Peer {
     this.updatePeerState({ banScore: currentScore + adjustment });
 
     if (currentScore + adjustment >= this.config.maxBanScore) {
-      this.disconnect(1008, "Ban score exceeded");
+      this.disconnect(1008, 'Ban score exceeded');
     }
   }
 
@@ -855,7 +855,7 @@ export class Peer {
   public async getBlockHeight(): Promise<number> {
     try {
       const response = await this.request(PeerMessageType.GET_NODE_INFO, {
-        metric: "blockHeight",
+        metric: 'blockHeight',
       });
       const height = response?.headers[0].height || this.startHeight || 0;
 
@@ -864,11 +864,11 @@ export class Peer {
 
       return height;
     } catch (error) {
-      Logger.error("Failed to get block height:", error);
+      Logger.error('Failed to get block height:', error);
       // Fallback to last known height from database
       const stored = await this.database
         .get(`peer:${this.id}:height`)
-        .catch(() => "0");
+        .catch(() => '0');
       return parseInt(stored) || 0;
     }
   }
@@ -876,23 +876,23 @@ export class Peer {
   public async getMinedBlocks(): Promise<number> {
     try {
       const response = await this.request(PeerMessageType.GET_NODE_INFO, {
-        metric: "minedBlocks",
+        metric: 'minedBlocks',
       });
       const minedBlocks = response?.minedBlocks || 0;
 
       // Update mined blocks count in database
       await this.database.put(
         `peer:${this.id}:minedBlocks`,
-        minedBlocks.toString()
+        minedBlocks.toString(),
       );
 
       return minedBlocks;
     } catch (error) {
-      Logger.error("Failed to get mined blocks:", error);
+      Logger.error('Failed to get mined blocks:', error);
       // Fallback to last known count from database
       const stored = await this.database
         .get(`peer:${this.id}:minedBlocks`)
-        .catch(() => "0");
+        .catch(() => '0');
       return parseInt(stored) || 0;
     }
   }
@@ -917,7 +917,7 @@ export class Peer {
       const participation = voteCount / (24 * 60); // Expected votes per minute
       return Math.min(participation, 1);
     } catch (error) {
-      Logger.error("Failed to get vote participation:", error);
+      Logger.error('Failed to get vote participation:', error);
       return this.lastVoteTime && now - this.lastVoteTime < 3600000 ? 1 : 0;
     }
   }
@@ -933,10 +933,10 @@ export class Peer {
         JSON.stringify({
           timestamp,
           height: await this.getBlockHeight(),
-        })
+        }),
       );
     } catch (error) {
-      Logger.error("Failed to record vote:", error);
+      Logger.error('Failed to record vote:', error);
     }
   }
 
@@ -949,13 +949,13 @@ export class Peer {
         return false;
       }
       const response = await this.request(PeerMessageType.GET_NODE_INFO, {
-        metric: "currency",
+        metric: 'currency',
       });
       return (
         response?.currency?.symbol === BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
       );
     } catch (error) {
-      Logger.error("Currency validation failed:", error);
+      Logger.error('Currency validation failed:', error);
       return false;
     }
   }
@@ -982,7 +982,7 @@ export class Peer {
     try {
       // Rate limiting check
       if (!this.checkRateLimits()) {
-        throw new Error("Rate limit exceeded");
+        throw new Error('Rate limit exceeded');
       }
 
       // Send transaction message
@@ -992,14 +992,14 @@ export class Peer {
       });
 
       // Update metrics
-      this.metrics.increment("transactions_sent");
+      this.metrics.increment('transactions_sent');
 
-      Logger.debug("Transaction sent to peer", {
+      Logger.debug('Transaction sent to peer', {
         peerId: this.getId(),
         txId: tx.id,
       });
     } catch (error) {
-      Logger.error("Failed to send transaction to peer:", {
+      Logger.error('Failed to send transaction to peer:', {
         peerId: this.getId(),
         error: error.message,
       });
@@ -1020,22 +1020,22 @@ export class Peer {
 
       // Basic validation
       if (!transaction || !timestamp) {
-        throw new Error("Invalid transaction message format");
+        throw new Error('Invalid transaction message format');
       }
 
       // Check message age
       const messageAge = Date.now() - timestamp;
       if (messageAge > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_MESSAGE_AGE) {
-        throw new Error("Transaction message too old");
+        throw new Error('Transaction message too old');
       }
 
       // Emit transaction received event
-      this.eventEmitter.emit("transaction", transaction);
+      this.eventEmitter.emit('transaction', transaction);
 
       // Update metrics
-      this.metrics.increment("transactions_received");
+      this.metrics.increment('transactions_received');
     } catch (error) {
-      Logger.error("Transaction message handling failed:", {
+      Logger.error('Transaction message handling failed:', {
         peerId: this.getId(),
         error: error.message,
       });
@@ -1050,15 +1050,15 @@ export class Peer {
    * @param reason Reason for the ban
    */
   public async setBan(
-    command: "add" | "remove",
+    command: 'add' | 'remove',
     banTime: number = 0,
-    reason: string = ""
+    reason: string = '',
   ): Promise<void> {
     const release = await this.mutex.acquire();
     try {
       const banKey = `ban:${this.address}`;
 
-      if (command === "add") {
+      if (command === 'add') {
         // Calculate ban expiration
         const banExpiration = banTime === 0 ? 0 : Date.now() + banTime * 1000;
 
@@ -1082,13 +1082,13 @@ export class Peer {
         // Log the ban
         Logger.warn(`Peer banned: ${this.address}`, {
           reason,
-          duration: banTime === 0 ? "permanent" : `${banTime}s`,
+          duration: banTime === 0 ? 'permanent' : `${banTime}s`,
           banScore: this.peerState.banScore,
         });
 
         // Emit ban event
-        this.eventEmitter.emit("banned", banData);
-      } else if (command === "remove") {
+        this.eventEmitter.emit('banned', banData);
+      } else if (command === 'remove') {
         // Remove ban record
         await this.database.del(banKey);
 
@@ -1099,10 +1099,10 @@ export class Peer {
         Logger.info(`Peer unbanned: ${this.address}`);
 
         // Emit unban event
-        this.eventEmitter.emit("unbanned", { address: this.address });
+        this.eventEmitter.emit('unbanned', { address: this.address });
       }
     } catch (error) {
-      Logger.error("Failed to set ban status:", error);
+      Logger.error('Failed to set ban status:', error);
       throw error;
     } finally {
       release();
@@ -1127,17 +1127,17 @@ export class Peer {
       // Check if ban has expired
       if (ban.expiration !== 0 && ban.expiration < Date.now()) {
         // Remove expired ban
-        await this.setBan("remove");
+        await this.setBan('remove');
         return false;
       }
 
       return true;
     } catch (error) {
       // If no ban record exists, peer is not banned
-      if (error.type === "NotFoundError") {
+      if (error.type === 'NotFoundError') {
         return false;
       }
-      Logger.error("Failed to check ban status:", error);
+      Logger.error('Failed to check ban status:', error);
       throw error;
     }
   }
@@ -1163,10 +1163,10 @@ export class Peer {
 
       return JSON.parse(banData);
     } catch (error) {
-      if (error.type === "NotFoundError") {
+      if (error.type === 'NotFoundError') {
         return null;
       }
-      Logger.error("Failed to get ban info:", error);
+      Logger.error('Failed to get ban info:', error);
       throw error;
     }
   }
@@ -1190,8 +1190,8 @@ export class Peer {
 
       // Iterate through database to find ban records
       for await (const [value] of this.database.iterator({
-        gte: "ban:",
-        lte: "ban:\xFF",
+        gte: 'ban:',
+        lte: 'ban:\xFF',
       })) {
         const banData = JSON.parse(value);
         const now = Date.now();
@@ -1212,7 +1212,7 @@ export class Peer {
       // Sort by timestamp (most recent first)
       return bans.sort((a, b) => b.timestamp - a.timestamp);
     } catch (error) {
-      Logger.error("Failed to list bans:", error);
+      Logger.error('Failed to list bans:', error);
       throw error;
     }
   }
@@ -1240,14 +1240,14 @@ export class Peer {
       Logger.info(`Removed ban for peer: ${address}`);
 
       // Emit unban event
-      this.eventEmitter.emit("unbanned", { address });
+      this.eventEmitter.emit('unbanned', { address });
 
       return true;
     } catch (error) {
-      if (error.type === "NotFoundError") {
+      if (error.type === 'NotFoundError') {
         return false;
       }
-      Logger.error("Failed to remove ban:", error);
+      Logger.error('Failed to remove ban:', error);
       throw error;
     } finally {
       release();
@@ -1265,19 +1265,19 @@ export class Peer {
 
       // Iterate and remove all ban records
       for await (const [key] of this.database.iterator({
-        gte: "ban:",
-        lte: "ban:\xFF",
+        gte: 'ban:',
+        lte: 'ban:\xFF',
       })) {
         await this.database.del(key);
         count++;
       }
 
       Logger.info(`Cleared ${count} peer bans`);
-      this.eventEmitter.emit("bansCleared", { count });
+      this.eventEmitter.emit('bansCleared', { count });
 
       return count;
     } catch (error) {
-      Logger.error("Failed to clear bans:", error);
+      Logger.error('Failed to clear bans:', error);
       throw error;
     } finally {
       release();
@@ -1310,7 +1310,7 @@ export class Peer {
       id: this.peerId,
       address: this.address,
       port: this.port,
-      version: this.version?.toString() || "unknown",
+      version: this.version?.toString() || 'unknown',
       state: this.state,
       services: this.services || [],
       lastSeen: this.lastMessageTime,
@@ -1331,48 +1331,48 @@ export class Peer {
       whitelisted: this.isWhitelisted,
       blacklisted: this.isBlacklisted,
       capabilities: [
-        "NETWORK",
-        this.services ? "BLOOM" : "",
-        this.services ? "WITNESS" : "",
-        this.services ? "COMPACT_FILTERS" : "",
+        'NETWORK',
+        this.services ? 'BLOOM' : '',
+        this.services ? 'WITNESS' : '',
+        this.services ? 'COMPACT_FILTERS' : '',
       ].filter(Boolean),
-      userAgent: this.userAgent || "unknown",
+      userAgent: this.userAgent || 'unknown',
     };
   }
 
   public updateSyncedBlocks(height: number): void {
     this.syncedBlocks = Math.max(this.syncedBlocks, height);
-    this.metrics.gauge("synced_blocks", this.syncedBlocks);
+    this.metrics.gauge('synced_blocks', this.syncedBlocks);
   }
 
   public setWhitelisted(status: boolean): void {
     // Only allow manual whitelisting if peer is in configured whitelist
     const whitelistedPeers =
-      (this.configService.get("WHITELISTED_PEERS") as string)?.split(",") || [];
+      (this.configService.get('WHITELISTED_PEERS') as string)?.split(',') || [];
     const isPeerInWhitelist = whitelistedPeers.includes(
-      `${this.address}:${this.port}`
+      `${this.address}:${this.port}`,
     );
 
     if (!isPeerInWhitelist && status) {
       Logger.warn(
-        `Cannot whitelist peer ${this.peerId} - not in configured whitelist`
+        `Cannot whitelist peer ${this.peerId} - not in configured whitelist`,
       );
       return;
     }
 
     this.isWhitelisted = status;
-    this.metrics.gauge("whitelisted", status ? 1 : 0);
+    this.metrics.gauge('whitelisted', status ? 1 : 0);
     Logger.info(`Peer ${this.peerId} whitelist status set to ${status}`);
   }
 
   public setBlacklisted(status: boolean): void {
     this.isBlacklisted = status;
-    this.metrics.gauge("blacklisted", status ? 1 : 0);
+    this.metrics.gauge('blacklisted', status ? 1 : 0);
     Logger.info(`Peer ${this.peerId} blacklist status set to ${status}`);
 
     if (status) {
       // Automatically disconnect blacklisted peers
-      this.disconnect(1008, "Peer blacklisted");
+      this.disconnect(1008, 'Peer blacklisted');
       this.adjustPeerScore(this.config.maxBanScore);
     }
   }
@@ -1399,7 +1399,7 @@ export class Peer {
       // Check cache first
       const cacheKey = `votingPower:${this.peerId}`;
       const cached = this.database.cache.get(cacheKey);
-      if (cached && typeof cached === "object" && "balance" in cached) {
+      if (cached && typeof cached === 'object' && 'balance' in cached) {
         return BigInt(cached.balance);
       }
 
@@ -1417,7 +1417,7 @@ export class Peer {
 
       // If not found, fetch from peer
       const response = await this.request(PeerMessageType.GET_NODE_INFO, {
-        metric: "balance",
+        metric: 'balance',
       });
       const balance = BigInt(response?.balance || 0);
       const votingPower = BigInt(Math.floor(Math.sqrt(Number(balance))));
@@ -1425,7 +1425,7 @@ export class Peer {
       // Store in database and cache
       await this.database.put(
         `peer:${this.peerId}:balance`,
-        balance.toString()
+        balance.toString(),
       );
       this.database.cache.set(cacheKey, {
         balance: votingPower,
@@ -1434,7 +1434,7 @@ export class Peer {
 
       return votingPower;
     } catch (error) {
-      Logger.error("Failed to get voting power:", error);
+      Logger.error('Failed to get voting power:', error);
       return BigInt(0);
     } finally {
       release();
@@ -1455,7 +1455,7 @@ export class Peer {
 
       Logger.debug(`Updated peer info: ${this.id}`, info);
     } catch (error) {
-      Logger.error("Failed to update peer info:", error);
+      Logger.error('Failed to update peer info:', error);
       throw error;
     } finally {
       release();
@@ -1463,13 +1463,13 @@ export class Peer {
   }
 
   private async handleBlockMessage(
-    blockMessage: MessagePayload
+    blockMessage: MessagePayload,
   ): Promise<void> {
     try {
-      this.eventEmitter.emit("block", blockMessage.block);
-      this.metrics.increment("blocks_received");
+      this.eventEmitter.emit('block', blockMessage.block);
+      this.metrics.increment('blocks_received');
     } catch (error) {
-      Logger.error("Block message handling failed:", error);
+      Logger.error('Block message handling failed:', error);
       this.adjustPeerScore(1);
     }
   }
@@ -1479,7 +1479,7 @@ export class Peer {
       const votes = await this.votingDatabase.getVotes();
       await this.send(PeerMessageType.GET_VOTES, { votes });
     } catch (error) {
-      Logger.error("Get votes handling failed:", error);
+      Logger.error('Get votes handling failed:', error);
     }
   }
 
@@ -1490,11 +1490,11 @@ export class Peer {
     try {
       const headers = await this.database.getHeaders(
         payload.locator,
-        payload.hashStop
+        payload.hashStop,
       );
       await this.send(PeerMessageType.HEADERS, { headers });
     } catch (error) {
-      Logger.error("Get headers handling failed:", error);
+      Logger.error('Get headers handling failed:', error);
     }
   }
 
@@ -1505,11 +1505,11 @@ export class Peer {
     try {
       const blocks = await this.database.getBlocks(
         payload.locator,
-        payload.hash
+        payload.hash,
       );
       await this.send(PeerMessageType.GET_BLOCKS, { blocks });
     } catch (error) {
-      Logger.error("Get blocks handling failed:", error);
+      Logger.error('Get blocks handling failed:', error);
     }
   }
 
@@ -1518,7 +1518,7 @@ export class Peer {
       const nodeInfo = await this.getNodeInfo();
       await this.send(PeerMessageType.GET_NODE_INFO, nodeInfo);
     } catch (error) {
-      Logger.error("Get node info handling failed:", error);
+      Logger.error('Get node info handling failed:', error);
     }
   }
 }

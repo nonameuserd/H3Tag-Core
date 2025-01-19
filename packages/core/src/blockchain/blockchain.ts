@@ -162,43 +162,42 @@
  * @property {boolean} [verified] - Whether solution is verified
  */
 
-import { UTXO, UTXOSet } from "../models/utxo.model";
-import { Mempool } from "./mempool";
-import { BlockchainConfig } from "@h3tag-blockchain/shared";
-import { Logger } from "@h3tag-blockchain/shared";
-import { EventEmitter } from "events";
-import { BlockchainSchema } from "../database/blockchain-schema";
-import { HybridDirectConsensus } from "./consensus/hybrid-direct";
+import { UTXO, UTXOSet } from '../models/utxo.model';
+import { Mempool } from './mempool';
+import { BlockchainConfig } from '@h3tag-blockchain/shared';
+import { Logger } from '@h3tag-blockchain/shared';
+import { EventEmitter } from 'events';
+import { BlockchainSchema } from '../database/blockchain-schema';
+import { HybridDirectConsensus } from './consensus/hybrid-direct';
 import {
   HybridCrypto,
   QuantumCrypto,
   KeyManager,
   HashUtils,
-} from "@h3tag-blockchain/crypto";
-import { BlockchainSync } from "../network/sync";
-import { Peer } from "../network/peer";
-import { BLOCKCHAIN_CONSTANTS } from "./utils/constants";
-import { BlockValidator } from "../validators/block.validator";
-import { BlockchainStats } from "./blockchain-stats";
-import { Transaction } from "../models/transaction.model";
-import { Block, BlockBuilder } from "../models/block.model";
-import { NetworkType } from "../network/dnsSeed";
-import { Cache } from "../scaling/cache";
-import { ShardManager } from "../scaling/sharding";
-import { HealthMonitor } from "../monitoring/health";
-import { Mutex } from "async-mutex";
-import { Node } from "../network/node";
-import { MerkleTree } from "../utils/merkle";
-import { TransactionValidator } from "../validators/transaction.validator";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { RateLimit } from "../security/rateLimit";
-import { AuditManager } from "../security/audit";
-import { CircuitBreaker } from "../network/circuit-breaker";
-import { ErrorMonitor } from "../network/error-monitor";
-import { MetricsCollector } from "../monitoring/metrics-collector";
-import { retry, RetryStrategy } from "../utils/retry";
-import { DDoSProtection } from "../security/ddos";
-import { Vote } from "../models/vote.model";
+} from '@h3tag-blockchain/crypto';
+import { BlockchainSync } from '../network/sync';
+import { Peer } from '../network/peer';
+import { BLOCKCHAIN_CONSTANTS } from './utils/constants';
+import { BlockValidator } from '../validators/block.validator';
+import { BlockchainStats } from './blockchain-stats';
+import { Transaction } from '../models/transaction.model';
+import { Block, BlockBuilder } from '../models/block.model';
+import { Cache } from '../scaling/cache';
+import { ShardManager } from '../scaling/sharding';
+import { HealthMonitor } from '../monitoring/health';
+import { Mutex } from 'async-mutex';
+import { Node } from '../network/node';
+import { MerkleTree } from '../utils/merkle';
+import { TransactionValidator } from '../validators/transaction.validator';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { RateLimit } from '../security/rateLimit';
+import { AuditManager } from '../security/audit';
+import { CircuitBreaker } from '../network/circuit-breaker';
+import { ErrorMonitor } from '../network/error-monitor';
+import { MetricsCollector } from '../monitoring/metrics-collector';
+import { retry, RetryStrategy } from '../utils/retry';
+import { DDoSProtection } from '../security/ddos';
+import { Vote } from '../models/vote.model';
 
 interface DbSolution {
   data: {
@@ -225,26 +224,47 @@ interface ChainTip {
   height: number;
   hash: string;
   branchLen: number; // Length of branch
-  status: "active" | "valid-fork" | "valid-headers" | "invalid";
+  status: 'active' | 'valid-fork' | 'valid-headers' | 'invalid';
   firstBlockHash?: string; // Hash of the first block in the branch
   lastValidatedAt?: number;
 }
 
 export class Blockchain {
   private static instance: Blockchain;
-  private chain: Block[];
-  private utxoSet: UTXOSet;
-  private mempool: Mempool;
-  private peers: Map<string, Peer>;
-  private genesisBlock: Block;
-  private totalSupply: number;
-  private config: BlockchainConfig;
-  private consensus: HybridDirectConsensus;
-  public db: BlockchainSchema;
-  private shardManager: ShardManager;
-  private sync: BlockchainSync;
+  private chain: Block[] = [];
+  private utxoSet: UTXOSet = new UTXOSet();
+  private mempool: Mempool = new Mempool(this);
+  private peers: Map<string, Peer> = new Map();
+  private genesisBlock: Block = this.createGenesisBlock();
+  private totalSupply: number = 0;
+  private config: BlockchainConfig = this.initializeConfig();
+  private consensus: HybridDirectConsensus = new HybridDirectConsensus(this);
+  public db: BlockchainSchema = new BlockchainSchema();
+  private shardManager: ShardManager = new ShardManager(
+    {
+      shardCount: 16,
+      votingShards: 8,
+      powShards: 8,
+      maxShardSize: 1000000,
+      replicationFactor: 3,
+      reshardThreshold: 0.8,
+      syncInterval: 60000,
+    },
+    this.db,
+  );
+  private sync: BlockchainSync = new BlockchainSync(
+    this,
+    this.mempool,
+    this.peers,
+    {
+      publicKey: '',
+    },
+    this.db,
+  );
   private consensusPublicKey: {
     publicKey: string;
+  } = {
+    publicKey: '',
   };
   private node: Node;
   private readonly minConfirmations: number = 6; // Standard value for most blockchains
@@ -285,7 +305,7 @@ export class Blockchain {
       });
 
       // Emit error event for monitoring
-      this.eventEmitter.emit("blockchain_error", {
+      this.eventEmitter.emit('blockchain_error', {
         context,
         error: error.message,
         timestamp: Date.now(),
@@ -302,9 +322,9 @@ export class Blockchain {
   private boundSyncError: (error: Error) => void;
   private readonly mutex = new Mutex();
   private readonly healthCheckInterval = 60000; // 1 minute
-  private healthCheckTimer: NodeJS.Timeout;
+  private healthCheckTimer: NodeJS.Timeout | null = null;
   private readonly validationInterval = 3600000; // 1 hour
-  private validationTimer: NodeJS.Timeout;
+  private validationTimer: NodeJS.Timeout | null = null;
   private ddosProtection: DDoSProtection;
   private readonly chainLock = new Mutex();
 
@@ -313,7 +333,7 @@ export class Blockchain {
    * @param config Optional blockchain configuration parameters
    */
   constructor(config?: BlockchainConfig) {
-    this.metrics = new MetricsCollector("blockchain", 60000);
+    this.metrics = new MetricsCollector('blockchain', 60000);
     this.errorMonitor = new ErrorMonitor();
     this.auditManager = new AuditManager();
     this.merkleTree = new MerkleTree();
@@ -322,7 +342,7 @@ export class Blockchain {
       this.db,
       this.mempool,
       new ConfigService(this.config),
-      this.auditManager
+      this.auditManager,
     );
 
     this.healthMonitor = new HealthMonitor({
@@ -377,25 +397,25 @@ export class Blockchain {
 
     // Initialize peer manager
     this.peerManager = new Peer(
-      this.config.network.host[this.config.network.type.MAINNET],
-      this.config.network.port[this.config.network.type.MAINNET] || 8333,
+      this.config.network.host.MAINNET,
+      this.config.network.port.MAINNET,
       {
         minPingInterval: 30000,
         handshakeTimeout: 5000,
         maxBanScore: 100,
       },
       new ConfigService(this.config),
-      this.db
+      this.db,
     );
 
     // Set up peer event handlers
     this.peerManager.eventEmitter.on(
-      "peer_banned",
-      this.handlePeerBanned.bind(this)
+      'peer_banned',
+      this.handlePeerBanned.bind(this),
     );
     this.peerManager.eventEmitter.on(
-      "peer_violation",
-      this.handlePeerViolation.bind(this)
+      'peer_violation',
+      this.handlePeerViolation.bind(this),
     );
 
     this.rateLimiter = new RateLimit(
@@ -407,37 +427,37 @@ export class Blockchain {
           default: 50,
         },
       },
-      this.auditManager
+      this.auditManager,
     );
 
     // Initialize error monitoring
-    this.errorMonitor.setThreshold("CONSENSUS_ERROR", 5);
-    this.errorMonitor.setThreshold("NETWORK_ERROR", 10);
+    this.errorMonitor.setThreshold('CONSENSUS_ERROR', 5);
+    this.errorMonitor.setThreshold('NETWORK_ERROR', 10);
     this.errorMonitor.onThresholdExceeded((type, count) => {
       Logger.alert(
-        `Error threshold exceeded for ${type}: ${count} occurrences`
+        `Error threshold exceeded for ${type}: ${count} occurrences`,
       );
     });
 
     this.circuitBreakers.set(
-      "network",
+      'network',
       new CircuitBreaker({
         failureThreshold: 0.5,
         monitorInterval: 30000,
         resetTimeout: 60000,
-      })
+      }),
     );
     this.circuitBreakers.set(
-      "consensus",
+      'consensus',
       new CircuitBreaker({
         failureThreshold: 0.5,
         monitorInterval: 30000,
         resetTimeout: 60000,
-      })
+      }),
     );
 
     // Initialize metrics collector with blockchain namespace
-    this.metrics = new MetricsCollector("blockchain", 60000); // Flush every minute
+    this.metrics = new MetricsCollector('blockchain', 60000); // Flush every minute
 
     // Initialize retry strategy with configuration
     this.retryStrategy = new RetryStrategy({
@@ -448,8 +468,8 @@ export class Blockchain {
       retryableErrors: [
         /network error/i,
         /timeout/i,
-        "Connection refused",
-        "ECONNRESET",
+        'Connection refused',
+        'ECONNRESET',
       ],
       jitterFactor: 0.25,
     });
@@ -459,20 +479,20 @@ export class Blockchain {
     this.boundSyncError = this.handleSyncError.bind(this);
 
     // Add listeners
-    this.sync.on("sync_completed", this.boundSyncCompleted);
-    this.sync.on("sync_error", this.boundSyncError);
+    this.sync.on('sync_completed', this.boundSyncCompleted);
+    this.sync.on('sync_error', this.boundSyncError);
 
     // Start periodic health checks
     this.healthCheckTimer = setInterval(async () => {
       try {
         const isHealthy = await this.healthCheck();
         if (!isHealthy) {
-          Logger.warn("Blockchain health check failed");
-          this.metrics.increment("health_check_failures");
-          this.eventEmitter.emit("health_check_failed");
+          Logger.warn('Blockchain health check failed');
+          this.metrics.increment('health_check_failures');
+          this.eventEmitter.emit('health_check_failed');
         }
       } catch (error) {
-        Logger.error("Health check error:", error);
+        Logger.error('Health check error:', error);
       }
     }, this.healthCheckInterval);
 
@@ -481,7 +501,7 @@ export class Blockchain {
 
     // Start blockchain on initialization
     this.start().catch((error) => {
-      Logger.error("Failed to start blockchain:", error);
+      Logger.error('Failed to start blockchain:', error);
     });
 
     this.ddosProtection = new DDoSProtection(
@@ -494,7 +514,7 @@ export class Blockchain {
         windowMs: 60000,
         blockDuration: 1800000, // 30 minutes
       },
-      this.auditManager
+      this.auditManager,
     );
   }
 
@@ -517,7 +537,7 @@ export class Blockchain {
         // Rebuild chain from database
         this.chain = await this.db.getBlocksFromHeight(
           0,
-          chainState.height + 1
+          chainState.height + 1,
         );
       } else {
         // Initialize new chain with genesis block
@@ -550,7 +570,7 @@ export class Blockchain {
           reshardThreshold: 0.8,
           syncInterval: 60000,
         },
-        this.db
+        this.db,
       );
 
       // Initialize consensus with 4-year voting period
@@ -562,7 +582,7 @@ export class Blockchain {
         this.mempool,
         this.peers,
         this.consensusPublicKey,
-        this.db
+        this.db,
       );
 
       // Setup event listeners
@@ -574,7 +594,7 @@ export class Blockchain {
       // Add memory monitoring
       this.monitorMemoryUsage();
     } catch (error) {
-      this.errorHandler.handle(error as Error, "initialization");
+      this.errorHandler.handle(error as Error, 'initialization');
       throw error; // Rethrow to prevent partial initialization
     }
   }
@@ -586,7 +606,7 @@ export class Blockchain {
   private async initializeKeys(): Promise<void> {
     const keyPair = await QuantumCrypto.generateKeyPair();
     this.consensusPublicKey = {
-      publicKey: keyPair.publicKey.toString("hex"),
+      publicKey: keyPair.publicKey.toString('hex'),
     };
   }
 
@@ -596,14 +616,14 @@ export class Blockchain {
    */
   private setupEventListeners(): void {
     // Fix: Store references to bound listeners for cleanup
-    this.boundSyncCompleted = () => this.eventEmitter.emit("blockchain_synced");
+    this.boundSyncCompleted = () => this.eventEmitter.emit('blockchain_synced');
     this.boundSyncError = (error) => {
-      Logger.error("Blockchain sync error:", error);
-      this.eventEmitter.emit("sync_error", error);
+      Logger.error('Blockchain sync error:', error);
+      this.eventEmitter.emit('sync_error', error);
     };
 
-    this.sync.on("sync_completed", this.boundSyncCompleted);
-    this.sync.on("sync_error", this.boundSyncError);
+    this.sync.on('sync_completed', this.boundSyncCompleted);
+    this.sync.on('sync_error', this.boundSyncError);
   }
 
   /**
@@ -627,18 +647,18 @@ export class Blockchain {
     const block: Block = {
       header: {
         version: 1,
-        previousHash: "0".repeat(64),
-        merkleRoot: "",
-        validatorMerkleRoot: "",
+        previousHash: '0'.repeat(64),
+        merkleRoot: '',
+        validatorMerkleRoot: '',
         timestamp,
         difficulty: 1,
         nonce: 0,
         height: 0,
-        miner: "0".repeat(40),
+        miner: '0'.repeat(40),
         totalTAG: 0,
         blockReward: 50,
         locator: [],
-        hashStop: "",
+        hashStop: '',
         fees: 0,
         consensusData: {
           powScore: 0,
@@ -646,28 +666,28 @@ export class Blockchain {
           participationRate: 0,
           periodId: 0,
         },
-        signature: "",
-        publicKey: "",
-        hash: "",
-        minerAddress: "",
-        target: "",
+        signature: '',
+        publicKey: '',
+        hash: '',
+        minerAddress: '',
+        target: '',
       },
       transactions: [],
       votes: [],
       validators: [],
-      hash: "",
+      hash: '',
       timestamp: timestamp,
       verifyHash: async () => {
         const calculatedHash = await HybridCrypto.hash(
-          JSON.stringify(block.header)
+          JSON.stringify(block.header),
         );
         return calculatedHash === block.hash;
       },
       verifySignature: async () => {
         return HybridCrypto.verify(
-          block.hash,
-          block.header.signature,
-          block.header.publicKey
+          block.hash || '',
+          block.header.signature || '',
+          block.header.publicKey || '',
         );
       },
       getHeaderBase: () => block.getHeaderBase(),
@@ -694,7 +714,7 @@ export class Blockchain {
    * @throws Error if block validation fails
    */
   public async addBlock(block: Block): Promise<boolean> {
-    return this.withErrorBoundary("addBlock", async () => {
+    return this.withErrorBoundary('addBlock', async () => {
       const startTime = performance.now();
       const release = await this.chainLock.acquire();
 
@@ -702,7 +722,7 @@ export class Blockchain {
         // System health validation
         if (!(await this.healthCheck())) {
           throw new Error(
-            "UNHEALTHY_STATE, System unhealthy, cannot add block"
+            'UNHEALTHY_STATE, System unhealthy, cannot add block',
           );
         }
 
@@ -733,9 +753,9 @@ export class Blockchain {
 
           this.metrics.emitMetrics(block, performance.now() - startTime);
           return true;
-        } catch (error) {
-          Logger.error("Block addition failed, rolling back:", error);
-          throw new Error(error.message);
+        } catch (error: unknown) {
+          Logger.error('Block addition failed, rolling back:', error);
+          throw new Error(error as string);
         }
       } finally {
         release();
@@ -746,18 +766,18 @@ export class Blockchain {
   private async validateBlockPreAdd(block: Block): Promise<void> {
     const [signatureValid, consensusValid] = await Promise.all([
       HybridCrypto.verify(
-        block.hash,
-        block.header.signature,
-        block.header.publicKey
+        block.hash || '',
+        block.header.signature || '',
+        block.header.publicKey || '',
       ),
       this.consensus.pow.validateBlock(block),
     ]);
 
     if (!signatureValid) {
-      throw new Error("INVALID_SIGNATURE, Invalid block signature");
+      throw new Error('INVALID_SIGNATURE, Invalid block signature');
     }
     if (!consensusValid) {
-      throw new Error("CONSENSUS_INVALID, Block failed consensus validation");
+      throw new Error('CONSENSUS_INVALID, Block failed consensus validation');
     }
   }
 
@@ -780,7 +800,7 @@ export class Blockchain {
   /**
    * Get block by hash with caching and validation
    */
-  public async getBlock(hash: string): Promise<Block | undefined> {
+  public async getBlock(hash: string): Promise<Block | undefined | null> {
     try {
       // Check cache first
       const cachedBlock = this.blockCache.get(hash);
@@ -798,11 +818,11 @@ export class Blockchain {
           return block;
         })
         .catch((error) => {
-          Logger.error("Error retrieving block from database:", error);
+          Logger.error('Error retrieving block from database:', error);
           return undefined;
         });
-    } catch (error) {
-      Logger.error("Error retrieving block:", error);
+    } catch (error: unknown) {
+      Logger.error('Error retrieving block:', error as Error);
       return Promise.resolve(undefined);
     }
   }
@@ -839,11 +859,11 @@ export class Blockchain {
       };
 
       // Update metrics
-      this.metrics.gauge("blockchain_height", height);
+      this.metrics.gauge('blockchain_height', height);
 
       return height;
     } catch (error) {
-      Logger.error("Error getting blockchain height:", error);
+      Logger.error('Error getting blockchain height:', error);
       // Fallback to calculating height directly
       return Math.max(0, this.chain.length - 1);
     }
@@ -855,7 +875,7 @@ export class Blockchain {
   public async getUTXOSet(): Promise<UTXOSet> {
     try {
       // Check cache first
-      const cachedUtxoSet = this.utxoSetCache.get("current");
+      const cachedUtxoSet = this.utxoSetCache.get('current');
       if (cachedUtxoSet) {
         return cachedUtxoSet;
       }
@@ -865,10 +885,10 @@ export class Blockchain {
         this.rebuildUTXOSet();
       }
 
-      this.utxoSetCache.set("current", this.utxoSet);
+      this.utxoSetCache.set('current', this.utxoSet);
       return this.utxoSet;
     } catch (error) {
-      Logger.error("Error getting UTXO set:", error);
+      Logger.error('Error getting UTXO set:', error);
       throw error;
     }
   }
@@ -898,7 +918,7 @@ export class Blockchain {
               outputIndex: index,
               amount: output.amount,
               address: output.address,
-              script: output.script || "",
+              script: output.script || '',
               timestamp: block.header.timestamp,
               spent: false,
               currency: {
@@ -914,9 +934,9 @@ export class Blockchain {
       }
 
       this.utxoSet = newUtxoSet;
-      Logger.info("UTXO set rebuilt successfully");
+      Logger.info('UTXO set rebuilt successfully');
     } catch (error) {
-      Logger.error("Failed to rebuild UTXO set:", error);
+      Logger.error('Failed to rebuild UTXO set:', error);
       throw error;
     }
   }
@@ -956,7 +976,7 @@ export class Blockchain {
 
       adjustedTimespan = Math.max(
         actualTimespan / BLOCKCHAIN_CONSTANTS.MINING.MAX_ADJUSTMENT_FACTOR,
-        actualTimespan * BLOCKCHAIN_CONSTANTS.MINING.MAX_ADJUSTMENT_FACTOR
+        actualTimespan * BLOCKCHAIN_CONSTANTS.MINING.MAX_ADJUSTMENT_FACTOR,
       );
       const newDifficulty =
         (latestBlock.header.difficulty *
@@ -965,10 +985,10 @@ export class Blockchain {
 
       return Math.max(
         newDifficulty,
-        BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY
+        BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY,
       );
     } catch (error) {
-      Logger.error("Error calculating difficulty:", error);
+      Logger.error('Error calculating difficulty:', error);
       return BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY;
     }
   }
@@ -1002,7 +1022,7 @@ export class Blockchain {
       }
       return true;
     } catch (error) {
-      Logger.error("Chain validation failed:", error);
+      Logger.error('Chain validation failed:', error);
       return false;
     }
   }
@@ -1034,12 +1054,12 @@ export class Blockchain {
 
   public async getPowSolutions(
     minerAddress: string,
-    sinceTimestamp: number
+    sinceTimestamp: number,
   ): Promise<PowSolution[]> {
     try {
       const solutions = (await this.db.find({
-        type: "pow_solution",
-        "data.minerAddress": minerAddress,
+        type: 'pow_solution',
+        'data.minerAddress': minerAddress,
         timestamp: { $gte: sinceTimestamp },
       })) as unknown as DbSolution[];
 
@@ -1052,7 +1072,7 @@ export class Blockchain {
         signature: sol.data.signature,
       }));
     } catch (error) {
-      Logger.error("Failed to get PoW solutions:", error);
+      Logger.error('Failed to get PoW solutions:', error);
       return [];
     }
   }
@@ -1068,8 +1088,8 @@ export class Blockchain {
 
   public async start(): Promise<void> {
     // Add event listener for mined blocks
-    this.consensus.pow.on("blockMined", async (data: { block: Block }) => {
-      await this.handleBlockMined(data.block);
+    this.consensus.pow.on('blockMined', async (data: Block) => {
+      await this.handleBlockMined(data);
     });
 
     await this.sync.startSync();
@@ -1077,7 +1097,7 @@ export class Blockchain {
 
   public async stop(): Promise<void> {
     // Remove event listener
-    this.consensus.pow.off("blockMined", this.handleBlockMined);
+    this.consensus.pow.off('blockMined', this.handleBlockMined);
 
     KeyManager.shutdown();
     await this.sync.stop();
@@ -1088,7 +1108,12 @@ export class Blockchain {
    */
   public getBlockchainStats(): BlockchainStats {
     return new BlockchainStats({
-      getConsensusMetrics: this.getConsensusMetrics,
+      getConsensusMetrics: this.getConsensusMetrics as () => Promise<{
+        powHashrate: number;
+        activeVoters: number;
+        participation: number;
+        currentParticipation: number;
+      }>,
       getCurrentHeight: this.getCurrentHeight,
       getLatestBlock: this.getLatestBlock,
       getTransaction: this.getTransaction,
@@ -1117,7 +1142,7 @@ export class Blockchain {
    * @returns Promise<string> The merkle root
    */
   private async calculateMerkleRoot(
-    transactions: Transaction[]
+    transactions: Transaction[],
   ): Promise<string> {
     try {
       const txData = transactions.map((tx) => {
@@ -1128,17 +1153,20 @@ export class Blockchain {
             recipients: tx.outputs.map((o) => o.address),
             amount: tx.outputs.reduce((sum, o) => {
               const amount = BigInt(o.amount);
-              if (amount < 0n) throw new Error("Negative amount");
+              if (amount < 0n) throw new Error('Negative amount');
               return sum + amount;
             }, 0n),
           });
-        } catch (error) {
-          throw new Error(`Invalid transaction data: ${error.message}`);
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            throw new Error(`Invalid transaction data: ${error.message}`);
+          }
+          throw new Error('Invalid transaction data');
         }
       });
       return await this.merkleTree.createRoot(txData);
     } catch (error) {
-      Logger.error("Merkle root calculation failed:", error);
+      Logger.error('Merkle root calculation failed:', error);
       throw error;
     }
   }
@@ -1156,9 +1184,9 @@ export class Blockchain {
     const merkleRoot = await this.calculateMerkleRoot(transactions);
 
     const blockBuilder = new BlockBuilder(
-      previousBlock ? previousBlock.hash : "",
+      previousBlock ? previousBlock.hash : '',
       BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY,
-      this.auditManager
+      this.auditManager,
     );
 
     blockBuilder.header.height = nextHeight;
@@ -1172,7 +1200,10 @@ export class Blockchain {
     });
 
     // Sign the block before consensus
-    await this.signBlock(newBlock, this.config.wallet.privateKey);
+    await this.signBlock(
+      newBlock,
+      this.config.wallet.privateKey as string,
+    );
 
     // Use hybrid consensus to mine and validate block
     const minedBlock = await this.consensus.processBlock(newBlock);
@@ -1187,7 +1218,7 @@ export class Blockchain {
    * @returns Promise<Transaction|undefined> Transaction if found
    */
   public async getTransaction(hash: string): Promise<Transaction | undefined> {
-    return this.withErrorBoundary("getTransaction", async () => {
+    return this.withErrorBoundary('getTransaction', async () => {
       // Try cache first
       const cached = this.transactionCache.get(hash);
       if (cached) return cached;
@@ -1218,7 +1249,7 @@ export class Blockchain {
     try {
       // Validate height
       if (height < 0) {
-        Logger.warn("Invalid block height for reward calculation", { height });
+        Logger.warn('Invalid block height for reward calculation', { height });
         return BigInt(0);
       }
 
@@ -1241,7 +1272,7 @@ export class Blockchain {
       const maxHalvings = BLOCKCHAIN_CONSTANTS.MINING.MAX_HALVINGS;
       const halvings = Math.min(
         Math.floor(height / halvingInterval),
-        maxHalvings
+        maxHalvings,
       );
 
       // Calculate reward using BigInt
@@ -1252,7 +1283,7 @@ export class Blockchain {
       const minReward = BLOCKCHAIN_CONSTANTS.MINING.MIN_REWARD;
       return reward > minReward ? reward : minReward;
     } catch (error) {
-      Logger.error("Error calculating block reward:", error);
+      Logger.error('Error calculating block reward:', error);
       return BigInt(0);
     }
   }
@@ -1269,14 +1300,7 @@ export class Blockchain {
    * @param address Address to get UTXOs for
    * @returns Promise<Array<{ txid: string; vout: number; amount: number; confirmations: number; }>> Confirmed UTXOs
    */
-  async getConfirmedUtxos(address: string): Promise<
-    Array<{
-      txid: string;
-      vout: number;
-      amount: number;
-      confirmations: number;
-    }>
-  > {
+  async getConfirmedUtxos(address: string): Promise<UTXO[]> {
     const utxos = await this.db.getUtxosByAddress(address);
     return utxos.filter((utxo) => utxo.confirmations >= this.minConfirmations);
   }
@@ -1531,27 +1555,27 @@ export class Blockchain {
       minSafeConfirmations: 6,
       maxSafeUtxoAmount: 1_000_000_000_000,
       coinbaseMaturity: 100,
-      userAgent: "/H3Tag:1.0.0/",
+      userAgent: '/H3Tag:1.0.0/',
       protocolVersion: 1,
       maxMempoolSize: 50000,
       minRelayTxFee: 0.00001,
       minPeers: 3,
       message: {
-        prefix: "\x18H3Tag Signed Message:\n",
+        prefix: '\x18H3Tag Signed Message:\n',
         maxLength: 100000,
         minLength: 1,
       },
       wallet: config?.wallet || {
-        address: "",
+        address: '',
         publicKey: async (): Promise<string> => {
           const keyPair = await KeyManager.generateKeyPair();
-          return typeof keyPair.publicKey === "function"
+          return typeof keyPair.publicKey === 'function'
             ? await keyPair.publicKey()
             : keyPair.publicKey;
         },
         privateKey: async (): Promise<string> => {
           const keyPair = await KeyManager.generateKeyPair();
-          return typeof keyPair.privateKey === "function"
+          return typeof keyPair.privateKey === 'function'
             ? await keyPair.privateKey()
             : keyPair.privateKey;
         },
@@ -1584,20 +1608,20 @@ export class Blockchain {
         // Adjust max size based on mempool usage
         const dynamicMaxSize = Math.floor(
           BLOCKCHAIN_CONSTANTS.UTIL.BASE_MAX_SIZE *
-            (1 - mempoolUsageRatio * 0.5) // Reduce by up to 50% based on mempool usage
+            (1 - mempoolUsageRatio * 0.5), // Reduce by up to 50% based on mempool usage
         );
 
         // Never exceed absolute maximum
         return Math.min(
           dynamicMaxSize,
-          BLOCKCHAIN_CONSTANTS.UTIL.ABSOLUTE_MAX_SIZE
+          BLOCKCHAIN_CONSTANTS.UTIL.ABSOLUTE_MAX_SIZE,
         );
       }
 
       // Default to base size for young network
       return BLOCKCHAIN_CONSTANTS.UTIL.BASE_MAX_SIZE;
     } catch (error) {
-      Logger.error("Error calculating max transaction size:", error);
+      Logger.error('Error calculating max transaction size:', error);
       // Fall back to conservative limit if there's an error
       return BLOCKCHAIN_CONSTANTS.UTIL.BASE_MAX_SIZE;
     }
@@ -1625,7 +1649,7 @@ export class Blockchain {
         this.consensus?.dispose(),
         this.db?.close(), // Add database closure
         ...Array.from(this.circuitBreakers.values()).map((breaker) =>
-          breaker.dispose()
+          breaker.dispose(),
         ),
       ];
 
@@ -1636,11 +1660,11 @@ export class Blockchain {
       this.transactionCache.clear();
       this.utxoCache.clear();
       this.heightCache = null;
-      this.utxoSetCache = null;
+      this.utxoSetCache = new Cache<UTXOSet>();
       this.peers.clear();
       this.eventEmitter.removeAllListeners();
     } catch (error) {
-      Logger.error("Error during blockchain disposal:", error);
+      Logger.error('Error during blockchain disposal:', error);
       throw error;
     }
   }
@@ -1651,7 +1675,7 @@ export class Blockchain {
       const heapUsed = memoryUsage.heapUsed / 1024 / 1024; // MB
       const maxSize = parseInt(
         process.env.NODE_OPTIONS?.match(/--max-old-space-size=(\d+)/)?.[1] ||
-          "2048"
+          '2048',
       );
 
       if (heapUsed > BLOCKCHAIN_CONSTANTS.UTIL.PRUNE_THRESHOLD * maxSize) {
@@ -1688,17 +1712,20 @@ export class Blockchain {
 
   public getNode(): Node {
     if (!this.node) {
-      throw new Error("Node not initialized");
+      throw new Error('Node not initialized');
     }
     return this.node;
   }
 
   // Add method to sign blocks using HybridCrypto
-  private async signBlock(block: Block, privateKey: any): Promise<void> {
+  private async signBlock(
+    block: Block,
+    privateKey: string,
+  ): Promise<void> {
     try {
       block.header.signature = await HybridCrypto.sign(block.hash, privateKey);
     } catch (error) {
-      Logger.error("Error signing block:", error);
+      Logger.error('Error signing block:', error);
       throw error;
     }
   }
@@ -1708,18 +1735,18 @@ export class Blockchain {
     try {
       // Size validation first - cheapest check
       if (!this.validateTransactionSize(tx)) {
-        throw new Error("Transaction size exceeds limit");
+        throw new Error('Transaction size exceeds limit');
       }
 
       // Add nonce check to prevent replay attacks
       const expectedNonce = await this.db.getAccountNonce(tx.sender);
       if (tx.nonce !== expectedNonce) {
-        throw new Error("Invalid transaction nonce");
+        throw new Error('Invalid transaction nonce');
       }
 
       // Add amount validation
       if (!this.validateTransactionAmount(tx)) {
-        throw new Error("Invalid transaction amount");
+        throw new Error('Invalid transaction amount');
       }
 
       // Verify signature with timeout
@@ -1727,20 +1754,20 @@ export class Blockchain {
         HybridCrypto.verify(tx.id, tx.signature, tx.sender),
         new Promise((_, reject) =>
           setTimeout(
-            () => reject(new Error("Signature verification timeout")),
-            5000
-          )
+            () => reject(new Error('Signature verification timeout')),
+            5000,
+          ),
         ),
       ]);
 
       if (!isValidSignature) {
-        throw new Error("Invalid transaction signature");
+        throw new Error('Invalid transaction signature');
       }
 
       // Add DDoS protection for transaction submissions
-      if (!this.ddosProtection.checkRequest("blockchain_tx", tx.sender)) {
+      if (!this.ddosProtection.checkRequest('blockchain_tx', tx.sender)) {
         Logger.warn(
-          `DDoS protection blocked blockchain transaction from ${tx.sender}`
+          `DDoS protection blocked blockchain transaction from ${tx.sender}`,
         );
         return false;
       }
@@ -1750,7 +1777,7 @@ export class Blockchain {
       this.transactionCache.set(tx.id, tx);
       return true;
     } catch (error) {
-      this.errorHandler.handle(error as Error, "addTransaction");
+      this.errorHandler.handle(error as Error, 'addTransaction');
       return false;
     }
   }
@@ -1761,7 +1788,7 @@ export class Blockchain {
    * @returns Promise<{ blockHeight: number } | null> First transaction for the address
    */
   public async getFirstTransactionForAddress(
-    address: string
+    address: string,
   ): Promise<{ blockHeight: number } | null> {
     try {
       // Check cache first
@@ -1777,7 +1804,7 @@ export class Blockchain {
         const startHeight = Math.max(0, currentHeight - batchSize);
         const blocks = await this.db.getBlocksFromHeight(
           startHeight,
-          currentHeight
+          currentHeight,
         );
 
         for (const block of blocks) {
@@ -1798,7 +1825,7 @@ export class Blockchain {
 
       return null;
     } catch (error) {
-      Logger.error("Error getting first transaction:", error);
+      Logger.error('Error getting first transaction:', error);
       return null;
     }
   }
@@ -1814,7 +1841,7 @@ export class Blockchain {
       const totalInput = await this.calculateInputAmount(tx.inputs);
       const totalOutput = tx.outputs.reduce(
         (sum, out) => sum + BigInt(out.amount),
-        0n
+        0n,
       );
       const fee = BigInt(this.calculateTransactionFee(tx));
 
@@ -1835,13 +1862,13 @@ export class Blockchain {
    * @returns Promise<bigint> Total amount of inputs
    */
   private async calculateInputAmount(
-    inputs: Array<{ txId: string; outputIndex: number }>
+    inputs: Array<{ txId: string; outputIndex: number }>,
   ): Promise<bigint> {
     let total = 0n;
     for (const input of inputs) {
       const utxo = await this.utxoSet.getUtxo(input.txId, input.outputIndex);
       if (!utxo || utxo.spent) {
-        throw new Error("Invalid or spent UTXO");
+        throw new Error('Invalid or spent UTXO');
       }
       total += BigInt(utxo.amount);
     }
@@ -1857,7 +1884,6 @@ export class Blockchain {
     const release = await this.txLock.acquire();
     try {
       for (const input of tx.inputs) {
-        const key = `${input.txId}:${input.outputIndex}`;
         const spentOutputs = this.spentTxTracker.get(input.txId) || new Set();
 
         if (spentOutputs.has(input.outputIndex)) {
@@ -1883,10 +1909,10 @@ export class Blockchain {
     delay: 500,
     exponentialBackoff: true,
     maxDelay: 5000,
-    retryableErrors: ["Rate limit exceeded", /timeout/i],
+    retryableErrors: ['Rate limit exceeded', /timeout/i],
   })
   public async processPayment(tx: Transaction): Promise<boolean> {
-    return this.withErrorBoundary("processPayment", async () => {
+    return this.withErrorBoundary('processPayment', async () => {
       const startTime = Date.now();
 
       // Validate and process transaction
@@ -1902,24 +1928,24 @@ export class Blockchain {
       const timeoutPromise = new Promise((_, reject) => {
         const timeout = setTimeout(() => {
           clearTimeout(timeout);
-          reject(new Error("Payment processing timeout"));
+          reject(new Error('Payment processing timeout'));
         }, 10000);
       });
 
       // Process with timeout
       try {
         this.metrics.histogram(
-          "payment_processing_time",
-          Date.now() - startTime
+          'payment_processing_time',
+          Date.now() - startTime,
         );
-        this.metrics.gauge("mempool_size", this.mempool.getSize());
+        this.metrics.gauge('mempool_size', this.mempool.getSize());
         await Promise.race([this.addTransaction(tx), timeoutPromise]);
-        this.metrics.increment("successful_payments");
+        this.metrics.increment('successful_payments');
 
         return true;
       } catch (error) {
-        Logger.error("Payment processing failed:", error);
-        this.metrics.increment("payment_errors");
+        Logger.error('Payment processing failed:', error);
+        this.metrics.increment('payment_errors');
         await this.rollbackTransaction(tx);
         return false;
       }
@@ -1952,7 +1978,7 @@ export class Blockchain {
       // If mempool is still too large, remove oldest transactions
       if (this.mempool.getSize() > this.MAX_MEMPOOL_SIZE) {
         const sortedTxs = transactions.sort(
-          (a, b) => a.timestamp - b.timestamp
+          (a, b) => a.timestamp - b.timestamp,
         );
         const excessCount = this.mempool.getSize() - this.MAX_MEMPOOL_SIZE;
         sortedTxs.slice(0, excessCount).forEach((tx) => {
@@ -1963,10 +1989,10 @@ export class Blockchain {
       const after = this.mempool.getSize();
 
       // Record cleanup metrics
-      this.metrics.gauge("mempool_size", after);
-      this.metrics.histogram("mempool_cleanup_removed", before - after);
+      this.metrics.gauge('mempool_size', after);
+      this.metrics.histogram('mempool_cleanup_removed', before - after);
     } catch (error) {
-      this.metrics.increment("mempool_cleanup_errors");
+      this.metrics.increment('mempool_cleanup_errors');
       throw error;
     }
   }
@@ -1977,7 +2003,7 @@ export class Blockchain {
    * @returns Promise<boolean> True if reorganization was successful
    */
   public async handleChainReorganization(newChainTip: Block): Promise<boolean> {
-    return this.withErrorBoundary("chainReorganization", async () => {
+    return this.withErrorBoundary('chainReorganization', async () => {
       const release = await this.reorgLock.acquire();
       const reorgSnapshot = await this.db.createSnapshot();
 
@@ -1994,12 +2020,12 @@ export class Blockchain {
           await this.rollbackToBlock(commonAncestor.header.height);
           const newBlocks = await this.getNewChainBlocks(
             commonAncestor,
-            newChainTip
+            newChainTip,
           );
 
           for (const block of newBlocks) {
             if (!(await this.addBlock(block))) {
-              throw new Error("Reorg failed");
+              throw new Error('Reorg failed');
             }
           }
         });
@@ -2008,7 +2034,7 @@ export class Blockchain {
         return true;
       } catch (error) {
         await this.db.rollbackSnapshot(reorgSnapshot);
-        this.errorHandler.handle(error as Error, "chainReorganization");
+        this.errorHandler.handle(error as Error, 'chainReorganization');
         return false;
       } finally {
         await release();
@@ -2021,7 +2047,9 @@ export class Blockchain {
    * @param newTip The new chain tip block
    * @returns Promise<Block | null> The common ancestor block or null if not found
    */
-  private async findCommonAncestor(newTip: Block): Promise<Block | null> {
+  private async findCommonAncestor(
+    newTip: Block | null | undefined,
+  ): Promise<Block | null> {
     let currentBlock = newTip;
     const maxSearchDepth = this.MAX_REORG_DEPTH;
 
@@ -2071,13 +2099,13 @@ export class Blockchain {
       TransactionValidator.validateTransaction(
         tx,
         this.utxoSet,
-        this.getCurrentHeight()
+        this.getCurrentHeight(),
       ),
       new Promise<boolean>((_, reject) =>
         setTimeout(
-          () => reject(new Error("Transaction validation timeout")),
-          5000
-        )
+          () => reject(new Error('Transaction validation timeout')),
+          5000,
+        ),
       ),
     ]);
   }
@@ -2091,20 +2119,20 @@ export class Blockchain {
     try {
       const peer = new Peer(
         peerUrl,
-        this.config.network.port[this.config.network.type.MAINNET] || 8333,
+        this.config.network.port.MAINNET,
         {
           minPingInterval: 30000,
           handshakeTimeout: 5000,
           maxBanScore: 100,
         },
         new ConfigService(this.config),
-        this.db
+        this.db,
       );
 
       await peer.handshake();
       this.peers.set(peer.getId(), peer);
       Logger.info(`Successfully added peer: ${peerUrl}`);
-      this.eventEmitter.emit("peer_added", { url: peerUrl });
+      this.eventEmitter.emit('peer_added', { url: peerUrl });
       return true;
     } catch (error) {
       Logger.error(`Failed to add peer ${peerUrl}:`, error);
@@ -2118,7 +2146,7 @@ export class Blockchain {
    */
   private handlePeerBanned(data: { peerId: string; address: string }): void {
     Logger.warn(`Peer banned: ${data.address}`);
-    this.eventEmitter.emit("peer_banned", data);
+    this.eventEmitter.emit('peer_banned', data);
   }
 
   /**
@@ -2131,7 +2159,7 @@ export class Blockchain {
     severity: number;
   }): void {
     Logger.warn(`Peer violation: ${data.violation}`);
-    this.eventEmitter.emit("peer_violation", data);
+    this.eventEmitter.emit('peer_violation', data);
   }
 
   /**
@@ -2139,7 +2167,7 @@ export class Blockchain {
    */
   private async updatePeerScores(): Promise<void> {
     try {
-      for (const [peerId, peer] of this.peers.entries()) {
+      for (const peer of this.peers.values()) {
         // Get peer metrics
         const blockHeight = await peer.getBlockHeight();
         const minedBlocks = await peer.getMinedBlocks();
@@ -2167,7 +2195,7 @@ export class Blockchain {
         this.peerManager.adjustPeerScore(scoreAdjustment);
       }
     } catch (error) {
-      Logger.error("Failed to update peer scores:", error);
+      Logger.error('Failed to update peer scores:', error);
     }
   }
 
@@ -2190,7 +2218,7 @@ export class Blockchain {
       }
       await this.db.setChainHead(height);
     } catch (error) {
-      Logger.error("Error rolling back blocks:", error);
+      Logger.error('Error rolling back blocks:', error);
       throw error;
     }
   }
@@ -2203,7 +2231,7 @@ export class Blockchain {
    */
   private async getNewChainBlocks(
     commonAncestor: Block,
-    newTip: Block
+    newTip: Block,
   ): Promise<Block[]> {
     const blocks: Block[] = [];
     let currentBlock = newTip;
@@ -2235,7 +2263,7 @@ export class Blockchain {
       await this.db.setChainHead(block.header.height - 1);
       Logger.info(`Reverted block at height ${block.header.height}`);
     } catch (error) {
-      Logger.error("Error reverting block:", error);
+      Logger.error('Error reverting block:', error);
       throw error;
     }
   }
@@ -2249,7 +2277,7 @@ export class Blockchain {
    */
   private async withCircuitBreaker<T>(
     operation: string,
-    action: () => Promise<T>
+    action: () => Promise<T>,
   ): Promise<T> {
     const breaker = this.circuitBreakers.get(operation);
     if (!breaker) {
@@ -2276,7 +2304,7 @@ export class Blockchain {
    * @returns Promise<void>
    */
   public async syncWithPeer(peer: Peer): Promise<void> {
-    return this.withErrorBoundary("peerSync", async () => {
+    return this.withErrorBoundary('peerSync', async () => {
       // Validate UTXO set before sync
       await this.validateAndUpdateUTXOSet();
       await this.sync.synchronize(peer);
@@ -2304,7 +2332,7 @@ export class Blockchain {
         }
       });
     } catch (error) {
-      Logger.error("Error rolling back transaction:", error);
+      Logger.error('Error rolling back transaction:', error);
       throw error;
     }
   }
@@ -2314,7 +2342,7 @@ export class Blockchain {
    */
   private handleSyncCompleted(): void {
     // Handle sync completion
-    this.metrics.increment("sync_completed");
+    this.metrics.increment('sync_completed');
   }
 
   /**
@@ -2323,8 +2351,8 @@ export class Blockchain {
    */
   private handleSyncError(error: Error): void {
     // Handle sync error
-    Logger.error("Sync error:", error);
-    this.metrics.increment("sync_errors");
+    Logger.error('Sync error:', error);
+    this.metrics.increment('sync_errors');
   }
 
   /**
@@ -2332,14 +2360,14 @@ export class Blockchain {
    * @throws Error if validation fails
    */
   private async validateAndUpdateUTXOSet(): Promise<void> {
-    return this.withErrorBoundary("utxoValidation", async () => {
+    return this.withErrorBoundary('utxoValidation', async () => {
       const release = await this.cacheLock.acquire();
       try {
         if (!this.utxoSet.validate()) {
-          Logger.warn("UTXO set validation failed, rebuilding...");
+          Logger.warn('UTXO set validation failed, rebuilding...');
           this.rebuildUTXOSet();
         }
-        this.utxoSetCache.set("current", this.utxoSet);
+        this.utxoSetCache.set('current', this.utxoSet);
       } finally {
         release();
       }
@@ -2351,7 +2379,7 @@ export class Blockchain {
    * @returns Promise<boolean> True if system is healthy
    */
   public async healthCheck(): Promise<boolean> {
-    return this.withCircuitBreaker("health", async () => {
+    return this.withCircuitBreaker('health', async () => {
       const isDbConnected = await this.db.ping();
       const isChainValid = await this.validateChain();
       const isPeerConnected = this.peers.size > 0;
@@ -2368,7 +2396,7 @@ export class Blockchain {
    */
   private async withErrorBoundary<T>(
     operation: string,
-    action: () => Promise<T>
+    action: () => Promise<T>,
   ): Promise<T> {
     try {
       return await action();
@@ -2386,8 +2414,8 @@ export class Blockchain {
       try {
         await this.validateAndUpdateUTXOSet();
       } catch (error) {
-        Logger.error("UTXO validation failed:", error);
-        this.metrics.increment("utxo_validation_failures");
+        Logger.error('UTXO validation failed:', error);
+        this.metrics.increment('utxo_validation_failures');
       }
     }, this.validationInterval);
   }
@@ -2397,23 +2425,23 @@ export class Blockchain {
       const validators = await this.db.getValidators();
       return validators.length;
     } catch (error) {
-      Logger.error("Failed to get validator count:", error);
+      Logger.error('Failed to get validator count:', error);
       return 0;
     }
   }
 
   private async handleBlockMined(block: Block): Promise<void> {
-    return this.withErrorBoundary("handleBlockMined", async () => {
+    return this.withErrorBoundary('handleBlockMined', async () => {
       // Validate the block first
       const isValid = await this.consensus.validateBlock(block);
       if (!isValid) {
-        throw new Error("Mined block validation failed");
+        throw new Error('Mined block validation failed');
       }
 
       // Add block to chain
       const added = await this.addBlock(block);
       if (!added) {
-        throw new Error("Failed to add mined block to chain");
+        throw new Error('Failed to add mined block to chain');
       }
 
       // Update mempool and UTXO set
@@ -2423,8 +2451,8 @@ export class Blockchain {
       });
 
       // Emit metrics
-      this.metrics.gauge("block_height", this.getCurrentHeight());
-      this.metrics.gauge("transactions_count", block.transactions.length);
+      this.metrics.gauge('block_height', this.getCurrentHeight());
+      this.metrics.gauge('transactions_count', block.transactions.length);
 
       // Broadcast to network
       await this.node.broadcastBlock(block);
@@ -2433,7 +2461,7 @@ export class Blockchain {
 
   public async getUTXO(
     txId: string,
-    outputIndex: number
+    outputIndex: number,
   ): Promise<UTXO | null> {
     const release = await this.cacheLock.acquire();
     try {
@@ -2450,7 +2478,7 @@ export class Blockchain {
       this.utxoCache.set(cacheKey, utxo, { ttl: 300000 }); // 5 minute TTL
 
       // Log for monitoring
-      Logger.debug("UTXO retrieved", {
+      Logger.debug('UTXO retrieved', {
         txId,
         outputIndex,
         spent: utxo.spent,
@@ -2458,10 +2486,10 @@ export class Blockchain {
 
       return utxo;
     } catch (error) {
-      Logger.error("Failed to get UTXO:", {
+      Logger.error('Failed to get UTXO:', {
         txId,
         outputIndex,
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return null;
     } finally {
@@ -2505,7 +2533,7 @@ export class Blockchain {
 
       return true;
     } catch (error) {
-      Logger.error("Block verification failed:", error);
+      Logger.error('Block verification failed:', error);
       return false;
     }
   }
@@ -2516,24 +2544,24 @@ export class Blockchain {
       const isValid = await HybridCrypto.verify(
         vote.blockHash,
         vote.signature,
-        vote.voter
+        vote.voter,
       );
 
       if (!isValid) {
-        throw new Error("Invalid vote signature");
+        throw new Error('Invalid vote signature');
       }
 
       // Store vote in database
       await this.db.put(
         `vote:${vote.blockHash}:${vote.voter}`,
-        JSON.stringify(vote)
+        JSON.stringify(vote),
       );
 
       Logger.info(
-        `Vote processed for block ${vote.blockHash} by ${vote.voter}`
+        `Vote processed for block ${vote.blockHash} by ${vote.voter}`,
       );
     } catch (error) {
-      Logger.error("Vote processing failed:", error);
+      Logger.error('Vote processing failed:', error);
       throw error;
     }
   }
@@ -2570,7 +2598,7 @@ export class Blockchain {
           height: currentHeight,
           hash: activeBlock.hash,
           branchLen: 0,
-          status: "active",
+          status: 'active',
           lastValidatedAt: Date.now(),
         });
         processedHashes.add(activeBlock.hash);
@@ -2592,7 +2620,7 @@ export class Blockchain {
         while (currentBlock && currentBlock.header.height > 0) {
           // Try to find the block in our main chain
           const mainChainBlock = this.getBlockByHeight(
-            currentBlock.header.height
+            currentBlock.header.height,
           );
 
           if (mainChainBlock && mainChainBlock.hash === currentBlock.hash) {
@@ -2606,23 +2634,25 @@ export class Blockchain {
           if (!isValid) break;
 
           // Get previous block
-          const prevBlock = await this.getBlock(
-            currentBlock.header.previousHash
+          const previousBlock = await this.getBlock(
+            currentBlock.header.previousHash,
           );
-          if (!prevBlock) break;
+          if (!previousBlock) {
+            throw new Error('Previous block not found'); // Handle the error as needed
+          }
 
-          currentBlock = prevBlock;
+          currentBlock = previousBlock; // Assign only if previousBlock is valid
           firstBlockHash = currentBlock.hash;
         }
 
         // Determine status
-        let status: ChainTip["status"];
+        let status: ChainTip['status'];
         if (!isValid) {
-          status = "invalid";
+          status = 'invalid';
         } else if (await this.verifyBlock(block)) {
-          status = "valid-fork";
+          status = 'valid-fork';
         } else {
-          status = "valid-headers";
+          status = 'valid-headers';
         }
 
         tips.push({
@@ -2641,15 +2671,15 @@ export class Blockchain {
       tips.sort((a, b) => b.height - a.height);
 
       // Add metrics
-      this.metrics.gauge("chain_tips_count", tips.length);
+      this.metrics.gauge('chain_tips_count', tips.length);
       this.metrics.gauge(
-        "valid_forks_count",
-        tips.filter((tip) => tip.status === "valid-fork").length
+        'valid_forks_count',
+        tips.filter((tip) => tip.status === 'valid-fork').length,
       );
 
       return tips;
     } catch (error) {
-      Logger.error("Failed to get chain tips:", error);
+      Logger.error('Failed to get chain tips:', error);
       throw error;
     }
   }
@@ -2660,7 +2690,7 @@ export class Blockchain {
 
   public getChainWork(): string {
     const latestBlock = this.getLatestBlock();
-    return latestBlock ? this.calculateChainWork(latestBlock) : "0x0";
+    return latestBlock ? this.calculateChainWork(latestBlock) : '0x0';
   }
 
   public isInitialBlockDownload(): boolean {
@@ -2678,16 +2708,16 @@ export class Blockchain {
       if (block.validators && block.validators.length > 0) {
         const validatorWeight = BigInt(
           block.validators.length *
-            BLOCKCHAIN_CONSTANTS.CONSENSUS.VALIDATOR_WEIGHT
+            BLOCKCHAIN_CONSTANTS.CONSENSUS.VALIDATOR_WEIGHT,
         );
         work += validatorWeight;
       }
 
       // Convert to hex string with '0x' prefix
-      return "0x" + work.toString(16);
+      return '0x' + work.toString(16);
     } catch (error) {
-      Logger.error("Chain work calculation failed:", error);
-      return "0x0";
+      Logger.error('Chain work calculation failed:', error);
+      return '0x0';
     }
   }
 
@@ -2730,13 +2760,13 @@ export class Blockchain {
       ]);
 
       // Update metrics
-      this.metrics.gauge("blockchain_height", this.getHeight());
+      this.metrics.gauge('blockchain_height', this.getHeight());
       this.metrics.histogram(
-        "transactions_per_block",
-        block.transactions.length
+        'transactions_per_block',
+        block.transactions.length,
       );
     } catch (error) {
-      Logger.error("Post-block update failed:", error);
+      Logger.error('Post-block update failed:', error);
       // Use retry decorator instead of queue
       await this.retryPostBlockAdd(block);
     }

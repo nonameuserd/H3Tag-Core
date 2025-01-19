@@ -1,7 +1,7 @@
-import "source-map-support/register";
-import * as cdk from "aws-cdk-lib";
-import { SeedServerStack } from "./seed-server-stack";
-import * as path from "path";
+import 'source-map-support/register';
+import * as cdk from 'aws-cdk-lib';
+import { SeedServerStack } from './seed-server-stack';
+import * as path from 'path';
 
 interface DeployConfig {
   regions: string[];
@@ -11,26 +11,32 @@ interface DeployConfig {
 }
 
 function validateConfig(): DeployConfig {
-  const regions = process.env.AWS_REGIONS?.split(",")
+  const regions = process.env.AWS_REGIONS?.split(',')
     .map((region) => region.trim())
     .filter(Boolean);
   const domainName = process.env.DOMAIN_NAME?.trim();
   const account = process.env.CDK_DEFAULT_ACCOUNT?.trim();
-  const environment = process.env.NODE_ENV?.trim() || "production";
+  const environment = process.env.NODE_ENV?.trim() || 'production';
 
   // Validate required fields
   if (!regions?.length) {
-    throw new Error("AWS_REGIONS environment variable is required and must contain valid regions");
+    throw new Error(
+      'AWS_REGIONS environment variable is required and must contain valid regions',
+    );
   }
   if (!domainName) {
-    throw new Error("DOMAIN_NAME environment variable is required");
+    throw new Error('DOMAIN_NAME environment variable is required');
   }
 
   // Validate region format
   const AWS_REGION_REGEX = /^[a-z]{2}-[a-z]+-\d{1}$/;
-  const invalidRegions = regions.filter(region => !AWS_REGION_REGEX.test(region));
+  const invalidRegions = regions.filter(
+    (region) => !AWS_REGION_REGEX.test(region),
+  );
   if (invalidRegions.length > 0) {
-    throw new Error(`Invalid AWS regions detected: ${invalidRegions.join(', ')}`);
+    throw new Error(
+      `Invalid AWS regions detected: ${invalidRegions.join(', ')}`,
+    );
   }
 
   return { regions, domainName, account, environment };
@@ -39,7 +45,7 @@ function validateConfig(): DeployConfig {
 try {
   const app = new cdk.App();
   const config = validateConfig();
-  const scriptPath = path.resolve(__dirname, "./script/node-initializer.ts");
+  const scriptPath = path.resolve(__dirname, './script/node-initializer.ts');
 
   config.regions.forEach((region) => {
     const stackName = `SeedServerStack-${region}-${config.environment}`;
@@ -62,6 +68,9 @@ try {
 
   app.synth();
 } catch (error) {
-  console.error('Deployment failed:', error instanceof Error ? error.message : error);
+  console.error(
+    'Deployment failed:',
+    error instanceof Error ? error.message : error,
+  );
   process.exit(1);
 }

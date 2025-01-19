@@ -1,10 +1,10 @@
-import winston from "winston";
-import DailyRotateFile from "winston-daily-rotate-file";
-import { format } from "winston";
-import { existsSync, mkdirSync } from "fs";
+import winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
+import { format } from 'winston';
+import { existsSync, mkdirSync } from 'fs';
 
 // Ensure logs directory exists
-const LOG_DIR = "logs";
+const LOG_DIR = 'logs';
 if (!existsSync(LOG_DIR)) {
   mkdirSync(LOG_DIR);
 }
@@ -20,11 +20,11 @@ const levels = {
 
 // Log colors
 const colors = {
-  error: "red",
-  warn: "yellow",
-  info: "green",
-  http: "magenta",
-  debug: "white",
+  error: 'red',
+  warn: 'yellow',
+  info: 'green',
+  http: 'magenta',
+  debug: 'white',
 };
 
 // Add colors to winston
@@ -32,19 +32,19 @@ winston.addColors(colors);
 
 // Custom format
 const logFormat = format.combine(
-  format.timestamp({ format: "YYYY-MM-DD HH:mm:ss:ms" }),
-  format.metadata({ fillExcept: ["message", "level", "timestamp"] }),
+  format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss:ms' }),
+  format.metadata({ fillExcept: ['message', 'level', 'timestamp'] }),
   format.errors({ stack: true }),
   format.printf(({ timestamp, level, message, metadata, stack }) => {
     let log = `${timestamp} [${level.toUpperCase()}] ${message}`;
-    if (metadata && typeof metadata === "object") {
+    if (metadata && typeof metadata === 'object') {
       log += ` ${JSON.stringify(metadata)}`;
     }
     if (stack) {
       log += `\n${stack}`;
     }
     return log;
-  })
+  }),
 );
 
 // Console format with colors
@@ -52,7 +52,7 @@ const consoleFormat = format.combine(format.colorize({ all: true }), logFormat);
 
 // Create the logger
 export const Logger = winston.createLogger({
-  level: process.env.LOG_LEVEL || "info",
+  level: process.env.LOG_LEVEL || 'info',
   levels,
   format: logFormat,
   transports: [
@@ -64,19 +64,19 @@ export const Logger = winston.createLogger({
     // Error logging
     new DailyRotateFile({
       filename: `${LOG_DIR}/error-%DATE%.log`,
-      datePattern: "YYYY-MM-DD",
-      level: "error",
-      maxFiles: "30d",
-      maxSize: "20m",
+      datePattern: 'YYYY-MM-DD',
+      level: 'error',
+      maxFiles: '30d',
+      maxSize: '20m',
       zippedArchive: true,
     }),
 
     // Combined logging
     new DailyRotateFile({
       filename: `${LOG_DIR}/combined-%DATE%.log`,
-      datePattern: "YYYY-MM-DD",
-      maxFiles: "30d",
-      maxSize: "20m",
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '30d',
+      maxSize: '20m',
       zippedArchive: true,
     }),
   ],
@@ -84,18 +84,18 @@ export const Logger = winston.createLogger({
   exceptionHandlers: [
     new DailyRotateFile({
       filename: `${LOG_DIR}/exceptions-%DATE%.log`,
-      datePattern: "YYYY-MM-DD",
-      maxFiles: "30d",
-      maxSize: "20m",
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '30d',
+      maxSize: '20m',
       zippedArchive: true,
     }),
   ],
   rejectionHandlers: [
     new DailyRotateFile({
       filename: `${LOG_DIR}/rejections-%DATE%.log`,
-      datePattern: "YYYY-MM-DD",
-      maxFiles: "30d",
-      maxSize: "20m",
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '30d',
+      maxSize: '20m',
       zippedArchive: true,
     }),
   ],
@@ -105,7 +105,7 @@ export const Logger = winston.createLogger({
 export const requestLogger = (req: any, res: any, next: any) => {
   Logger.http(`${req.method} ${req.url}`, {
     ip: req.ip,
-    userAgent: req.get("user-agent"),
+    userAgent: req.get('user-agent'),
     params: req.params,
     query: req.query,
     body: req.body,

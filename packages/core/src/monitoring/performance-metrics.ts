@@ -1,6 +1,6 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { Mutex } from "async-mutex";
-import { PeerServices } from "../models/peer.model";
+import { Logger } from '@h3tag-blockchain/shared';
+import { Mutex } from 'async-mutex';
+import { PeerServices } from '../models/peer.model';
 
 export interface Metric {
   average?: number;
@@ -68,7 +68,7 @@ export class PerformanceMetrics {
     // Add periodic cleanup
     this.cleanupTimer = setInterval(() => {
       this.cleanupOldMetrics(Date.now()).catch((err) =>
-        Logger.error("Periodic cleanup failed:", err)
+        Logger.error('Periodic cleanup failed:', err),
       );
     }, this.CLEANUP_INTERVAL);
   }
@@ -95,15 +95,15 @@ export class PerformanceMetrics {
   public async recordMetric(
     operation: string,
     duration: number,
-    metadata: { context: string; [key: string]: unknown }
+    metadata: { context: string; [key: string]: unknown },
   ): Promise<void> {
     if (
       !operation ||
-      typeof duration !== "number" ||
+      typeof duration !== 'number' ||
       duration < 0 ||
       !metadata?.context
     ) {
-      Logger.error("Invalid metric parameters", {
+      Logger.error('Invalid metric parameters', {
         operation,
         duration,
         metadata,
@@ -124,7 +124,7 @@ export class PerformanceMetrics {
 
       await this.updateMetric(metric, duration, now);
     } catch (error) {
-      Logger.error("Failed to record metric:", error);
+      Logger.error('Failed to record metric:', error);
       throw error;
     } finally {
       release();
@@ -151,7 +151,7 @@ export class PerformanceMetrics {
       await this.cleanupOldMetrics(now);
       metric.totalDuration = metric.durations.reduce(
         (a: number, b: number) => a + b,
-        0
+        0,
       );
     }
 
@@ -184,7 +184,7 @@ export class PerformanceMetrics {
       }
       this.metrics.operations.clear();
     } catch (error) {
-      Logger.error("Failed to dispose metrics:", error);
+      Logger.error('Failed to dispose metrics:', error);
       throw error;
     } finally {
       release();
@@ -207,7 +207,7 @@ export class PerformanceMetrics {
           if (metric.count === 0 || metric.lastUpdated < cutoff) continue;
 
           const recentDurations = metric.durations.filter(
-            (_, i) => metric.timestamps[i] > cutoff
+            (_, i) => metric.timestamps[i] > cutoff,
           );
 
           if (recentDurations.length === 0) continue;
@@ -223,7 +223,7 @@ export class PerformanceMetrics {
 
       return result;
     } catch (error) {
-      Logger.error("Failed to get metrics:", error);
+      Logger.error('Failed to get metrics:', error);
       return {};
     }
   }
@@ -268,7 +268,7 @@ export class PerformanceMetrics {
         }
       }
     } catch (error) {
-      Logger.error("Failed to cleanup metrics:", error);
+      Logger.error('Failed to cleanup metrics:', error);
       throw error;
     } finally {
       release();

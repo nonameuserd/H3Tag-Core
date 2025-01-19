@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /// <reference types="node" />
-import { KyberEncapsulation } from "./native/types";
+import { KyberEncapsulation } from './native/types';
 export declare class QuantumWrapperError extends Error {
     constructor(message: string);
 }

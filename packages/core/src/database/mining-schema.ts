@@ -1,11 +1,11 @@
-import { Level } from "level";
-import { Logger } from "@h3tag-blockchain/shared";
-import { Cache } from "../scaling/cache";
-import { Mutex } from "async-mutex";
-import { retry } from "../utils/retry";
-import { PowSolution } from "../blockchain/blockchain";
-import { MiningMetrics } from "../monitoring/metrics";
-import { databaseConfig } from "./config.database";
+import { Level } from 'level';
+import { Logger } from '@h3tag-blockchain/shared';
+import { Cache } from '../scaling/cache';
+import { Mutex } from 'async-mutex';
+import { retry } from '../utils/retry';
+import { PowSolution } from '../blockchain/blockchain';
+import { MiningMetrics } from '../monitoring/metrics';
+import { databaseConfig } from './config.database';
 
 /**
  * @fileoverview MiningDatabase manages storage and retrieval of mining-related data including
@@ -215,10 +215,10 @@ export class MiningDatabase {
   private initialized: boolean = false;
 
   constructor(dbPath: string) {
-    if (!dbPath) throw new Error("Database path is required");
+    if (!dbPath) throw new Error('Database path is required');
 
     this.db = new Level(`${dbPath}/mining`, {
-      valueEncoding: "json",
+      valueEncoding: 'json',
       ...databaseConfig.options,
     });
 
@@ -234,7 +234,7 @@ export class MiningDatabase {
     });
 
     this.initialize().catch((error) => {
-      Logger.error("Failed to initialize mining database:", error);
+      Logger.error('Failed to initialize mining database:', error);
       throw error;
     });
   }
@@ -244,32 +244,32 @@ export class MiningDatabase {
     try {
       await this.db.open();
       this.initialized = true;
-      Logger.info("Mining database initialized successfully");
+      Logger.info('Mining database initialized successfully');
     } catch (error) {
-      Logger.error("Failed to initialize mining database:", error);
+      Logger.error('Failed to initialize mining database:', error);
       throw error;
     }
   }
 
   @retry({ maxAttempts: 3, delay: 1000 })
   async storePowSolution(solution: PowSolution): Promise<void> {
-    if (!this.initialized) throw new Error("Database not initialized");
+    if (!this.initialized) throw new Error('Database not initialized');
 
     return await this.mutex.runExclusive(async () => {
       const key = `pow:${solution.blockHash}:${solution.nonce}`;
       try {
         // Validate solution
         if (!this.validatePowSolution(solution)) {
-          throw new Error("Invalid PoW solution");
+          throw new Error('Invalid PoW solution');
         }
 
         // Check for existing solution
         const existing = await this.getPowSolution(
           solution.blockHash,
-          BigInt(solution.nonce)
+          BigInt(solution.nonce),
         );
         if (existing) {
-          throw new Error("PoW solution already exists");
+          throw new Error('PoW solution already exists');
         }
 
         // Store in batch for atomicity
@@ -285,14 +285,14 @@ export class MiningDatabase {
         await batch.write();
         this.cache.set(key, solution, { ttl: this.CACHE_TTL });
 
-        Logger.debug("PoW solution stored successfully", {
+        Logger.debug('PoW solution stored successfully', {
           blockHash: solution.blockHash,
           miner: solution.minerAddress,
         });
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        Logger.error("Failed to store PoW solution:", { error: errorMessage });
+          error instanceof Error ? error.message : 'Unknown error';
+        Logger.error('Failed to store PoW solution:', { error: errorMessage });
         throw new Error(`Failed to store PoW solution: ${errorMessage}`);
       }
     });
@@ -304,7 +304,7 @@ export class MiningDatabase {
     try {
       // Validate metrics
       if (!this.validateMiningMetrics(metrics)) {
-        throw new Error("Invalid mining metrics");
+        throw new Error('Invalid mining metrics');
       }
 
       await this.db.put(key, JSON.stringify(metrics));
@@ -314,12 +314,12 @@ export class MiningDatabase {
       const timeKey = `metrics:time:${metrics.timestamp}`;
       await this.db.put(timeKey, JSON.stringify(metrics.blockHeight));
 
-      Logger.debug("Mining metrics stored successfully", {
+      Logger.debug('Mining metrics stored successfully', {
         blockHeight: metrics.blockHeight,
         hashRate: metrics.hashRate.toString(),
       });
     } catch (error) {
-      Logger.error("Failed to store mining metrics:", error);
+      Logger.error('Failed to store mining metrics:', error);
       throw error;
     }
   }
@@ -331,7 +331,7 @@ export class MiningDatabase {
       try {
         // Validate vote
         if (!this.validateConsensusVote(vote)) {
-          throw new Error("Invalid consensus vote");
+          throw new Error('Invalid consensus vote');
         }
 
         const batch = this.db.batch();
@@ -345,12 +345,12 @@ export class MiningDatabase {
         await batch.write();
         this.cache.set(key, vote);
 
-        Logger.debug("Consensus vote stored successfully", {
+        Logger.debug('Consensus vote stored successfully', {
           blockHash: vote.blockHash,
           voter: vote.voterAddress,
         });
       } catch (error) {
-        Logger.error("Failed to store consensus vote:", error);
+        Logger.error('Failed to store consensus vote:', error);
         throw error;
       }
     });
@@ -362,18 +362,18 @@ export class MiningDatabase {
     try {
       // Validate period
       if (!this.validateConsensusPeriod(period)) {
-        throw new Error("Invalid consensus period");
+        throw new Error('Invalid consensus period');
       }
 
       await this.db.put(key, JSON.stringify(period));
       this.cache.set(key, period);
 
-      Logger.debug("Consensus period stored successfully", {
+      Logger.debug('Consensus period stored successfully', {
         startHeight: period.startHeight,
         endHeight: period.endHeight,
       });
     } catch (error) {
-      Logger.error("Failed to store consensus period:", error);
+      Logger.error('Failed to store consensus period:', error);
       throw error;
     }
   }
@@ -381,9 +381,9 @@ export class MiningDatabase {
   // Retrieval methods
   async getPowSolution(
     blockHash: string,
-    nonce: bigint
+    nonce: bigint,
   ): Promise<PowSolution | null> {
-    if (!this.initialized) throw new Error("Database not initialized");
+    if (!this.initialized) throw new Error('Database not initialized');
 
     const key = `pow:${blockHash}:${nonce}`;
     try {
@@ -404,8 +404,8 @@ export class MiningDatabase {
       return parsed;
     } catch (error) {
       if (error.notFound) return null;
-      Logger.error("Failed to retrieve PoW solution:", error);
-      throw new Error("Failed to retrieve PoW solution");
+      Logger.error('Failed to retrieve PoW solution:', error);
+      throw new Error('Failed to retrieve PoW solution');
     }
   }
 
@@ -420,14 +420,14 @@ export class MiningDatabase {
       return JSON.parse(metrics);
     } catch (error) {
       if (error.notFound) return null;
-      Logger.error("Failed to retrieve mining metrics:", error);
+      Logger.error('Failed to retrieve mining metrics:', error);
       throw error;
     }
   }
 
   async getConsensusVote(
     blockHash: string,
-    voterAddress: string
+    voterAddress: string,
   ): Promise<ConsensusVote | null> {
     const key = `consensus_vote:${blockHash}:${voterAddress}`;
     try {
@@ -439,13 +439,13 @@ export class MiningDatabase {
       return JSON.parse(vote);
     } catch (error) {
       if (error.notFound) return null;
-      Logger.error("Failed to retrieve consensus vote:", error);
+      Logger.error('Failed to retrieve consensus vote:', error);
       throw error;
     }
   }
 
   async getConsensusPeriod(
-    startHeight: number
+    startHeight: number,
   ): Promise<ConsensusPeriod | null> {
     const key = `period:${startHeight}`;
     try {
@@ -457,7 +457,7 @@ export class MiningDatabase {
       return JSON.parse(period);
     } catch (error) {
       if (error.notFound) return null;
-      Logger.error("Failed to retrieve consensus period:", error);
+      Logger.error('Failed to retrieve consensus period:', error);
       throw error;
     }
   }
@@ -465,11 +465,11 @@ export class MiningDatabase {
   // Query methods
   async getMinerSolutions(
     minerAddress: string,
-    limit = 100
+    limit = 100,
   ): Promise<PowSolution[]> {
     const solutions: PowSolution[] = [];
     try {
-      for await (const [,value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `miner:${minerAddress}:`,
         lte: `miner:${minerAddress}:\xFF`,
         limit,
@@ -478,18 +478,18 @@ export class MiningDatabase {
       }
       return solutions;
     } catch (error) {
-      Logger.error("Failed to retrieve miner solutions:", error);
+      Logger.error('Failed to retrieve miner solutions:', error);
       throw error;
     }
   }
 
   async getMetricsInRange(
     startTime: bigint,
-    endTime: bigint
+    endTime: bigint,
   ): Promise<MiningMetrics[]> {
     const metrics: MiningMetrics[] = [];
     try {
-      for await (const [,value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `metrics:time:${startTime}`,
         lte: `metrics:time:${endTime}`,
       })) {
@@ -497,7 +497,7 @@ export class MiningDatabase {
           metrics.push(JSON.parse(value));
         } catch (error) {
           if (error instanceof SyntaxError) {
-            Logger.error("Invalid JSON in metrics:", error);
+            Logger.error('Invalid JSON in metrics:', error);
             continue;
           }
           throw error;
@@ -505,7 +505,7 @@ export class MiningDatabase {
       }
       return metrics;
     } catch (error) {
-      Logger.error("Failed to retrieve metrics range:", error);
+      Logger.error('Failed to retrieve metrics range:', error);
       throw error;
     }
   }
@@ -556,8 +556,8 @@ export class MiningDatabase {
       this.cache.clear(true);
       this.initialized = false;
     } catch (error) {
-      Logger.error("Error during mining database disposal:", error);
-      throw new Error("Failed to dispose mining database");
+      Logger.error('Error during mining database disposal:', error);
+      throw new Error('Failed to dispose mining database');
     }
   }
 
@@ -565,7 +565,7 @@ export class MiningDatabase {
     try {
       return JSON.parse(value) as T;
     } catch (error) {
-      Logger.error("Failed to parse stored value:", error);
+      Logger.error('Failed to parse stored value:', error);
       return null;
     }
   }

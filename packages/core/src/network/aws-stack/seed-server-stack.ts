@@ -1,15 +1,15 @@
-import * as cdk from "aws-cdk-lib";
-import * as ec2 from "aws-cdk-lib/aws-ec2";
-import * as route53 from "aws-cdk-lib/aws-route53";
-import * as cloudwatch from "aws-cdk-lib/aws-cloudwatch";
-import * as iam from "aws-cdk-lib/aws-iam";
-import * as backup from "aws-cdk-lib/aws-backup";
-import * as events from "aws-cdk-lib/aws-events";
-import * as os from "os";
-import { Construct } from "constructs";
-import * as s3 from "aws-cdk-lib/aws-s3";
-import * as ssm from "aws-cdk-lib/aws-ssm";
-import * as kms from "aws-cdk-lib/aws-kms";
+import * as cdk from 'aws-cdk-lib';
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+import * as route53 from 'aws-cdk-lib/aws-route53';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as backup from 'aws-cdk-lib/aws-backup';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as os from 'os';
+import { Construct } from 'constructs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as kms from 'aws-cdk-lib/aws-kms';
 
 interface SeedServerStackProps extends cdk.StackProps {
   domainName: string;
@@ -24,8 +24,8 @@ export class SeedServerStack extends cdk.Stack {
   }
 
   private initialize(props: SeedServerStackProps): void {
-    const flowLogBucket = new s3.Bucket(this, "FlowLogBucket", {
-      bucketName: "h3tag-flow-logs",
+    const flowLogBucket = new s3.Bucket(this, 'FlowLogBucket', {
+      bucketName: 'h3tag-flow-logs',
       encryption: s3.BucketEncryption.S3_MANAGED,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       lifecycleRules: [
@@ -37,29 +37,33 @@ export class SeedServerStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
     });
 
-    const vpc = new ec2.Vpc(this, "SeedServerVPC", {
+    const vpc = new ec2.Vpc(this, 'SeedServerVPC', {
       maxAzs: 2,
       natGateways: 1,
       subnetConfiguration: [
         {
-          name: "Public",
+          name: 'Public',
           subnetType: ec2.SubnetType.PUBLIC,
           cidrMask: 24,
         },
         {
-          name: "Private",
+          name: 'Private',
           subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
           cidrMask: 24,
         },
       ],
     });
 
-    const role = new iam.Role(this, "SeedServerRole", {
-      assumedBy: new iam.ServicePrincipal("ec2.amazonaws.com"),
-      description: "Role for H3TAG seed server",
+    const role = new iam.Role(this, 'SeedServerRole', {
+      assumedBy: new iam.ServicePrincipal('ec2.amazonaws.com'),
+      description: 'Role for H3TAG seed server',
       managedPolicies: [
-        iam.ManagedPolicy.fromAwsManagedPolicyName("AmazonSSMManagedInstanceCore"),
-        iam.ManagedPolicy.fromAwsManagedPolicyName("CloudWatchAgentServerPolicy"),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          'AmazonSSMManagedInstanceCore',
+        ),
+        iam.ManagedPolicy.fromAwsManagedPolicyName(
+          'CloudWatchAgentServerPolicy',
+        ),
       ],
     });
 
@@ -67,17 +71,19 @@ export class SeedServerStack extends cdk.Stack {
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
         actions: [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents",
+          'logs:CreateLogGroup',
+          'logs:CreateLogStream',
+          'logs:PutLogEvents',
         ],
-        resources: [`arn:aws:logs:${this.region}:${this.account}:log-group:/aws/ec2/*`],
-      })
+        resources: [
+          `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/ec2/*`,
+        ],
+      }),
     );
 
-    const securityGroup = new ec2.SecurityGroup(this, "SeedServerSG", {
+    const securityGroup = new ec2.SecurityGroup(this, 'SeedServerSG', {
       vpc,
-      description: "Security group for H3TAG seed servers",
+      description: 'Security group for H3TAG seed servers',
       allowAllOutbound: false,
     });
 
@@ -91,66 +97,71 @@ export class SeedServerStack extends cdk.Stack {
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(8333),
-      "Allow blockchain network traffic"
+      'Allow blockchain network traffic',
     );
 
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(22),
-      "Allow SSH access"
+      'Allow SSH access',
     );
 
     // Essential outbound rules
     securityGroup.addEgressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(443),
-      "Allow HTTPS outbound"
+      'Allow HTTPS outbound',
     );
     securityGroup.addEgressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(80),
-      "Allow HTTP outbound"
+      'Allow HTTP outbound',
     );
     securityGroup.addEgressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(53),
-      "Allow DNS outbound"
+      'Allow DNS outbound',
     );
     securityGroup.addEgressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.tcp(123),
-      "Allow NTP outbound"
+      'Allow NTP outbound',
     );
 
     // Allow DNS resolution
     securityGroup.addEgressRule(
       ec2.Peer.anyIpv4(),
       ec2.Port.udp(53),
-      "Allow DNS UDP outbound"
+      'Allow DNS UDP outbound',
     );
 
     // Allow IPv6 support
     securityGroup.addIngressRule(
       ec2.Peer.anyIpv6(),
       ec2.Port.tcp(8333),
-      "Allow blockchain network traffic IPv6"
+      'Allow blockchain network traffic IPv6',
     );
 
-    const instance = new ec2.Instance(this, "SeedServer", {
+    const instance = new ec2.Instance(this, 'SeedServer', {
       vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
       },
       securityGroup,
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T3, ec2.InstanceSize.MEDIUM),
+      instanceType: ec2.InstanceType.of(
+        ec2.InstanceClass.T3,
+        ec2.InstanceSize.MEDIUM,
+      ),
       machineImage: ec2.MachineImage.lookup({
-        name: process.env.UBUNTU_AMI_PATTERN || "*ubuntu-focal-20.04-amd64-server-*",
-        owners: [process.env.CANONICAL_OWNER_ID || "0"],
+        name:
+          process.env.UBUNTU_AMI_PATTERN ||
+          '*ubuntu-focal-20.04-amd64-server-*',
+        owners: [process.env.CANONICAL_OWNER_ID || '0'],
       }),
       role,
       blockDevices: [
         {
-          deviceName: "/dev/xvda",
+          deviceName: '/dev/xvda',
           volume: ec2.BlockDeviceVolume.ebs(30, {
             volumeType: ec2.EbsDeviceVolumeType.GP3,
             encrypted: true,
@@ -162,27 +173,31 @@ export class SeedServerStack extends cdk.Stack {
     });
 
     try {
-      const zone = route53.HostedZone.fromLookup(this, "HostedZone", {
+      const zone = route53.HostedZone.fromLookup(this, 'HostedZone', {
         domainName: props.domainName,
       });
 
-      new route53.ARecord(this, "SeedServerDNS", {
+      new route53.ARecord(this, 'SeedServerDNS', {
         zone,
         recordName: `seed.${props.domainName}`,
-        target: route53.RecordTarget.fromIpAddresses(instance.instancePrivateIp),
+        target: route53.RecordTarget.fromIpAddresses(
+          instance.instancePrivateIp,
+        ),
         ttl: cdk.Duration.minutes(5),
-        comment: "DNS record for H3TAG seed server",
+        comment: 'DNS record for H3TAG seed server',
       });
     } catch (error) {
-      throw new Error(`Failed to configure DNS: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to configure DNS: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
 
     // 8. Enhanced health check configuration
-    new route53.CfnHealthCheck(this, "SeedHealthCheck", {
+    new route53.CfnHealthCheck(this, 'SeedHealthCheck', {
       healthCheckConfig: {
         port: 8333,
-        type: "TCP_AND_HTTP",
-        resourcePath: "/health",
+        type: 'TCP_AND_HTTP',
+        resourcePath: '/health',
         fullyQualifiedDomainName: `seed.${props.domainName}`,
         requestInterval: 30,
         failureThreshold: 3,
@@ -191,50 +206,50 @@ export class SeedServerStack extends cdk.Stack {
     });
 
     // 9. Enhanced backup configuration
-    const backupPlan = new backup.BackupPlan(this, "SeedServerBackup", {
+    const backupPlan = new backup.BackupPlan(this, 'SeedServerBackup', {
       backupPlanRules: [
         backup.BackupPlanRule.daily(),
         backup.BackupPlanRule.weekly(),
         new backup.BackupPlanRule({
-          ruleName: "Monthly",
-          scheduleExpression: events.Schedule.expression("cron(0 0 1 * ? *)"),
+          ruleName: 'Monthly',
+          scheduleExpression: events.Schedule.expression('cron(0 0 1 * ? *)'),
           deleteAfter: cdk.Duration.days(365),
           moveToColdStorageAfter: cdk.Duration.days(90),
         }),
       ],
     });
 
-    backupPlan.addSelection("Selection", {
+    backupPlan.addSelection('Selection', {
       resources: [backup.BackupResource.fromEc2Instance(instance)],
       allowRestores: true,
     });
 
-    new cloudwatch.Dashboard(this, "SeedServerDashboard", {
+    new cloudwatch.Dashboard(this, 'SeedServerDashboard', {
       dashboardName: `H3Tag-Seeds-${props.environment}`,
       widgets: [
         [
           new cloudwatch.GraphWidget({
-            title: "Node Status",
+            title: 'Node Status',
             width: 24,
             left: [
               new cloudwatch.Metric({
-                namespace: "H3Tag/SeedNodes",
-                metricName: "NodeStatus",
+                namespace: 'H3Tag/SeedNodes',
+                metricName: 'NodeStatus',
                 dimensionsMap: {
                   Region: this.region,
                   Environment: props.environment,
                 },
-                statistic: "Average",
+                statistic: 'Average',
                 period: cdk.Duration.minutes(5),
               }),
               new cloudwatch.Metric({
-                namespace: "H3Tag/SeedNodes",
-                metricName: "PeerCount",
+                namespace: 'H3Tag/SeedNodes',
+                metricName: 'PeerCount',
                 dimensionsMap: {
                   Region: this.region,
                   Environment: props.environment,
                 },
-                statistic: "Average",
+                statistic: 'Average',
                 period: cdk.Duration.minutes(5),
               }),
             ],
@@ -243,21 +258,24 @@ export class SeedServerStack extends cdk.Stack {
       ],
     });
 
-    cdk.Tags.of(this).add("Environment", props.environment);
-    cdk.Tags.of(this).add("Application", "H3TAG-SeedServer");
-    cdk.Tags.of(this).add("Region", this.region);
+    cdk.Tags.of(this).add('Environment', props.environment);
+    cdk.Tags.of(this).add('Application', 'H3TAG-SeedServer');
+    cdk.Tags.of(this).add('Region', this.region);
 
     this.setupInstanceConfiguration(instance, props);
   }
 
-  private setupInstanceConfiguration(instance: ec2.Instance, props: SeedServerStackProps): void {
+  private setupInstanceConfiguration(
+    instance: ec2.Instance,
+    props: SeedServerStackProps,
+  ): void {
     // secure SSM parameters for sensitive configurations
 
     const blockchainConfig = new ssm.StringParameter(this, 'BlockchainConfig', {
       parameterName: `/h3tag/${props.environment}/blockchain-config`,
       stringValue: JSON.stringify({
         network: {
-          type: "MAINNET",
+          type: 'MAINNET',
           port: {
             MAINNET: 8333,
             TESTNET: 10001,
@@ -295,8 +313,8 @@ export class SeedServerStack extends cdk.Stack {
           minVersion: 1,
           batchSize: 10000,
           blocksPerYear: 52560,
-          initialReward: "5000000000",
-          minReward: "546",
+          initialReward: '5000000000',
+          minReward: '546',
           halvingInterval: 210000,
           maxHalvings: 69,
           blockTime: 600000,
@@ -313,7 +331,8 @@ export class SeedServerStack extends cdk.Stack {
           difficultyAdjustmentInterval: 2016,
           initialDifficulty: 0x1d0000ffff,
           hashBatchSize: 10000,
-          maxTarget: "0x0000000000ffff0000000000000000000000000000000000000000000000000000",
+          maxTarget:
+            '0x0000000000ffff0000000000000000000000000000000000000000000000000000',
           minDifficulty: 2,
           nodeSelectionThreshold: 0.67,
           orphanWindow: 100,
@@ -327,17 +346,17 @@ export class SeedServerStack extends cdk.Stack {
           minVotesWeight: 0.1,
           maxChainLength: 10000000,
           forkResolutionTimeout: 600000,
-          minRewardContribution: "2016",
+          minRewardContribution: '2016',
           maxBlockSize: 1048576,
           minBlockSize: 1024,
           maxTransactions: 10000,
           minBlocksMined: 100,
-          blockReward: "5000000000",
+          blockReward: '5000000000',
           maxTxSize: 1048576,
-          minFeePerByte: "1",
+          minFeePerByte: '1',
           autoMine: false,
           cacheTtl: 3600000,
-          maxSupply: "50000000",
+          maxSupply: '50000000',
           safeConfirmationTime: 3600000,
         },
         consensus: {
@@ -353,12 +372,12 @@ export class SeedServerStack extends cdk.Stack {
           emergencyTimeout: 3600000,
           nodeSelectionTimeout: 300000,
           voteCollectionTimeout: 180000,
-          initialReward: "546",
-          baseReward: "100000000000000000000",
-          minReward: "10000000000000000000",
-          maxSafeReward: "1000000000000000000000000",
+          initialReward: '546',
+          baseReward: '100000000000000000000',
+          minReward: '10000000000000000000',
+          maxSafeReward: '1000000000000000000000000',
           halvingInterval: 210000,
-          baseDifficulty: "1",
+          baseDifficulty: '1',
           maxForkLength: 100,
           validatorWeight: 100,
         },
@@ -372,13 +391,13 @@ export class SeedServerStack extends cdk.Stack {
           maxVotesPerWindow: 5,
           minAccountAge: 20160,
           minPeerCount: 3,
-          voteEncryptionVersion: "1.0",
+          voteEncryptionVersion: '1.0',
           maxVoteSizeBytes: 102400,
           votingWeight: 0.4,
           minVotesForValidity: 0.1,
           votePowerDecay: 0.5,
-          minVotingPower: "100",
-          maxVotingPower: "1000000",
+          minVotingPower: '100',
+          maxVotingPower: '1000000',
           maturityPeriod: 86400000,
           cacheDuration: 300000,
           minVoteAmount: 1,
@@ -414,14 +433,14 @@ export class SeedServerStack extends cdk.Stack {
           staleThreshold: 604800000,
         },
         transaction: {
-          baseFee: "100",
+          baseFee: '100',
           currentVersion: 1,
           maxInputs: 1000,
           maxOutputs: 1000,
           maxTimeDrift: 7200000,
           amountLimits: {
-            min: "1",
-            max: "5000000000000000",
+            min: '1',
+            max: '5000000000000000',
             decimals: 8,
           },
           mempool: {
@@ -438,7 +457,7 @@ export class SeedServerStack extends cdk.Stack {
           processingTimeout: 30000,
           maxSize: 1000000,
           maxScriptSize: 1000000,
-          maxTotalInput: "1000000000000000",
+          maxTotalInput: '1000000000000000',
           maxSignatureSize: 520,
           maxPubkeySize: 65,
           minInputAge: 3600000,
@@ -459,7 +478,7 @@ export class SeedServerStack extends cdk.Stack {
           minBackupUptime: 0.95,
         },
         message: {
-          prefix: "\x18H3Tag Signed Message:\n",
+          prefix: '\x18H3Tag Signed Message:\n',
           maxLength: 100000,
           minLength: 1,
         },
@@ -467,7 +486,7 @@ export class SeedServerStack extends cdk.Stack {
         minSafeConfirmations: 6,
         maxSafeUtxoAmount: 1000000000000,
         coinbaseMaturity: 100,
-        userAgent: "/H3Tag:1.0.0/",
+        userAgent: '/H3Tag:1.0.0/',
         protocolVersion: 1,
         maxMempoolSize: 50000,
         minRelayTxFee: 0.00001,
@@ -491,10 +510,7 @@ export class SeedServerStack extends cdk.Stack {
     (instance.role as iam.Role).addToPolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
-        actions: [
-          'ssm:GetParameter',
-          'ssm:GetParameters',
-        ],
+        actions: ['ssm:GetParameter', 'ssm:GetParameters'],
         resources: [blockchainConfig.parameterArn],
         conditions: {
           StringEquals: {
@@ -502,55 +518,59 @@ export class SeedServerStack extends cdk.Stack {
             'aws:PrincipalTag/Environment': props.environment,
           },
         },
-      })
+      }),
     );
 
     parameterKey.grantDecrypt(instance.role);
 
-    const initializationDocument = new ssm.CfnDocument(this, 'NodeInitializationDocument', {
-      content: {
-        schemaVersion: '2.2',
-        description: 'Initialize H3TAG seed node',
-        parameters: {
-          environment: {
-            type: 'String',
-            description: 'Deployment environment',
+    const initializationDocument = new ssm.CfnDocument(
+      this,
+      'NodeInitializationDocument',
+      {
+        content: {
+          schemaVersion: '2.2',
+          description: 'Initialize H3TAG seed node',
+          parameters: {
+            environment: {
+              type: 'String',
+              description: 'Deployment environment',
+            },
           },
+          mainSteps: [
+            {
+              action: 'aws:runShellScript',
+              name: 'configureNode',
+              inputs: {
+                runCommand: [
+                  'set -e',
+                  'exec 1> >(logger -s -t $(basename $0)) 2>&1',
+
+                  // Install dependencies
+                  'apt-get update',
+                  'DEBIAN_FRONTEND=noninteractive apt-get upgrade -y',
+                  'DEBIAN_FRONTEND=noninteractive apt-get install -y curl git build-essential',
+
+                  // Get configuration from SSM
+                  'aws ssm get-parameter --name "/h3tag/${environment}/blockchain-config" --query "Parameter.Value" --output text > /opt/blockchain/config/blockchain-config.json',
+
+                  // Initialize node
+                  'node /opt/blockchain/init.js',
+                ],
+              },
+            },
+          ],
         },
-        mainSteps: [
-          {
-            action: 'aws:runShellScript',
-            name: 'configureNode',
-            inputs: {
-              runCommand: [
-                'set -e',
-                'exec 1> >(logger -s -t $(basename $0)) 2>&1',
-                
-                // Install dependencies
-                'apt-get update',
-                'DEBIAN_FRONTEND=noninteractive apt-get upgrade -y',
-                'DEBIAN_FRONTEND=noninteractive apt-get install -y curl git build-essential',
-
-                // Get configuration from SSM
-                'aws ssm get-parameter --name "/h3tag/${environment}/blockchain-config" --query "Parameter.Value" --output text > /opt/blockchain/config/blockchain-config.json',
-
-                // Initialize node
-                'node /opt/blockchain/init.js',
-              ]
-            }
-          }
-        ]
+        documentType: 'Command',
+        name: `H3TAG-Node-Init-${props.environment}`,
       },
-      documentType: 'Command',
-      name: `H3TAG-Node-Init-${props.environment}`,
-    });
+    );
 
     // instance user data to bootstrap SSM agent
     const userData = ec2.UserData.forLinux();
     userData.addCommands(
       'set -e',
       'exec 1> >(logger -s -t $(basename $0)) 2>&1',
-      
+
       // Install and start SSM agent
       'snap install amazon-ssm-agent --classic',
       'systemctl enable amazon-ssm-agent',
@@ -566,10 +586,12 @@ export class SeedServerStack extends cdk.Stack {
     // automation for node initialization
     new ssm.CfnAssociation(this, 'NodeInitializationAssociation', {
       name: initializationDocument.name!,
-      targets: [{
-        key: 'InstanceIds',
-        values: [instance.instanceId],
-      }],
+      targets: [
+        {
+          key: 'InstanceIds',
+          values: [instance.instanceId],
+        },
+      ],
       parameters: {
         environment: [props.environment],
       },

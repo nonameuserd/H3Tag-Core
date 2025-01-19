@@ -1,5 +1,5 @@
-import { Block } from "../models/block.model";
-import { HashUtils } from "@h3tag-blockchain/crypto";
+import { Block } from '../models/block.model';
+import { HashUtils } from '@h3tag-blockchain/crypto';
 
 interface MiningResult {
   found: boolean;
@@ -58,25 +58,25 @@ export class GPUMiner {
       header.timestamp,
       header.difficulty,
       header.nonce,
-    ].join("");
+    ].join('');
 
     return parseInt(HashUtils.sha3(data).slice(0, 8), 16);
   }
 
   async initialize(): Promise<void> {
     if (!navigator.gpu) {
-      throw new Error("WebGPU not supported");
+      throw new Error('WebGPU not supported');
     }
 
     const adapter = await navigator.gpu.requestAdapter({
-      powerPreference: "high-performance",
+      powerPreference: 'high-performance',
     });
     if (!adapter) {
-      throw new Error("No GPU adapter found");
+      throw new Error('No GPU adapter found');
     }
 
     this.device = await adapter.requestDevice({
-      requiredFeatures: ["timestamp-query"],
+      requiredFeatures: ['timestamp-query'],
       requiredLimits: {
         maxComputeWorkgroupsPerDimension: 65535,
         maxStorageBufferBindingSize: 1024 * 1024 * 128,
@@ -104,12 +104,12 @@ export class GPUMiner {
             `;
 
       this.pipeline = this.device.createComputePipeline({
-        layout: "auto",
+        layout: 'auto',
         compute: {
           module: this.device.createShaderModule({
             code: shader,
           }),
-          entryPoint: "main",
+          entryPoint: 'main',
         },
       });
     } catch (error) {
@@ -136,7 +136,7 @@ export class GPUMiner {
 
   async mine(block: Block, target: bigint): Promise<MiningResult> {
     if (!this.device || !this.pipeline) {
-      throw new Error("GPU not initialized");
+      throw new Error('GPU not initialized');
     }
 
     const buffer = this.device.createBuffer({
@@ -192,7 +192,7 @@ export class GPUMiner {
         nonce: result,
         hash: HashUtils.sha3(this.getBlockHeaderString(block, result)).slice(
           0,
-          8
+          8,
         ),
       };
     } catch (error) {
@@ -219,7 +219,7 @@ export class GPUMiner {
       header.timestamp,
       header.difficulty,
       nonce,
-    ].join("");
+    ].join('');
   }
 
   /**

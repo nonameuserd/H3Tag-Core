@@ -1,6 +1,6 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { PerformanceMetrics } from "./performance-metrics";
-import { Mutex } from "async-mutex";
+import { Logger } from '@h3tag-blockchain/shared';
+import { PerformanceMetrics } from './performance-metrics';
+import { Mutex } from 'async-mutex';
 
 /**
  * @fileoverview Performance monitoring and tracking system for the H3Tag blockchain.
@@ -38,7 +38,7 @@ export class PerformanceMonitor {
    */
   constructor(private readonly context: string) {
     if (!context) {
-      throw new Error("Context is required for PerformanceMonitor");
+      throw new Error('Context is required for PerformanceMonitor');
     }
     this.metricsClient = PerformanceMetrics.getInstance();
   }
@@ -51,8 +51,8 @@ export class PerformanceMonitor {
    */
   public start(operation: string): string {
     if (!operation) {
-      Logger.error("Operation name is required");
-      throw new Error("Operation name is required");
+      Logger.error('Operation name is required');
+      throw new Error('Operation name is required');
     }
 
     const markerId = `${this.context}_${operation}_${Date.now()}`;
@@ -78,7 +78,7 @@ export class PerformanceMonitor {
       }
 
       const duration = performance.now() - metric.startTime;
-      const [context, operation] = markerId.split("_");
+      const [context, operation] = markerId.split('_');
 
       // Record metric using the PerformanceMetrics class
       await this.metricsClient.recordMetric(operation, duration, {
@@ -99,7 +99,7 @@ export class PerformanceMonitor {
       await this.metricsClient.recordMetric(`${operation}_duration`, duration, {
         context: this.context,
         operation,
-        unit: "ms",
+        unit: 'ms',
       });
 
       await this.metricsClient.recordMetric(
@@ -108,8 +108,8 @@ export class PerformanceMonitor {
         {
           context: this.context,
           operation,
-          unit: "ms",
-        }
+          unit: 'ms',
+        },
       );
 
       // Performance alerts
@@ -126,7 +126,7 @@ export class PerformanceMonitor {
       // Cleanup
       this.metrics.delete(markerId);
     } catch (error) {
-      Logger.error("Error in performance monitoring:", error);
+      Logger.error('Error in performance monitoring:', error);
       throw error;
     } finally {
       release();
@@ -171,10 +171,13 @@ export class PerformanceMonitor {
       p99: number;
     };
   } {
-    const metrics: Record<string, { current: number; average: number; p95: number; p99: number }> = {};
+    const metrics: Record<
+      string,
+      { current: number; average: number; p95: number; p99: number }
+    > = {};
 
     for (const [markerId, data] of this.metrics.entries()) {
-      const [op] = markerId.split("_");
+      const [op] = markerId.split('_');
       if (!operation || op === operation) {
         const stats = this.calculateStats(data.measurements);
         metrics[op] = {
@@ -206,7 +209,7 @@ export class PerformanceMonitor {
       // Cleanup any active metrics
       this.metrics.clear();
     } catch (error) {
-      Logger.error("Failed to dispose PerformanceMonitor:", error);
+      Logger.error('Failed to dispose PerformanceMonitor:', error);
       throw error;
     } finally {
       release();

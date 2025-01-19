@@ -1,7 +1,7 @@
-import prometheus from "prom-client";
-import winston from "winston";
-import { hostname } from "os";
-import { Mutex } from "async-mutex";
+import prometheus from 'prom-client';
+import winston from 'winston';
+import { hostname } from 'os';
+import { Mutex } from 'async-mutex';
 
 /**
  * @fileoverview Monitoring system for the H3Tag blockchain. Includes performance tracking,
@@ -21,7 +21,7 @@ import { Mutex } from "async-mutex";
 export class MonitoringError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "MonitoringError";
+    this.name = 'MonitoringError';
   }
 }
 
@@ -61,9 +61,9 @@ export class Monitoring {
   private timers: Map<string, number> = new Map();
 
   private responseTimeHistogram = new prometheus.Histogram({
-    name: "http_request_duration_ms",
-    help: "HTTP request duration in milliseconds",
-    labelNames: ["method", "path"],
+    name: 'http_request_duration_ms',
+    help: 'HTTP request duration in milliseconds',
+    labelNames: ['method', 'path'],
   });
 
   private readonly mutex = new Mutex();
@@ -71,73 +71,73 @@ export class Monitoring {
   constructor() {
     this.metrics = {
       activeNodes: new prometheus.Gauge({
-        name: "network_active_nodes",
-        help: "Number of active nodes in the network",
-        labelNames: ["type", "status"],
+        name: 'network_active_nodes',
+        help: 'Number of active nodes in the network',
+        labelNames: ['type', 'status'],
       }),
       powHashrate: new prometheus.Gauge({
-        name: "pow_hashrate",
-        help: "Current PoW hashrate in H/s",
-        labelNames: ["node_id"],
+        name: 'pow_hashrate',
+        help: 'Current PoW hashrate in H/s',
+        labelNames: ['node_id'],
       }),
       blockTime: new prometheus.Histogram({
-        name: "block_time_seconds",
-        help: "Block time in seconds",
+        name: 'block_time_seconds',
+        help: 'Block time in seconds',
         buckets: [10, 30, 60, 120, 300, 600],
       }),
       networkDifficulty: new prometheus.Gauge({
-        name: "network_difficulty",
-        help: "Current network difficulty",
-        labelNames: ["algorithm"],
+        name: 'network_difficulty',
+        help: 'Current network difficulty',
+        labelNames: ['algorithm'],
       }),
       powNodeCount: new prometheus.Gauge({
-        name: "pow_node_count",
-        help: "Number of PoW mining nodes",
-        labelNames: ["status"],
+        name: 'pow_node_count',
+        help: 'Number of PoW mining nodes',
+        labelNames: ['status'],
       }),
     };
 
     try {
       this.logger = winston.createLogger({
-        level: process.env.LOG_LEVEL || "info",
+        level: process.env.LOG_LEVEL || 'info',
         format: winston.format.combine(
           winston.format.timestamp(),
           winston.format.errors({ stack: true }),
-          winston.format.json()
+          winston.format.json(),
         ),
         defaultMeta: {
-          service: "blockchain",
+          service: 'blockchain',
           host: hostname(),
-          version: process.env.APP_VERSION || "unknown",
+          version: process.env.APP_VERSION || 'unknown',
         },
         transports: [
           new winston.transports.File({
-            filename: "error.log",
-            level: "error",
+            filename: 'error.log',
+            level: 'error',
             maxsize: 5242880,
             maxFiles: 5,
           }),
           new winston.transports.File({
-            filename: "combined.log",
+            filename: 'combined.log',
             maxsize: 5242880,
             maxFiles: 5,
           }),
         ],
       });
 
-      if (process.env.NODE_ENV !== "production") {
+      if (process.env.NODE_ENV !== 'production') {
         this.logger.add(
           new winston.transports.Console({
             format: winston.format.combine(
               winston.format.colorize(),
-              winston.format.simple()
+              winston.format.simple(),
             ),
-          })
+          }),
         );
       }
     } catch (error) {
-      console.error("Failed to initialize logger:", error);
-      throw new MonitoringError("Logger initialization failed");
+      console.error('Failed to initialize logger:', error);
+      throw new MonitoringError('Logger initialization failed');
     }
   }
 
@@ -159,24 +159,24 @@ export class Monitoring {
   }): Promise<void> {
     const release = await this.mutex.acquire();
     try {
-      if (typeof data.powNodes === "number" && data.powNodes >= 0) {
-        this.metrics.powNodeCount.set({ status: "active" }, data.powNodes);
+      if (typeof data.powNodes === 'number' && data.powNodes >= 0) {
+        this.metrics.powNodeCount.set({ status: 'active' }, data.powNodes);
       }
-      if (typeof data.hashrate === "number" && data.hashrate >= 0) {
-        this.metrics.powHashrate.set({ node_id: "total" }, data.hashrate);
+      if (typeof data.hashrate === 'number' && data.hashrate >= 0) {
+        this.metrics.powHashrate.set({ node_id: 'total' }, data.hashrate);
       }
-      if (typeof data.blockTime === "number" && data.blockTime >= 0) {
+      if (typeof data.blockTime === 'number' && data.blockTime >= 0) {
         this.metrics.blockTime.observe(data.blockTime);
       }
-      if (typeof data.difficulty === "number" && data.difficulty > 0) {
+      if (typeof data.difficulty === 'number' && data.difficulty > 0) {
         this.metrics.networkDifficulty.set(
-          { algorithm: "pow" },
-          data.difficulty
+          { algorithm: 'pow' },
+          data.difficulty,
         );
       }
     } catch (error) {
-      this.logger.error("Failed to update metrics:", error);
-      throw new MonitoringError("Metrics update failed");
+      this.logger.error('Failed to update metrics:', error);
+      throw new MonitoringError('Metrics update failed');
     } finally {
       release();
     }
@@ -193,16 +193,16 @@ export class Monitoring {
           (transport) =>
             new Promise<void>((resolve, reject) => {
               const timeout = setTimeout(() => {
-                reject(new Error("Transport shutdown timeout"));
+                reject(new Error('Transport shutdown timeout'));
               }, 5000);
 
-              transport.once("finish", () => {
+              transport.once('finish', () => {
                 clearTimeout(timeout);
                 resolve();
               });
               transport.end();
-            })
-        )
+            }),
+        ),
       );
 
       Object.values(this.metrics).forEach((metric) => {
@@ -215,8 +215,8 @@ export class Monitoring {
 
       this.timers.clear();
     } catch (error) {
-      this.logger.error("Failed to shutdown monitoring:", error);
-      throw new MonitoringError("Monitoring shutdown failed");
+      this.logger.error('Failed to shutdown monitoring:', error);
+      throw new MonitoringError('Monitoring shutdown failed');
     }
   }
 
@@ -240,11 +240,11 @@ export class Monitoring {
   public recordResponseTime(
     method: string,
     path: string,
-    duration: number
+    duration: number,
   ): void {
     try {
-      if (!method || !path || typeof duration !== "number" || duration < 0) {
-        this.logger.warn("Invalid response time parameters", {
+      if (!method || !path || typeof duration !== 'number' || duration < 0) {
+        this.logger.warn('Invalid response time parameters', {
           method,
           path,
           duration,
@@ -254,7 +254,7 @@ export class Monitoring {
 
       const MAX_DURATION = 30000;
       if (duration > MAX_DURATION) {
-        this.logger.warn("Request timeout exceeded", {
+        this.logger.warn('Request timeout exceeded', {
           method,
           path,
           duration,
@@ -265,7 +265,7 @@ export class Monitoring {
 
       this.responseTimeHistogram.labels(method, path).observe(duration);
     } catch (error) {
-      this.logger.error("Failed to record response time:", error);
+      this.logger.error('Failed to record response time:', error);
     }
   }
 
@@ -274,7 +274,7 @@ export class Monitoring {
    * @param {number} count - Number of active nodes
    */
   public updateActiveNodes(count: number): void {
-    this.metrics.activeNodes.set({ type: "total" }, count);
+    this.metrics.activeNodes.set({ type: 'total' }, count);
   }
 
   /**
@@ -284,7 +284,7 @@ export class Monitoring {
    */
   public updateNetworkMetrics(
     totalHashPower: number,
-    totalNodes: number
+    totalNodes: number,
   ): void {
     this.metrics.powHashrate.set(totalHashPower);
     this.metrics.powNodeCount.set(totalNodes);

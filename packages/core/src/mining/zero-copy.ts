@@ -30,15 +30,15 @@ export class ZeroCopyCompression {
   constructor(device?: GPUDevice) {
     // Add proper WebGPU feature detection
     this.isWebGPUSupported =
-      typeof navigator !== "undefined" &&
-      "gpu" in navigator &&
-      typeof GPUBuffer !== "undefined";
+      typeof navigator !== 'undefined' &&
+      'gpu' in navigator &&
+      typeof GPUBuffer !== 'undefined';
 
     this.device = device || null;
     this.sharedBuffers = new Map();
 
     // Add proper environment check
-    if (!this.isWebGPUSupported && process?.env?.NODE_ENV === "test") {
+    if (!this.isWebGPUSupported && process?.env?.NODE_ENV === 'test') {
       this.compressInPlace = async () => Promise.resolve();
       this.compressWithSharedMemory = async () => Promise.resolve();
     }
@@ -46,14 +46,14 @@ export class ZeroCopyCompression {
 
   async compressInPlace(buffer: GPUBuffer): Promise<void> {
     if (!this.device || !buffer) {
-      throw new Error("Invalid device or buffer");
+      throw new Error('Invalid device or buffer');
     }
 
     try {
       // Create shared memory with proper size validation
       const shared = await this.allocateSharedBuffer(
-        "compression",
-        Math.min(buffer.size, Number.MAX_SAFE_INTEGER)
+        'compression',
+        Math.min(buffer.size, Number.MAX_SAFE_INTEGER),
       );
       const view = new Uint8Array(shared);
 
@@ -88,10 +88,10 @@ export class ZeroCopyCompression {
 
   private createBindGroup(
     buffer: ArrayBuffer,
-    compressionLevel: number = 1
+    compressionLevel: number = 1,
   ): GPUBindGroup {
     if (!buffer || buffer.byteLength <= 0) {
-      throw new Error("Invalid buffer");
+      throw new Error('Invalid buffer');
     }
 
     // Create buffers with proper error handling
@@ -137,7 +137,7 @@ export class ZeroCopyCompression {
 
   private getCompressionPipeline(): GPUComputePipeline {
     return this.device.createComputePipeline({
-      layout: "auto",
+      layout: 'auto',
       compute: {
         module: this.device.createShaderModule({
           code: `
@@ -312,17 +312,17 @@ export class ZeroCopyCompression {
                         }
                     `,
         }),
-        entryPoint: "main",
+        entryPoint: 'main',
       },
     });
   }
 
   async allocateSharedBuffer(
     id: string,
-    size: number
+    size: number,
   ): Promise<SharedArrayBuffer> {
     if (!id || size <= 0) {
-      throw new Error("Invalid buffer parameters");
+      throw new Error('Invalid buffer parameters');
     }
 
     // Add size validation

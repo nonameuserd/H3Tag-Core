@@ -137,10 +137,10 @@ export class GPUCircuitBreaker {
 
   private validateSettings(): void {
     if (this.threshold <= 0 || !Number.isInteger(this.threshold)) {
-      throw new Error("Threshold must be a positive integer");
+      throw new Error('Threshold must be a positive integer');
     }
     if (this.resetTime <= 0) {
-      throw new Error("Reset time must be positive");
+      throw new Error('Reset time must be positive');
     }
   }
 

@@ -1,6 +1,6 @@
-import { Injectable } from "@nestjs/common";
-import { Peer, PeerState, BlockchainSchema } from "@h3tag-blockchain/core";
-import { ConfigService } from "@h3tag-blockchain/shared";
+import { Injectable } from '@nestjs/common';
+import { Peer, PeerState, BlockchainSchema } from '@h3tag-blockchain/core';
+import { ConfigService } from '@h3tag-blockchain/shared';
 import {
   CreatePeerDto,
   PeerResponseDto,
@@ -8,10 +8,10 @@ import {
   BanInfoDto,
   NetworkInfoDto,
   PeerDetailedInfoDto,
-} from "../dtos/peer.dto";
-import { Logger } from "@h3tag-blockchain/shared";
-import { NetworkStats } from "@h3tag-blockchain/core";
-import { PeerServices } from "@h3tag-blockchain/core";
+} from '../dtos/peer.dto';
+import { Logger } from '@h3tag-blockchain/shared';
+import { NetworkStats } from '@h3tag-blockchain/core';
+import { PeerServices } from '@h3tag-blockchain/core';
 
 /**
  * @swagger
@@ -28,7 +28,7 @@ export class PeerService {
 
   constructor(
     private readonly configService: ConfigService,
-    private readonly blockchainSchema: BlockchainSchema
+    private readonly blockchainSchema: BlockchainSchema,
   ) {
     this.networkStats = new NetworkStats();
   }
@@ -63,11 +63,11 @@ export class PeerService {
    */
   async addPeer(createPeerDto: CreatePeerDto): Promise<PeerResponseDto> {
     try {
-      const [host, portStr] = createPeerDto.address.split(":");
+      const [host, portStr] = createPeerDto.address?.split(':') || [];
       const port = parseInt(portStr, 10);
 
       if (!host || isNaN(port)) {
-        throw new Error("Invalid peer address format");
+        throw new Error('Invalid peer address format');
       }
 
       // Create new peer instance
@@ -75,14 +75,14 @@ export class PeerService {
         host,
         port,
         {
-          version: this.configService.get("PEER_VERSION") || 1,
+          version: this.configService.get('PEER_VERSION') || 1,
           services: [PeerServices.NODE],
           minPingInterval: 120000,
           connectionTimeout: 10000,
           handshakeTimeout: 30000,
         },
         this.configService,
-        this.blockchainSchema
+        this.blockchainSchema,
       );
 
       // Attempt to connect to the peer
@@ -104,9 +104,9 @@ export class PeerService {
         height: peerInfo.height,
         services: peerInfo.services.reduce((acc, service) => acc | service, 0),
       };
-    } catch (error) {
-      Logger.error("Failed to add peer:", error);
-      throw new Error(`Failed to add peer: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to add peer:', error);
+      throw new Error(`Failed to add peer: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 
@@ -141,14 +141,19 @@ export class PeerService {
           lastSeen: new Date(peerInfo.lastSeen).toISOString(),
           latency: peerInfo.latency,
           height: peerInfo.height,
-          services: peerInfo.services.reduce((acc, service) => acc | service, 0),
+          services: peerInfo.services.reduce(
+            (acc, service) => acc | service,
+            0,
+          ),
         });
       }
 
       return peerResponses;
-    } catch (error) {
-      Logger.error("Failed to get peers:", error);
-      throw new Error(`Failed to get peers: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to get peers:', error);
+      throw new Error(
+        `Failed to get peers: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -173,12 +178,12 @@ export class PeerService {
   async removePeer(peerId: string): Promise<void> {
     const peer = this.peers.get(peerId);
     if (!peer) {
-      throw new Error("Peer not found");
+      throw new Error('Peer not found');
     }
 
     try {
       // Disconnect the peer
-      peer.disconnect(1000, "Peer removed by admin");
+      peer.disconnect(1000, 'Peer removed by admin');
 
       // Remove from peers map
       this.peers.delete(peerId);
@@ -186,9 +191,11 @@ export class PeerService {
       // Clean up peer data from database
       await this.blockchainSchema.db.del(`peer:${peerId}:height`);
       await this.blockchainSchema.db.del(`peer:${peerId}:minedBlocks`);
-    } catch (error) {
-      Logger.error("Failed to remove peer:", error);
-      throw new Error(`Failed to remove peer: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to remove peer:', error);
+      throw new Error(
+        `Failed to remove peer: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -201,7 +208,7 @@ export class PeerService {
   async banPeer(peerId: string): Promise<PeerResponseDto> {
     const peer = this.peers.get(peerId);
     if (!peer) {
-      throw new Error("Peer not found");
+      throw new Error('Peer not found');
     }
 
     try {
@@ -220,9 +227,11 @@ export class PeerService {
         height: peerInfo.height,
         services: peerInfo.services.reduce((acc, service) => acc | service, 0),
       };
-    } catch (error) {
-      Logger.error("Failed to ban peer:", error);
-      throw new Error(`Failed to ban peer: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to ban peer:', error);
+      throw new Error(
+        `Failed to ban peer: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -262,7 +271,7 @@ export class PeerService {
       port: peerInfo.port,
       version: peerInfo.version,
       state: peerInfo.state,
-      services: Array.isArray(peerInfo.services) 
+      services: Array.isArray(peerInfo.services)
         ? peerInfo.services.reduce((acc, service) => acc | service, 0)
         : peerInfo.services || 1, // 1 represents NODE service
       lastSeen: peerInfo.lastSeen,
@@ -325,9 +334,11 @@ export class PeerService {
         bannedPeers,
         averageLatency: activePeers > 0 ? totalLatency / activePeers : 0,
       };
-    } catch (error) {
-      Logger.error("Failed to get network stats:", error);
-      throw new Error(`Failed to get network stats: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to get network stats:', error);
+      throw new Error(
+        `Failed to get network stats: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -354,13 +365,13 @@ export class PeerService {
    */
   async setBan(setBanDto: SetBanDto): Promise<void> {
     const { ip, command, banTime, reason } = setBanDto;
-    const peer = this.peers.get(ip);
+    const peer = this.peers.get(ip || '');
 
     if (!peer) {
-      throw new Error("Peer not found");
+      throw new Error('Peer not found');
     }
 
-    await peer.setBan(command, banTime, reason);
+    await peer.setBan(command || 'add', banTime, reason);
   }
 
   /**
@@ -390,12 +401,12 @@ export class PeerService {
     const peer = this.peers.get(ip);
 
     if (!peer) {
-      throw new Error("Peer not found");
+      throw new Error('Peer not found');
     }
 
     const banInfo = await peer.getBanInfo();
     if (!banInfo) {
-      throw new Error("Ban information not found");
+      throw new Error('Ban information not found');
     }
 
     return {
@@ -468,9 +479,11 @@ export class PeerService {
         networkActive: networkInfo.connections.total > 0,
         localAddresses: networkInfo.localAddresses,
       };
-    } catch (error) {
-      Logger.error("Failed to get network info:", error);
-      throw new Error(`Failed to get network info: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to get network info:', error);
+      throw new Error(
+        `Failed to get network info: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 }

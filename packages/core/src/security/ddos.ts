@@ -1,14 +1,17 @@
-import { EventEmitter } from "events";
-import { Cache } from "../scaling/cache";
-import { AuditManager, AuditEventType, AuditSeverity } from "./audit";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
+import { EventEmitter } from 'events';
+import { Cache } from '../scaling/cache';
+import { AuditManager, AuditEventType, AuditSeverity } from './audit';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 import { Request, Response } from 'express';
 
 export class DDoSError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
     super(message);
-    this.name = "DDoSError";
+    this.name = 'DDoSError';
   }
 }
 
@@ -61,7 +64,7 @@ export class DDoSProtection {
     string,
     Map<string, RequestRecord>
   >();
-  private static readonly BUCKET_TYPES = ["pow", "vote", "default"];
+  private static readonly BUCKET_TYPES = ['pow', 'vote', 'default'];
   private readonly eventEmitter = new EventEmitter();
   private readonly circuitBreaker = {
     failures: 0,
@@ -125,7 +128,7 @@ export class DDoSProtection {
 
   private validateConfig(config: Partial<DDoSConfig>): void {
     if (config.windowMs && config.windowMs < 1000) {
-      throw new DDoSError("Window must be at least 1 second", "INVALID_CONFIG");
+      throw new DDoSError('Window must be at least 1 second', 'INVALID_CONFIG');
     }
     if (
       config.maxRequests &&
@@ -133,12 +136,12 @@ export class DDoSProtection {
         config.maxRequests.qudraticVote < 1 ||
         config.maxRequests.default < 1)
     ) {
-      throw new DDoSError("Max requests must be positive", "INVALID_CONFIG");
+      throw new DDoSError('Max requests must be positive', 'INVALID_CONFIG');
     }
     if (config.blockDuration && config.blockDuration < 1000) {
       throw new DDoSError(
-        "Block duration must be at least 1 second",
-        "INVALID_CONFIG"
+        'Block duration must be at least 1 second',
+        'INVALID_CONFIG',
       );
     }
   }
@@ -168,7 +171,7 @@ export class DDoSProtection {
         violations: 0,
       });
     }
-    Logger.info("DDoS protection initialized");
+    Logger.info('DDoS protection initialized');
   }
 
   public middleware() {
@@ -182,13 +185,15 @@ export class DDoSProtection {
             this.circuitBreaker.isOpen = false;
             this.circuitBreaker.failures = 0;
           } else {
-            return res.status(503).json({ err: "Service temporarily unavailable" });
+            return res
+              .status(503)
+              .json({ err: 'Service temporarily unavailable' });
           }
         }
 
         const ip = this.getClientIP(req);
         if (!ip) {
-          throw new DDoSError("Could not determine client IP", "INVALID_IP");
+          throw new DDoSError('Could not determine client IP', 'INVALID_IP');
         }
 
         const requestType = this.getRequestType(req);
@@ -197,12 +202,12 @@ export class DDoSProtection {
         if (
           this.isRateLimitExceeded(
             record,
-            requestType as "pow" | "qudraticVote" | "default"
+            requestType as 'pow' | 'qudraticVote' | 'default',
           )
         ) {
           await this.handleViolation(ip, record);
           return res.status(429).json({
-            error: "Too many requests",
+            error: 'Too many requests',
             retryAfter: this.getRetryAfter(ip),
           });
         }
@@ -222,14 +227,14 @@ export class DDoSProtection {
 
     if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
       this.circuitBreaker.isOpen = true;
-      this.eventEmitter.emit("circuit_breaker_open");
+      this.eventEmitter.emit('circuit_breaker_open');
     }
   }
 
   private getRequestType(req: Request): string {
-    if (req.path.includes("/pow")) return "pow";
-    if (req.path.includes("/vote")) return "vote";
-    return "default";
+    if (req.path.includes('/pow')) return 'pow';
+    if (req.path.includes('/vote')) return 'vote';
+    return 'default';
   }
 
   private async recordRequest(ip: string, type: string): Promise<void> {
@@ -268,14 +273,14 @@ export class DDoSProtection {
       record.blocked ||
       this.isRateLimitExceeded(
         record,
-        type as "pow" | "qudraticVote" | "default"
+        type as 'pow' | 'qudraticVote' | 'default',
       )
     );
   }
 
   private isRateLimitExceeded(
     record: RequestRecord,
-    type: "pow" | "qudraticVote" | "default"
+    type: 'pow' | 'qudraticVote' | 'default',
   ): boolean {
     const windowExpired =
       Date.now() - record.firstRequest > this.config.windowMs;
@@ -291,7 +296,7 @@ export class DDoSProtection {
 
   private async handleViolation(
     ip: string,
-    record: RequestRecord
+    record: RequestRecord,
   ): Promise<void> {
     const blockDuration = record.violations * this.config.blockDuration;
 
@@ -302,7 +307,7 @@ export class DDoSProtection {
       await this.auditManager.logEvent({
         type: AuditEventType.SECURITY,
         severity: AuditSeverity.HIGH,
-        source: "ddos_protection",
+        source: 'ddos_protection',
         details: {
           message: `IP ${ip} banned for exceeding ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} rate limit threshold`,
           ip,
@@ -316,7 +321,7 @@ export class DDoSProtection {
         },
       });
 
-      this.eventEmitter.emit("ip_banned", {
+      this.eventEmitter.emit('ip_banned', {
         ip,
         violations: record.violations,
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
@@ -328,7 +333,7 @@ export class DDoSProtection {
     await this.auditManager.logEvent({
       type: AuditEventType.SECURITY,
       severity: AuditSeverity.WARNING,
-      source: "ddos_protection",
+      source: 'ddos_protection',
       details: {
         ip,
         violations: record.violations,
@@ -346,18 +351,19 @@ export class DDoSProtection {
       this.metrics.activeBlocks++;
     }
 
-    this.eventEmitter.emit("ip_blocked", { ip, duration });
+    this.eventEmitter.emit('ip_blocked', { ip, duration });
   }
 
   private getClientIP(req: Request): string {
     const ip = this.config.trustProxy
-      ? (req as Request).ip || (typeof req.headers["x-forwarded-for"] === 'string' 
-          ? req.headers["x-forwarded-for"].split(",")[0] 
-          : req.headers["x-forwarded-for"]?.[0])
+      ? (req as Request).ip ||
+        (typeof req.headers['x-forwarded-for'] === 'string'
+          ? req.headers['x-forwarded-for'].split(',')[0]
+          : req.headers['x-forwarded-for']?.[0])
       : req.socket.remoteAddress;
 
-    if (!ip || typeof ip !== "string") {
-      throw new DDoSError("Invalid IP address", "INVALID_IP");
+    if (!ip || typeof ip !== 'string') {
+      throw new DDoSError('Invalid IP address', 'INVALID_IP');
     }
     return ip.trim();
   }
@@ -365,7 +371,7 @@ export class DDoSProtection {
   private startCleanupInterval(): void {
     this.cleanupInterval = setInterval(() => {
       this.cleanupOldRecords().catch((err) =>
-        Logger.error("Failed to cleanup old records:", err)
+        Logger.error('Failed to cleanup old records:', err),
       );
     }, this.config.cleanupInterval);
 
@@ -410,14 +416,14 @@ export class DDoSProtection {
     this.blockedIPs.delete(ip);
     this.requests.delete(ip);
     this.metrics.activeBlocks = Math.max(0, this.metrics.activeBlocks - 1);
-    this.eventEmitter.emit("ip_unblocked", { ip });
+    this.eventEmitter.emit('ip_unblocked', { ip });
   }
 
   public shutdown(): void {
     clearInterval(this.cleanupInterval);
     this.requests.shutdown();
-    this.eventEmitter.emit("shutdown");
-    Logger.info("DDoS protection shutdown");
+    this.eventEmitter.emit('shutdown');
+    Logger.info('DDoS protection shutdown');
   }
 
   private async getRequestRecord(ip: string): Promise<RequestRecord> {
@@ -465,7 +471,7 @@ export class DDoSProtection {
       if (tracking.blocked) {
         if (now < tracking.blockExpires) {
           // Still blocked
-          this.logViolation(address, type, "Request blocked - cooldown period");
+          this.logViolation(address, type, 'Request blocked - cooldown period');
           return false;
         }
         // Block expired, reset tracking
@@ -496,7 +502,7 @@ export class DDoSProtection {
         this.logViolation(
           address,
           type,
-          `Rate limit exceeded: ${tracking.count}/${limit}`
+          `Rate limit exceeded: ${tracking.count}/${limit}`,
         );
 
         // Update tracking
@@ -519,7 +525,7 @@ export class DDoSProtection {
       return true;
     } catch (error) {
       // Log error but allow request to proceed in case of internal error
-      Logger.error("DDoS protection error:", error);
+      Logger.error('DDoS protection error:', error);
       return true;
     }
   }

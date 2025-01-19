@@ -1,7 +1,7 @@
-import { Router } from "express";
-import { TransactionController } from "../controllers/transaction.controller";
-import { BlockchainService } from "../services/blockchain.service";
-import { TransactionService } from "../services/transaction.service";
+import { Router } from 'express';
+import { TransactionController } from '../controllers/transaction.controller';
+import { BlockchainService } from '../services/blockchain.service';
+import { TransactionService } from '../services/transaction.service';
 import {
   TransactionBuilder,
   Blockchain,
@@ -9,8 +9,8 @@ import {
   Mempool,
   AuditManager,
   Node,
-} from "@h3tag-blockchain/core";
-import { ConfigService } from "@h3tag-blockchain/shared";
+} from '@h3tag-blockchain/core';
+import { ConfigService } from '@h3tag-blockchain/shared';
 
 /**
  * @swagger
@@ -28,7 +28,7 @@ const auditManager = new AuditManager();
 const node = new Node(blockchain, db, mempool, configService, auditManager);
 
 const controller = new TransactionController(
-  new TransactionService(new BlockchainService(node), new TransactionBuilder())
+  new TransactionService(new BlockchainService(node), new TransactionBuilder()),
 );
 
 /**
@@ -56,7 +56,11 @@ const controller = new TransactionController(
  *       500:
  *         description: Server error
  */
-router.get("/:txId", controller.getTransaction);
+router.get('/:txId', (req, res, next) => {
+  controller.getTransaction(req.params.txId)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -83,7 +87,11 @@ router.get("/:txId", controller.getTransaction);
  *       500:
  *         description: Server error
  */
-router.post("/decode", controller.decodeRawTransaction);
+router.post('/decode', (req, res, next) => {
+  controller.decodeRawTransaction(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -116,7 +124,11 @@ router.post("/decode", controller.decodeRawTransaction);
  *       500:
  *         description: Server error
  */
-router.post("/raw", controller.sendRawTransaction);
+router.post('/raw', (req, res, next) => {
+  controller.sendRawTransaction(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -151,7 +163,11 @@ router.post("/raw", controller.sendRawTransaction);
  *       500:
  *         description: Server error
  */
-router.get("/:txId/raw", controller.getRawTransaction);
+router.get('/:txId/raw', (req, res, next) => {
+  controller.getRawTransaction(req.params.txId)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -185,7 +201,11 @@ router.get("/:txId/raw", controller.getRawTransaction);
  *       500:
  *         description: Server error
  */
-router.post("/estimate-fee", controller.estimateFee);
+router.post('/estimate-fee', (req, res, next) => {
+  controller.estimateFee(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -227,7 +247,11 @@ router.post("/estimate-fee", controller.estimateFee);
  *       500:
  *         description: Server error
  */
-router.post("/sign-message", controller.signMessage);
+router.post('/sign-message', (req, res, next) => {
+  controller.signMessage(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -274,7 +298,11 @@ router.post("/sign-message", controller.signMessage);
  *       500:
  *         description: Server error
  */
-router.post("/verify-message", controller.verifyMessage);
+router.post('/verify-message', (req, res, next) => {
+  controller.verifyMessage(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -317,6 +345,10 @@ router.post("/verify-message", controller.verifyMessage);
  *       500:
  *         description: Server error
  */
-router.post("/validate-address", controller.validateAddress);
+router.post('/validate-address', (req, res, next) => {
+  controller.validateAddress(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 export default router;

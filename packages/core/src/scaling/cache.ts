@@ -1,12 +1,12 @@
-import { EventEmitter } from "events";
-import { gzipSync, gunzipSync } from "zlib";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
+import { EventEmitter } from 'events';
+import { gzipSync, gunzipSync } from 'zlib';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 
 export class CacheError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "CacheError";
+    this.name = 'CacheError';
   }
 }
 
@@ -97,7 +97,9 @@ export class Cache<T> {
   };
 
   constructor(options: CacheOptions<T> = {}) {
-    this.options = { ...Cache.DEFAULT_OPTIONS, ...options } as Required<CacheOptions<T>>;
+    this.options = { ...Cache.DEFAULT_OPTIONS, ...options } as Required<
+      CacheOptions<T>
+    >;
     this.items = new Map();
     this.stats = {
       hits: 0,
@@ -131,7 +133,7 @@ export class Cache<T> {
   public set(
     key: string,
     value: T,
-    options?: { ttl?: number; priority?: number }
+    options?: { ttl?: number; priority?: number },
   ): void {
     try {
       const serializedValue = this.options.serialize(value);
@@ -146,7 +148,7 @@ export class Cache<T> {
       ) {
         const compressedValue = gzipSync(Buffer.from(serializedValue));
         if (compressedValue.length < size) {
-          finalValue = compressedValue.toString("base64");
+          finalValue = compressedValue.toString('base64');
           size = compressedValue.length;
           compressed = true;
         }
@@ -175,7 +177,7 @@ export class Cache<T> {
       this.items.set(key, item);
       this.memoryUsage += size;
       this.updateStats();
-      this.eventEmitter.emit("set", {
+      this.eventEmitter.emit('set', {
         key,
         value,
         currency: this.options.currency,
@@ -191,26 +193,26 @@ export class Cache<T> {
 
     if (!item) {
       this.stats.misses++;
-      this.eventEmitter.emit("miss", { key, currency: this.options.currency });
+      this.eventEmitter.emit('miss', { key, currency: this.options.currency });
       return undefined;
     }
 
     if (this.isExpired(item)) {
       this.delete(key);
       this.stats.misses++;
-      this.eventEmitter.emit("miss", { key, currency: this.options.currency });
+      this.eventEmitter.emit('miss', { key, currency: this.options.currency });
       return undefined;
     }
 
     try {
       if (item.compressed) {
-        const decompressed = gunzipSync(Buffer.from(item.serialized, "base64"));
+        const decompressed = gunzipSync(Buffer.from(item.serialized, 'base64'));
         item.value = this.options.deserialize(decompressed.toString());
       }
     } catch (error) {
       Logger.error(
         `${this.options.currency} Cache: Error decompressing value for key "${key}":`,
-        error
+        error,
       );
       this.delete(key);
       return undefined;
@@ -218,7 +220,7 @@ export class Cache<T> {
 
     item.lastAccessed = Date.now();
     this.stats.hits++;
-    this.eventEmitter.emit("hit", {
+    this.eventEmitter.emit('hit', {
       key,
       value: item.value,
       currency: this.options.currency,
@@ -264,7 +266,7 @@ export class Cache<T> {
 
   private enforceMemoryLimit(): void {
     const entries = Array.from(this.items.entries()).sort(
-      (a, b) => a[1].lastAccessed - b[1].lastAccessed
+      (a, b) => a[1].lastAccessed - b[1].lastAccessed,
     );
 
     let removed = 0;
@@ -283,7 +285,7 @@ export class Cache<T> {
 
   private calculateCompressionRatio(): number {
     const compressedItems = Array.from(this.items.values()).filter(
-      (item) => item.compressed
+      (item) => item.compressed,
     );
     return compressedItems.length
       ? compressedItems.reduce((acc, item) => acc + item.size, 0) /
@@ -294,7 +296,7 @@ export class Cache<T> {
   public async shutdown(): Promise<void> {
     clearInterval(this.cleanupInterval);
     this.clear();
-    this.eventEmitter.emit("shutdown");
+    this.eventEmitter.emit('shutdown');
   }
 
   public delete(key: string): boolean {
@@ -304,7 +306,7 @@ export class Cache<T> {
       this.stats.keys = this.items.size;
       this.stats.size -= item.size;
       this.options.onEvict(key, item.value);
-      this.eventEmitter.emit("delete", key);
+      this.eventEmitter.emit('delete', key);
       return true;
     }
     return false;
@@ -330,7 +332,7 @@ export class Cache<T> {
     } else {
       this.items.clear();
       this.resetStats();
-      this.eventEmitter.emit("clear");
+      this.eventEmitter.emit('clear');
     }
   }
 
@@ -350,7 +352,7 @@ export class Cache<T> {
 
   public entries(): [string, T][] {
     return Array.from(this.items.entries())
-      .filter(([,item]) => !this.isExpired(item))
+      .filter(([, item]) => !this.isExpired(item))
       .map(([key, item]) => [key, item.value]);
   }
 
@@ -394,7 +396,7 @@ export class Cache<T> {
   private startCleanupInterval(): void {
     this.cleanupInterval = setInterval(
       () => this.cleanup(),
-      this.options.checkPeriod * 1000
+      this.options.checkPeriod * 1000,
     );
 
     // Prevent the interval from keeping the process alive
@@ -436,7 +438,7 @@ export class Cache<T> {
   public prune(percentage: number): void {
     const entriesToRemove = Math.floor(this.size() * percentage);
     const entries = Array.from(this.items.entries()).sort(
-      (a, b) => a[1].lastAccessed - b[1].lastAccessed
+      (a, b) => a[1].lastAccessed - b[1].lastAccessed,
     );
 
     for (let i = 0; i < entriesToRemove; i++) {

@@ -1,12 +1,12 @@
-import { promises as fs } from "fs";
-import { join } from "path";
-import { Logger } from "@h3tag-blockchain/shared";
-import { createHash } from "crypto";
-import { createGzip, createGunzip } from "zlib";
-import { pipeline } from "stream/promises";
-import { createReadStream, createWriteStream } from "fs";
-import { setTimeout } from "timers/promises";
-import { Mutex } from "async-mutex";
+import { promises as fs } from 'fs';
+import { join } from 'path';
+import { Logger } from '@h3tag-blockchain/shared';
+import { createHash } from 'crypto';
+import { createGzip, createGunzip } from 'zlib';
+import { pipeline } from 'stream/promises';
+import { createReadStream, createWriteStream } from 'fs';
+import { setTimeout } from 'timers/promises';
+import { Mutex } from 'async-mutex';
 
 /**
  * @fileoverview BackupManager handles database backup creation, verification, and restoration.
@@ -165,7 +165,7 @@ const MAX_QUEUE_SIZE = 100;
 class LockError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "LockError";
+    this.name = 'LockError';
   }
 }
 
@@ -182,7 +182,7 @@ export class BackupManager {
     this.config = {
       maxBackups: config.maxBackups || 5,
       compressionLevel: config.compressionLevel || 6,
-      backupPath: config.backupPath || join(dbPath, "../backups"),
+      backupPath: config.backupPath || join(dbPath, '../backups'),
       retentionDays: config.retentionDays || 7,
     };
   }
@@ -193,7 +193,7 @@ export class BackupManager {
       return await Promise.race([
         operation(),
         setTimeout(TIMEOUT_MS).then(() => {
-          throw new LockError("Operation timeout exceeded");
+          throw new LockError('Operation timeout exceeded');
         }),
       ]);
     } finally {
@@ -203,10 +203,10 @@ export class BackupManager {
 
   async createBackup(label: string): Promise<string> {
     return this.withLock(async () => {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupPath = join(
         this.config.backupPath,
-        `backup-${label}-${timestamp}`
+        `backup-${label}-${timestamp}`,
       );
 
       try {
@@ -219,18 +219,18 @@ export class BackupManager {
           size: await this.getDirectorySize(backupPath),
           checksum: await this.createChecksum(backupPath),
           compressionLevel: this.config.compressionLevel,
-          dbVersion: process.env.DB_VERSION || "1.0.0",
+          dbVersion: process.env.DB_VERSION || '1.0.0',
         };
 
         await fs.writeFile(
-          join(backupPath, "metadata.json"),
-          JSON.stringify(metadata, null, 2)
+          join(backupPath, 'metadata.json'),
+          JSON.stringify(metadata, null, 2),
         );
 
         await this.cleanOldBackups();
         return backupPath;
-      } catch (error) {
-        await this.cleanupFailedBackup(backupPath, error);
+      } catch (error: unknown) {
+        await this.cleanupFailedBackup(backupPath, error as Error);
         throw error;
       }
     });
@@ -242,21 +242,24 @@ export class BackupManager {
       const files = await fs.readdir(this.dbPath);
 
       if (files.length === 0) {
-        throw new Error("No files found to backup");
+        throw new Error('No files found to backup');
       }
 
       await fs.mkdir(backupPath, { recursive: true });
       backupDirCreated = true;
 
       await Promise.all(
-        files.map((file) => this.compressFile(file, backupPath))
+        files.map((file) => this.compressFile(file, backupPath)),
       );
-    } catch (error) {
+    } catch (error: unknown) {
       if (backupDirCreated) {
         await fs
           .rm(backupPath, { recursive: true, force: true })
-          .catch((err) =>
-            Logger.error("Failed to cleanup after compression error:", err)
+          .catch((err: unknown) =>
+            Logger.error(
+              'Failed to cleanup after compression error:',
+              err as Error,
+            ),
           );
       }
       throw error;
@@ -274,7 +277,7 @@ export class BackupManager {
       await pipeline(
         createReadStream(sourceFile),
         createGzip({ level: this.config.compressionLevel }),
-        createWriteStream(targetFile)
+        createWriteStream(targetFile),
       );
     } catch (error) {
       Logger.error(`Failed to compress file ${file}:`, error);
@@ -285,7 +288,7 @@ export class BackupManager {
 
   private async createChecksum(path: string): Promise<string> {
     const files = await fs.readdir(path);
-    const hash = createHash("sha256");
+    const hash = createHash('sha256');
 
     for (const file of files.sort()) {
       // Sort for consistency
@@ -302,7 +305,7 @@ export class BackupManager {
       });
     }
 
-    return hash.digest("hex");
+    return hash.digest('hex');
   }
 
   private async processQueue(): Promise<void> {
@@ -320,13 +323,13 @@ export class BackupManager {
           try {
             await this.executeTaskWithRetry(task);
           } catch (error) {
-            Logger.error("Queue task failed:", error);
+            Logger.error('Queue task failed:', error);
             errors.push(error as Error);
           }
         }
 
         if (errors.length > 0) {
-          throw new Error(errors.map((e) => e.message).join(", "));
+          throw new Error(errors.map((e) => e.message).join(', '));
         }
       } finally {
         this.isProcessing = false;
@@ -336,7 +339,7 @@ export class BackupManager {
 
   private async executeTaskWithRetry(
     task: () => Promise<void>,
-    maxRetries = 3
+    maxRetries = 3,
   ): Promise<void> {
     let lastError: Error | null = null;
 
@@ -345,7 +348,7 @@ export class BackupManager {
         await Promise.race([
           task(),
           setTimeout(TIMEOUT_MS).then(() => {
-            throw new Error("Task timeout exceeded");
+            throw new Error('Task timeout exceeded');
           }),
         ]);
         return; // Success
@@ -358,12 +361,12 @@ export class BackupManager {
       }
     }
 
-    throw lastError || new Error("Task failed after retries");
+    throw lastError || new Error('Task failed after retries');
   }
 
   async queueTask(task: () => Promise<void>): Promise<void> {
     if (this.queue.length >= MAX_QUEUE_SIZE) {
-      throw new Error("Queue is full");
+      throw new Error('Queue is full');
     }
 
     this.queue.push(task);
@@ -374,24 +377,24 @@ export class BackupManager {
     try {
       const backups = await fs.readdir(this.config.backupPath);
       const sortedBackups = backups
-        .filter((b) => b.startsWith("backup-"))
+        .filter((b) => b.startsWith('backup-'))
         .sort((a, b) => b.localeCompare(a));
 
       return sortedBackups.length
         ? join(this.config.backupPath, sortedBackups[0])
         : null;
     } catch (error) {
-      Logger.error("Failed to get latest backup:", error);
+      Logger.error('Failed to get latest backup:', error);
       return null;
     }
   }
 
   private validateBackupPath(path: string): void {
-    if (!path || typeof path !== "string") {
-      throw new Error("Invalid backup path");
+    if (!path || typeof path !== 'string') {
+      throw new Error('Invalid backup path');
     }
     if (!path.startsWith(this.config.backupPath)) {
-      throw new Error("Backup path must be within configured backup directory");
+      throw new Error('Backup path must be within configured backup directory');
     }
   }
 
@@ -399,63 +402,63 @@ export class BackupManager {
     this.validateBackupPath(backupPath);
 
     try {
-      const metadataPath = join(backupPath, "metadata.json");
+      const metadataPath = join(backupPath, 'metadata.json');
       const metadataExists = await fs
         .access(metadataPath)
         .then(() => true)
         .catch(() => false);
 
       if (!metadataExists) {
-        Logger.error("Backup metadata not found");
+        Logger.error('Backup metadata not found');
         return false;
       }
 
-      const metadata = JSON.parse(await fs.readFile(metadataPath, "utf8"));
+      const metadata = JSON.parse(await fs.readFile(metadataPath, 'utf8'));
 
       // Validate metadata structure
       if (!this.isValidMetadata(metadata)) {
-        Logger.error("Invalid backup metadata structure");
+        Logger.error('Invalid backup metadata structure');
         return false;
       }
 
       const currentChecksum = await this.createChecksum(backupPath);
       return currentChecksum === metadata.checksum;
     } catch (error) {
-      Logger.error("Backup verification failed:", error);
+      Logger.error('Backup verification failed:', error);
       return false;
     }
   }
 
   private isValidMetadata(metadata: unknown): metadata is BackupMetadata {
     return (
-      typeof metadata === "object" &&
+      typeof metadata === 'object' &&
       metadata !== null &&
-      "timestamp" in metadata &&
-      "checksum" in metadata &&
-      "size" in metadata &&
-      "label" in metadata &&
-      "compressionLevel" in metadata &&
-      "dbVersion" in metadata
+      'timestamp' in metadata &&
+      'checksum' in metadata &&
+      'size' in metadata &&
+      'label' in metadata &&
+      'compressionLevel' in metadata &&
+      'dbVersion' in metadata
     );
   }
 
   async copyAndDecompressDatabase(
     backupPath: string,
-    targetPath: string
+    targetPath: string,
   ): Promise<void> {
     await fs.mkdir(targetPath, { recursive: true });
     const files = await fs.readdir(backupPath);
 
     await Promise.all(
       files
-        .filter((f) => f.endsWith(".gz"))
+        .filter((f) => f.endsWith('.gz'))
         .map((file) =>
           pipeline(
             createReadStream(join(backupPath, file)),
             createGunzip(),
-            createWriteStream(join(targetPath, file.replace(".gz", "")))
-          )
-        )
+            createWriteStream(join(targetPath, file.replace('.gz', ''))),
+          ),
+        ),
     );
   }
 
@@ -466,16 +469,16 @@ export class BackupManager {
           await this.acquireLock();
 
           if (!(await this.verifyBackup(backupPath))) {
-            throw new Error("Backup verification failed");
+            throw new Error('Backup verification failed');
           }
 
           const restorePath = targetPath || this.dbPath;
           await this.copyAndDecompressDatabase(backupPath, restorePath);
 
-          Logger.info("Backup restored successfully:", { path: backupPath });
+          Logger.info('Backup restored successfully:', { path: backupPath });
           resolve();
         } catch (error) {
-          Logger.error("Restore failed:", error);
+          Logger.error('Restore failed:', error);
           reject(error);
         } finally {
           this.releaseLock();
@@ -489,14 +492,14 @@ export class BackupManager {
   async dispose(): Promise<void> {
     return this.withLock(async () => {
       if (this.isProcessing) {
-        Logger.warn("Waiting for queue to complete before disposal...");
+        Logger.warn('Waiting for queue to complete before disposal...');
         let attempts = 0;
         while (this.isProcessing && attempts < 30) {
           await setTimeout(100);
           attempts++;
         }
         if (this.isProcessing) {
-          Logger.error("Force stopping queue processing");
+          Logger.error('Force stopping queue processing');
         }
       }
 
@@ -515,7 +518,7 @@ export class BackupManager {
     try {
       const backups = await fs.readdir(this.config.backupPath);
       const sortedBackups = backups
-        .filter((b) => b.startsWith("backup-"))
+        .filter((b) => b.startsWith('backup-'))
         .sort((a, b) => b.localeCompare(a));
 
       const cutoffDate = new Date();
@@ -530,10 +533,10 @@ export class BackupManager {
               Logger.error(`Failed to delete old backup ${backup}:`, error);
             });
           }
-        })
+        }),
       );
     } catch (error) {
-      Logger.error("Failed to clean old backups:", error);
+      Logger.error('Failed to clean old backups:', error);
       throw error;
     }
   }
@@ -541,7 +544,7 @@ export class BackupManager {
   private async getDirectorySize(path: string): Promise<number> {
     const files = await fs.readdir(path);
     const stats = await Promise.all(
-      files.map((file) => fs.stat(join(path, file)))
+      files.map((file) => fs.stat(join(path, file))),
     );
     return stats.reduce((acc, stat) => acc + stat.size, 0);
   }
@@ -555,7 +558,7 @@ export class BackupManager {
 
     while (this.isLocked) {
       if (Date.now() - startTime > timeoutMs) {
-        throw new LockError("Timeout while waiting for lock");
+        throw new LockError('Timeout while waiting for lock');
       }
       await setTimeout(100);
     }
@@ -568,11 +571,11 @@ export class BackupManager {
   }
 
   private async cleanupFailedBackup(path: string, error: Error): Promise<void> {
-    Logger.error("Backup failed:", error);
+    Logger.error('Backup failed:', error);
     try {
       await fs.rm(path, { recursive: true, force: true });
     } catch (cleanupError) {
-      Logger.error("Failed to cleanup failed backup:", cleanupError);
+      Logger.error('Failed to cleanup failed backup:', cleanupError);
     }
   }
 }

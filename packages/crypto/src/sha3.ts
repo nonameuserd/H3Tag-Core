@@ -1,14 +1,14 @@
-import { loadWasmModule } from "./wasm-loader";
+import { loadWasmModule } from './wasm-loader';
 
 export class WasmSHA3 {
   private static wasmInstance: WebAssembly.Instance;
 
   static async initialize(): Promise<void> {
-    const wasmModule = await loadWasmModule("sha3.wasm");
+    const wasmModule = await loadWasmModule('sha3.wasm');
     this.wasmInstance = await WebAssembly.instantiate(wasmModule, {
       env: {
         memory: new WebAssembly.Memory({ initial: 256 }),
-        abort: () => console.error("Wasm aborted"),
+        abort: () => console.error('Wasm aborted'),
       },
     });
   }

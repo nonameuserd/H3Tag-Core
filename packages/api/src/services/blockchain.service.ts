@@ -1,18 +1,18 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable } from '@nestjs/common';
 import {
   Blockchain,
   Transaction,
   TransactionBuilder,
   BlockchainStats,
-} from "@h3tag-blockchain/core";
+} from '@h3tag-blockchain/core';
 import {
   BlockchainStatsDto,
   TransactionSubmitDto,
   ChainTipDto,
   BlockchainInfoDto,
-} from "../dtos/blockchain.dto";
-import { Logger } from "@h3tag-blockchain/shared";
-import { Node } from "@h3tag-blockchain/core";
+} from '../dtos/blockchain.dto';
+import { Logger } from '@h3tag-blockchain/shared';
+import { Node } from '@h3tag-blockchain/core';
 
 /**
  * @swagger
@@ -85,26 +85,26 @@ export class BlockchainService {
     try {
       const builder = new TransactionBuilder();
       const withInput = await builder.addInput(
-        txData.sender,
+        txData.sender || '',
         0,
-        txData.signature,
-        BigInt(txData.amount)
+        txData.signature || '',
+        BigInt(txData.amount || 0),
       );
       const withOutput = await withInput.addOutput(
-        txData.recipient,
-        BigInt(txData.amount),
-        txData.confirmations
+        txData.recipient || '',
+        BigInt(txData.amount || 0),
+        txData.confirmations || 0,
       );
       const transaction = await withOutput.build();
 
       const success = await this.blockchain.addTransaction(transaction);
       if (!success) {
-        throw new Error("Transaction rejected by blockchain");
+        throw new Error('Transaction rejected by blockchain');
       }
 
       return transaction.id;
     } catch (error) {
-      Logger.error("Transaction submission failed:", error);
+      Logger.error('Transaction submission failed:', error);
       throw error;
     }
   }
@@ -185,7 +185,7 @@ export class BlockchainService {
   async getBlock(hash: string) {
     const block = await this.blockchain.getBlock(hash);
     if (!block) {
-      throw new Error("Block not found");
+      throw new Error('Block not found');
     }
     return {
       hash: block.hash,
@@ -215,19 +215,19 @@ export class BlockchainService {
   }
 
   private async buildTransaction(
-    tx: TransactionSubmitDto
+    tx: TransactionSubmitDto,
   ): Promise<Transaction> {
     const builder = new TransactionBuilder();
     const withInput = await builder.addInput(
-      tx.sender,
+      tx.sender || '',
       0,
-      tx.signature,
-      BigInt(tx.amount)
+      tx.signature || '',
+      BigInt(tx.amount || 0),
     );
     const withOutput = await withInput.addOutput(
-      tx.recipient,
-      BigInt(tx.amount),
-      tx.confirmations
+      tx.recipient || '',
+      BigInt(tx.amount || 0),
+      tx.confirmations || 0,
     );
     return withOutput.build();
   }
@@ -297,7 +297,7 @@ export class BlockchainService {
   async getBestBlockHash(): Promise<string> {
     const latestBlock = this.blockchain.getLatestBlock();
     if (!latestBlock) {
-      throw new Error("No blocks in chain");
+      throw new Error('No blocks in chain');
     }
     return latestBlock.hash;
   }
@@ -325,11 +325,11 @@ export class BlockchainService {
 
       return {
         blocks: this.blockchain.getCurrentHeight(),
-        bestBlockHash: currentBlock.hash,
+        bestBlockHash: currentBlock?.hash || '',
         difficulty: stats.difficulty,
         medianTime: await this.stats.getMedianTime(),
         verificationProgress: 1,
-        chainWork: "0x0",
+        chainWork: '0x0',
         chainSize: 0,
         initialBlockDownload: false,
         networkHashrate,
@@ -341,14 +341,12 @@ export class BlockchainService {
         })),
       };
     } catch (error) {
-      Logger.error("Error getting blockchain info:", error);
+      Logger.error('Error getting blockchain info:', error);
       throw error;
     }
   }
 
-  async sendRawTransaction(
-    rawTx: string,
-  ): Promise<string> {
+  async sendRawTransaction(rawTx: string): Promise<string> {
     return this.node.broadcastRawTransaction(rawTx);
   }
 

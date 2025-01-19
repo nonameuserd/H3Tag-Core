@@ -1,32 +1,32 @@
 export type VotingErrorCode =
-  | "INIT_FAILED"
-  | "NETWORK_UNSTABLE"
-  | "NO_ACTIVE_PERIOD"
-  | "INACTIVE_PERIOD"
-  | "OUTSIDE_WINDOW"
-  | "INVALID_VOTE_TYPE"
-  | "VOTE_TOO_LARGE"
-  | "INSUFFICIENT_POW"
-  | "START_PERIOD_FAILED"
-  | "UNAUTHORIZED"
-  | "RATE_LIMITED"
-  | "INVALID_CHAIN_ID"
-  | "INVALID_ADDRESS"
-  | "RETRIEVAL_FAILED"
-  | "INVALID_VOTE"
-  | "STORE_FAILED"
-  | "DUPLICATE_VOTE"
-  | "RECORD_FAILED"
-  | "CLOSE_FAILED";
+  | 'INIT_FAILED'
+  | 'NETWORK_UNSTABLE'
+  | 'NO_ACTIVE_PERIOD'
+  | 'INACTIVE_PERIOD'
+  | 'OUTSIDE_WINDOW'
+  | 'INVALID_VOTE_TYPE'
+  | 'VOTE_TOO_LARGE'
+  | 'INSUFFICIENT_POW'
+  | 'START_PERIOD_FAILED'
+  | 'UNAUTHORIZED'
+  | 'RATE_LIMITED'
+  | 'INVALID_CHAIN_ID'
+  | 'INVALID_ADDRESS'
+  | 'RETRIEVAL_FAILED'
+  | 'INVALID_VOTE'
+  | 'STORE_FAILED'
+  | 'DUPLICATE_VOTE'
+  | 'RECORD_FAILED'
+  | 'CLOSE_FAILED';
 
 export class VotingError extends Error {
   constructor(
     public readonly code: VotingErrorCode,
     message: string,
-    public readonly details?: Record<string, unknown>
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message);
-    this.name = "VotingError";
+    this.name = 'VotingError';
     Object.setPrototypeOf(this, VotingError.prototype);
   }
 

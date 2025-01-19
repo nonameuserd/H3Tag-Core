@@ -1,5 +1,5 @@
 export async function loadWasmModule(
-  path: string
+  path: string,
 ): Promise<WebAssembly.Module> {
   const response = await fetch(path);
   const bytes = await response.arrayBuffer();

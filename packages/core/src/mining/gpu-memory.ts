@@ -123,21 +123,21 @@ export class AdaptiveGPUMemory {
   private bufferUsageMap: Map<GPUBuffer, number> = new Map();
 
   async initialize(device: GPUDevice): Promise<void> {
-    if (!device) throw new Error("GPU device not initialized");
+    if (!device) throw new Error('GPU device not initialized');
     this.device = device;
     this.memoryPools = new Map();
     this.memoryUsage = new Map();
 
     // Initialize with safer buffer sizes
-    await this.createMemoryPool("hash", 64 * 1024 * 1024); // 64MB for hashes
-    await this.createMemoryPool("nonce", 32 * 1024 * 1024); // 32MB for nonces
+    await this.createMemoryPool('hash', 64 * 1024 * 1024); // 64MB for hashes
+    await this.createMemoryPool('nonce', 32 * 1024 * 1024); // 32MB for nonces
   }
 
   private async createMemoryPool(
     type: string,
-    initialSize: number
+    initialSize: number,
   ): Promise<void> {
-    if (initialSize <= 0) throw new Error("Invalid initial size");
+    if (initialSize <= 0) throw new Error('Invalid initial size');
 
     const buffer = this.device.createBuffer({
       size: initialSize,
@@ -155,7 +155,7 @@ export class AdaptiveGPUMemory {
   }
 
   async allocateMemory(type: string, size: number): Promise<GPUBuffer> {
-    if (!type || size <= 0) throw new Error("Invalid allocation parameters");
+    if (!type || size <= 0) throw new Error('Invalid allocation parameters');
 
     const pool = this.memoryPools.get(type);
     if (!pool) throw new Error(`Memory pool not found for type: ${type}`);
@@ -180,7 +180,7 @@ export class AdaptiveGPUMemory {
   private async expandPool(type: string): Promise<void> {
     const currentSize = this.getPoolSize(type);
     if (currentSize >= this.device.limits.maxBufferSize) {
-      throw new Error("Maximum GPU buffer size reached");
+      throw new Error('Maximum GPU buffer size reached');
     }
 
     const newSize = Math.min(currentSize * 2, this.device.limits.maxBufferSize);
@@ -206,11 +206,11 @@ export class AdaptiveGPUMemory {
     try {
       const totalUsage = Array.from(this.bufferUsageMap.values()).reduce(
         (sum, usage) => sum + usage,
-        0
+        0,
       );
       const gpuMemory = this.device.limits.maxBufferSize;
       if (totalUsage + size > gpuMemory * this.MAX_MEMORY_USAGE) {
-        throw new Error("GPU memory limit exceeded");
+        throw new Error('GPU memory limit exceeded');
       }
 
       // Find first buffer with enough space

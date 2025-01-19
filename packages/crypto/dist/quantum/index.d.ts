@@ -1,7 +1,7 @@
 /// <reference types="node" />
 /// <reference types="node" />
 /// <reference types="node" />
-import { QuantumKeyPair, SecurityLevel } from "../native/types";
+import { QuantumKeyPair, SecurityLevel } from '../native/types';
 export declare class QuantumError extends Error {
     constructor(message: string);
 }
@@ -9,13 +9,13 @@ export declare class QuantumCrypto {
     static isModuleInitialized: boolean;
     static readonly nativeQuantum: {
         native: import("../native/types").NativeQuantum;
-        healthCheckInterval: NodeJS.Timeout;
+        healthCheckInterval: NodeJS.Timeout | undefined;
         isInitialized: boolean;
         initializeHealthChecks(): void;
         performHealthCheck(): Promise<void>;
         shutdown(): Promise<void>;
         checkInitialization(): void;
-        generateDilithiumKeyPair(entropy?: Buffer): Promise<QuantumKeyPair>;
+        generateDilithiumKeyPair(entropy?: Buffer | undefined): Promise<QuantumKeyPair>;
         kyberGenerateKeyPair(): Promise<QuantumKeyPair>;
         dilithiumSign(message: Buffer, privateKey: Buffer): Promise<Buffer>;
         dilithiumVerify(message: Buffer, signature: Buffer, publicKey: Buffer): Promise<boolean>;
@@ -44,5 +44,5 @@ export declare class QuantumCrypto {
     static kyberHash(data: Buffer): Promise<Buffer>;
     static nativeHash(data: Buffer): Promise<Buffer>;
 }
-export * from "./dilithium";
-export * from "./kyber";
+export * from './dilithium';
+export * from './kyber';

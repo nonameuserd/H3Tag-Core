@@ -1,6 +1,6 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { AuditError } from "./audit";
-import { IAuditStorage } from "./audit";
+import { Logger } from '@h3tag-blockchain/shared';
+import { AuditError } from './audit';
+import { IAuditStorage } from './audit';
 
 export class DefaultAuditStorage implements IAuditStorage {
   private logs: Map<string, string> = new Map();
@@ -11,8 +11,8 @@ export class DefaultAuditStorage implements IAuditStorage {
       this.logs.set(filename, data);
       Logger.debug(`Audit log written: ${filename}`);
     } catch (error) {
-      Logger.error("Failed to write audit log:", error);
-      throw new AuditError("Failed to write audit log", "WRITE_FAILED");
+      Logger.error('Failed to write audit log:', error);
+      throw new AuditError('Failed to write audit log', 'WRITE_FAILED');
     }
   }
 
@@ -20,7 +20,7 @@ export class DefaultAuditStorage implements IAuditStorage {
     const data = this.logs.get(filename);
     if (!data) {
       Logger.warn(`Audit log not found: ${filename}`);
-      return "";
+      return '';
     }
     return data;
   }

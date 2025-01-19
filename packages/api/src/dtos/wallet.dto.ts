@@ -1,185 +1,185 @@
-import { ApiProperty } from "@nestjs/swagger";
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateWalletDto {
   @ApiProperty({
-    description: "Password to encrypt the wallet",
-    example: "mySecurePassword123",
+    description: 'Password to encrypt the wallet',
+    example: 'mySecurePassword123',
   })
-  password: string;
+  password: string | undefined;
 
   @ApiProperty({
-    description: "Optional mnemonic phrase for wallet recovery",
+    description: 'Optional mnemonic phrase for wallet recovery',
     required: false,
-    example: "word1 word2 word3 ... word24",
+    example: 'word1 word2 word3 ... word24',
   })
-  mnemonic?: string;
+  mnemonic?: string | undefined;
 }
 
 export class WalletResponseDto {
   @ApiProperty({
-    description: "Wallet address",
-    example: "0x1234567890abcdef...",
+    description: 'Wallet address',
+    example: '0x1234567890abcdef...',
   })
-  address: string;
+  address: string | undefined;
 
   @ApiProperty({
-    description: "Wallet public key",
-    example: "0x04a1b2c3d4...",
+    description: 'Wallet public key',
+    example: '0x04a1b2c3d4...',
   })
-  publicKey: string;
+  publicKey: string | undefined;
 
   @ApiProperty({
-    description: "Current wallet balance",
-    example: "1000000",
+    description: 'Current wallet balance',
+    example: '1000000',
     required: false,
   })
-  balance?: string;
+  balance?: string | undefined;
 
   @ApiProperty({
-    description: "Whether the wallet is locked",
+    description: 'Whether the wallet is locked',
     example: false,
     required: false,
   })
-  isLocked?: boolean;
+  isLocked?: boolean | undefined;
 
   @ApiProperty({
-    description: "Wallet mnemonic phrase (only provided during creation)",
-    example: "word1 word2 word3 ...",
+    description: 'Wallet mnemonic phrase (only provided during creation)',
+    example: 'word1 word2 word3 ...',
     required: false,
   })
-  mnemonic?: string;
+  mnemonic?: string | undefined;
 }
 
 export interface SignTransactionDto {
   transaction: {
-    fromAddress: string;
-    toAddress: string;
-    amount: number;
-    publicKey: string;
-    confirmations: number;
-    fee?: number;
+    fromAddress: string | undefined;
+    toAddress: string | undefined;
+    amount: number | undefined;
+    publicKey: string | undefined;
+    confirmations: number | undefined;
+    fee?: number | undefined;
   };
   password: string;
 }
 
 export class SendToAddressDto {
   @ApiProperty({
-    description: "Recipient address",
-    example: "0x1234...",
+    description: 'Recipient address',
+    example: '0x1234...',
   })
-  toAddress: string;
+  toAddress: string | undefined;
 
   @ApiProperty({
-    description: "Amount to send",
-    example: "100",
+    description: 'Amount to send',
+    example: '100',
   })
-  amount: string;
+  amount: string | undefined;
 
   @ApiProperty({
-    description: "Wallet password",
-    example: "mySecurePassword",
+    description: 'Wallet password',
+    example: 'mySecurePassword',
   })
-  password: string;
+  password: string | undefined;
 }
 
 export class WalletBalanceDto {
-  @ApiProperty({ description: "Confirmed balance", example: "1000000" })
-  confirmed: string;
+  @ApiProperty({ description: 'Confirmed balance', example: '1000000' })
+  confirmed: string | undefined;
 
-  @ApiProperty({ description: "Unconfirmed balance", example: "500000" })
-  unconfirmed: string;
+  @ApiProperty({ description: 'Unconfirmed balance', example: '500000' })
+  unconfirmed: string | undefined;
 }
 
 export class NewAddressResponseDto {
-  @ApiProperty({ description: "Newly generated address" })
-  address: string;
+  @ApiProperty({ description: 'Newly generated address' })
+  address: string | undefined;
 }
 
 export class ExportPrivateKeyDto {
   @ApiProperty({
-    description: "Wallet password for decryption",
-    example: "mySecurePassword123",
+    description: 'Wallet password for decryption',
+    example: 'mySecurePassword123',
   })
-  password: string;
+  password: string | undefined;
 }
 
 export class ImportPrivateKeyDto {
   @ApiProperty({
-    description: "Encrypted private key to import",
-    example: "encrypted_key_string",
+    description: 'Encrypted private key to import',
+    example: 'encrypted_key_string',
   })
-  encryptedKey: string;
+  encryptedKey: string | undefined;
 
   @ApiProperty({
-    description: "Original wallet address",
-    example: "0x1234...",
+    description: 'Original wallet address',
+    example: '0x1234...',
   })
-  originalAddress: string;
+  originalAddress: string | undefined;
 
   @ApiProperty({
-    description: "Password to decrypt the key",
-    example: "mySecurePassword123",
+    description: 'Password to decrypt the key',
+    example: 'mySecurePassword123',
   })
-  password: string;
+  password: string | undefined;
 }
 
 export class UnspentOutputDto {
   @ApiProperty({
-    description: "Transaction ID",
-    example: "7f9d9b2c3d4e5f6a1b2c3d4e5f6a7b8c",
+    description: 'Transaction ID',
+    example: '7f9d9b2c3d4e5f6a1b2c3d4e5f6a7b8c',
   })
-  txid: string;
+  txid: string | undefined;
 
   @ApiProperty({
-    description: "Output index in the transaction",
+    description: 'Output index in the transaction',
     example: 0,
   })
-  vout: number;
+  vout: number | undefined;
 
   @ApiProperty({
-    description: "Address owning the UTXO",
-    example: "0x1234...",
+    description: 'Address owning the UTXO',
+    example: '0x1234...',
   })
-  address: string;
+  address: string | undefined;
 
   @ApiProperty({
-    description: "Amount in the smallest unit",
-    example: "1000000",
+    description: 'Amount in the smallest unit',
+    example: '1000000',
   })
-  amount: string;
+  amount: bigint | undefined;
 
   @ApiProperty({
-    description: "Number of confirmations",
+    description: 'Number of confirmations',
     example: 6,
   })
-  confirmations: number;
+  confirmations: number | undefined;
 
   @ApiProperty({
-    description: "Whether the output is spendable",
+    description: 'Whether the output is spendable',
     example: true,
   })
-  spendable: boolean;
+  spendable: boolean | undefined;
 }
 
 export class TxOutDto {
-  @ApiProperty({ description: "Transaction ID" })
-  txid: string;
+  @ApiProperty({ description: 'Transaction ID' })
+  txid: string | undefined;
 
-  @ApiProperty({ description: "Output index (vout)" })
-  n: number;
+  @ApiProperty({ description: 'Output index (vout)' })
+  n: number | undefined;
 
-  @ApiProperty({ description: "Output value" })
-  value: string;
+  @ApiProperty({ description: 'Output value' })
+  value: string | undefined;
 
-  @ApiProperty({ description: "Number of confirmations" })
-  confirmations: number;
+  @ApiProperty({ description: 'Number of confirmations' })
+  confirmations: number | undefined;
 
-  @ApiProperty({ description: "Output script type" })
-  scriptType: string;
+  @ApiProperty({ description: 'Output script type' })
+  scriptType: string | undefined;
 
-  @ApiProperty({ description: "Address associated with output" })
-  address: string;
+  @ApiProperty({ description: 'Address associated with output' })
+  address: string | undefined;
 
-  @ApiProperty({ description: "Whether output is spendable" })
-  spendable: boolean;
+  @ApiProperty({ description: 'Whether output is spendable' })
+  spendable: boolean | undefined;
 }

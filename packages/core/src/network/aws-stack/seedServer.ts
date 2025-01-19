@@ -1,51 +1,49 @@
-import { fetch, Agent } from "undici";
-import { CloudWatch } from "@aws-sdk/client-cloudwatch";
-import { Route53 } from "@aws-sdk/client-route-53";
-import { Logger } from "@h3tag-blockchain/shared";
-import { MerkleTree } from "../../utils/merkle";
+import { fetch, Agent } from 'undici';
+import { CloudWatch } from '@aws-sdk/client-cloudwatch';
+import { Route53 } from '@aws-sdk/client-route-53';
+import { Logger } from '@h3tag-blockchain/shared';
+import { MerkleTree } from '../../utils/merkle';
 
 interface NodeInfo {
   address: string;
   lastSeen: number;
   version: string;
   services: string[];
-  status: "active" | "inactive";
+  status: 'active' | 'inactive';
   region: string;
 }
 
 async function main() {
   const PORT = process.env.SEED_PORT ? parseInt(process.env.SEED_PORT) : 8333;
-  
+
   try {
     if (!process.env.AWS_REGION) {
-      throw new Error("AWS_REGION environment variable is required");
+      throw new Error('AWS_REGION environment variable is required');
     }
     if (!process.env.AWS_ACCESS_KEY_ID) {
-      throw new Error("AWS_ACCESS_KEY_ID environment variable is required");
+      throw new Error('AWS_ACCESS_KEY_ID environment variable is required');
     }
     if (!process.env.AWS_SECRET_ACCESS_KEY) {
-      throw new Error(
-        "AWS_SECRET_ACCESS_KEY environment variable is required"
-      );
+      throw new Error('AWS_SECRET_ACCESS_KEY environment variable is required');
     }
 
     const seedServer = new SeedServer(PORT);
     await seedServer.start();
 
     // Handle shutdown gracefully
-    process.on("SIGTERM", async () => {
-      Logger.info("SIGTERM received. Starting graceful shutdown...");
+    process.on('SIGTERM', async () => {
+      Logger.info('SIGTERM received. Starting graceful shutdown...');
       await seedServer.shutdown();
       process.exit(0);
     });
 
-    process.on("SIGINT", async () => {
-      Logger.info("SIGINT received. Starting graceful shutdown...");
+    process.on('SIGINT', async () => {
+      Logger.info('SIGINT received. Starting graceful shutdown...');
       await seedServer.shutdown();
       process.exit(0);
     });
   } catch (error) {
-    Logger.error("Failed to start seed server:", error);
+    Logger.error('Failed to start seed server:', error);
     process.exit(1);
   }
 }
@@ -65,7 +63,7 @@ export class SeedServer {
 
     // Initialize AWS Services
     const config = {
-      region: process.env.AWS_REGION || "us-east-1",
+      region: process.env.AWS_REGION || 'us-east-1',
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -81,27 +79,27 @@ export class SeedServer {
   private async publishMetrics(node: NodeInfo) {
     try {
       await this.cloudWatch.putMetricData({
-        Namespace: "H3Tag/SeedNodes",
+        Namespace: 'H3Tag/SeedNodes',
         MetricData: [
           {
-            MetricName: "NodeStatus",
-            Value: node.status === "active" ? 1 : 0,
-            Unit: "Count",
+            MetricName: 'NodeStatus',
+            Value: node.status === 'active' ? 1 : 0,
+            Unit: 'Count',
             Dimensions: [
               {
-                Name: "Region",
+                Name: 'Region',
                 Value: node.region,
               },
               {
-                Name: "Currency",
-                Value: "TAG",
+                Name: 'Currency',
+                Value: 'TAG',
               },
             ],
           },
         ],
       });
     } catch (error) {
-      Logger.error("Failed to publish CloudWatch metrics:", error);
+      Logger.error('Failed to publish CloudWatch metrics:', error);
     }
   }
 
@@ -112,26 +110,26 @@ export class SeedServer {
         FailureThreshold: 3,
         FullyQualifiedDomainName: node.address,
         Port: this.port,
-        ResourcePath: "/health",
+        ResourcePath: '/health',
       });
     } catch (error) {
-      Logger.error("Failed to update Route53 health check:", error);
+      Logger.error('Failed to update Route53 health check:', error);
     }
   }
 
   private async checkNodeHealth(
     address: string,
-    region: string
+    region: string,
   ): Promise<boolean> {
     const agent = new Agent({
       connect: {
-        rejectUnauthorized: process.env.NODE_ENV === "production",
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
       },
     });
 
     try {
       const timeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Request timeout")), 5000);
+        setTimeout(() => reject(new Error('Request timeout')), 5000);
       });
 
       const fetchPromise = fetch(`https://${address}/version`, {
@@ -151,8 +149,8 @@ export class SeedServer {
         address,
         lastSeen: Date.now(),
         version: data.version,
-        services: ["full_node"],
-        status: isHealthy ? "active" : "inactive",
+        services: ['full_node'],
+        status: isHealthy ? 'active' : 'inactive',
         region,
       });
 
@@ -187,7 +185,7 @@ export class SeedServer {
             const isValid = await this.merkleTree.verifyProof(
               proof,
               node.address,
-              merkleRoot
+              merkleRoot,
             );
 
             if (isValid) {
@@ -200,10 +198,10 @@ export class SeedServer {
       }
 
       Logger.info(
-        `Updated node list: ${this.knownNodes.size} total nodes, Merkle root: ${merkleRoot}`
+        `Updated node list: ${this.knownNodes.size} total nodes, Merkle root: ${merkleRoot}`,
       );
     } catch (error) {
-      Logger.error("Failed to update node list:", error);
+      Logger.error('Failed to update node list:', error);
     }
   }
 
@@ -211,7 +209,7 @@ export class SeedServer {
     // Update node list every 2 minutes
     this.healthCheckInterval = setInterval(
       () => this.updateNodeList(),
-      2 * 60 * 1000
+      2 * 60 * 1000,
     );
   }
 
@@ -220,7 +218,7 @@ export class SeedServer {
       await this.updateNodeList();
       Logger.info(`H3Tag seed server started on port ${this.port}`);
     } catch (error) {
-      Logger.error("Failed to start seed server:", error);
+      Logger.error('Failed to start seed server:', error);
       throw error;
     }
   }
@@ -228,7 +226,7 @@ export class SeedServer {
   public async shutdown(): Promise<void> {
     clearInterval(this.healthCheckInterval);
     this.knownNodes.clear();
-    Logger.info("Seed server shut down successfully");
+    Logger.info('Seed server shut down successfully');
   }
 }
 

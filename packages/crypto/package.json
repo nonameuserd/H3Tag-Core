@@ -13,16 +13,17 @@
   "scripts": {
     "build": "tsc",
     "clean": "rimraf dist && rimraf node_modules",
-    "format": "prettier --write .",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prettier": "prettier --ignore-path .gitignore --write \"./src/**/*.+(js|ts|json)\"",
+    "prettier:fix": "prettier --write src"
   },
   "dependencies": {
     "asn1.js": "^5.4.1",
     "config": "^3.3.9",
     "node-addon-api": "^8.3.0",
     "winston": "^3.17.0",
-    "winston-daily-rotate-file": "^5.0.0",
-    "@h3tag-blockchain/shared": "0.1.0"
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@types/config": "^3.3.0",

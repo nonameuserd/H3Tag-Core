@@ -11,7 +11,7 @@ export function retry(config: RetryConfig) {
   return function (
     _target: unknown,
     _propertyKey: string,
-    descriptor: PropertyDescriptor
+    descriptor: PropertyDescriptor,
   ) {
     const originalMethod = descriptor.value;
     const strategy = new RetryStrategy(config);
@@ -39,13 +39,13 @@ export function retry(config: RetryConfig) {
 
 function isRetryableError(
   error: unknown,
-  patterns: Array<string | RegExp>
+  patterns: Array<string | RegExp>,
 ): boolean {
   const errorMessage = error instanceof Error ? error.message : String(error);
   return patterns.some((pattern) =>
     pattern instanceof RegExp
       ? pattern.test(errorMessage)
-      : errorMessage.includes(pattern)
+      : errorMessage.includes(pattern),
   );
 }
 
@@ -77,11 +77,11 @@ export class RetryStrategy {
           throw error;
         }
         await new Promise((resolve) =>
-          setTimeout(resolve, calculateDelay(attempts, this.config))
+          setTimeout(resolve, calculateDelay(attempts, this.config)),
         );
       }
     }
-    throw new Error("Max attempts reached");
+    throw new Error('Max attempts reached');
   }
 
   getStats() {

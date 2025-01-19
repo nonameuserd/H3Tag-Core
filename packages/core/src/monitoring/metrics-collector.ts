@@ -1,7 +1,7 @@
-import { EventEmitter } from "events";
-import { Logger } from "@h3tag-blockchain/shared";
-import { Block, BlockHeader } from "../models/block.model";
-import { Transaction, TxInput, TxOutput } from "../models/transaction.model";
+import { EventEmitter } from 'events';
+import { Logger } from '@h3tag-blockchain/shared';
+import { Block, BlockHeader } from '../models/block.model';
+import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
 
 /**
  * @fileoverview Metrics collection system for the H3Tag blockchain. Includes performance metrics,
@@ -42,7 +42,7 @@ export class MetricsCollector {
    */
   constructor(namespace: string, flushIntervalMs: number = 60000) {
     if (!namespace) {
-      throw new Error("Namespace is required");
+      throw new Error('Namespace is required');
     }
 
     this.namespace = namespace;
@@ -52,7 +52,7 @@ export class MetricsCollector {
 
     // Validate flush interval
     if (flushIntervalMs < 1000) {
-      Logger.warn("Flush interval too low, setting to 1 second minimum");
+      Logger.warn('Flush interval too low, setting to 1 second minimum');
       flushIntervalMs = 1000;
     }
 
@@ -66,7 +66,7 @@ export class MetricsCollector {
    */
   increment(metric: string, value: number = 1): void {
     if (!metric) {
-      Logger.error("Invalid metric name");
+      Logger.error('Invalid metric name');
       return;
     }
 
@@ -86,16 +86,16 @@ export class MetricsCollector {
    */
   gauge(metric: string, value: number | (() => number)): void {
     if (!metric) {
-      Logger.error("Invalid metric name");
+      Logger.error('Invalid metric name');
       return;
     }
 
     try {
       const key = `${this.namespace}.${metric}`;
-      const actualValue = typeof value === "function" ? value() : value;
+      const actualValue = typeof value === 'function' ? value() : value;
 
-      if (typeof actualValue !== "number" || isNaN(actualValue)) {
-        throw new Error("Invalid gauge value");
+      if (typeof actualValue !== 'number' || isNaN(actualValue)) {
+        throw new Error('Invalid gauge value');
       }
 
       this.metrics.set(key, actualValue);
@@ -111,7 +111,7 @@ export class MetricsCollector {
    */
   startTimer(metric: string): () => number {
     if (!metric) {
-      Logger.error("Invalid metric name");
+      Logger.error('Invalid metric name');
       return () => 0;
     }
 
@@ -141,16 +141,16 @@ export class MetricsCollector {
   histogram(
     metric: string,
     value: number,
-    labels?: Record<string, string>
+    labels?: Record<string, string>,
   ): void {
-    if (!metric || typeof value !== "number" || isNaN(value)) {
-      Logger.error("Invalid histogram parameters");
+    if (!metric || typeof value !== 'number' || isNaN(value)) {
+      Logger.error('Invalid histogram parameters');
       return;
     }
 
     try {
       const key = `${this.namespace}.${metric}${
-        labels ? `.${labels.stat}` : ""
+        labels ? `.${labels.stat}` : ''
       }`;
       this.metrics.set(key, value);
     } catch (error) {
@@ -170,18 +170,18 @@ export class MetricsCollector {
           name: key,
           value,
           timestamp: Date.now(),
-          type: this.timers.has(key) ? "timer" : "counter",
-        })
+          type: this.timers.has(key) ? 'timer' : 'counter',
+        }),
       );
 
       if (metricsData.length > 0) {
-        this.eventEmitter.emit("metrics", metricsData);
+        this.eventEmitter.emit('metrics', metricsData);
       }
 
       this.metrics.clear();
       this.timers.clear();
     } catch (error) {
-      Logger.error("Failed to flush metrics:", error);
+      Logger.error('Failed to flush metrics:', error);
     }
   }
 
@@ -191,20 +191,20 @@ export class MetricsCollector {
    * @param {number} duration - Block processing duration
    */
   public emitMetrics(block: Block, duration: number): void {
-    if (!block || !block.header || typeof duration !== "number") {
-      Logger.error("Invalid block metrics parameters");
+    if (!block || !block.header || typeof duration !== 'number') {
+      Logger.error('Invalid block metrics parameters');
       return;
     }
 
     try {
       const blockSize = this.calculateBlockSize(block);
 
-      this.histogram("block_processing_time", duration);
-      this.gauge("block_height", block.header.height);
-      this.gauge("block_size", blockSize);
-      this.histogram("transactions_per_block", block.transactions.length);
+      this.histogram('block_processing_time', duration);
+      this.gauge('block_height', block.header.height);
+      this.gauge('block_size', blockSize);
+      this.histogram('transactions_per_block', block.transactions.length);
     } catch (error) {
-      Logger.error("Failed to emit block metrics:", error);
+      Logger.error('Failed to emit block metrics:', error);
     }
   }
 
@@ -220,13 +220,13 @@ export class MetricsCollector {
       this.metrics.clear();
       this.timers.clear();
     } catch (error) {
-      Logger.error("Failed to dispose metrics collector:", error);
+      Logger.error('Failed to dispose metrics collector:', error);
     }
   }
 
   private calculateBlockSize(block: Block): number {
     if (!block || !block.header || !Array.isArray(block.transactions)) {
-      throw new Error("Invalid block structure");
+      throw new Error('Invalid block structure');
     }
 
     try {
@@ -236,11 +236,11 @@ export class MetricsCollector {
         this.calculateVarIntSize(block.transactions.length) +
         block.transactions.reduce(
           (size, tx) => size + this.calculateTransactionSize(tx),
-          0
+          0,
         )
       );
     } catch (error) {
-      Logger.error("Failed to calculate block size:", error);
+      Logger.error('Failed to calculate block size:', error);
       return 0;
     }
   }
@@ -248,12 +248,12 @@ export class MetricsCollector {
   private calculateHeaderSize(header: BlockHeader): number {
     // Serialize header data according to protocol specification
     const serializedHeader = Buffer.concat([
-      Buffer.from(header.version.toString(16).padStart(8, "0"), "hex"),
-      Buffer.from(header.previousHash, "hex"),
-      Buffer.from(header.merkleRoot, "hex"),
-      Buffer.from(header.timestamp.toString(16).padStart(8, "0"), "hex"),
-      Buffer.from(header.difficulty.toString(16).padStart(8, "0"), "hex"),
-      Buffer.from(header.nonce.toString(16).padStart(8, "0"), "hex"),
+      Buffer.from(header.version.toString(16).padStart(8, '0'), 'hex'),
+      Buffer.from(header.previousHash, 'hex'),
+      Buffer.from(header.merkleRoot, 'hex'),
+      Buffer.from(header.timestamp.toString(16).padStart(8, '0'), 'hex'),
+      Buffer.from(header.difficulty.toString(16).padStart(8, '0'), 'hex'),
+      Buffer.from(header.nonce.toString(16).padStart(8, '0'), 'hex'),
     ]);
 
     return serializedHeader.length;
@@ -265,12 +265,12 @@ export class MetricsCollector {
       this.calculateVarIntSize(tx.inputs.length) +
       tx.inputs.reduce(
         (size, input) => size + this.calculateInputSize(input),
-        0
+        0,
       ) +
       this.calculateVarIntSize(tx.outputs.length) +
       tx.outputs.reduce(
         (size, output) => size + this.calculateOutputSize(output),
-        0
+        0,
       ) +
       this.calculateVarIntSize(tx.lockTime)
     );
@@ -285,7 +285,7 @@ export class MetricsCollector {
 
   private calculateInputSize(input: TxInput): number {
     return (
-      Buffer.from(input.txId, "hex").length +
+      Buffer.from(input.txId, 'hex').length +
       this.calculateVarIntSize(input.outputIndex) +
       this.calculateVarIntSize(input.script.length) +
       input.script.length +
@@ -309,14 +309,14 @@ export class MetricsCollector {
    */
   setGauge(metric: string, value: number, label: string): void {
     if (!metric || !label) {
-      Logger.error("Invalid gauge parameters");
+      Logger.error('Invalid gauge parameters');
       return;
     }
 
     try {
       const key = `${this.namespace}.${metric}.${label}`;
-      if (typeof value !== "number" || isNaN(value)) {
-        throw new Error("Invalid gauge value");
+      if (typeof value !== 'number' || isNaN(value)) {
+        throw new Error('Invalid gauge value');
       }
       this.metrics.set(key, value);
     } catch (error) {
@@ -331,7 +331,7 @@ export class MetricsCollector {
    */
   counter(metric: string): { inc: (labels?: Record<string, string>) => void } {
     if (!metric) {
-      Logger.error("Invalid counter metric name");
+      Logger.error('Invalid counter metric name');
       return { inc: () => {} }; // Return no-op function
     }
 
@@ -339,7 +339,7 @@ export class MetricsCollector {
       inc: (labels?: Record<string, string>) => {
         try {
           const key = `${this.namespace}.${metric}${
-            labels ? `.${labels.stat}` : ""
+            labels ? `.${labels.stat}` : ''
           }`;
           this.increment(key);
         } catch (error) {

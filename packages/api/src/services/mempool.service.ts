@@ -1,9 +1,9 @@
-import { Injectable } from "@nestjs/common";
-import { MempoolInfoDto } from "../dtos/mempool.dto";
-import { Node } from "@h3tag-blockchain/core";
-import { Logger } from "@h3tag-blockchain/shared";
-import { RawMempoolEntryDto } from "../dtos/mempool.dto";
-import { MempoolEntryDto } from "../dtos/mempool.dto";
+import { Injectable } from '@nestjs/common';
+import { MempoolInfoDto } from '../dtos/mempool.dto';
+import { Node } from '@h3tag-blockchain/core';
+import { Logger } from '@h3tag-blockchain/shared';
+import { RawMempoolEntryDto } from '../dtos/mempool.dto';
+import { MempoolEntryDto } from '../dtos/mempool.dto';
 
 @Injectable()
 export class MempoolService {
@@ -28,18 +28,18 @@ export class MempoolService {
         health: mempoolInfo.health,
       };
     } catch (error) {
-      Logger.error("Failed to get mempool info:", error);
+      Logger.error('Failed to get mempool info:', error);
       throw error;
     }
   }
 
   async getRawMempool(
-    verbose: boolean = false
+    verbose: boolean = false,
   ): Promise<Record<string, RawMempoolEntryDto> | string[]> {
     try {
       return await this.node.getMempool().getRawMempool(verbose);
     } catch (error) {
-      Logger.error("Failed to get raw mempool:", error);
+      Logger.error('Failed to get raw mempool:', error);
       throw error;
     }
   }
@@ -52,7 +52,7 @@ export class MempoolService {
       }
       return entry;
     } catch (error) {
-      Logger.error("Failed to get mempool entry:", error);
+      Logger.error('Failed to get mempool entry:', error);
       throw error;
     }
   }

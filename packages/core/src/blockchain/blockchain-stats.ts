@@ -157,14 +157,15 @@
  * @property {(address: string) => Promise<Array>} getConfirmedUtxos - Gets confirmed UTXOs
  */
 
-import { Block } from "../models/block.model";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "./utils/constants";
-import { MetricsCollector } from "../monitoring/metrics-collector";
-import { retry } from "../utils/retry";
-import { performance } from "perf_hooks";
-import { Transaction } from "../models/transaction.model";
-import { BlockchainStatsError } from "./utils/blockchain-stats-error";
+import { Block } from '../models/block.model';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from './utils/constants';
+import { MetricsCollector } from '../monitoring/metrics-collector';
+import { retry } from '../utils/retry';
+import { performance } from 'perf_hooks';
+import { Transaction } from '../models/transaction.model';
+import { BlockchainStatsError } from './utils/blockchain-stats-error';
+import { UTXO } from '@h3tag-blockchain/core';
 
 // Create interface for what BlockchainStats needs
 interface IBlockchainData {
@@ -190,19 +191,15 @@ interface IBlockchainData {
     circulatingSupply: number;
   };
   calculateBlockReward(height: number): bigint;
-  getConfirmedUtxos(address: string): Promise<
-    Array<{
-      txid: string;
-      vout: number;
-      amount: number;
-      confirmations: number;
-    }>
-  >;
+  getConfirmedUtxos(address: string): Promise<UTXO[]>;
 }
 
 export class BlockchainStats {
   private readonly blockchain: IBlockchainData;
-  private readonly statsCache: Map<string, { value: unknown; timestamp: number }>;
+  private readonly statsCache: Map<
+    string,
+    { value: unknown; timestamp: number }
+  >;
   private readonly maxCacheSize = 1000; // Prevent unlimited growth
   private readonly metricsCollector: MetricsCollector;
   private circuitBreaker = new Map<
@@ -222,7 +219,7 @@ export class BlockchainStats {
   constructor(blockchain: IBlockchainData) {
     this.blockchain = blockchain;
     this.statsCache = new Map();
-    this.metricsCollector = new MetricsCollector("blockchain_stats");
+    this.metricsCollector = new MetricsCollector('blockchain_stats');
     this.initializeMetrics();
     this.startCacheCleanup();
   }
@@ -232,15 +229,15 @@ export class BlockchainStats {
    */
   private initializeMetrics(): void {
     this.metricsCollector.gauge(
-      "blockchain_stats_cache_size",
-      () => this.statsCache.size
+      'blockchain_stats_cache_size',
+      () => this.statsCache.size,
     );
-    this.metricsCollector.gauge("blockchain_stats_last_update.voting_stats", 0);
+    this.metricsCollector.gauge('blockchain_stats_last_update.voting_stats', 0);
     this.metricsCollector.gauge(
-      "blockchain_stats_last_update.consensus_health",
-      0
+      'blockchain_stats_last_update.consensus_health',
+      0,
     );
-    this.metricsCollector.gauge("blockchain_stats_last_update.chain_stats", 0);
+    this.metricsCollector.gauge('blockchain_stats_last_update.chain_stats', 0);
   }
 
   /**
@@ -251,7 +248,7 @@ export class BlockchainStats {
    */
   private async getCachedValue<T>(
     key: string,
-    calculator: () => Promise<T>
+    calculator: () => Promise<T>,
   ): Promise<T> {
     const startTime = performance.now();
     try {
@@ -261,7 +258,7 @@ export class BlockchainStats {
       // Manage cache size
       if (this.statsCache.size > this.maxCacheSize) {
         const oldestKey = Array.from(this.statsCache.entries()).sort(
-          ([, a], [, b]) => a.timestamp - b.timestamp
+          ([, a], [, b]) => a.timestamp - b.timestamp,
         )[0][0];
         this.statsCache.delete(oldestKey);
       }
@@ -274,27 +271,27 @@ export class BlockchainStats {
       }
 
       const value = await this.executeWithCircuitBreaker(key, () =>
-        this.executeWithTimeout(this.executeWithRetry(() => calculator()))
+        this.executeWithTimeout(this.executeWithRetry(() => calculator())),
       );
       this.statsCache.set(key, { value, timestamp: now });
 
       // Update all relevant metrics
       this.metricsCollector.histogram(
-        "blockchain_stats_calculation_time",
-        performance.now() - startTime
+        'blockchain_stats_calculation_time',
+        performance.now() - startTime,
       );
       this.metricsCollector.gauge(`blockchain_stats_last_update.${key}`, now);
       this.metricsCollector.gauge(
-        "blockchain_stats_cache_size",
-        this.statsCache.size
+        'blockchain_stats_cache_size',
+        this.statsCache.size,
       );
 
       return value;
-    } catch (error) {
+    } catch (error: unknown) {
       // Add error type to metrics
-      this.metricsCollector.counter("blockchain_stats_errors").inc({
+      this.metricsCollector.counter('blockchain_stats_errors').inc({
         stat: key,
-        error: error.name,
+        error: (error as Error).name,
       });
       throw error;
     }
@@ -322,10 +319,10 @@ export class BlockchainStats {
    */
   private async executeWithTimeout<T>(
     promise: Promise<T>,
-    timeoutMs: number = 5000
+    timeoutMs: number = 5000,
   ): Promise<T> {
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Operation timed out")), timeoutMs);
+      setTimeout(() => reject(new Error('Operation timed out')), timeoutMs);
     });
     return Promise.race([promise, timeoutPromise]);
   }
@@ -341,13 +338,13 @@ export class BlockchainStats {
     powWeight: number;
     votingWeight: number;
   }> {
-    return this.getCachedValue("votingStats", async () => {
+    return this.getCachedValue('votingStats', async () => {
       const currentHeight = await this.validateHeight();
       const consensusMetrics = await this.validateConsensusMetrics();
 
       const currentPeriod = Math.floor(
         currentHeight /
-          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS
+          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS,
       );
       const nextVotingHeight =
         (currentPeriod + 1) *
@@ -370,7 +367,7 @@ export class BlockchainStats {
   private async validateHeight(): Promise<number> {
     const height = this.blockchain.getHeight();
     if (height < 0) {
-      throw new Error("Invalid blockchain height");
+      throw new Error('Invalid blockchain height');
     }
     return height;
   }
@@ -382,7 +379,7 @@ export class BlockchainStats {
   private async validateConsensusMetrics() {
     const metrics = await this.blockchain.getConsensusMetrics();
     if (!metrics) {
-      throw new Error("Failed to fetch consensus metrics");
+      throw new Error('Failed to fetch consensus metrics');
     }
     return metrics;
   }
@@ -392,12 +389,12 @@ export class BlockchainStats {
    * @returns Promise<number> Orphan rate
    */
   public async getOrphanRate(): Promise<number> {
-    return this.getCachedValue("orphanRate", async () => {
+    return this.getCachedValue('orphanRate', async () => {
       try {
         const currentHeight = this.blockchain.getHeight();
         const startHeight = Math.max(
           0,
-          currentHeight - BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW
+          currentHeight - BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW,
         );
         let orphanCount = 0;
 
@@ -413,15 +410,15 @@ export class BlockchainStats {
           const endHeight = Math.min(i + batchSize, currentHeight);
           const blocks = await Promise.all(
             Array.from({ length: endHeight - i }, (_, idx) =>
-              this.blockchain.getBlockByHeight(i + idx)
-            )
+              this.blockchain.getBlockByHeight(i + idx),
+            ),
           );
 
           for (let j = 0; j < blocks.length - 1; j++) {
             if (
               blocks[j] &&
               blocks[j + 1] &&
-              blocks[j + 1].header.previousHash !== blocks[j].hash
+              blocks[j + 1]?.header?.previousHash !== blocks[j]?.hash
             ) {
               orphanCount++;
             }
@@ -430,7 +427,7 @@ export class BlockchainStats {
 
         return orphanCount / BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW;
       } catch (error) {
-        Logger.error("Error calculating orphan rate:", error);
+        Logger.error('Error calculating orphan rate:', error);
         return 0;
       }
     });
@@ -446,7 +443,7 @@ export class BlockchainStats {
     consensusParticipation: number;
     isHealthy: boolean;
   }> {
-    return this.getCachedValue("consensusHealth", async () => {
+    return this.getCachedValue('consensusHealth', async () => {
       try {
         const metrics = await this.blockchain.getConsensusMetrics();
         const minHealthyParticipation = 0.5;
@@ -458,7 +455,7 @@ export class BlockchainStats {
           isHealthy: (metrics.participation || 0) >= minHealthyParticipation,
         };
       } catch (error) {
-        Logger.error("Error calculating consensus health:", error);
+        Logger.error('Error calculating consensus health:', error);
         return {
           powHashrate: 0,
           activeVoters: 0,
@@ -474,10 +471,10 @@ export class BlockchainStats {
    * @returns Promise<number> Average block time
    */
   public async getAverageBlockTime(): Promise<number> {
-    return this.getCachedValue("blockTime", async () => {
+    return this.getCachedValue('blockTime', async () => {
       try {
         const blocks = Array.from({ length: 10 }, (_, i) =>
-          this.blockchain.getBlockByHeight(this.blockchain.getHeight() - i)
+          this.blockchain.getBlockByHeight(this.blockchain.getHeight() - i),
         ).filter(Boolean);
 
         if (blocks.length < 2) return 600;
@@ -487,14 +484,14 @@ export class BlockchainStats {
           times
             .slice(0, -1)
             .map((time, i) =>
-              time && times[i + 1] ? (time - times[i + 1]) / 1000 : 600
+              time && times[i + 1] ? (time - times[i + 1]) / 1000 : 600,
             )
             .reduce((a, b) => a + b, 0) /
           (times.length - 1);
 
         return avgTime || 600;
       } catch (error) {
-        Logger.error("Error calculating average block time:", error);
+        Logger.error('Error calculating average block time:', error);
         return 600;
       }
     });
@@ -508,17 +505,17 @@ export class BlockchainStats {
     average: number;
     median: number;
   }> {
-    return this.getCachedValue("propagation", async () => {
+    return this.getCachedValue('propagation', async () => {
       const currentHeight = await this.validateHeight();
       this.validateInput(
         BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
         (v) => v > 0 && v <= 10000,
-        "Invalid propagation window size"
+        'Invalid propagation window size',
       );
       const batchSize = 100;
       const startHeight = Math.max(
         0,
-        currentHeight - BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW
+        currentHeight - BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
       );
       const propagationTimes: number[] = [];
 
@@ -531,8 +528,8 @@ export class BlockchainStats {
         const endHeight = Math.min(height + batchSize, currentHeight);
         const blocks = await Promise.all(
           Array.from({ length: endHeight - height }, (_, i) =>
-            this.blockchain.getBlockByHeight(height + i)
-          )
+            this.blockchain.getBlockByHeight(height + i),
+          ),
         );
 
         blocks.forEach((block) => {
@@ -572,7 +569,7 @@ export class BlockchainStats {
     averageBlockSize: number;
     difficulty: number;
   }> {
-    return this.getCachedValue("chainStats", async () => {
+    return this.getCachedValue('chainStats', async () => {
       try {
         const chain = this.blockchain.getState().chain;
         let totalTransactions = 0;
@@ -590,7 +587,7 @@ export class BlockchainStats {
           difficulty: this.blockchain.getCurrentDifficulty(),
         };
       } catch (error) {
-        return this.handleError(error as Error, "getChainStats");
+        return this.handleError(error as Error, 'getChainStats');
       }
     });
   }
@@ -606,10 +603,10 @@ export class BlockchainStats {
         JSON.stringify({
           header: block.header,
           transactions: block.transactions.map((tx) => tx.hash),
-        })
+        }),
       );
     } catch (error) {
-      Logger.error("Error calculating block size:", error);
+      Logger.error('Error calculating block size:', error);
       return 0;
     }
   }
@@ -632,7 +629,7 @@ export class BlockchainStats {
       // Network hash rate = difficulty * 2^32 / blockTime
       return (difficulty * Math.pow(2, 32)) / blockTime;
     } catch (error) {
-      Logger.error("Error calculating network hash rate:", error);
+      Logger.error('Error calculating network hash rate:', error);
       return 0;
     }
   }
@@ -646,7 +643,7 @@ export class BlockchainStats {
   private validateInput<T>(
     value: T,
     validator: (v: T) => boolean,
-    errorMessage: string
+    errorMessage: string,
   ): void {
     if (!validator(value)) {
       throw new Error(errorMessage);
@@ -661,7 +658,7 @@ export class BlockchainStats {
    */
   private async executeWithCircuitBreaker<T>(
     key: string,
-    operation: () => Promise<T>
+    operation: () => Promise<T>,
   ): Promise<T> {
     const breaker = this.circuitBreaker.get(key) || {
       failures: 0,
@@ -672,7 +669,7 @@ export class BlockchainStats {
     if (breaker.isOpen) {
       const cooldownTime = 60000; // 1 minute
       if (Date.now() - breaker.lastFailure < cooldownTime) {
-        throw new Error("Circuit breaker is open");
+        throw new Error('Circuit breaker is open');
       }
       breaker.isOpen = false;
     }
@@ -700,8 +697,8 @@ export class BlockchainStats {
         }
       }
       this.metricsCollector.gauge(
-        "blockchain_stats_cache_size",
-        this.statsCache.size
+        'blockchain_stats_cache_size',
+        this.statsCache.size,
       );
     }, this.cleanupInterval);
   }
@@ -723,8 +720,8 @@ export class BlockchainStats {
    */
   private handleError(error: Error, context: string): never {
     const errorCode =
-      error instanceof BlockchainStatsError ? error.code : "UNKNOWN_ERROR";
-    this.metricsCollector.counter("blockchain_stats_errors").inc({
+      error instanceof BlockchainStatsError ? error.code : 'UNKNOWN_ERROR';
+    this.metricsCollector.counter('blockchain_stats_errors').inc({
       context,
       error: errorCode,
     });
@@ -735,21 +732,21 @@ export class BlockchainStats {
   }
 
   public async getMedianTime(): Promise<number> {
-    return this.getCachedValue("medianTime", async () => {
+    return this.getCachedValue('medianTime', async () => {
       try {
         const blocks = Array.from({ length: 11 }, (_, i) =>
-          this.blockchain.getBlockByHeight(this.blockchain.getHeight() - i)
+          this.blockchain.getBlockByHeight(this.blockchain.getHeight() - i),
         ).filter(Boolean);
 
         if (blocks.length < 1) return Date.now();
 
-        const times = blocks.map((b) => b.header.timestamp);
-        const sorted = [...times].sort((a, b) => a - b);
+        const times = blocks.map((b) => b?.header?.timestamp);
+        const sorted = [...times].sort((a, b) => (a || 0) - (b || 0));
         return sorted[Math.floor(sorted.length / 2)];
       } catch (error) {
-        Logger.error("Error calculating median time:", error);
+        Logger.error('Error calculating median time:', error);
         return Date.now();
       }
-    });
+    }) as Promise<number>;
   }
 }

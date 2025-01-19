@@ -1,24 +1,27 @@
-import dns from "dns";
-import { promisify } from "util";
-import { Logger } from "@h3tag-blockchain/shared";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { BlockchainSchema } from "../database/blockchain-schema";
-import { Mutex } from "async-mutex";
-import { EventEmitter } from "events";
-import { Cache } from "../scaling/cache";
-import { MetricsCollector } from "../monitoring/metrics-collector";
-import { CircuitBreaker } from "../network/circuit-breaker";
+import dns from 'dns';
+import { promisify } from 'util';
+import { Logger } from '@h3tag-blockchain/shared';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { BlockchainSchema } from '../database/blockchain-schema';
+import { Mutex } from 'async-mutex';
+import { EventEmitter } from 'events';
+import { Cache } from '../scaling/cache';
+import { MetricsCollector } from '../monitoring/metrics-collector';
+import { CircuitBreaker } from '../network/circuit-breaker';
 
 export enum NetworkType {
-  MAINNET = "mainnet",
-  TESTNET = "testnet",
-  DEVNET = "devnet",
+  MAINNET = 'mainnet',
+  TESTNET = 'testnet',
+  DEVNET = 'devnet',
 }
 
 export class DNSSeederError extends Error {
-  constructor(message: string, public readonly code?: string) {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
     super(message);
-    this.name = "DNSSeederError";
+    this.name = 'DNSSeederError';
   }
 }
 
@@ -64,7 +67,7 @@ export class DNSSeeder extends EventEmitter {
   constructor(
     private readonly configService: ConfigService,
     private readonly db: BlockchainSchema,
-    config?: Partial<DNSSeederConfig>
+    config?: Partial<DNSSeederConfig>,
   ) {
     super();
 
@@ -92,7 +95,7 @@ export class DNSSeeder extends EventEmitter {
       onEvict: (key, value) => this.handleCacheEviction(key, value),
     });
 
-    this.metrics = new MetricsCollector("dns_seeder");
+    this.metrics = new MetricsCollector('dns_seeder');
 
     this.circuitBreaker = new CircuitBreaker({
       failureThreshold: 5,
@@ -110,7 +113,7 @@ export class DNSSeeder extends EventEmitter {
 
       this.discoveryTimer = setInterval(() => {
         this.startDiscovery().catch((error) =>
-          Logger.error("Discovery failed:", error)
+          Logger.error('Discovery failed:', error),
         );
       }, this.config.cacheExpiry / 2);
     } catch (error) {
@@ -131,7 +134,7 @@ export class DNSSeeder extends EventEmitter {
     try {
       await this.saveSeedsToCache();
     } catch (error) {
-      Logger.error("Failed to save seeds:", error);
+      Logger.error('Failed to save seeds:', error);
       throw error;
     }
   }
@@ -145,7 +148,7 @@ export class DNSSeeder extends EventEmitter {
         }
       });
     } catch (error) {
-      Logger.error("Failed to load cached seeds:", error);
+      Logger.error('Failed to load cached seeds:', error);
     }
   }
 
@@ -154,7 +157,7 @@ export class DNSSeeder extends EventEmitter {
       const seeds = Array.from(this.seedCache.entries());
       await this.db.saveSeeds(seeds);
     } catch (error) {
-      Logger.error("Failed to save seeds to cache:", error);
+      Logger.error('Failed to save seeds to cache:', error);
     }
   }
 
@@ -162,14 +165,14 @@ export class DNSSeeder extends EventEmitter {
     const release = await this.mutex.acquire();
     try {
       if (this.circuitBreaker.isOpen()) {
-        throw new DNSSeederError("Circuit breaker is open", "CIRCUIT_OPEN");
+        throw new DNSSeederError('Circuit breaker is open', 'CIRCUIT_OPEN');
       }
 
       const startTime = Date.now();
       const peers = await this.resolvePeers(this.seedDomains);
 
-      this.metrics.histogram("discovery_time", Date.now() - startTime);
-      this.metrics.gauge("active_peers", peers.length);
+      this.metrics.histogram('discovery_time', Date.now() - startTime);
+      this.metrics.gauge('active_peers', peers.length);
 
       return this.formatPeerUrls(peers);
     } catch (error) {
@@ -205,7 +208,7 @@ export class DNSSeeder extends EventEmitter {
             this.activeSeeds.delete(seed);
             release();
           }
-        })()
+        })(),
       );
     }
 
@@ -215,12 +218,12 @@ export class DNSSeeder extends EventEmitter {
 
   private async resolveWithRetry(
     seed: string,
-    retryCount = 0
+    retryCount = 0,
   ): Promise<string[]> {
     const timeoutPromise = new Promise<never>((_, reject) => {
       setTimeout(
-        () => reject(new DNSSeederError("DNS timeout", "DNS_TIMEOUT")),
-        this.config.timeout
+        () => reject(new DNSSeederError('DNS timeout', 'DNS_TIMEOUT')),
+        this.config.timeout,
       );
     });
 
@@ -247,7 +250,7 @@ export class DNSSeeder extends EventEmitter {
     } catch (error) {
       if (retryCount < this.config.maxRetries) {
         await new Promise((resolve) =>
-          setTimeout(resolve, this.config.retryDelay)
+          setTimeout(resolve, this.config.retryDelay),
         );
         return this.resolveWithRetry(seed, retryCount + 1);
       }
@@ -292,7 +295,7 @@ export class DNSSeeder extends EventEmitter {
   private updateSeedMetrics(
     seed: string,
     addressCount: number,
-    latency: number
+    latency: number,
   ): void {
     const info = this.seedCache.get(seed) || {
       address: seed,
@@ -330,15 +333,15 @@ export class DNSSeeder extends EventEmitter {
   }
 
   private handleCacheEviction(key: string, value: SeedInfo): void {
-    this.metrics.increment("cache_evictions");
+    this.metrics.increment('cache_evictions');
     Logger.debug(`Evicted seed ${key} from cache`, value);
   }
 
   private isValidSeed(seed: SeedInfo): boolean {
     return (
       seed &&
-      typeof seed.address === "string" &&
-      typeof seed.services === "number" &&
+      typeof seed.address === 'string' &&
+      typeof seed.services === 'number' &&
       seed.services >= this.config.requiredServices &&
       seed.failures < this.config.banThreshold
     );
@@ -357,7 +360,7 @@ export class DNSSeeder extends EventEmitter {
     if (!ipv4Regex.test(ip) && !ipv6Regex.test(ip)) return false;
 
     if (ipv4Regex.test(ip)) {
-      const parts = ip.split(".").map(Number);
+      const parts = ip.split('.').map(Number);
       return parts.every((part) => part >= 0 && part <= 255);
     }
 
@@ -380,9 +383,9 @@ export class DNSSeeder extends EventEmitter {
     const seeds =
       (
         this.configService.get(
-          `${this.config.networkType.toUpperCase()}_SEEDS`
+          `${this.config.networkType.toUpperCase()}_SEEDS`,
         ) as string
-      )?.split(",") || [];
+      )?.split(',') || [];
     return this.validateSeeds(seeds);
   }
 
@@ -391,7 +394,7 @@ export class DNSSeeder extends EventEmitter {
       /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
 
     return seeds.filter((seed) => {
-      if (!seed || typeof seed !== "string") {
+      if (!seed || typeof seed !== 'string') {
         Logger.warn(`Invalid seed value: ${seed}`);
         return false;
       }
@@ -407,26 +410,26 @@ export class DNSSeeder extends EventEmitter {
     try {
       await this.discoverPeers();
     } catch (error) {
-      Logger.error("Discovery failed:", error);
+      Logger.error('Discovery failed:', error);
     }
   }
 
   public getPowNodeCount(): number {
     return Array.from(this.seedCache.values()).filter(
-      (seed) => (seed.services & 1) === 1
+      (seed) => (seed.services & 1) === 1,
     ).length;
   }
 
   public getVotingNodeCount(): number {
     return Array.from(this.seedCache.values()).filter(
-      (seed) => (seed.services & 2) === 2
+      (seed) => (seed.services & 2) === 2,
     ).length;
   }
 
   public getNetworkHashrate(): number {
     return Array.from(this.seedCache.values()).reduce(
       (total, seed) => total + (seed.services & 4 ? 1 : 0),
-      0
+      0,
     );
   }
 
@@ -449,7 +452,7 @@ export class DNSSeeder extends EventEmitter {
       this.removeAllListeners();
       await this.circuitBreaker.reset();
     } catch (error) {
-      Logger.error("Failed to dispose DNS seeder:", error);
+      Logger.error('Failed to dispose DNS seeder:', error);
       throw error;
     }
   }

@@ -1,1 +1,21 @@
-{"rustc":3590203003937835053,"features":"[]","declared_features":"[\"web_spin_lock\"]","target":9652763411108993936,"profile":385020235239010606,"path":3911017591663122378,"deps":[],"local":[{"CheckDepInfo":{"dep_info":"release/.fingerprint/rayon-core-b45c646b64f98d14/dep-build-script-build-script-build","checksum":false}}],"rustflags":[],"metadata":14590378261418540923,"config":2202906307356721367,"compile_kind":0}
+{
+  "rustc": 3590203003937835053,
+  "features": "[]",
+  "declared_features": "[\"web_spin_lock\"]",
+  "target": 9652763411108993936,
+  "profile": 385020235239010606,
+  "path": 3911017591663122378,
+  "deps": [],
+  "local": [
+    {
+      "CheckDepInfo": {
+        "dep_info": "release/.fingerprint/rayon-core-b45c646b64f98d14/dep-build-script-build-script-build",
+        "checksum": false
+      }
+    }
+  ],
+  "rustflags": [],
+  "metadata": 14590378261418540923,
+  "config": 2202906307356721367,
+  "compile_kind": 0
+}

@@ -1,7 +1,7 @@
-import { Router } from "express";
-import { MiningController } from "../controllers/mining.controller";
-import { MiningService } from "../services/mining.service";
-import { BlockchainService } from "../services/blockchain.service";
+import { Router } from 'express';
+import { MiningController } from '../controllers/mining.controller';
+import { MiningService } from '../services/mining.service';
+import { BlockchainService } from '../services/blockchain.service';
 import {
   Blockchain,
   BlockchainSchema,
@@ -10,8 +10,8 @@ import {
   AuditManager,
   ProofOfWork,
   MerkleTree,
-} from "@h3tag-blockchain/core";
-import { ConfigService } from "@h3tag-blockchain/shared";
+} from '@h3tag-blockchain/core';
+import { ConfigService } from '@h3tag-blockchain/shared';
 
 /**
  * @swagger
@@ -34,7 +34,7 @@ const service = new MiningService(
   pow,
   mempool,
   merkleTree,
-  auditManager
+  auditManager,
 );
 const controller = new MiningController(service);
 
@@ -73,7 +73,11 @@ const controller = new MiningController(service);
  *       500:
  *         description: Server error
  */
-router.get("/info", controller.getMiningInfo.bind(controller));
+router.get('/info', (req, res, next) => {
+  controller.getMiningInfo()
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -96,7 +100,11 @@ router.get("/info", controller.getMiningInfo.bind(controller));
  *       500:
  *         description: Server error
  */
-router.get("/hashps", controller.getNetworkHashPS.bind(controller));
+router.get('/hashps', (req, res, next) => {
+  controller.getNetworkHashPS()
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -134,6 +142,10 @@ router.get("/hashps", controller.getNetworkHashPS.bind(controller));
  *       500:
  *         description: Server error
  */
-router.post("/template", controller.getBlockTemplate.bind(controller));
+router.post('/template', (req, res, next) => {
+  controller.getBlockTemplate(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 export default router;

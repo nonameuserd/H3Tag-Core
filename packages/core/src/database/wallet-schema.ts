@@ -1,11 +1,11 @@
-import { Level } from "level";
-import { Logger } from "@h3tag-blockchain/shared";
-import { Cache } from "../scaling/cache";
-import { Mutex } from "async-mutex";
-import { retry } from "../utils/retry";
-import { EncryptedKeystore } from "../wallet/keystore";
-import { databaseConfig } from "./config.database";
-import { UTXO, UTXOSet } from "../models/utxo.model";
+import { Level } from 'level';
+import { Logger } from '@h3tag-blockchain/shared';
+import { Cache } from '../scaling/cache';
+import { Mutex } from 'async-mutex';
+import { retry } from '../utils/retry';
+import { EncryptedKeystore } from '../wallet/keystore';
+import { databaseConfig } from './config.database';
+import { UTXO, UTXOSet } from '../models/utxo.model';
 
 /**
  * @fileoverview WalletDatabase implements secure storage and management of wallet data.
@@ -42,10 +42,10 @@ export class WalletDatabase {
   private utxoSet: UTXOSet;
 
   constructor(dbPath: string) {
-    if (!dbPath) throw new Error("Database path is required");
+    if (!dbPath) throw new Error('Database path is required');
 
     this.db = new Level(`${dbPath}/wallet`, {
-      valueEncoding: "json",
+      valueEncoding: 'json',
       createIfMissing: true,
       compression: true,
       ...databaseConfig.options,
@@ -62,7 +62,7 @@ export class WalletDatabase {
     });
 
     this.initialize().catch((err) => {
-      Logger.error("Failed to initialize wallet database:", err);
+      Logger.error('Failed to initialize wallet database:', err);
       throw err;
     });
   }
@@ -71,9 +71,9 @@ export class WalletDatabase {
     try {
       await this.db.open();
       this.isInitialized = true;
-      Logger.info("Wallet database initialized successfully");
+      Logger.info('Wallet database initialized successfully');
     } catch (error) {
-      Logger.error("Failed to initialize wallet database:", error);
+      Logger.error('Failed to initialize wallet database:', error);
       throw error;
     }
   }
@@ -81,11 +81,11 @@ export class WalletDatabase {
   @retry({ maxAttempts: 3, delay: 1000 })
   async saveKeystore(
     address: string,
-    keystore: EncryptedKeystore
+    keystore: EncryptedKeystore,
   ): Promise<void> {
-    if (!this.isInitialized) throw new Error("Database not initialized");
+    if (!this.isInitialized) throw new Error('Database not initialized');
     if (!address || !keystore)
-      throw new Error("Address and keystore are required");
+      throw new Error('Address and keystore are required');
 
     return await this.mutex.runExclusive(async () => {
       const key = `keystore:${address}`;
@@ -93,7 +93,7 @@ export class WalletDatabase {
         // Check for existing keystore
         const existing = await this.getKeystore(address);
         if (existing) {
-          throw new Error("Keystore already exists for this address");
+          throw new Error('Keystore already exists for this address');
         }
 
         const batch = this.db.batch();
@@ -102,11 +102,11 @@ export class WalletDatabase {
         await batch.write();
 
         this.cache.set(key, keystore, { ttl: this.CACHE_TTL });
-        Logger.debug("Keystore saved successfully", { address });
+        Logger.debug('Keystore saved successfully', { address });
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        Logger.error("Failed to save keystore:", {
+          error instanceof Error ? error.message : 'Unknown error';
+        Logger.error('Failed to save keystore:', {
           error: errorMessage,
           address,
         });
@@ -128,8 +128,8 @@ export class WalletDatabase {
    * const keystore = await walletDb.getKeystore('0x...');
    */
   async getKeystore(address: string): Promise<EncryptedKeystore | null> {
-    if (!this.isInitialized) throw new Error("Database not initialized");
-    if (!address) throw new Error("Address is required");
+    if (!this.isInitialized) throw new Error('Database not initialized');
+    if (!address) throw new Error('Address is required');
 
     const key = `keystore:${address}`;
     try {
@@ -148,8 +148,8 @@ export class WalletDatabase {
       return keystore;
     } catch (error) {
       if (error.notFound) return null;
-      Logger.error("Failed to retrieve keystore:", { error, address });
-      throw new Error("Failed to retrieve keystore");
+      Logger.error('Failed to retrieve keystore:', { error, address });
+      throw new Error('Failed to retrieve keystore');
     }
   }
 
@@ -157,7 +157,7 @@ export class WalletDatabase {
     try {
       return JSON.parse(value) as T;
     } catch (error) {
-      Logger.error("Failed to parse stored value:", error);
+      Logger.error('Failed to parse stored value:', error);
       return null;
     }
   }
@@ -181,9 +181,9 @@ export class WalletDatabase {
         await this.db.del(key);
         await this.db.del(`address:${address}`);
         this.cache.delete(key);
-        Logger.debug("Keystore deleted successfully", { address });
+        Logger.debug('Keystore deleted successfully', { address });
       } catch (error) {
-        Logger.error("Failed to delete keystore:", error);
+        Logger.error('Failed to delete keystore:', error);
         throw error;
       }
     });
@@ -203,14 +203,14 @@ export class WalletDatabase {
     const addresses: string[] = [];
     try {
       for await (const [key] of this.db.iterator({
-        gte: "address:",
-        lte: "address:\xFF",
+        gte: 'address:',
+        lte: 'address:\xFF',
       })) {
-        addresses.push(key.split(":")[1]);
+        addresses.push(key.split(':')[1]);
       }
       return addresses;
     } catch (error) {
-      Logger.error("Failed to list wallets:", error);
+      Logger.error('Failed to list wallets:', error);
       throw error;
     }
   }
@@ -248,11 +248,11 @@ export class WalletDatabase {
         await this.db.close();
         this.cache.clear();
         this.isInitialized = false;
-        Logger.info("Wallet database closed successfully");
+        Logger.info('Wallet database closed successfully');
       });
     } catch (error) {
-      Logger.error("Error closing wallet database:", error);
-      throw new Error("Failed to close database");
+      Logger.error('Error closing wallet database:', error);
+      throw new Error('Failed to close database');
     }
   }
 
@@ -274,7 +274,7 @@ export class WalletDatabase {
       return parseInt(data) || 0;
     } catch (error) {
       if (error.notFound) return 0;
-      Logger.error("Failed to get address index:", error);
+      Logger.error('Failed to get address index:', error);
       throw error;
     }
   }
@@ -295,7 +295,7 @@ export class WalletDatabase {
   async saveAddress(
     masterAddress: string,
     newAddress: string,
-    index: number
+    index: number,
   ): Promise<void> {
     await this.mutex.runExclusive(async () => {
       await this.db.put(`addressIndex:${masterAddress}`, index.toString());

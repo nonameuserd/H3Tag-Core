@@ -1,15 +1,15 @@
-import { Injectable } from "@nestjs/common";
-import { MiningInfoDto } from "../dtos/mining.dto";
-import { BlockchainService } from "./blockchain.service";
-import { Logger } from "@h3tag-blockchain/shared";
-import { TransactionResponseDto } from "../dtos/transaction.dto";
-import { AuditManager, Transaction } from "@h3tag-blockchain/core";
-import { BlockTemplateDto } from "../dtos/mining.dto";
-import { ProofOfWork } from "@h3tag-blockchain/core";
-import { SubmitBlockDto } from "../dtos/mining.dto";
-import { BlockBuilder } from "@h3tag-blockchain/core";
-import { Mempool } from "@h3tag-blockchain/core";
-import { MerkleTree } from "@h3tag-blockchain/core";
+import { Injectable } from '@nestjs/common';
+import { MiningInfoDto } from '../dtos/mining.dto';
+import { BlockchainService } from './blockchain.service';
+import { Logger } from '@h3tag-blockchain/shared';
+import { TransactionResponseDto } from '../dtos/transaction.dto';
+import { AuditManager, Transaction } from '@h3tag-blockchain/core';
+import { BlockTemplateDto } from '../dtos/mining.dto';
+import { ProofOfWork } from '@h3tag-blockchain/core';
+import { SubmitBlockDto } from '../dtos/mining.dto';
+import { BlockBuilder } from '@h3tag-blockchain/core';
+import { Mempool } from '@h3tag-blockchain/core';
+import { MerkleTree } from '@h3tag-blockchain/core';
 
 /**
  * @swagger
@@ -24,7 +24,7 @@ export class MiningService {
     private readonly pow: ProofOfWork,
     private readonly mempool: Mempool,
     private readonly merkleTree: MerkleTree,
-    private readonly auditManager: AuditManager
+    private readonly auditManager: AuditManager,
   ) {}
 
   /**
@@ -67,7 +67,7 @@ export class MiningService {
         networkHashPS: await pow.getNetworkHashPS(),
       };
     } catch (error) {
-      Logger.error("Failed to get mining info:", error);
+      Logger.error('Failed to get mining info:', error);
       throw error;
     }
   }
@@ -94,7 +94,7 @@ export class MiningService {
       const pow = blockchain.getConsensus().pow;
       return pow.getNetworkHashPS();
     } catch (error) {
-      Logger.error("Failed to get network hash rate:", error);
+      Logger.error('Failed to get network hash rate:', error);
       throw error;
     }
   }
@@ -135,7 +135,7 @@ export class MiningService {
       timestamp: template.timestamp,
       difficulty: template.difficulty,
       transactions: template.transactions.map((tx) =>
-        this.mapTransactionToDto(tx)
+        this.mapTransactionToDto(tx),
       ),
       merkleRoot: template.merkleRoot,
       target: template.target,
@@ -157,7 +157,7 @@ export class MiningService {
       id: tx.id,
       fromAddress: tx.sender,
       toAddress: tx.recipient,
-      amount: tx.outputs[0]?.amount.toString() || "0",
+      amount: tx.outputs[0]?.amount.toString() || '0',
       timestamp: new Date(tx.timestamp).toISOString(),
       fee: tx.fee.toString(),
       type: tx.type,
@@ -180,27 +180,27 @@ export class MiningService {
   }
 
   async submitBlock(submitBlockDto: SubmitBlockDto): Promise<string> {
-    const blockBuilder = await new BlockBuilder(
-      submitBlockDto.header.previousHash,
-      submitBlockDto.header.difficulty,
-      this.auditManager
+    const blockBuilder = new BlockBuilder(
+      submitBlockDto.header?.previousHash || '',
+      submitBlockDto.header?.difficulty || 0,
+      this.auditManager,
     );
 
     const block = await (
       await blockBuilder
-        .setVersion(submitBlockDto.header.version)
-        .setPreviousHash(submitBlockDto.header.previousHash)
-        .setMerkleRoot(submitBlockDto.header.merkleRoot)
-        .setTimestamp(submitBlockDto.header.timestamp)
-        .setDifficulty(submitBlockDto.header.difficulty)
-        .setNonce(submitBlockDto.header.nonce)
-        .setTransactions(submitBlockDto.transactions)
+        .setVersion(submitBlockDto.header?.version || 0)
+        .setPreviousHash(submitBlockDto.header?.previousHash || '')
+        .setMerkleRoot(submitBlockDto.header?.merkleRoot || '')
+        .setTimestamp(submitBlockDto.header?.timestamp || 0)
+        .setDifficulty(submitBlockDto.header?.difficulty || 0)
+        .setNonce(submitBlockDto.header?.nonce || 0)
+        .setTransactions(submitBlockDto.transactions || [])
     ).build(submitBlockDto.minerKeyPair);
 
     // Submit block to PoW consensus
     const success = await this.pow.submitBlock(block);
     if (!success) {
-      throw new Error("Block submission failed");
+      throw new Error('Block submission failed');
     }
 
     return block.hash;

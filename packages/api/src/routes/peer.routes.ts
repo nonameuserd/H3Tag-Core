@@ -1,13 +1,13 @@
-import { Router } from "express";
-import { PeerController } from "../controllers/peer.controller";
-import { PeerService } from "../services/peer.service";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { BlockchainSchema } from "@h3tag-blockchain/core";
+import { Router } from 'express';
+import { PeerController } from '../controllers/peer.controller';
+import { PeerService } from '../services/peer.service';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { BlockchainSchema } from '@h3tag-blockchain/core';
 
 const router = Router();
 const peerService = new PeerService(
   new ConfigService(),
-  new BlockchainSchema()
+  new BlockchainSchema(),
 );
 const controller = new PeerController(peerService);
 
@@ -137,17 +137,57 @@ const controller = new PeerController(peerService);
  *         description: Peer not found
  */
 
-router.post("/", controller.addPeer);
-router.get("/", controller.getPeers);
-router.delete("/:peerId", controller.removePeer);
-router.post("/:peerId/ban", controller.banPeer);
-router.get("/:peerId/info", controller.getPeerInfo);
+router.post('/', (req, res, next) => {
+  controller.addPeer(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
+router.get('/', (req, res, next) => {
+  controller.getPeers()
+    .then((result) => res.json(result))
+    .catch(next);
+});
+router.delete('/:peerId', (req, res, next) => {
+  controller.removePeer(req.params.peerId)
+    .then((result) => res.json(result))
+    .catch(next);
+});
+router.post('/:peerId/ban', (req, res, next) => {
+  controller.banPeer(req.params.peerId)
+    .then((result) => res.json(result))
+    .catch(next);
+});
+router.get('/:peerId/info', (req, res, next) => {
+  controller.getPeerInfo(req.params.peerId)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
-router.post("/ban", controller.setBan);
-router.get("/bans", controller.listBans);
-router.delete("/bans", controller.clearBans);
-router.get("/ban/:ip", controller.getBanInfo);
+router.post('/ban', (req, res, next) => {
+  controller.setBan(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
+router.get('/bans', (req, res, next) => {
+  controller.listBans()
+    .then((result) => res.json(result))
+    .catch(next);
+});
+router.delete('/bans', (req, res, next) => {
+  controller.clearBans()
+    .then((result) => res.json(result))
+    .catch(next);
+});
+router.get('/ban/:ip', (req, res, next) => {
+  controller.getBanInfo(req.params.ip)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
-router.get("/network", controller.getNetworkInfo);
+router.get('/network', (req, res, next) => {
+  controller.getNetworkInfo()
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 export default router;

@@ -1,4 +1,4 @@
-import { Logger } from "@h3tag-blockchain/shared";
+import { Logger } from '@h3tag-blockchain/shared';
 
 interface CircuitBreakerConfig {
   failureThreshold: number;
@@ -10,7 +10,7 @@ interface CircuitBreakerConfig {
 export class CircuitBreaker {
   private failures: number = 0;
   private lastFailureTime: number = 0;
-  private state: "closed" | "open" | "half-open" = "closed";
+  private state: 'closed' | 'open' | 'half-open' = 'closed';
   private readonly config: Required<CircuitBreakerConfig>;
   private monitorInterval: NodeJS.Timeout;
 
@@ -24,20 +24,20 @@ export class CircuitBreaker {
 
     this.monitorInterval = setInterval(
       () => this.monitor(),
-      this.config.monitorInterval
+      this.config.monitorInterval,
     );
   }
 
   isOpen(): boolean {
-    return this.state === "open";
+    return this.state === 'open';
   }
 
   recordSuccess(): void {
-    if (this.state === "half-open") {
-      this.state = "closed";
+    if (this.state === 'half-open') {
+      this.state = 'closed';
       this.failures = 0;
       this.lastFailureTime = 0;
-      Logger.info("Circuit breaker reset after successful operation");
+      Logger.info('Circuit breaker reset after successful operation');
     }
   }
 
@@ -46,8 +46,8 @@ export class CircuitBreaker {
     this.lastFailureTime = Date.now();
 
     if (this.failures >= this.config.failureThreshold) {
-      this.state = "open";
-      Logger.warn("Circuit breaker opened due to failures:", {
+      this.state = 'open';
+      Logger.warn('Circuit breaker opened due to failures:', {
         failures: this.failures,
         threshold: this.config.failureThreshold,
       });
@@ -55,12 +55,12 @@ export class CircuitBreaker {
   }
 
   private monitor(): void {
-    if (this.state === "open") {
+    if (this.state === 'open') {
       const timeSinceLastFailure = Date.now() - this.lastFailureTime;
 
       if (timeSinceLastFailure >= this.config.resetTimeout) {
-        this.state = "half-open";
-        Logger.info("Circuit breaker entering half-open state");
+        this.state = 'half-open';
+        Logger.info('Circuit breaker entering half-open state');
       }
     }
   }
@@ -76,7 +76,7 @@ export class CircuitBreaker {
   public onSuccess(): void {
     this.failures = 0;
     this.lastFailureTime = 0;
-    this.state = "closed";
+    this.state = 'closed';
   }
 
   public onFailure(): void {
@@ -86,6 +86,6 @@ export class CircuitBreaker {
   public async reset(): Promise<void> {
     this.failures = 0;
     this.lastFailureTime = 0;
-    this.state = "closed";
+    this.state = 'closed';
   }
 }

@@ -1,4 +1,4 @@
-import { Logger } from "@h3tag-blockchain/shared";
+import { Logger } from '@h3tag-blockchain/shared';
 export class ErrorMonitor {
   private readonly errorCounts: Map<string, number> = new Map();
   private readonly errorThresholds: Map<string, number> = new Map();

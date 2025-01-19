@@ -1,14 +1,14 @@
-import { Router } from "express";
-import { BlockchainController } from "../controllers/blockchain.controller";
-import { BlockchainService } from "../services/blockchain.service";
+import { Router } from 'express';
+import { BlockchainController } from '../controllers/blockchain.controller';
+import { BlockchainService } from '../services/blockchain.service';
 import {
   AuditManager,
   Blockchain,
   Mempool,
   Node,
   BlockchainSchema,
-} from "@h3tag-blockchain/core";
-import { ConfigService } from "@h3tag-blockchain/shared";
+} from '@h3tag-blockchain/core';
+import { ConfigService } from '@h3tag-blockchain/shared';
 
 /**
  * @swagger
@@ -42,7 +42,12 @@ const blockchainController = new BlockchainController(blockchainService);
  *             schema:
  *               $ref: '#/components/schemas/BlockchainStatsDto'
  */
-router.get("/stats", blockchainController.getStats);
+router.get('/stats', (req, res, next) => {
+  blockchainController.getStats()
+    .then(result => res.json(result))
+    .catch(next);
+});
+
 
 /**
  * @swagger
@@ -64,7 +69,11 @@ router.get("/stats", blockchainController.getStats);
  *             schema:
  *               $ref: '#/components/schemas/BlockResponseDto'
  */
-router.get("/blocks/:hash", blockchainController.getBlock);
+router.get('/blocks/:hash', (req, res, next) => {
+  blockchainController.getBlock(req.params.hash)
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -82,7 +91,11 @@ router.get("/blocks/:hash", blockchainController.getBlock);
  *       201:
  *         description: Transaction submitted successfully
  */
-router.post("/transactions", blockchainController.submitTransaction);
+router.post('/transactions', (req, res, next) => {
+  blockchainController.submitTransaction(req.body)
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -100,7 +113,11 @@ router.post("/transactions", blockchainController.submitTransaction);
  *       200:
  *         description: Transaction validation result
  */
-router.post("/transactions/validate", blockchainController.validateTransaction);
+router.post('/transactions/validate', (req, res, next) => {
+  blockchainController.validateTransaction(req.body)
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -119,8 +136,12 @@ router.post("/transactions/validate", blockchainController.validateTransaction);
  *         description: First transaction found
  */
 router.get(
-  "/transactions/:address/first",
-  blockchainController.getFirstTransaction
+  '/transactions/:address/first',
+  (req, res, next) => {
+    blockchainController.getFirstTransaction(req.params.address)
+      .then(result => res.json(result))
+      .catch(next);
+  },
 );
 
 /**
@@ -145,7 +166,11 @@ router.get(
  *               items:
  *                 $ref: '#/components/schemas/UtxoDto'
  */
-router.get("/transactions/:address/utxos", blockchainController.getUtxos);
+router.get('/transactions/:address/utxos', (req, res, next) => {
+  blockchainController.getUtxos(req.params.address)
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -161,7 +186,11 @@ router.get("/transactions/:address/utxos", blockchainController.getUtxos);
  *             schema:
  *               type: number
  */
-router.get("/height", blockchainController.getHeight);
+router.get('/height', (req, res, next) => {
+  blockchainController.getHeight()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -177,7 +206,11 @@ router.get("/height", blockchainController.getHeight);
  *             schema:
  *               type: number
  */
-router.get("/version", blockchainController.getVersion);
+router.get('/version', (req, res, next) => {
+  blockchainController.getVersion()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -189,7 +222,11 @@ router.get("/version", blockchainController.getVersion);
  *       200:
  *         description: Node information retrieved successfully
  */
-router.get("/node", blockchainController.getNode);
+router.get('/node', (req, res, next) => {
+  blockchainController.getNode()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -201,7 +238,11 @@ router.get("/node", blockchainController.getNode);
  *       200:
  *         description: Currency details retrieved successfully
  */
-router.get("/currency", blockchainController.getCurrencyDetails);
+router.get('/currency', (req, res, next) => {
+  blockchainController.getCurrencyDetails()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -219,7 +260,11 @@ router.get("/currency", blockchainController.getCurrencyDetails);
  *               items:
  *                 $ref: '#/components/schemas/ChainTipDto'
  */
-router.get("/chain-tips", blockchainController.getChainTips);
+router.get('/chain-tips', (req, res, next) => {
+  blockchainController.getChainTips()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -235,7 +280,11 @@ router.get("/chain-tips", blockchainController.getChainTips);
  *             schema:
  *               $ref: '#/components/schemas/DifficultyResponseDto'
  */
-router.get("/difficulty", blockchainController.getCurrentDifficulty);
+router.get('/difficulty', (req, res, next) => {
+  blockchainController.getCurrentDifficulty()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -260,7 +309,11 @@ router.get("/difficulty", blockchainController.getCurrentDifficulty);
  *                 message:
  *                   type: string
  */
-router.get("/best-block-hash", blockchainController.getBestBlockHash);
+router.get('/best-block-hash', (req, res, next) => {
+  blockchainController.getBestBlockHash()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -285,6 +338,10 @@ router.get("/best-block-hash", blockchainController.getBestBlockHash);
  *                 message:
  *                   type: string
  */
-router.get("/info", blockchainController.getBlockchainInfo);
+router.get('/info', (req, res, next) => {
+  blockchainController.getBlockchainInfo()
+    .then(result => res.json(result))
+    .catch(next);
+});
 
 export default router;

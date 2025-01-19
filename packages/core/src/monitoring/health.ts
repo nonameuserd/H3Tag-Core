@@ -5,11 +5,11 @@
  * @module HealthMonitor
  */
 
-import { DNSSeeder } from "../network/dnsSeed";
-import { EventEmitter } from "events";
-import { BlockchainSchema } from "../database/blockchain-schema";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { Logger } from "@h3tag-blockchain/shared";
+import { DNSSeeder } from '../network/dnsSeed';
+import { EventEmitter } from 'events';
+import { BlockchainSchema } from '../database/blockchain-schema';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { Logger } from '@h3tag-blockchain/shared';
 
 /**
  * @interface HealthMonitorConfig
@@ -65,7 +65,7 @@ export class HealthMonitor {
    */
   constructor(config: HealthMonitorConfig) {
     if (!this.isValidConfig(config)) {
-      throw new Error("Invalid health monitor configuration");
+      throw new Error('Invalid health monitor configuration');
     }
     this.config = config;
 
@@ -74,7 +74,7 @@ export class HealthMonitor {
       const database = new BlockchainSchema();
       this.dnsSeeder = new DNSSeeder(configService, database);
     } catch (error) {
-      Logger.error("Failed to initialize HealthMonitor:", error);
+      Logger.error('Failed to initialize HealthMonitor:', error);
       throw error;
     }
   }
@@ -88,13 +88,13 @@ export class HealthMonitor {
   private isValidConfig(config: HealthMonitorConfig): boolean {
     return !!(
       config &&
-      typeof config.interval === "number" &&
+      typeof config.interval === 'number' &&
       config.interval > 0 &&
       config.thresholds &&
-      typeof config.thresholds.minPowNodes === "number" &&
-      typeof config.thresholds.minPowHashrate === "number" &&
-      typeof config.thresholds.minTagDistribution === "number" &&
-      typeof config.thresholds.maxTagConcentration === "number"
+      typeof config.thresholds.minPowNodes === 'number' &&
+      typeof config.thresholds.minPowHashrate === 'number' &&
+      typeof config.thresholds.minTagDistribution === 'number' &&
+      typeof config.thresholds.maxTagConcentration === 'number'
     );
   }
 
@@ -113,7 +113,7 @@ export class HealthMonitor {
   }> {
     try {
       if (!this.dnsSeeder) {
-        throw new Error("DNS Seeder not initialized");
+        throw new Error('DNS Seeder not initialized');
       }
 
       const health = {
@@ -126,7 +126,7 @@ export class HealthMonitor {
       };
 
       if (!this.validateThresholds()) {
-        throw new Error("Invalid health check thresholds");
+        throw new Error('Invalid health check thresholds');
       }
 
       health.isHealthy =
@@ -137,7 +137,7 @@ export class HealthMonitor {
 
       return health;
     } catch (error) {
-      Logger.error("Health check failed:", error);
+      Logger.error('Health check failed:', error);
       throw error;
     }
   }
@@ -167,7 +167,7 @@ export class HealthMonitor {
       }
       this.eventEmitter.removeAllListeners();
     } catch (error) {
-      Logger.error("Health monitor disposal failed:", error);
+      Logger.error('Health monitor disposal failed:', error);
       throw error;
     }
   }

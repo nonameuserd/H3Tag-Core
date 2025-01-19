@@ -1,4 +1,4 @@
-import { GPUMiner } from "./gpu";
+import { GPUMiner } from './gpu';
 
 /**
  * @fileoverview AdvancedGPUMiner implements optimized GPU-based mining operations.
@@ -37,8 +37,8 @@ export class AdvancedGPUMiner extends GPUMiner {
   // Add currency constants
   private readonly CURRENCY_CONSTANTS = {
     REWARD_PRECISION: 100000000, // 8 decimals for TAG
-    SYMBOL: "TAG",
-    NAME: "H3Tag",
+    SYMBOL: 'TAG',
+    NAME: 'H3Tag',
   };
 
   /**
@@ -58,7 +58,7 @@ export class AdvancedGPUMiner extends GPUMiner {
 
     // Add error handling for device initialization
     if (!this.device) {
-      throw new Error("GPU device not initialized");
+      throw new Error('GPU device not initialized');
     }
 
     // Increase buffer sizes to handle potential overflow
@@ -74,7 +74,7 @@ export class AdvancedGPUMiner extends GPUMiner {
 
     // Add null check for adapter
     const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) throw new Error("No GPU adapter found");
+    if (!adapter) throw new Error('No GPU adapter found');
 
     // Get compute capabilities
     const limits = adapter.limits;
@@ -97,7 +97,7 @@ export class AdvancedGPUMiner extends GPUMiner {
     // Adjust based on GPU architecture
     return Math.min(
       this.maxComputeUnits * 32, // 32 threads per compute unit
-      1024 // WebGPU max workgroup size
+      1024, // WebGPU max workgroup size
     );
   }
 
@@ -112,7 +112,7 @@ export class AdvancedGPUMiner extends GPUMiner {
    */
 
   private async createOptimizedPipeline(
-    target: bigint
+    target: bigint,
   ): Promise<GPUComputePipeline> {
     const cacheKey = `pipeline_${target}`;
 
@@ -152,10 +152,10 @@ export class AdvancedGPUMiner extends GPUMiner {
             `;
 
       pipeline = this.device.createComputePipeline({
-        layout: "auto",
+        layout: 'auto',
         compute: {
           module: this.device.createShaderModule({ code: shader }),
-          entryPoint: "main",
+          entryPoint: 'main',
         },
       });
 
@@ -181,11 +181,11 @@ export class AdvancedGPUMiner extends GPUMiner {
 
   async mineOptimized(
     blockBuffer: GPUBuffer,
-    target: number
+    target: number,
   ): Promise<number | null> {
     // Split work into optimal chunks
     const chunks = Math.ceil(
-      this.MAX_NONCE / (this.workgroupSize * this.maxComputeUnits)
+      this.MAX_NONCE / (this.workgroupSize * this.maxComputeUnits),
     );
     const commands: GPUCommandBuffer[] = [];
 
@@ -195,7 +195,7 @@ export class AdvancedGPUMiner extends GPUMiner {
 
       // Read difficulty from buffer
       const difficultyView = new DataView(
-        await this.readBufferData(blockBuffer)
+        await this.readBufferData(blockBuffer),
       );
       const difficulty = difficultyView.getUint32(0);
 
@@ -232,8 +232,8 @@ export class AdvancedGPUMiner extends GPUMiner {
 
   private createBindGroup(chunkIndex: number): GPUBindGroup {
     // Fix potential race condition with pipeline access
-    const pipeline = this.shaderCache.get("current_pipeline");
-    if (!pipeline) throw new Error("Pipeline not initialized");
+    const pipeline = this.shaderCache.get('current_pipeline');
+    if (!pipeline) throw new Error('Pipeline not initialized');
 
     // Add offset calculation for chunk-based mining
     const offset = chunkIndex * this.workgroupSize * this.maxComputeUnits;
@@ -246,7 +246,7 @@ export class AdvancedGPUMiner extends GPUMiner {
           resource: {
             buffer: this.blockBuffer,
             offset: offset * 4, // 4 bytes per uint32
-            size: this.blockBuffer.size - (offset * 4),
+            size: this.blockBuffer.size - offset * 4,
           },
         },
         {

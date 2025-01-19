@@ -1,18 +1,18 @@
-import { Mutex } from "async-mutex";
-import { Logger } from "@h3tag-blockchain/shared";
-import { EventEmitter } from "events";
-import { BlockchainSchema } from "../../../database/blockchain-schema";
-import { AuditManager } from "../../../security/audit";
-import { BackupManager } from "../../../database/backup-manager";
-import { Validator } from "../../../models/validator";
-import { Vote } from "../../../models/vote.model";
-import { VotingPeriod } from "../../../models/vote.model";
-import { BLOCKCHAIN_CONSTANTS } from "../../utils/constants";
-import { AuditEventType } from "../../../security/audit";
-import { AuditSeverity } from "../../../security/audit";
-import { MetricsCollector } from "../../../monitoring/metrics-collector";
-import { CircuitBreaker } from "../../../network/circuit-breaker";
-import { DDoSProtection } from "../../../security/ddos";
+import { Mutex } from 'async-mutex';
+import { Logger } from '@h3tag-blockchain/shared';
+import { EventEmitter } from 'events';
+import { BlockchainSchema } from '../../../database/blockchain-schema';
+import { AuditManager } from '../../../security/audit';
+import { BackupManager } from '../../../database/backup-manager';
+import { Validator } from '../../../models/validator';
+import { Vote } from '../../../models/vote.model';
+import { VotingPeriod } from '../../../models/vote.model';
+import { BLOCKCHAIN_CONSTANTS } from '../../utils/constants';
+import { AuditEventType } from '../../../security/audit';
+import { AuditSeverity } from '../../../security/audit';
+import { MetricsCollector } from '../../../monitoring/metrics-collector';
+import { CircuitBreaker } from '../../../network/circuit-breaker';
+import { DDoSProtection } from '../../../security/ddos';
 
 export interface VoteTally {
   approved: bigint;
@@ -38,9 +38,9 @@ export class DirectVotingUtil {
    */
   constructor(
     private readonly db: BlockchainSchema,
-    private readonly auditManager: AuditManager
+    private readonly auditManager: AuditManager,
   ) {
-    this.metrics = new MetricsCollector("node_selection");
+    this.metrics = new MetricsCollector('node_selection');
     this.circuitBreaker = new CircuitBreaker({
       failureThreshold: 5,
       resetTimeout: 30000,
@@ -54,7 +54,7 @@ export class DirectVotingUtil {
           default: 50,
         },
       },
-      this.auditManager
+      this.auditManager,
     );
   }
 
@@ -68,7 +68,7 @@ export class DirectVotingUtil {
   public async initializeChainVotingPeriod(
     oldChainId: string,
     newChainId: string,
-    forkHeight: number
+    forkHeight: number,
   ): Promise<VotingPeriod> {
     const currentHeight = await this.db.getCurrentHeight();
     const startVotingHeight = await this.db.getVotingStartHeight();
@@ -78,7 +78,7 @@ export class DirectVotingUtil {
       currentHeight - forkHeight >
       BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH
     ) {
-      const errorMessage = "Fork depth exceeds maximum allowed";
+      const errorMessage = 'Fork depth exceeds maximum allowed';
       Logger.error(errorMessage);
       throw new Error(errorMessage);
     }
@@ -91,11 +91,11 @@ export class DirectVotingUtil {
         BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS,
       startTime: Date.now(),
       endTime: Date.now() + BLOCKCHAIN_CONSTANTS.CONSENSUS.CONSENSUS_TIMEOUT,
-      status: "active",
+      status: 'active',
       createdAt: Date.now(),
       votes: new Map(),
       isAudited: false,
-      type: "node_selection",
+      type: 'node_selection',
       chainId: newChainId,
       forkHeight,
       competingChains: {
@@ -116,7 +116,7 @@ export class DirectVotingUtil {
    */
   public async collectVotes(
     period: VotingPeriod,
-    validators: Validator[]
+    validators: Validator[],
   ): Promise<VoteTally> {
     // Take snapshot of period state at start
     const periodSnapshot = { ...period };
@@ -124,9 +124,9 @@ export class DirectVotingUtil {
     return this.voteMutex.runExclusive(async () => {
       if (
         Date.now() < periodSnapshot.endTime &&
-        periodSnapshot.status === "active"
+        periodSnapshot.status === 'active'
       ) {
-        throw new Error("Voting period still active");
+        throw new Error('Voting period still active');
       }
 
       // Use periodSnapshot instead of period
@@ -136,10 +136,10 @@ export class DirectVotingUtil {
           try {
             return (await this.verifyVote(vote, validators)) ? vote : null;
           } catch (error) {
-            Logger.error("Vote verification failed:", error);
+            Logger.error('Vote verification failed:', error);
             return null;
           }
-        })
+        }),
       );
 
       return this.tallyVotes(validVotes.filter((v): v is Vote => v !== null));
@@ -169,7 +169,7 @@ export class DirectVotingUtil {
           tally.rejected = tally.rejected + BigInt(1);
         }
       } catch (error) {
-        Logger.error("Vote counting error:", error);
+        Logger.error('Vote counting error:', error);
       }
     }
 
@@ -191,15 +191,15 @@ export class DirectVotingUtil {
   private async processVotingResults(
     tally: VoteTally,
     oldChainId: string,
-    newChainId: string
+    newChainId: string,
   ): Promise<string> {
     let timer;
     try {
-      timer = this.metrics?.startTimer("voting.process_duration");
+      timer = this.metrics?.startTimer('voting.process_duration');
 
       const totalVotes = tally.approved + tally.rejected;
       if (totalVotes === BigInt(0)) {
-        Logger.warn("No valid votes received");
+        Logger.warn('No valid votes received');
         return oldChainId;
       }
 
@@ -207,9 +207,9 @@ export class DirectVotingUtil {
 
       // Record metrics if available
       if (this.metrics) {
-        this.metrics.gauge("voting.approval_ratio", approvalRatio);
-        this.metrics.gauge("voting.total_votes", tally.totalVotes);
-        this.metrics.gauge("voting.unique_voters", tally.uniqueVoters);
+        this.metrics.gauge('voting.approval_ratio', approvalRatio);
+        this.metrics.gauge('voting.total_votes', tally.totalVotes);
+        this.metrics.gauge('voting.unique_voters', tally.uniqueVoters);
       }
 
       if (
@@ -218,9 +218,9 @@ export class DirectVotingUtil {
         await this.auditManager.logEvent({
           type: AuditEventType.TYPE,
           severity: AuditSeverity.INFO,
-          source: "node_selection",
+          source: 'node_selection',
           details: {
-            result: "new_chain_selected",
+            result: 'new_chain_selected',
             newChainId,
             approvalRatio,
             totalVotes: tally.totalVotes,
@@ -230,14 +230,14 @@ export class DirectVotingUtil {
       }
       return oldChainId;
     } catch (error) {
-      Logger.error("Processing voting results failed:", error);
+      Logger.error('Processing voting results failed:', error);
       return oldChainId;
     } finally {
       if (timer) {
         try {
           timer();
         } catch (error) {
-          Logger.error("Failed to end metrics timer:", error);
+          Logger.error('Failed to end metrics timer:', error);
         }
       }
     }
@@ -251,33 +251,33 @@ export class DirectVotingUtil {
    */
   public async verifyVote(
     vote: Vote,
-    validators: Validator[]
+    validators: Validator[],
   ): Promise<boolean> {
     // DDoS protection check
     if (
       !this.ddosProtection.checkRequest(`vote_verify:${vote.voter}`, vote.voter)
     ) {
-      throw new Error("Rate limit exceeded");
+      throw new Error('Rate limit exceeded');
     }
 
     return Promise.race([
       this._verifyVote(vote, validators),
       new Promise<boolean>((_, reject) =>
-        setTimeout(() => reject(new Error("Verification timeout")), 5000)
+        setTimeout(() => reject(new Error('Verification timeout')), 5000),
       ),
     ]).catch((error) => {
-      Logger.error("Vote verification failed:", error);
+      Logger.error('Vote verification failed:', error);
       return false;
     });
   }
 
   private async _verifyVote(
     vote: Vote,
-    validators: Validator[]
+    validators: Validator[],
   ): Promise<boolean> {
     // Basic validation
     if (!vote?.chainVoteData || !vote.signature || !vote.voter) {
-      Logger.warn("Invalid vote structure");
+      Logger.warn('Invalid vote structure');
       return false;
     }
 
@@ -292,7 +292,7 @@ export class DirectVotingUtil {
     return await this.db.verifySignature(
       vote.voter,
       `${vote.chainVoteData.targetChainId}:${vote.timestamp}`,
-      vote.signature
+      vote.signature,
     );
   }
 
@@ -305,7 +305,7 @@ export class DirectVotingUtil {
       this.eventEmitter.removeAllListeners();
       await this.backupManager.cleanup();
     } catch (error) {
-      Logger.error("Disposal failed:", error);
+      Logger.error('Disposal failed:', error);
       throw error;
     }
   }

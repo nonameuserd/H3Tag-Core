@@ -1,18 +1,21 @@
-import fs from "fs/promises";
-import path from "path";
-import zlib from "zlib";
-import { promisify } from "util";
-import { IAuditStorage } from "./audit";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
+import fs from 'fs/promises';
+import path from 'path';
+import zlib from 'zlib';
+import { promisify } from 'util';
+import { IAuditStorage } from './audit';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
 
 export class FileAuditStorageError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
     super(`${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} Audit Error: ${message}`);
-    this.name = "FileAuditStorageError";
+    this.name = 'FileAuditStorageError';
   }
 }
 
@@ -34,7 +37,7 @@ export class FileAuditStorage implements IAuditStorage {
   private lockCleanupInterval: NodeJS.Timeout;
 
   private static readonly DEFAULT_CONFIG: StorageConfig = {
-    baseDir: "audit_logs",
+    baseDir: 'audit_logs',
     compression: true,
     maxRetries: 3,
     retryDelay: 1000,
@@ -52,12 +55,12 @@ export class FileAuditStorage implements IAuditStorage {
     try {
       await fs.mkdir(this.config.baseDir, { recursive: true });
       Logger.info(
-        `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} audit storage initialized`
+        `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} audit storage initialized`,
       );
     } catch (error) {
       const msg = `Failed to initialize ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit storage: ${error.message}`;
       Logger.error(msg);
-      throw new FileAuditStorageError(msg, "INIT_FAILED");
+      throw new FileAuditStorageError(msg, 'INIT_FAILED');
     }
   }
 
@@ -71,7 +74,7 @@ export class FileAuditStorage implements IAuditStorage {
   private async cleanupStaleLocks(): Promise<void> {
     const now = Date.now();
     for (const [lockId, timestamp] of this.locks.entries()) {
-      if (typeof timestamp === "number" && now - timestamp > this.lockTimeout) {
+      if (typeof timestamp === 'number' && now - timestamp > this.lockTimeout) {
         await this.releaseLock(lockId);
       }
     }
@@ -105,7 +108,7 @@ export class FileAuditStorage implements IAuditStorage {
             }
           }
         }
-        throw lastError || new Error("Write failed");
+        throw lastError || new Error('Write failed');
       });
     } finally {
       this.activeWrites--;
@@ -123,7 +126,7 @@ export class FileAuditStorage implements IAuditStorage {
     } catch (error) {
       throw new FileAuditStorageError(
         `Failed to read ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit log: ${error.message}`,
-        "READ_FAILED"
+        'READ_FAILED',
       );
     }
   }
@@ -134,7 +137,7 @@ export class FileAuditStorage implements IAuditStorage {
     } catch (error) {
       throw new FileAuditStorageError(
         `Failed to list ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit logs: ${error.message}`,
-        "LIST_FAILED"
+        'LIST_FAILED',
       );
     }
   }
@@ -173,7 +176,7 @@ export class FileAuditStorage implements IAuditStorage {
     } catch (error) {
       throw new FileAuditStorageError(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} compression failed: ${error.message}`,
-        "COMPRESSION_FAILED"
+        'COMPRESSION_FAILED',
       );
     }
   }

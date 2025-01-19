@@ -1,7 +1,7 @@
-import { Controller, Get, Query } from "@nestjs/common";
-import { ApiTags, ApiOperation, ApiResponse } from "@nestjs/swagger";
-import { MetricsService } from "../services/metrics.service";
-import { MetricsQueryDto, MetricsResponseDto } from "../dtos/metrics.dto";
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { MetricsService } from '../services/metrics.service';
+import { MetricsQueryDto, MetricsResponseDto } from '../dtos/metrics.dto';
 
 /**
  * @swagger
@@ -9,8 +9,8 @@ import { MetricsQueryDto, MetricsResponseDto } from "../dtos/metrics.dto";
  *   name: Metrics
  *   description: Blockchain metrics and monitoring endpoints
  */
-@ApiTags("Metrics")
-@Controller("metrics")
+@ApiTags('Metrics')
+@Controller('metrics')
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 
@@ -35,10 +35,10 @@ export class MetricsController {
    *               $ref: '#/components/schemas/MetricsResponseDto'
    */
   @Get()
-  @ApiOperation({ summary: "Get H3Tag blockchain metrics" })
+  @ApiOperation({ summary: 'Get H3Tag blockchain metrics' })
   @ApiResponse({
     status: 200,
-    description: "Returns H3Tag blockchain metrics",
+    description: 'Returns H3Tag blockchain metrics',
     type: MetricsResponseDto,
   })
   getMetrics(@Query() query: MetricsQueryDto): MetricsResponseDto {
@@ -58,7 +58,7 @@ export class MetricsController {
    *           type: number
    *         description: Time window in milliseconds
    */
-  @Get("average-tag-fees")
+  @Get('average-tag-fees')
   getAverageTAGFeesMetrics(@Query() query: MetricsQueryDto): number {
     return this.metricsService.getAverageTAGFeesMetrics(query.timeWindow);
   }
@@ -76,7 +76,7 @@ export class MetricsController {
    *           type: number
    *         description: Time window in milliseconds
    */
-  @Get("average-tag-volume")
+  @Get('average-tag-volume')
   getAverageTAGVolumeMetrics(@Query() query: MetricsQueryDto): number {
     return this.metricsService.getAverageTAGVolumeMetrics(query.timeWindow);
   }
@@ -94,7 +94,7 @@ export class MetricsController {
    *           type: number
    *         description: Time window in milliseconds
    */
-  @Get("average-hash-rate")
+  @Get('average-hash-rate')
   getAverageHashRateMetrics(@Query() query: MetricsQueryDto): number {
     return this.metricsService.getAverageHashRateMetrics(query.timeWindow);
   }

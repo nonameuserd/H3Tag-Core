@@ -1,16 +1,20 @@
-import { Transaction, TransactionType, TxInput } from "../models/transaction.model";
-import { UTXO, UTXOSet } from "../models/utxo.model";
-import { Logger } from "@h3tag-blockchain/shared";
-import { HybridCrypto } from "@h3tag-blockchain/crypto";
-import { BlockchainSchema } from "../database/blockchain-schema";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import { TransactionValidationError } from "./transaction-validation-error";
-import { Mutex } from "async-mutex";
-import { DatabaseTransaction } from "../database/database-transaction";
-import { createHash } from "crypto";
+import {
+  Transaction,
+  TransactionType,
+  TxInput,
+} from '../models/transaction.model';
+import { UTXO, UTXOSet } from '../models/utxo.model';
+import { Logger } from '@h3tag-blockchain/shared';
+import { HybridCrypto } from '@h3tag-blockchain/crypto';
+import { BlockchainSchema } from '../database/blockchain-schema';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import { TransactionValidationError } from './transaction-validation-error';
+import { Mutex } from 'async-mutex';
+import { DatabaseTransaction } from '../database/database-transaction';
+import { createHash } from 'crypto';
 
 export class TransactionValidator {
-  private static readonly VOTE_HEIGHT_KEY_PREFIX = "vote_height:";
+  private static readonly VOTE_HEIGHT_KEY_PREFIX = 'vote_height:';
   private static readonly db: BlockchainSchema = new BlockchainSchema(); // Assuming Database is imported
   private static readonly voteLock = new Mutex();
   private static readonly voteHeightCache = new Map<string, number>();
@@ -18,7 +22,7 @@ export class TransactionValidator {
   static async validateTransaction(
     tx: Transaction,
     utxoSet: UTXOSet,
-    currentHeight: number
+    currentHeight: number,
   ): Promise<boolean> {
     const release = await this.voteLock.acquire();
     try {
@@ -32,7 +36,7 @@ export class TransactionValidator {
 
       return true;
     } catch (error) {
-      Logger.error("Transaction validation failed:", error);
+      Logger.error('Transaction validation failed:', error);
       return false;
     } finally {
       release();
@@ -41,32 +45,32 @@ export class TransactionValidator {
 
   private static async validateBasicRequirements(
     tx: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<void> {
     // Add null/undefined check for tx
     if (!tx) {
       throw new TransactionValidationError(
-        "Transaction is null or undefined",
-        "INVALID_TRANSACTION"
+        'Transaction is null or undefined',
+        'INVALID_TRANSACTION',
       );
     }
 
     // Add type validation
     if (
-      typeof tx.type !== "number" ||
+      typeof tx.type !== 'number' ||
       !Object.values(TransactionType).includes(tx.type)
     ) {
       throw new TransactionValidationError(
-        "Invalid transaction type",
-        "INVALID_TYPE"
+        'Invalid transaction type',
+        'INVALID_TYPE',
       );
     }
 
     // Basic structure validation
     if (!tx.id || !tx.inputs || !tx.outputs) {
       throw new TransactionValidationError(
-        "Invalid structure",
-        "INVALID_STRUCTURE"
+        'Invalid structure',
+        'INVALID_STRUCTURE',
       );
     }
 
@@ -74,7 +78,7 @@ export class TransactionValidator {
     if (JSON.stringify(tx).length > BLOCKCHAIN_CONSTANTS.MINING.MAX_TX_SIZE) {
       throw new TransactionValidationError(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} transaction too large`,
-        "EXCESS_SIZE"
+        'EXCESS_SIZE',
       );
     }
 
@@ -87,26 +91,26 @@ export class TransactionValidator {
     // Add version validation
     if (!this.validateTransactionVersion(tx)) {
       throw new TransactionValidationError(
-        "Invalid transaction version",
-        "INVALID_VERSION"
+        'Invalid transaction version',
+        'INVALID_VERSION',
       );
     }
 
     // Add size validation
     if (!this.validateTransactionSize(tx)) {
       throw new TransactionValidationError(
-        "Transaction size exceeds limit",
-        "EXCESS_SIZE"
+        'Transaction size exceeds limit',
+        'EXCESS_SIZE',
       );
     }
   }
 
   private static async validatePoWTransaction(tx: Transaction): Promise<void> {
     // Validate PoW data structure
-    if (!tx.powData || typeof tx.powData !== "object") {
+    if (!tx.powData || typeof tx.powData !== 'object') {
       throw new TransactionValidationError(
         `Invalid ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} PoW data structure`,
-        "INVALID_POW_DATA"
+        'INVALID_POW_DATA',
       );
     }
 
@@ -114,8 +118,8 @@ export class TransactionValidator {
     const hash = await this.calculateTransactionPoW(tx);
     if (!this.isValidHash(hash)) {
       throw new TransactionValidationError(
-        "Invalid PoW hash format",
-        "INVALID_HASH"
+        'Invalid PoW hash format',
+        'INVALID_HASH',
       );
     }
 
@@ -126,7 +130,7 @@ export class TransactionValidator {
     if (difficulty < minDifficulty) {
       throw new TransactionValidationError(
         `Insufficient PoW difficulty (${difficulty} < ${minDifficulty})`,
-        "INSUFFICIENT_POW"
+        'INSUFFICIENT_POW',
       );
     }
 
@@ -135,8 +139,8 @@ export class TransactionValidator {
     const maxAge = 600000; // 10 minutes
     if (now - tx.powData.timestamp > maxAge) {
       throw new TransactionValidationError(
-        "PoW timestamp too old",
-        "EXPIRED_POW"
+        'PoW timestamp too old',
+        'EXPIRED_POW',
       );
     }
   }
@@ -144,26 +148,26 @@ export class TransactionValidator {
   private static async validateVoteTransaction(
     tx: Transaction,
     utxoSet: UTXOSet,
-    currentHeight: number
+    currentHeight: number,
   ): Promise<void> {
     // Validate transaction type
     if (tx.type !== TransactionType.QUADRATIC_VOTE) {
       throw new TransactionValidationError(
-        "Invalid transaction type for vote",
-        "INVALID_VOTE_TYPE"
+        'Invalid transaction type for vote',
+        'INVALID_VOTE_TYPE',
       );
     }
 
     // Validate vote data structure
     if (
       !tx.voteData ||
-      typeof tx.voteData !== "object" ||
+      typeof tx.voteData !== 'object' ||
       !tx.voteData.proposal ||
-      typeof tx.voteData.vote !== "boolean"
+      typeof tx.voteData.vote !== 'boolean'
     ) {
       throw new TransactionValidationError(
-        "Invalid vote data structure",
-        "INVALID_VOTE_DATA"
+        'Invalid vote data structure',
+        'INVALID_VOTE_DATA',
       );
     }
 
@@ -176,7 +180,7 @@ export class TransactionValidator {
     ) {
       throw new TransactionValidationError(
         `Insufficient quadratic voting power (${quadraticPower})`,
-        "INSUFFICIENT_VOTING_POWER"
+        'INSUFFICIENT_VOTING_POWER',
       );
     }
 
@@ -190,8 +194,8 @@ export class TransactionValidator {
 
     if (!utxo) {
       throw new TransactionValidationError(
-        "Invalid input UTXO",
-        "INVALID_INPUT"
+        'Invalid input UTXO',
+        'INVALID_INPUT',
       );
     }
 
@@ -200,8 +204,8 @@ export class TransactionValidator {
       BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS
     ) {
       throw new TransactionValidationError(
-        "Vote cooldown period not met",
-        "VOTE_COOLDOWN"
+        'Vote cooldown period not met',
+        'VOTE_COOLDOWN',
       );
     }
 
@@ -211,12 +215,12 @@ export class TransactionValidator {
 
   private static async calculateVotingPower(
     tx: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<number> {
     const utxos = await this.getTransactionUTXOs(tx, utxoSet);
     const totalAmount = utxos.reduce(
       (sum, utxo) => sum + utxo.amount,
-      BigInt(0)
+      BigInt(0),
     );
 
     // Convert to quadratic voting power
@@ -231,8 +235,8 @@ export class TransactionValidator {
       // Add input array validation
       if (!Array.isArray(tx.inputs)) {
         throw new TransactionValidationError(
-          "Invalid inputs array",
-          "INVALID_INPUTS"
+          'Invalid inputs array',
+          'INVALID_INPUTS',
         );
       }
 
@@ -242,28 +246,28 @@ export class TransactionValidator {
           this.verifyInputSignature(input, tx.id),
           new Promise((_, reject) =>
             setTimeout(
-              () => reject(new Error("Signature verification timeout")),
-              5000
-            )
+              () => reject(new Error('Signature verification timeout')),
+              5000,
+            ),
           ),
         ]);
       });
 
       await Promise.all(verificationPromises);
     } catch (error) {
-      Logger.error("Signature validation failed:", error);
+      Logger.error('Signature validation failed:', error);
       if (error instanceof TransactionValidationError) {
         throw error;
       }
       throw new TransactionValidationError(
-        "Signature validation failed",
-        "VALIDATION_ERROR"
+        'Signature validation failed',
+        'VALIDATION_ERROR',
       );
     }
   }
 
   private static async calculateTransactionPoW(
-    tx: Transaction
+    tx: Transaction,
   ): Promise<string> {
     try {
       // Create immutable copy with timestamp
@@ -272,24 +276,24 @@ export class TransactionValidator {
         powData: {
           ...tx.powData,
           timestamp: Date.now(),
-          version: "1.0",
+          version: '1.0',
         },
       };
 
       // Generate deterministic buffer
       const dataString = JSON.stringify(data, (_, v) =>
-        typeof v === "bigint" ? v.toString() : v
+        typeof v === 'bigint' ? v.toString() : v,
       );
 
       // Calculate classical hash using SHA3-256
-      const classicalHash = createHash("sha3-256")
+      const classicalHash = createHash('sha3-256')
         .update(Buffer.from(dataString))
-        .digest("hex");
+        .digest('hex');
 
       if (!this.isValidHash(classicalHash)) {
         throw new TransactionValidationError(
-          "Invalid classical hash format",
-          "INVALID_HASH"
+          'Invalid classical hash format',
+          'INVALID_HASH',
         );
       }
 
@@ -298,24 +302,24 @@ export class TransactionValidator {
 
       if (!this.isValidHash(hybridHash)) {
         throw new TransactionValidationError(
-          "Invalid hybrid hash format",
-          "INVALID_HASH"
+          'Invalid hybrid hash format',
+          'INVALID_HASH',
         );
       }
 
       return hybridHash;
     } catch (error) {
-      Logger.error("PoW calculation failed:", error);
+      Logger.error('PoW calculation failed:', error);
       throw new TransactionValidationError(
-        "PoW calculation failed",
-        "POW_CALCULATION_ERROR"
+        'PoW calculation failed',
+        'POW_CALCULATION_ERROR',
       );
     }
   }
 
   private static isValidHash(hash: string): boolean {
     return (
-      typeof hash === "string" &&
+      typeof hash === 'string' &&
       hash.length === 64 &&
       /^[0-9a-f]{64}$/i.test(hash)
     );
@@ -323,13 +327,13 @@ export class TransactionValidator {
 
   private static async validateInputsAndOutputs(
     tx: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<void> {
     try {
       if (!tx.inputs?.length || !tx.outputs?.length) {
         throw new TransactionValidationError(
-          "Empty inputs or outputs",
-          "INVALID_STRUCTURE"
+          'Empty inputs or outputs',
+          'INVALID_STRUCTURE',
         );
       }
 
@@ -339,8 +343,8 @@ export class TransactionValidator {
         tx.outputs.length > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_OUTPUTS
       ) {
         throw new TransactionValidationError(
-          "Too many inputs or outputs",
-          "EXCESS_INPUTS_OUTPUTS"
+          'Too many inputs or outputs',
+          'EXCESS_INPUTS_OUTPUTS',
         );
       }
 
@@ -348,8 +352,8 @@ export class TransactionValidator {
       for (const output of tx.outputs) {
         if (output.amount <= BigInt(0)) {
           throw new TransactionValidationError(
-            "Invalid output amount",
-            "INVALID_AMOUNT"
+            'Invalid output amount',
+            'INVALID_AMOUNT',
           );
         }
       }
@@ -358,13 +362,13 @@ export class TransactionValidator {
       const inputSum = await this.calculateInputSum(tx, utxoSet);
       const outputSum = tx.outputs.reduce(
         (sum, output) => sum + output.amount,
-        BigInt(0)
+        BigInt(0),
       );
 
       if (inputSum < outputSum) {
         throw new TransactionValidationError(
-          "Insufficient input amount",
-          "INSUFFICIENT_FUNDS"
+          'Insufficient input amount',
+          'INSUFFICIENT_FUNDS',
         );
       }
 
@@ -374,35 +378,35 @@ export class TransactionValidator {
         const inputId = `${input.txId}:${input.outputIndex}`;
         if (inputIds.has(inputId)) {
           throw new TransactionValidationError(
-            "Duplicate input detected",
-            "DUPLICATE_INPUT"
+            'Duplicate input detected',
+            'DUPLICATE_INPUT',
           );
         }
         inputIds.add(inputId);
       }
     } catch (error) {
-      Logger.error("Input/output validation failed:", error);
+      Logger.error('Input/output validation failed:', error);
       if (error instanceof TransactionValidationError) {
         throw error;
       }
       throw new TransactionValidationError(
-        "Input/output validation failed",
-        "VALIDATION_ERROR"
+        'Input/output validation failed',
+        'VALIDATION_ERROR',
       );
     }
   }
 
   private static async calculateInputSum(
     tx: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<bigint> {
     let sum = BigInt(0);
     for (const input of tx.inputs) {
       const utxo = await utxoSet.get(input.txId, input.outputIndex);
       if (!utxo || utxo.spent) {
         throw new TransactionValidationError(
-          "Invalid input UTXO",
-          "INVALID_INPUT"
+          'Invalid input UTXO',
+          'INVALID_INPUT',
         );
       }
       sum += utxo.amount;
@@ -412,7 +416,7 @@ export class TransactionValidator {
 
   private static async getTransactionUTXOs(
     tx: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<UTXO[]> {
     const utxos: UTXO[] = [];
     for (const input of tx.inputs) {
@@ -430,14 +434,14 @@ export class TransactionValidator {
       const height = await this.db.get(key);
       return height ? Number(height) : 0;
     } catch (error) {
-      Logger.error("Failed to get last vote height:", error);
+      Logger.error('Failed to get last vote height:', error);
       return 0;
     }
   }
 
   private static async setLastVoteHeight(
     address: string,
-    height: number
+    height: number,
   ): Promise<void> {
     const key = `${this.VOTE_HEIGHT_KEY_PREFIX}${address}`;
     const release = await this.voteLock.acquire();
@@ -453,10 +457,10 @@ export class TransactionValidator {
         this.voteHeightCache.set(address, height);
       }
     } catch (error) {
-      Logger.error("Failed to set last vote height:", error);
+      Logger.error('Failed to set last vote height:', error);
       throw new TransactionValidationError(
-        "Failed to update vote height",
-        "DB_ERROR"
+        'Failed to update vote height',
+        'DB_ERROR',
       );
     } finally {
       release();
@@ -468,8 +472,8 @@ export class TransactionValidator {
       // Validate hash format
       if (!/^[0-9a-f]{64}$/i.test(hash)) {
         throw new TransactionValidationError(
-          "Invalid hash format",
-          "INVALID_HASH"
+          'Invalid hash format',
+          'INVALID_HASH',
         );
       }
 
@@ -481,9 +485,9 @@ export class TransactionValidator {
           leadingZeros += 4;
         } else {
           // Count remaining leading zeros in this hex digit
-          const bits = hexValue.toString(2).padStart(4, "0");
+          const bits = hexValue.toString(2).padStart(4, '0');
           for (const bit of bits) {
-            if (bit === "0") {
+            if (bit === '0') {
               leadingZeros++;
             } else {
               return leadingZeros;
@@ -494,22 +498,22 @@ export class TransactionValidator {
       }
       return leadingZeros;
     } catch (error) {
-      Logger.error("Hash difficulty calculation failed:", error);
+      Logger.error('Hash difficulty calculation failed:', error);
       throw new TransactionValidationError(
-        "Difficulty calculation failed",
-        "DIFFICULTY_ERROR"
+        'Difficulty calculation failed',
+        'DIFFICULTY_ERROR',
       );
     }
   }
 
   private static async verifyInputSignature(
     input: TxInput,
-    txId: string
+    txId: string,
   ): Promise<boolean> {
     if (!input?.signature || !input?.publicKey) {
       throw new TransactionValidationError(
-        "Missing signature data",
-        "INVALID_SIGNATURE"
+        'Missing signature data',
+        'INVALID_SIGNATURE',
       );
     }
 
@@ -524,7 +528,7 @@ export class TransactionValidator {
       const txSize = this.calculateTransactionSize(tx);
       return txSize <= BLOCKCHAIN_CONSTANTS.MINING.MAX_TX_SIZE;
     } catch (error) {
-      Logger.error("Transaction size validation failed:", error);
+      Logger.error('Transaction size validation failed:', error);
       return false;
     }
   }
@@ -537,10 +541,10 @@ export class TransactionValidator {
       const txSize = this.calculateTransactionSize(tx);
       return BigInt(txSize) * BLOCKCHAIN_CONSTANTS.MINING.MIN_FEE_PER_BYTE;
     } catch (error) {
-      Logger.error("Transaction fee calculation failed:", error);
+      Logger.error('Transaction fee calculation failed:', error);
       throw new TransactionValidationError(
-        "Fee calculation failed",
-        "FEE_CALCULATION_ERROR"
+        'Fee calculation failed',
+        'FEE_CALCULATION_ERROR',
       );
     }
   }
@@ -566,10 +570,10 @@ export class TransactionValidator {
       // Convert to buffer to get actual byte size
       return Buffer.from(JSON.stringify(sizingTx)).length;
     } catch (error) {
-      Logger.error("Transaction size calculation failed:", error);
+      Logger.error('Transaction size calculation failed:', error);
       throw new TransactionValidationError(
-        "Size calculation failed",
-        "SIZE_CALCULATION_ERROR"
+        'Size calculation failed',
+        'SIZE_CALCULATION_ERROR',
       );
     }
   }
@@ -581,8 +585,8 @@ export class TransactionValidator {
     try {
       if (!tx.version) {
         throw new TransactionValidationError(
-          "Missing transaction version",
-          "MISSING_VERSION"
+          'Missing transaction version',
+          'MISSING_VERSION',
         );
       }
 
@@ -591,7 +595,7 @@ export class TransactionValidator {
         tx.version <= BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TX_VERSION
       );
     } catch (error) {
-      Logger.error("Transaction version validation failed:", error);
+      Logger.error('Transaction version validation failed:', error);
       return false;
     }
   }
