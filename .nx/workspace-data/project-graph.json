@@ -14827,41 +14827,6 @@
     "@h3tag-blockchain/crypto": [
       {
         "source": "@h3tag-blockchain/crypto",
-        "target": "npm:crypto-js",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/crypto",
-        "target": "npm:bs58",
-        "type": "dynamic"
-      },
-      {
-        "source": "@h3tag-blockchain/crypto",
-        "target": "@h3tag-blockchain/shared",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/crypto",
-        "target": "npm:elliptic",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/crypto",
-        "target": "npm:elliptic",
-        "type": "dynamic"
-      },
-      {
-        "source": "@h3tag-blockchain/crypto",
-        "target": "npm:bindings",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/crypto",
-        "target": "npm:asn1.js",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/crypto",
         "target": "npm:@types/config",
         "type": "static"
       },
@@ -14897,6 +14862,11 @@
       },
       {
         "source": "@h3tag-blockchain/crypto",
+        "target": "npm:asn1.js",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/crypto",
         "target": "npm:config",
         "type": "static"
       },
@@ -14914,19 +14884,39 @@
         "source": "@h3tag-blockchain/crypto",
         "target": "npm:winston-daily-rotate-file",
         "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/crypto",
+        "target": "@h3tag-blockchain/shared",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/crypto",
+        "target": "npm:crypto-js",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/crypto",
+        "target": "npm:bs58",
+        "type": "dynamic"
+      },
+      {
+        "source": "@h3tag-blockchain/crypto",
+        "target": "npm:elliptic",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/crypto",
+        "target": "npm:elliptic",
+        "type": "dynamic"
+      },
+      {
+        "source": "@h3tag-blockchain/crypto",
+        "target": "npm:bindings",
+        "type": "static"
       }
     ],
     "@h3tag-blockchain/shared": [
-      {
-        "source": "@h3tag-blockchain/shared",
-        "target": "npm:winston",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/shared",
-        "target": "npm:winston-daily-rotate-file",
-        "type": "static"
-      },
       {
         "source": "@h3tag-blockchain/shared",
         "target": "npm:@types/config",
@@ -14959,12 +14949,12 @@
       },
       {
         "source": "@h3tag-blockchain/shared",
-        "target": "npm:prettier",
+        "target": "npm:prettier@3.4.2",
         "type": "static"
       },
       {
         "source": "@h3tag-blockchain/shared",
-        "target": "npm:eslint",
+        "target": "npm:eslint@9.18.0",
         "type": "static"
       },
       {
@@ -14975,6 +14965,16 @@
       {
         "source": "@h3tag-blockchain/shared",
         "target": "npm:node-addon-api",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/shared",
+        "target": "npm:winston",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/shared",
+        "target": "npm:winston-daily-rotate-file",
         "type": "static"
       }
     ],
@@ -15066,7 +15066,7 @@
       },
       {
         "source": "@h3tag-blockchain/core",
-        "target": "npm:node-gyp",
+        "target": "npm:node-gyp@9.4.1",
         "type": "static"
       },
       {
@@ -15278,66 +15278,6 @@
     "@h3tag-blockchain/api": [
       {
         "source": "@h3tag-blockchain/api",
-        "target": "npm:express",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:swagger-jsdoc",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:swagger-ui-express",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "@h3tag-blockchain/core",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:@nestjs/common",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:@nestjs/swagger",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "@h3tag-blockchain/shared",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:class-validator",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "@h3tag-blockchain/crypto",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:cors",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:express-rate-limit",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
-        "target": "npm:helmet@4.6.0",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/api",
         "target": "npm:@types/cors",
         "type": "static"
       },
@@ -15398,7 +15338,32 @@
       },
       {
         "source": "@h3tag-blockchain/api",
+        "target": "@h3tag-blockchain/shared",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "@h3tag-blockchain/crypto",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "@h3tag-blockchain/core",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:@nestjs/common",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
         "target": "npm:@nestjs/core",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:@nestjs/swagger",
         "type": "static"
       },
       {
@@ -15408,7 +15373,37 @@
       },
       {
         "source": "@h3tag-blockchain/api",
+        "target": "npm:class-validator",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:cors",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:express",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:helmet@4.6.0",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
         "target": "npm:reflect-metadata",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:swagger-jsdoc",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:swagger-ui-express",
         "type": "static"
       },
       {
@@ -15420,19 +15415,14 @@
         "source": "@h3tag-blockchain/api",
         "target": "npm:zod",
         "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/api",
+        "target": "npm:express-rate-limit",
+        "type": "static"
       }
     ],
     "@h3tag-blockchain/cli": [
-      {
-        "source": "@h3tag-blockchain/cli",
-        "target": "npm:commander",
-        "type": "static"
-      },
-      {
-        "source": "@h3tag-blockchain/cli",
-        "target": "npm:axios",
-        "type": "static"
-      },
       {
         "source": "@h3tag-blockchain/cli",
         "target": "npm:@types/commander",
@@ -15466,6 +15456,16 @@
       {
         "source": "@h3tag-blockchain/cli",
         "target": "@h3tag-blockchain/shared",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/cli",
+        "target": "npm:axios",
+        "type": "static"
+      },
+      {
+        "source": "@h3tag-blockchain/cli",
+        "target": "npm:commander",
         "type": "static"
       }
     ],
