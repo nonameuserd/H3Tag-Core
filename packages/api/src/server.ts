@@ -1,7 +1,7 @@
 import app from "./app";
-import config from "@h3tag-blockchain/shared/dist/utils/config";
+import { defaultConfig } from "@h3tag-blockchain/shared";
 
-const PORT = config.network.port || 3000;
+const PORT = defaultConfig.network.port || 3000;
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);

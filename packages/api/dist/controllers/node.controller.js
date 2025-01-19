@@ -13,7 +13,6 @@ exports.NodeController = void 0;
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 const node_dto_1 = require("../dtos/node.dto");
-const shared_1 = require("@h3tag-blockchain/shared");
 let NodeController = class NodeController {
     constructor(nodeService) {
         this.nodeService = nodeService;
@@ -22,7 +21,7 @@ let NodeController = class NodeController {
         try {
             return await this.nodeService.createNode({
                 ...createNodeDto,
-                networkType: shared_1.NetworkType.TESTNET,
+                networkType: "TESTNET",
                 port: createNodeDto.port || 4000,
             });
         }
@@ -34,7 +33,7 @@ let NodeController = class NodeController {
         try {
             return await this.nodeService.createNode({
                 ...createNodeDto,
-                networkType: shared_1.NetworkType.MAINNET,
+                networkType: "MAINNET",
                 port: createNodeDto.port || 3000,
             });
         }

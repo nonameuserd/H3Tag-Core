@@ -1,6 +1,5 @@
 import { Command } from "commander";
 import { api } from "../services/api";
-import { NetworkType } from "@h3tag-blockchain/shared";
 
 export const nodeCommand = new Command("node").description(
   "Manage blockchain nodes"
@@ -17,7 +16,7 @@ nodeCommand
   .action(async (options) => {
     try {
       const response = await api.post("/nodes/testnet", {
-        networkType: NetworkType.TESTNET,
+        networkType: "TESTNET",
         region: options.region,
         nodeType: options.type,
         port: parseInt(options.port),
@@ -43,7 +42,7 @@ nodeCommand
   .action(async (options) => {
     try {
       const response = await api.post("/nodes/mainnet", {
-        networkType: NetworkType.MAINNET,
+        networkType: "MAINNET",
         region: options.region,
         nodeType: options.type,
         port: parseInt(options.port),

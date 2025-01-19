@@ -14,8 +14,11 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-__exportStar(require("./utils/config"), exports);
+exports.defaultConfig = void 0;
 __exportStar(require("./utils/constants"), exports);
 __exportStar(require("./utils/logger"), exports);
 __exportStar(require("./utils/status-codes"), exports);
 __exportStar(require("./utils/currency-constants"), exports);
+__exportStar(require("./utils/config-service"), exports);
+var config_1 = require("./utils/config");
+Object.defineProperty(exports, "defaultConfig", { enumerable: true, get: function () { return config_1.defaultConfig; } });

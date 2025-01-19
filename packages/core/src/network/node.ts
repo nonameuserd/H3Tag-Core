@@ -95,7 +95,7 @@ export class Node {
   ) {
     this.config = {
       ...Node.DEFAULT_CONFIG,
-      ...configService.config,
+      ...configService.getConfig(),
     };
 
     this.peers = new Map();

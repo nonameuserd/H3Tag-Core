@@ -1,6 +1,20 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-const defaultConfig = {
+exports.defaultConfig = void 0;
+exports.defaultConfig = {
+    currency: {
+        name: "H3TAG",
+        symbol: "TAG",
+        decimals: 8,
+        initialSupply: BigInt(21000000),
+        maxSupply: BigInt(696900000),
+        units: {
+            MACRO: 1n,
+            MICRO: 1000000n,
+            MILLI: 1000000000n,
+            TAG: 1000000000000n,
+        },
+    },
     network: {
         type: {
             MAINNET: "mainnet",
@@ -160,7 +174,6 @@ const defaultConfig = {
         staleThreshold: 7 * 24 * 60 * 60 * 1000,
     },
     transaction: {
-        baseFee: BigInt(100),
         currentVersion: 1,
         maxInputs: 1000,
         maxOutputs: 1000,
@@ -172,7 +185,6 @@ const defaultConfig = {
         },
         mempool: {
             highCongestionThreshold: 50000,
-            maxSize: BigInt(300000),
             maxMb: 300,
             minFeeRate: BigInt(1),
             feeRateMultiplier: 1.5,

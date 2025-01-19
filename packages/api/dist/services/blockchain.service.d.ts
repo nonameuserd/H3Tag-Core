@@ -1,4 +1,4 @@
-import { Blockchain } from "@h3tag-blockchain/core";
+import { Blockchain, Transaction } from "@h3tag-blockchain/core";
 import { BlockchainStatsDto, TransactionSubmitDto, ChainTipDto, BlockchainInfoDto } from "../dtos/blockchain.dto";
 import { Node } from "@h3tag-blockchain/core";
 /**
@@ -121,19 +121,43 @@ export declare class BlockchainService {
      *         description: Block not found
      */
     getBlock(hash: string): Promise<{
-        hash: any;
-        height: any;
-        previousHash: any;
-        timestamp: any;
-        transactions: any;
-        merkleRoot: any;
+        hash: string;
+        height: number;
+        previousHash: string;
+        timestamp: number;
+        transactions: Transaction[];
+        merkleRoot: string;
     }>;
-    getCurrencyDetails(): Promise<any>;
-    getFirstTransactionForAddress(address: string): Promise<any>;
+    getCurrencyDetails(): Promise<{
+        name: string;
+        symbol: string;
+        decimals: number;
+        totalSupply: number;
+        maxSupply: number;
+        circulatingSupply: number;
+    }>;
+    getFirstTransactionForAddress(address: string): Promise<{
+        blockHeight: number;
+    }>;
     validateTransactionAmount(tx: TransactionSubmitDto): Promise<boolean>;
-    getConfirmedUtxos(address: string): Promise<any>;
+    getConfirmedUtxos(address: string): Promise<{
+        txid: string;
+        vout: number;
+        amount: number;
+        confirmations: number;
+    }[]>;
     private buildTransaction;
-    getNode(): Promise<any>;
+    getNode(): Promise<{
+        networkType: import("packages/core/dist/network/dnsSeed").NetworkType;
+        port: number;
+        peersCount: number;
+        version: number;
+        isRunning: boolean;
+        syncStatus: {
+            synced: boolean;
+            height: number;
+        };
+    }>;
     /**
      * @swagger
      * /blockchain/chain-tips:

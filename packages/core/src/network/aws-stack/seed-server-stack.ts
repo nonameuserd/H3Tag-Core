@@ -9,7 +9,6 @@ import * as os from "os";
 import { Construct } from "constructs";
 import * as s3 from "aws-cdk-lib/aws-s3";
 import * as ssm from "aws-cdk-lib/aws-ssm";
-import { NetworkType } from "@h3tag-blockchain/shared";
 import * as kms from "aws-cdk-lib/aws-kms";
 
 interface SeedServerStackProps extends cdk.StackProps {
@@ -258,7 +257,7 @@ export class SeedServerStack extends cdk.Stack {
       parameterName: `/h3tag/${props.environment}/blockchain-config`,
       stringValue: JSON.stringify({
         network: {
-          type: NetworkType.MAINNET,
+          type: "MAINNET",
           port: {
             MAINNET: 8333,
             TESTNET: 10001,

@@ -4,11 +4,15 @@ import { Logger } from "@h3tag-blockchain/shared";
 import { CircuitBreaker } from "./circuit-breaker";
 import { MetricsCollector } from "../monitoring/metrics-collector";
 import { HybridCrypto } from "@h3tag-blockchain/crypto";
-import { ConfigService } from "@h3tag-blockchain/shared";
 import { Mutex } from "async-mutex";
 import { randomBytes } from "crypto";
 import { BlockchainSchema } from "../database/blockchain-schema";
-import { MessagePayload, PeerInfo, PeerMessageType, PeerServices } from "../models/peer.model";
+import {
+  MessagePayload,
+  PeerInfo,
+  PeerMessageType,
+  PeerServices,
+} from "../models/peer.model";
 import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
 import { Transaction } from "../models/transaction.model";
 import { BlockInFlight } from "../blockchain/consensus/pow";
@@ -16,6 +20,8 @@ import { BlockchainSync } from "./sync";
 import { Metric } from "../monitoring/performance-metrics";
 import { Vote } from "../models/vote.model";
 import { VotingDatabase } from "../database/voting-schema";
+import { BlockchainConfig } from "@h3tag-blockchain/shared";
+import { ConfigService } from "@h3tag-blockchain/shared";
 
 export enum PeerState {
   DISCONNECTED = "disconnected",
@@ -353,10 +359,16 @@ export class Peer {
         await this.handleGetVotes();
         break;
       case PeerMessageType.GET_HEADERS:
-        await this.handleGetHeaders({locator: message.payload.headers[0].locator, hashStop: message.payload.headers[0].hashStop});
+        await this.handleGetHeaders({
+          locator: message.payload.headers[0].locator,
+          hashStop: message.payload.headers[0].hashStop,
+        });
         break;
       case PeerMessageType.GET_BLOCKS:
-        await this.handleGetBlocks({locator: message.payload.blocks[0].header.locator, hash: message.payload.blocks[0].header.hashStop});
+        await this.handleGetBlocks({
+          locator: message.payload.blocks[0].header.locator,
+          hash: message.payload.blocks[0].header.hashStop,
+        });
         break;
       case PeerMessageType.GET_NODE_INFO:
         await this.handleGetNodeInfo();
@@ -366,7 +378,10 @@ export class Peer {
     }
   }
 
-  public async send(type: PeerMessageType, payload: MessagePayload): Promise<void> {
+  public async send(
+    type: PeerMessageType,
+    payload: MessagePayload
+  ): Promise<void> {
     if (!this.isConnected()) {
       throw new Error("Peer not connected");
     }
@@ -450,7 +465,7 @@ export class Peer {
     try {
       // Clean up old metrics outside the window
       while (
-        this.messageTimestamps.length > 0 && 
+        this.messageTimestamps.length > 0 &&
         this.messageTimestamps[0] < window
       ) {
         this.messageTimestamps.shift();
@@ -475,7 +490,6 @@ export class Peer {
       this.messageTimestamps.push(now);
       this.lastBytesReceived = this.bytesReceived;
       return true;
-
     } catch (error) {
       Logger.error("Rate limit check failed:", error);
       return false;
@@ -569,7 +583,9 @@ export class Peer {
         powContributions: await this.getMinedBlocks(),
         votingParticipation: await this.getVoteParticipation(),
         lastVoteHeight: this.lastVoteTime ? await this.getBlockHeight() : 0,
-        reputation: this.peerState?.banScore ? 100 - this.peerState.banScore : 100,
+        reputation: this.peerState?.banScore
+          ? 100 - this.peerState.banScore
+          : 100,
       },
       peers: this.peers.size,
       currency: {
@@ -581,10 +597,12 @@ export class Peer {
         blockReward: Number(BLOCKCHAIN_CONSTANTS.MINING.BLOCK_REWARD),
       },
       services: Object.values(PeerServices)
-        .filter((service): service is PeerServices => typeof service === 'number')
-        .filter(service => {
+        .filter(
+          (service): service is PeerServices => typeof service === "number"
+        )
+        .filter((service) => {
           const currentServices = this.services || [PeerServices.NODE];
-          return currentServices.some(s => s & service);
+          return currentServices.some((s) => s & service);
         }),
     };
   }
@@ -766,7 +784,9 @@ export class Peer {
     await this.send(PeerMessageType.PONG, payload);
   }
 
-  private async handleInventory(inventory: Array<{ type: string; hash: string }>): Promise<void> {
+  private async handleInventory(
+    inventory: Array<{ type: string; hash: string }>
+  ): Promise<void> {
     try {
       if (!Array.isArray(inventory)) {
         throw new Error("Invalid inventory format");
@@ -797,7 +817,6 @@ export class Peer {
 
       // Emit inventory event for external handlers
       this.eventEmitter.emit("inventory", inventory);
-
     } catch (error) {
       Logger.error("Error processing inventory:", error);
       this.adjustPeerScore(1); // Penalize peer for invalid inventory
@@ -932,7 +951,9 @@ export class Peer {
       const response = await this.request(PeerMessageType.GET_NODE_INFO, {
         metric: "currency",
       });
-      return response?.currency?.symbol === BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL;
+      return (
+        response?.currency?.symbol === BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
+      );
     } catch (error) {
       Logger.error("Currency validation failed:", error);
       return false;
@@ -1378,7 +1399,7 @@ export class Peer {
       // Check cache first
       const cacheKey = `votingPower:${this.peerId}`;
       const cached = this.database.cache.get(cacheKey);
-      if (cached && typeof cached === 'object' && 'balance' in cached) {
+      if (cached && typeof cached === "object" && "balance" in cached) {
         return BigInt(cached.balance);
       }
 
@@ -1387,20 +1408,29 @@ export class Peer {
       if (stored) {
         const balance = BigInt(stored);
         const votingPower = BigInt(Math.floor(Math.sqrt(Number(balance))));
-        this.database.cache.set(cacheKey, { balance: votingPower, holdingPeriod: 0 });
+        this.database.cache.set(cacheKey, {
+          balance: votingPower,
+          holdingPeriod: 0,
+        });
         return votingPower;
       }
 
       // If not found, fetch from peer
       const response = await this.request(PeerMessageType.GET_NODE_INFO, {
-        metric: "balance"
+        metric: "balance",
       });
       const balance = BigInt(response?.balance || 0);
       const votingPower = BigInt(Math.floor(Math.sqrt(Number(balance))));
 
       // Store in database and cache
-      await this.database.put(`peer:${this.peerId}:balance`, balance.toString());
-      this.database.cache.set(cacheKey, { balance: votingPower, holdingPeriod: 0 });
+      await this.database.put(
+        `peer:${this.peerId}:balance`,
+        balance.toString()
+      );
+      this.database.cache.set(cacheKey, {
+        balance: votingPower,
+        holdingPeriod: 0,
+      });
 
       return votingPower;
     } catch (error) {
@@ -1422,7 +1452,7 @@ export class Peer {
 
       // Update database
       await this.database.put(`peer:${this.id}:info`, JSON.stringify(info));
-      
+
       Logger.debug(`Updated peer info: ${this.id}`, info);
     } catch (error) {
       Logger.error("Failed to update peer info:", error);
@@ -1432,7 +1462,9 @@ export class Peer {
     }
   }
 
-  private async handleBlockMessage(blockMessage: MessagePayload): Promise<void> {
+  private async handleBlockMessage(
+    blockMessage: MessagePayload
+  ): Promise<void> {
     try {
       this.eventEmitter.emit("block", blockMessage.block);
       this.metrics.increment("blocks_received");
@@ -1451,18 +1483,30 @@ export class Peer {
     }
   }
 
-  private async handleGetHeaders(payload: { locator: string[]; hashStop: string }): Promise<void> {
+  private async handleGetHeaders(payload: {
+    locator: string[];
+    hashStop: string;
+  }): Promise<void> {
     try {
-      const headers = await this.database.getHeaders(payload.locator, payload.hashStop);
+      const headers = await this.database.getHeaders(
+        payload.locator,
+        payload.hashStop
+      );
       await this.send(PeerMessageType.HEADERS, { headers });
     } catch (error) {
       Logger.error("Get headers handling failed:", error);
     }
   }
 
-  private async handleGetBlocks(payload: { locator: string[]; hash: string }): Promise<void> {
+  private async handleGetBlocks(payload: {
+    locator: string[];
+    hash: string;
+  }): Promise<void> {
     try {
-      const blocks = await this.database.getBlocks(payload.locator, payload.hash);
+      const blocks = await this.database.getBlocks(
+        payload.locator,
+        payload.hash
+      );
       await this.send(PeerMessageType.GET_BLOCKS, { blocks });
     } catch (error) {
       Logger.error("Get blocks handling failed:", error);

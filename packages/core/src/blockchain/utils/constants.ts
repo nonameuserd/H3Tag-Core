@@ -1,5 +1,3 @@
-import { NetworkType } from "@h3tag-blockchain/shared";
-
 export const BLOCKCHAIN_CONSTANTS = {
   CURRENCY: {
     NAME: "H3Tag",
@@ -15,9 +13,9 @@ export const BLOCKCHAIN_CONSTANTS = {
     },
     NETWORK: {
       type: {
-        MAINNET: "mainnet" as NetworkType,
-        TESTNET: "testnet" as NetworkType,
-        DEVNET: "devnet" as NetworkType,
+        MAINNET: "mainnet",
+        TESTNET: "testnet",
+        DEVNET: "devnet",
       },
       port: {
         MAINNET: 8333,

@@ -1,4 +1,6 @@
-  export interface NetworkConfig {
+import { CurrencyConstants } from "./currency-constants";
+
+export interface NetworkConfig {
   type: {
     MAINNET: string;
     TESTNET: string;
@@ -124,8 +126,8 @@ export interface VotingConfig {
 
 export interface WalletConfig {
   address: string;
-  privateKey: string;
-  publicKey: string;
+  privateKey: string | (() => Promise<string>);
+  publicKey: string | (() => Promise<string>);
 }
 
 export interface UtilConfig {
@@ -157,7 +159,6 @@ export interface UtilConfig {
 }
 
 export interface TransactionConfig {
-  baseFee: bigint;
   currentVersion: number;
   maxInputs: number;
   maxOutputs: number;
@@ -169,7 +170,6 @@ export interface TransactionConfig {
   };
   mempool: {
     highCongestionThreshold: number;
-    maxSize: bigint;
     maxMb: number;
     minFeeRate: bigint;
     feeRateMultiplier: number;
@@ -211,6 +211,7 @@ export interface MessageConfig {
 }
 
 export interface BlockchainConfig {
+  currency: CurrencyConstants;
   network: NetworkConfig;
   mining: MiningConfig;
   consensus: ConsensusConfig;
@@ -232,7 +233,20 @@ export interface BlockchainConfig {
   wallet: WalletConfig;
 }
 
-const defaultConfig: BlockchainConfig = {
+export const defaultConfig: BlockchainConfig = {
+  currency: {
+    name: "H3TAG",
+    symbol: "TAG",
+    decimals: 8,
+    initialSupply: BigInt(21000000),
+    maxSupply: BigInt(696900000),
+    units: {
+      MACRO: 1n,
+      MICRO: 1000000n,
+      MILLI: 1000000000n,
+      TAG: 1000000000000n,
+    },
+  },
   network: {
     type: {
       MAINNET: "mainnet",
@@ -291,7 +305,9 @@ const defaultConfig: BlockchainConfig = {
     difficultyAdjustmentInterval: 2016,
     initialDifficulty: 0x1d0000ffff,
     hashBatchSize: 10000,
-    maxTarget: BigInt("0x0000000000ffff0000000000000000000000000000000000000000000000000000"),
+    maxTarget: BigInt(
+      "0x0000000000ffff0000000000000000000000000000000000000000000000000000"
+    ),
     minDifficulty: 2,
     nodeSelectionThreshold: 0.67,
     orphanWindow: 100,
@@ -392,7 +408,6 @@ const defaultConfig: BlockchainConfig = {
     staleThreshold: 7 * 24 * 60 * 60 * 1000,
   },
   transaction: {
-    baseFee: BigInt(100),
     currentVersion: 1,
     maxInputs: 1000,
     maxOutputs: 1000,
@@ -404,7 +419,6 @@ const defaultConfig: BlockchainConfig = {
     },
     mempool: {
       highCongestionThreshold: 50000,
-      maxSize: BigInt(300000),
       maxMb: 300,
       minFeeRate: BigInt(1),
       feeRateMultiplier: 1.5,

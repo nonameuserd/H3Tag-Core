@@ -9,12 +9,22 @@
     "default": {
       "runner": "nx/tasks-runners/default",
       "options": {
-        "cacheableOperations": ["build", "test", "lint"]
+        "cacheableOperations": ["build", "lint", "test", "e2e"]
       }
     }
   },
   "namedInputs": {
     "default": ["{projectRoot}/**/*"],
     "production": ["!{projectRoot}/**/*.spec.ts"]
+  },
+  "dependencies": {
+    "@h3tag-blockchain/shared": [],
+    "@h3tag-blockchain/crypto": ["@h3tag-blockchain/shared"],
+    "@h3tag-blockchain/core": [
+      "@h3tag-blockchain/shared",
+      "@h3tag-blockchain/crypto"
+    ],
+    "@h3tag-blockchain/cli": ["@h3tag-blockchain/core"],
+    "@h3tag-blockchain/api": ["@h3tag-blockchain/core"]
   }
 }

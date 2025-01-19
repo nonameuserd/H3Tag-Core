@@ -6,15 +6,12 @@ exports.CurrencyConstants = {
     symbol: "TAG",
     decimals: 18,
     initialSupply: 21000000,
-    maxSupply: 69690000,
+    maxSupply: 696900000,
     units: {
-        WEI: BigInt(1),
-        KWEI: BigInt(1000),
-        MWEI: BigInt(1000000),
-        GWEI: BigInt(1000000000),
-        MICROTAG: BigInt(1000000000000),
-        MILLITAG: BigInt(1000000000000000),
-        TAG: BigInt(1000000000000000000),
+        MACRO: 1n,
+        MICRO: 1000000n,
+        MILLI: 1000000000n,
+        TAG: 1000000000000n,
     },
 };
 exports.CurrencyUtils = {

@@ -6,6 +6,7 @@
     "experimentalDecorators": true,
     "module": "commonjs",
     "moduleResolution": "node",
+    "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
     "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
@@ -26,7 +27,8 @@
     "./packages/api/src/**/*",
     "./packages/cli/src/**/*",
     "src/**/*",
-    "types/**/*"
+    "types/**/*",
+    "packages/core/jest.config.ts"
   ],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

@@ -17,7 +17,6 @@ import {
   ConnectPeerDto,
   PeerConnectionResponseDto,
 } from "../dtos/node.dto";
-import { NetworkType } from "@h3tag-blockchain/shared";
 
 @ApiTags("Nodes")
 @Controller("nodes")
@@ -47,7 +46,7 @@ export class NodeController {
     try {
       return await this.nodeService.createNode({
         ...createNodeDto,
-        networkType: NetworkType.TESTNET,
+        networkType: "TESTNET",
         port: createNodeDto.port || 4000,
       });
     } catch (error) {
@@ -81,7 +80,7 @@ export class NodeController {
     try {
       return await this.nodeService.createNode({
         ...createNodeDto,
-        networkType: NetworkType.MAINNET,
+        networkType: "MAINNET",
         port: createNodeDto.port || 3000,
       });
     } catch (error) {

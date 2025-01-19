@@ -1,4 +1,4 @@
-import { DirectVoting } from "@h3tag-blockchain/core";
+import { DirectVoting, Vote } from "@h3tag-blockchain/core";
 import { VoteDto, VotingMetricsDto } from "../dtos/voting.dto";
 export declare class VotingService {
     private readonly directVoting;
@@ -6,6 +6,6 @@ export declare class VotingService {
     constructor(directVoting: DirectVoting);
     submitVote(voteDto: VoteDto): Promise<string>;
     getVotingMetrics(): Promise<VotingMetricsDto>;
-    getCurrentPeriod(): Promise<any>;
-    getVotesByAddress(address: string): Promise<any>;
+    getCurrentPeriod(): Promise<import("@h3tag-blockchain/core").VotingPeriod>;
+    getVotesByAddress(address: string): Promise<Vote[]>;
 }

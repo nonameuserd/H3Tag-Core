@@ -3,9 +3,10 @@
   "version": "0.1.0",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
-  "exports": {
-    ".": "./dist/index.js"
-  },
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "build": "tsc -b",
     "deploy": "AWS_REGIONS=eu-west-1,us-east-1,ap-northeast-1,eu-central-1 DOMAIN_NAME=your-domain.com cdk deploy --all",
@@ -13,13 +14,15 @@
     "deploy:all": "yarn bootstrap || exit 1 && yarn deploy",
     "test": "node --max-old-space-size=2048 ./node_modules/.bin/jest",
     "test:watch": "node --max-old-space-size=2048 ./node_modules/.bin/jest --watch --runInBand --config jest.config.ts --detectLeaks --logHeapUsage",
-    "test:ci": "node --max-old-space-size=2048 ./node_modules/.bin/jest --runInBand --ci --config jest.config.ts --detectLeaks"
+    "test:ci": "node --max-old-space-size=2048 ./node_modules/.bin/jest --runInBand --ci --config jest.config.ts --detectLeaks",
+    "format": "prettier --write .",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@aws-sdk/client-cloudwatch": "^3.714.0",
     "@aws-sdk/client-route-53": "^3.714.0",
-    "@h3tag-blockchain/shared": "^0.1.0",
-    "@h3tag-blockchain/crypto": "^0.1.0",
+    "@h3tag-blockchain/shared": "0.1.0",
+    "@h3tag-blockchain/crypto": "0.1.0",
     "@types/abstract-leveldown": "^7.2.5",
     "@types/node-fetch": "^2.6.12",
     "@types/pg": "^8.11.10",
@@ -72,22 +75,9 @@
     "rimraf": "^5.0.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
-    "typescript": "^5.7.2"
-  },
-  "license": "MIT",
-  "nx": {
-    "tags": ["core"],
-    "targets": {
-      "build": {
-        "executor": "@nx/js:tsc",
-        "outputs": ["{options.outputPath}"],
-        "options": {
-          "outputPath": "dist",
-          "main": "src/index.ts",
-          "tsConfig": "tsconfig.json",
-          "assets": ["package.json"]
-        }
-      }
-    }
+    "typescript": "^5.7.2",
+    "lerna": "^4.0.0",
+    "prettier": "^3.4.2",
+    "eslint": "^9.18.0"
   }
 }

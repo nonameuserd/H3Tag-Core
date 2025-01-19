@@ -1,3 +1,4 @@
+import { CurrencyConstants } from "./currency-constants";
 export interface NetworkConfig {
     type: {
         MAINNET: string;
@@ -120,8 +121,8 @@ export interface VotingConfig {
 }
 export interface WalletConfig {
     address: string;
-    privateKey: string;
-    publicKey: string;
+    privateKey: string | (() => Promise<string>);
+    publicKey: string | (() => Promise<string>);
 }
 export interface UtilConfig {
     retry: {
@@ -151,7 +152,6 @@ export interface UtilConfig {
     staleThreshold: number;
 }
 export interface TransactionConfig {
-    baseFee: bigint;
     currentVersion: number;
     maxInputs: number;
     maxOutputs: number;
@@ -163,7 +163,6 @@ export interface TransactionConfig {
     };
     mempool: {
         highCongestionThreshold: number;
-        maxSize: bigint;
         maxMb: number;
         minFeeRate: bigint;
         feeRateMultiplier: number;
@@ -201,6 +200,7 @@ export interface MessageConfig {
     minLength: number;
 }
 export interface BlockchainConfig {
+    currency: CurrencyConstants;
     network: NetworkConfig;
     mining: MiningConfig;
     consensus: ConsensusConfig;
@@ -221,3 +221,4 @@ export interface BlockchainConfig {
     message: MessageConfig;
     wallet: WalletConfig;
 }
+export declare const defaultConfig: BlockchainConfig;
