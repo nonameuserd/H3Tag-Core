@@ -19,3 +19,12 @@ secret.json
 .nx/cache
 .nx/workspace-data
 .yarn/cache
+.lockfile.hash
+.lockfile.*
+.lockfile
+.vscode
+.yarnrc
+.vscode-test
+.vscode-test/*
+.vscode-test/.*
+.vscode-test/

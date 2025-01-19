@@ -3477,3 +3477,8 @@
 [NX Daemon Server] - 2025-01-19T00:37:00.722Z - Handled REQUEST_PROJECT_GRAPH. Handling time: 1. Response time: 3.
 [NX Daemon Server] - 2025-01-19T00:37:04.959Z - Closed a connection. Number of open connections: 1
 [NX Daemon Server] - 2025-01-19T00:37:04.960Z - Closed a connection. Number of open connections: 0
+[NX Daemon Server] - 2025-01-19T00:43:24.750Z - [WATCHER]: .gitignore was modified
+[NX Daemon Server] - 2025-01-19T00:43:24.758Z - [WATCHER]: Processing file changes in outputs
+[NX Daemon Server] - 2025-01-19T00:43:24.758Z - [WATCHER]: Stopping the watcher for /Users/dami/Documents/H3Tag-Core (sources)
+[NX Daemon Server] - 2025-01-19T00:43:24.759Z - [WATCHER]: Stopping the watcher for /Users/dami/Documents/H3Tag-Core (outputs)
+[NX Daemon Server] - 2025-01-19T00:43:24.774Z - Server stopped because: "Stopping the daemon the set of ignored files changed (native)"
