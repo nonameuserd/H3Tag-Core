@@ -7,7 +7,9 @@ declare class QuantumNative {
     native: NativeQuantum;
     healthCheckInterval: NodeJS.Timeout | undefined;
     isInitialized: boolean;
+    HEALTH_CHECK_INTERVAL: number;
     private constructor();
+    clearHealthChecks(): void;
     static getInstance(): QuantumNative;
     initializeHealthChecks(): void;
     performHealthCheck(): Promise<void>;

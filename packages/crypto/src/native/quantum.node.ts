@@ -20,16 +20,24 @@ class QuantumNative {
   public native: NativeQuantum;
   public healthCheckInterval: NodeJS.Timeout | undefined;
   public isInitialized = false;
+  public HEALTH_CHECK_INTERVAL = 60000; // 1 minute in ms
 
   private constructor() {
     try {
-      this.native = bindings('quantum');
+      this.native = bindings('../../src/native/quantum.node');
       this.initializeHealthChecks();
       this.isInitialized = true;
       Logger.info('Quantum native module initialized');
     } catch (error) {
       Logger.error('Failed to initialize quantum native module:', error);
       throw new QuantumError('Native module initialization failed');
+    }
+  }
+
+  public clearHealthChecks(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = undefined;
     }
   }
 
@@ -41,18 +49,37 @@ class QuantumNative {
   }
 
   public initializeHealthChecks(): void {
-    this.healthCheckInterval = setInterval(() => {
-      this.performHealthCheck().catch((error) => {
-        Logger.error('Health check failed:', error);
-      });
-    }, 60000); // Check every minute
+    try {
+      // Clear any existing interval
+      if (this.healthCheckInterval) {
+        clearInterval(this.healthCheckInterval);
+      }
+
+      // Set new interval
+      this.healthCheckInterval = setInterval(async () => {
+        try {
+          await this.performHealthCheck();
+        } catch (error) {
+          Logger.error('Health check failed:', error);
+          // Clear interval on critical failures
+          this.shutdown().catch((err) =>
+            Logger.error('Failed to shutdown after health check error:', err),
+          );
+        }
+      }, this.HEALTH_CHECK_INTERVAL);
+
+      Logger.debug('Health checks initialized');
+    } catch (error) {
+      Logger.error('Failed to initialize health checks:', error);
+      throw new QuantumError('Health check initialization failed');
+    }
   }
 
   public async performHealthCheck(): Promise<void> {
     const start = performance.now();
     try {
-      // Test key generation and signing
       const keyPair = await this.generateDilithiumKeyPair();
+      console.log(keyPair);
       const testMessage = Buffer.from('health_check');
       const signature = await this.dilithiumSign(
         testMessage,
@@ -79,9 +106,7 @@ class QuantumNative {
   }
 
   public async shutdown(): Promise<void> {
-    if (this.healthCheckInterval) {
-      clearInterval(this.healthCheckInterval);
-    }
+    this.clearHealthChecks();
     this.isInitialized = false;
     Logger.info('Quantum native module shut down');
   }
@@ -100,17 +125,39 @@ class QuantumNative {
     const start = performance.now();
 
     try {
-      const result = await this.native.generateDilithiumKeyPair(entropy);
-      if (!result?.publicKey || !result?.privateKey) {
+      // Validate entropy if provided
+      if (entropy && !(entropy instanceof Buffer)) {
+        throw new QuantumError('Entropy must be a Buffer');
+      }
+
+      // Call native implementation with entropy if provided
+      const result = entropy
+        ? await this.native.generateDilithiumPair(entropy)
+        : await this.native.generateDilithiumPair();
+
+      // Validate response
+      if (
+        !Buffer.isBuffer(result?.publicKey) ||
+        !Buffer.isBuffer(result?.privateKey)
+      ) {
         throw new QuantumError('Invalid key pair generated');
       }
 
-      Logger.debug(`Key pair generated in ${performance.now() - start}ms`);
-      return result;
+      const keyPair: QuantumKeyPair = {
+        publicKey: result.publicKey,
+        privateKey: result.privateKey,
+      };
+
+      Logger.debug(
+        `Dilithium key pair generated in ${performance.now() - start}ms`,
+      );
+      return keyPair;
     } catch (error) {
       Logger.error('Failed to generate Dilithium key pair:', error);
       throw new QuantumError(
-        error instanceof Error ? error.message : 'Key generation failed',
+        error instanceof Error
+          ? error.message
+          : 'Dilithium key generation failed',
       );
     }
   }

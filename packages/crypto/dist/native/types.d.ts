@@ -19,7 +19,7 @@ export interface HybridKeys {
     kyber: string;
 }
 export interface NativeQuantum {
-    generateDilithiumKeyPair(entropy?: Buffer): Promise<QuantumKeyPair>;
+    generateDilithiumPair(entropy?: Buffer): Promise<QuantumKeyPair>;
     kyberGenerateKeyPair(): Promise<QuantumKeyPair>;
     dilithiumSign(message: Buffer, privateKey: Buffer): Promise<Buffer>;
     dilithiumVerify(message: Buffer, signature: Buffer, publicKey: Buffer): Promise<boolean>;

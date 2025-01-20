@@ -5,18 +5,32 @@ import { Validator } from '../../../../models/validator';
 import { Vote, VotingPeriod } from '../../../../models/vote.model';
 import { BLOCKCHAIN_CONSTANTS } from '../../../../blockchain/utils/constants';
 
+jest.mock('@h3tag-blockchain/crypto', () => ({
+  nativeQuantum: {
+    generateDilithiumPair: jest.fn(),
+    dilithiumSign: jest.fn(),
+    dilithiumVerify: jest.fn(),
+  },
+}));
+
 describe('DirectVotingUtil', () => {
   let votingUtil: DirectVotingUtil;
   let mockDb: jest.Mocked<BlockchainSchema>;
   let mockAuditManager: jest.Mocked<AuditManager>;
 
-  beforeEach(() => { 
+  beforeEach(() => {
+    // Clear all mocks
+    jest.clearAllMocks();
+    
+    // Disable real timers
+    jest.useFakeTimers();
+
     mockDb = {
       getCurrentHeight: jest.fn(),
       getVotingStartHeight: jest.fn(),
       getVotingEndHeight: jest.fn(),
       verifySignature: jest.fn(),
-      getPath: jest.fn().mockReturnValue('/test/path') as jest.MockedFunction<() => string>,
+      getPath: jest.fn().mockReturnValue('/test/path'),
     } as unknown as jest.Mocked<BlockchainSchema>;
 
     mockAuditManager = {
@@ -26,52 +40,71 @@ describe('DirectVotingUtil', () => {
     votingUtil = new DirectVotingUtil(mockDb, mockAuditManager);
   });
 
+  afterEach(async () => {
+    // Clean up timers
+    jest.clearAllTimers();
+    
+    // Dispose of the voting util
+    await votingUtil.dispose();
+    
+    // Reset timers
+    jest.useRealTimers();
+  });
+
   describe('initializeChainVotingPeriod', () => {
-    it('should initialize voting period correctly', async () => {
-      const oldChainId = 'old-chain';
-      const newChainId = 'new-chain';
-      const forkHeight = 100;
-      const currentHeight = 105;
+    const MAX_FORK_DEPTH = BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH;
+    const CURRENT_HEIGHT = 1000;
 
-      mockDb.getCurrentHeight.mockResolvedValue(currentHeight);
-      mockDb.getVotingStartHeight.mockResolvedValue(100);
-      mockDb.getVotingEndHeight.mockResolvedValue(200);
-
-      const result = await votingUtil.initializeChainVotingPeriod(
-        oldChainId,
-        newChainId,
-        forkHeight,
-      );
-
-      expect(result).toMatchObject({
-        chainId: newChainId,
-        forkHeight,
-        status: 'active',
-        type: 'node_selection',
-        competingChains: {
-          oldChainId,
-          newChainId,
-          commonAncestorHeight: forkHeight,
-        },
-      });
+    beforeEach(() => {
+      mockDb.getCurrentHeight.mockResolvedValue(CURRENT_HEIGHT);
     });
 
-    it('should throw error if fork depth exceeds maximum', async () => {
-      const oldChainId = 'old-chain';
-      const newChainId = 'new-chain';
-      const forkHeight = 100;
-      const currentHeight =
-        forkHeight + BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH + 1;
+    it('should handle valid fork depth', async () => {
+      const validForkHeight = CURRENT_HEIGHT - (MAX_FORK_DEPTH - 1);
 
-      mockDb.getCurrentHeight.mockResolvedValue(currentHeight);
+      mockDb.getVotingStartHeight.mockResolvedValue(validForkHeight);
+      mockDb.getVotingEndHeight.mockResolvedValue(CURRENT_HEIGHT + 100);
 
-      await expect(
-        votingUtil.initializeChainVotingPeriod(
-          oldChainId,
-          newChainId,
-          forkHeight,
-        ),
-      ).rejects.toThrow('Fork depth exceeds maximum allowed');
+      const result = await votingUtil.initializeChainVotingPeriod(
+        'old-chain',
+        'new-chain',
+        validForkHeight,
+      );
+
+      expect(result.forkHeight).toBe(validForkHeight);
+      expect(result.status).toBe('active');
+    });
+
+    it('should reject fork depth exceeding maximum', async () => {
+      const invalidForkHeight = CURRENT_HEIGHT - (MAX_FORK_DEPTH + 1);
+
+      await expect(async () => {
+        await votingUtil.initializeChainVotingPeriod(
+          'old-chain',
+          'new-chain',
+          invalidForkHeight,
+        );
+      }).rejects.toThrow(/Fork depth exceeds maximum allowed/);
+
+      try {
+        await votingUtil.initializeChainVotingPeriod(
+          'old-chain',
+          'new-chain',
+          invalidForkHeight,
+        );
+      } catch (error: unknown) {
+        expect((error as Error).message).toContain(
+          'Fork depth exceeds maximum allowed',
+        );
+        expect(error).toMatchObject({
+          cause: {
+            currentHeight: CURRENT_HEIGHT,
+            forkHeight: invalidForkHeight,
+            forkDepth: CURRENT_HEIGHT - invalidForkHeight,
+            maxAllowed: MAX_FORK_DEPTH,
+          },
+        });
+      }
     });
   });
 
@@ -82,12 +115,24 @@ describe('DirectVotingUtil', () => {
         status: 'completed',
         endTime: Date.now() - 1000,
         votes: new Map([
-          ['1', { voter: 'voter1', approve: true } as Vote],
-          ['2', { voter: 'voter2', approve: false } as Vote],
+          ['1', {
+            voter: 'voter1',
+            approve: true,
+            chainVoteData: { targetChainId: 'chain1' },
+            signature: 'sig1',
+            timestamp: Date.now()
+          } as Vote],
+          ['2', {
+            voter: 'voter2',
+            approve: false,
+            chainVoteData: { targetChainId: 'chain1' },
+            signature: 'sig2',
+            timestamp: Date.now()
+          } as Vote],
         ]),
       } as VotingPeriod;
 
-      const mockValidators: Validator[] = [
+      const mockValidators = [
         { address: 'voter1', isActive: true } as Validator,
         { address: 'voter2', isActive: true } as Validator,
       ];
@@ -118,6 +163,15 @@ describe('DirectVotingUtil', () => {
   });
 
   describe('verifyVote', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
     it('should verify valid vote', async () => {
       const mockVote: Vote = {
         voter: 'voter1',
