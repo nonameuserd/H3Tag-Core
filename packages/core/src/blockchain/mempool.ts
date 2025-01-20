@@ -1,19 +1,19 @@
-import { Transaction, TransactionType } from "../models/transaction.model";
-import { UTXO, UTXOSet } from "../models/utxo.model";
-import { Logger } from "@h3tag-blockchain/shared";
-import { HybridDirectConsensus } from "./consensus/hybrid-direct";
-import { Blockchain } from "./blockchain";
-import { HealthMonitor } from "../monitoring/health";
-import { AuditEventType, AuditSeverity } from "../security/audit";
-import { AuditManager } from "../security/audit";
-import { FileAuditStorage } from "../security/fileAuditStorage";
-import { Mutex } from "async-mutex";
-import { Cache } from "../scaling/cache";
-import { Validator } from "../models/validator";
-import { TransactionBuilder } from "../models/transaction.model";
-import { BLOCKCHAIN_CONSTANTS } from "./utils/constants";
-import { DDoSProtection } from "../security/ddos";
-import { Node } from "../network/node";
+import { Transaction, TransactionType } from '../models/transaction.model';
+import { UTXO, UTXOSet } from '../models/utxo.model';
+import { Logger } from '@h3tag-blockchain/shared';
+import { HybridDirectConsensus } from './consensus/hybrid-direct';
+import { Blockchain } from './blockchain';
+import { HealthMonitor } from '../monitoring/health';
+import { AuditEventType, AuditSeverity } from '../security/audit';
+import { AuditManager } from '../security/audit';
+import { FileAuditStorage } from '../security/fileAuditStorage';
+import { Mutex } from 'async-mutex';
+import { Cache } from '../scaling/cache';
+import { Validator } from '../models/validator';
+import { TransactionBuilder } from '../models/transaction.model';
+import { BLOCKCHAIN_CONSTANTS } from './utils/constants';
+import { DDoSProtection } from '../security/ddos';
+import { Node } from '../network/node';
 
 /**
  * @fileoverview Mempool manages unconfirmed transactions before they are included in blocks.
@@ -223,7 +223,7 @@ interface MempoolInfo {
   };
 
   health: {
-    status: "healthy" | "degraded" | "critical";
+    status: 'healthy' | 'degraded' | 'critical';
     lastUpdate: number;
     isAcceptingTransactions: boolean;
   };
@@ -268,7 +268,7 @@ export class Mempool {
   private readonly descendantMap: Map<string, Set<string>>;
   private readonly consensus: HybridDirectConsensus;
   private readonly blockchain: Blockchain;
-  private readonly node: Node;
+  private readonly node: Node | undefined;
 
   // Add missing required properties with defaults
   private readonly MAX_ANCESTORS = 25;
@@ -290,7 +290,7 @@ export class Mempool {
         value.clear();
 
         // Log eviction event
-        Logger.debug("Cache entry evicted", {
+        Logger.debug('Cache entry evicted', {
           key,
           valueSize: value.size,
           timestamp: Date.now(),
@@ -302,21 +302,21 @@ export class Mempool {
           global.gc?.();
         }
       } catch (error) {
-        Logger.error("Cache eviction error:", {
+        Logger.error('Cache eviction error:', {
           key,
-          error: error instanceof Error ? error.message : "Unknown error",
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     },
   });
-  private readonly AUDIT_DIR = "./audit-logs";
+  private readonly AUDIT_DIR = './audit-logs';
   private readonly reputationMutex = new Mutex();
   private readonly performanceMonitor = {
     start: (label: string): PerformanceMarker => {
       const startTime = performance.now();
       const startMemory = process.memoryUsage().heapUsed;
 
-      Logger.debug("Performance monitoring started", {
+      Logger.debug('Performance monitoring started', {
         label,
         startTime,
         startMemory,
@@ -336,7 +336,7 @@ export class Mempool {
       const duration = endTime - marker.startTime;
       const memoryDiff = endMemory - marker.startMemory;
 
-      Logger.debug("Performance monitoring ended", {
+      Logger.debug('Performance monitoring ended', {
         label: marker.label,
         duration: `${duration.toFixed(2)}ms`,
         memoryUsed: `${(memoryDiff / 1024 / 1024).toFixed(2)}MB`,
@@ -372,14 +372,15 @@ export class Mempool {
 
   private lastChangeTimestamp = Date.now();
 
-  private cleanupInterval: NodeJS.Timeout;
+  private cleanupInterval: NodeJS.Timeout | undefined;
 
   private readonly mempoolStateCache: Map<string, string> = new Map();
 
   private readonly transactionMutexes = new Map<string, Mutex>();
 
-  private lastValidFee: number =
-    Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+  private lastValidFee: number = Number(
+    BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
+  );
 
   private ddosProtection: DDoSProtection;
 
@@ -440,7 +441,7 @@ export class Mempool {
         maxRetries: 3,
         retryDelay: 1000,
         maxConcurrentWrites: 5,
-      })
+      }),
     );
 
     // Initialize vote tracking
@@ -460,7 +461,7 @@ export class Mempool {
         windowMs: 60000,
         blockDuration: 1200000, // 20 minutes
       },
-      this.auditManager
+      this.auditManager,
     );
 
     // Note: Call mempool.initialize() after construction
@@ -473,9 +474,9 @@ export class Mempool {
   public async initialize(): Promise<void> {
     try {
       await this.auditManager.initialize();
-      Logger.info("Mempool initialized successfully");
+      Logger.info('Mempool initialized successfully');
     } catch (error) {
-      Logger.error("Failed to initialize mempool:", error);
+      Logger.error('Failed to initialize mempool:', error);
       throw error;
     }
   }
@@ -504,7 +505,7 @@ export class Mempool {
       // Add PoW validation using consensus mechanism
       const hasValidPoW = await this.consensus.pow.validateWork(
         address,
-        BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_CONTRIBUTION
+        BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_CONTRIBUTION,
       );
 
       // Check all requirements including PoW validation
@@ -519,7 +520,7 @@ export class Mempool {
           BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW
       );
     } catch (error) {
-      Logger.error("Error validating vote eligibility:", error);
+      Logger.error('Error validating vote eligibility:', error);
       return false;
     }
   }
@@ -533,13 +534,13 @@ export class Mempool {
   public async addTransaction(transaction: Transaction): Promise<boolean> {
     const mutex = this.getMutexForTransaction(transaction.id);
     const release = await mutex.acquire();
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: NodeJS.Timeout | undefined;
 
     try {
       const timeoutPromise = new Promise<boolean>((_, reject) => {
         timeoutId = setTimeout(
-          () => reject(new Error("Transaction processing timeout")),
-          30000
+          () => reject(new Error('Transaction processing timeout')),
+          30000,
         );
       });
 
@@ -579,30 +580,32 @@ export class Mempool {
 
     // Process the transaction based on type
     switch (transaction.type) {
-      case TransactionType.QUADRATIC_VOTE:
-        const isEligible = await this.validateVoteEligibility(
-          transaction.sender
-        );
+      case TransactionType.QUADRATIC_VOTE: {
+        const isEligible = await this.validateVoteEligibility(transaction.sender);
         if (!isEligible) return false;
         await this.handleVoteTransaction(transaction);
         await this.updateVoteTracking(transaction.sender);
-        return true;
+        break; // Ensure to break out of the case
+      }
 
-      case TransactionType.POW_REWARD:
+      case TransactionType.POW_REWARD: {
         const isValidPoW = await this.consensus.pow.validateReward(
           transaction,
-          this.blockchain.getCurrentHeight()
+          this.blockchain.getCurrentHeight(),
         );
         if (!isValidPoW) return false;
-        break;
+        break; // Ensure to break out of the case
+      }
 
-      default:
+      default: {
         const isValid = await this.validateTransaction(
           transaction,
           await this.blockchain.getUTXOSet(),
-          this.blockchain.getCurrentHeight()
+          this.blockchain.getCurrentHeight(),
         );
         if (!isValid) return false;
+        break; // Ensure to break out of the case
+      }
     }
 
     // RBF and ancestry checks
@@ -617,7 +620,7 @@ export class Mempool {
 
   private async handleVoteTransaction(vote: Transaction): Promise<void> {
     // Add DDoS protection for vote transactions
-    if (!this.ddosProtection.checkRequest("vote_tx", vote.sender)) {
+    if (!this.ddosProtection.checkRequest('vote_tx', vote.sender)) {
       Logger.warn(`DDoS protection blocked vote from ${vote.sender}`);
       return;
     }
@@ -630,14 +633,14 @@ export class Mempool {
       const votingUtxos = await utxoSet.findUtxosForVoting(vote.sender);
 
       if (votingUtxos.length === 0) {
-        Logger.warn("No eligible UTXOs for voting");
+        Logger.warn('No eligible UTXOs for voting');
         return;
       }
 
       // Calculate voting power using quadratic voting
       const votingPower = utxoSet.calculateVotingPower(votingUtxos);
       if (votingPower <= BigInt(0)) {
-        Logger.warn("Insufficient voting power");
+        Logger.warn('Insufficient voting power');
         return;
       }
 
@@ -661,10 +664,10 @@ export class Mempool {
           severity: AuditSeverity.INFO,
         });
       }
-    } catch (error) {
-      Logger.error("Error handling vote transaction:", error);
+    } catch (error: unknown) {
+      Logger.error('Error handling vote transaction:', error);
       await this.auditManager.log(AuditEventType.VOTE_TRANSACTION_FAILED, {
-        error: error.message,
+        error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
     }
@@ -678,24 +681,26 @@ export class Mempool {
    */
   getTransaction(txId: string): Transaction | undefined {
     // Add DDoS protection for transaction lookups
-    if (!this.ddosProtection.checkRequest("get_tx", this.node.getAddress())) {
-      Logger.warn("DDoS protection blocked transaction lookup");
+    if (
+      !this.ddosProtection.checkRequest('get_tx', this.node?.getAddress() || '')
+    ) {
+      Logger.warn('DDoS protection blocked transaction lookup');
       return undefined;
     }
 
     try {
       if (!txId) {
-        Logger.warn("Invalid transaction ID requested");
+        Logger.warn('Invalid transaction ID requested');
         return undefined;
       }
 
       const tx = this.transactions.get(txId);
       Logger.debug(
-        `Transaction ${txId} ${tx ? "found" : "not found"} in mempool`
+        `Transaction ${txId} ${tx ? 'found' : 'not found'} in mempool`,
       );
       return tx;
     } catch (error) {
-      Logger.error("Error retrieving transaction:", error);
+      Logger.error('Error retrieving transaction:', error);
       return undefined;
     }
   }
@@ -708,12 +713,12 @@ export class Mempool {
   hasTransaction(txId: string): boolean {
     try {
       if (!txId) {
-        Logger.warn("Invalid transaction ID checked");
+        Logger.warn('Invalid transaction ID checked');
         return false;
       }
       return this.transactions.has(txId);
     } catch (error) {
-      Logger.error("Error checking transaction existence:", error);
+      Logger.error('Error checking transaction existence:', error);
       return false;
     }
   }
@@ -728,7 +733,7 @@ export class Mempool {
       Logger.debug(`Current mempool size: ${size}`);
       return size;
     } catch (error) {
-      Logger.error("Error getting mempool size:", error);
+      Logger.error('Error getting mempool size:', error);
       return 0;
     }
   }
@@ -746,8 +751,8 @@ export class Mempool {
       this.descendantMap.clear();
       Logger.info(`Mempool cleared. Previous size: ${previousSize}`);
     } catch (error) {
-      Logger.error("Error clearing mempool:", error);
-      throw new Error("Failed to clear mempool");
+      Logger.error('Error clearing mempool:', error);
+      throw new Error('Failed to clear mempool');
     }
   }
 
@@ -762,7 +767,7 @@ export class Mempool {
     options: {
       limit?: number;
       minFeeRate?: number;
-    } = {}
+    } = {},
   ): Promise<Transaction[]> {
     try {
       const { limit, minFeeRate } = options;
@@ -772,13 +777,13 @@ export class Mempool {
       // Apply fee rate filter if specified
       if (minFeeRate !== undefined) {
         transactions = transactions.filter(
-          (tx) => this.calculateFeePerByte(tx) >= minFeeRate
+          (tx) => this.calculateFeePerByte(tx) >= minFeeRate,
         );
       }
 
       // Sort by fee rate (highest first)
       transactions.sort(
-        (a, b) => this.calculateFeePerByte(b) - this.calculateFeePerByte(a)
+        (a, b) => this.calculateFeePerByte(b) - this.calculateFeePerByte(a),
       );
 
       // Apply limit if specified
@@ -789,8 +794,8 @@ export class Mempool {
       Logger.debug(`Retrieved ${transactions.length} pending transactions`);
       return transactions;
     } catch (error) {
-      Logger.error("Error retrieving pending transactions:", error);
-      throw new Error("Failed to retrieve pending transactions");
+      Logger.error('Error retrieving pending transactions:', error);
+      throw new Error('Failed to retrieve pending transactions');
     }
   }
 
@@ -842,18 +847,18 @@ export class Mempool {
           txId: tx.id,
           outputIndex: index,
           address: output.address,
-          publicKey: output.publicKey || "",
+          publicKey: output.publicKey || '',
           amount: output.amount,
           script: output.script,
           timestamp: tx.timestamp,
           spent: false,
           currency: {
-            name: "H3Tag",
-            symbol: "TAG",
+            name: 'H3Tag',
+            symbol: 'TAG',
             decimals: 8,
           },
           confirmations: 0,
-        }))
+        })),
     );
   }
 
@@ -909,7 +914,7 @@ export class Mempool {
       this.transactions.forEach((memTx, txId) => {
         if (
           memTx.inputs.some(
-            (i) => i.txId === input.txId && i.outputIndex === input.outputIndex
+            (i) => i.txId === input.txId && i.outputIndex === input.outputIndex,
           )
         ) {
           conflicts.add(txId);
@@ -958,7 +963,7 @@ export class Mempool {
 
     // Check for overflow
     if (feeBI > Number.MAX_SAFE_INTEGER || sizeBI > Number.MAX_SAFE_INTEGER) {
-      Logger.warn("Fee calculation overflow risk", {
+      Logger.warn('Fee calculation overflow risk', {
         txId: transaction.id,
         fee: feeBI.toString(),
         size: sizeBI.toString(),
@@ -1013,12 +1018,12 @@ export class Mempool {
       const feeRate = this.calculateFeePerByte(transaction);
       const newBucket = this.getOrCreateFeeBucket(feeRate);
       newBucket.add(transaction.id);
-    } catch (error) {
+    } catch (error: unknown) {
       // Add cleanup
-      Logger.error("Fee bucket update failed:", error);
+      Logger.error('Fee bucket update failed:', error);
       await this.auditManager?.log(AuditEventType.FEE_BUCKET_UPDATE_FAILED, {
         txId: transaction.id,
-        error: error.message,
+        error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
     }
@@ -1047,9 +1052,9 @@ export class Mempool {
   public async validateTransaction(
     transaction: Transaction,
     utxoSet: UTXOSet,
-    currentHeight: number
+    currentHeight: number,
   ): Promise<boolean> {
-    const perfMarker = this.performanceMonitor.start("validate_transaction");
+    const perfMarker = this.performanceMonitor.start('validate_transaction');
 
     try {
       if (!this.validateBasicStructure(transaction)) {
@@ -1059,7 +1064,7 @@ export class Mempool {
       const txSize = this.getTransactionSize(transaction);
       const maxSize = await this.blockchain.getMaxTransactionSize();
       if (txSize > maxSize) {
-        Logger.warn("Transaction exceeds size limit", {
+        Logger.warn('Transaction exceeds size limit', {
           txId: transaction.id,
           size: txSize,
           maxAllowed: maxSize,
@@ -1070,7 +1075,7 @@ export class Mempool {
       if (
         transaction.version !== BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION
       ) {
-        Logger.warn("Invalid transaction version", {
+        Logger.warn('Invalid transaction version', {
           txId: transaction.id,
           version: transaction.version,
           required: BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION,
@@ -1081,7 +1086,7 @@ export class Mempool {
       const now = Date.now();
       if (transaction.timestamp > now + 7200000) {
         // 2 hours in future
-        Logger.warn("Transaction timestamp too far in future", {
+        Logger.warn('Transaction timestamp too far in future', {
           txId: transaction.id,
           timestamp: transaction.timestamp,
           currentTime: now,
@@ -1090,7 +1095,7 @@ export class Mempool {
       }
 
       if (!(await TransactionBuilder.verify(transaction))) {
-        Logger.warn("Core transaction verification failed", {
+        Logger.warn('Core transaction verification failed', {
           txId: transaction.id,
         });
         return false;
@@ -1107,12 +1112,12 @@ export class Mempool {
       // Add PoW validation for specific transaction types
       if (transaction.type === TransactionType.POW_REWARD) {
         const powContribution = await this.getPowContribution(
-          transaction.sender
+          transaction.sender,
         );
 
         // Check coinbase maturity (100 blocks)
         if (currentHeight < BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCKS_MINED) {
-          Logger.warn("Coinbase not yet mature", {
+          Logger.warn('Coinbase not yet mature', {
             txId: transaction.id,
             currentHeight,
             requiredMaturity: BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCKS_MINED,
@@ -1121,22 +1126,22 @@ export class Mempool {
         }
 
         if (powContribution <= 0) {
-          Logger.warn("Invalid PoW contribution", { txId: transaction.id });
+          Logger.warn('Invalid PoW contribution', { txId: transaction.id });
           return false;
         }
       }
 
       if (transaction.type === TransactionType.QUADRATIC_VOTE) {
         const votingWeight = await this.getVotingContribution(
-          transaction.sender
+          transaction.sender,
         );
         if (votingWeight <= 0) {
-          Logger.warn("Invalid voting weight", { txId: transaction.id });
+          Logger.warn('Invalid voting weight', { txId: transaction.id });
           return false;
         }
       }
 
-      Logger.debug("Transaction validation successful", {
+      Logger.debug('Transaction validation successful', {
         txId: transaction.id,
         size: txSize,
         inputs: transaction.inputs.length,
@@ -1144,23 +1149,23 @@ export class Mempool {
       });
 
       return true;
-    } catch (error) {
-      Logger.error("Transaction validation failed:", {
+    } catch (error: unknown) {
+      Logger.error('Transaction validation failed:', {
         txId: transaction?.id,
-        error: error.message,
-        stack: error.stack,
+        error: (error as Error).message,
+        stack: (error as Error).stack,
       });
       await this.auditManager.log(
         AuditEventType.TRANSACTION_VALIDATION_FAILED,
         {
           txId: transaction?.id,
-          error: error.message,
+          error: (error as Error).message,
           severity: AuditSeverity.ERROR,
-        }
+        },
       );
       return false;
     } finally {
-      if (typeof perfMarker !== "undefined") {
+      if (typeof perfMarker !== 'undefined') {
         this.performanceMonitor.end(perfMarker);
       }
     }
@@ -1182,13 +1187,13 @@ export class Mempool {
 
   private async validateUTXOs(
     tx: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<boolean> {
     try {
       for (const input of tx.inputs) {
         const utxo = await utxoSet.get(input.txId, input.outputIndex);
         if (!utxo || utxo.spent) {
-          Logger.warn("Invalid or spent UTXO", {
+          Logger.warn('Invalid or spent UTXO', {
             txId: tx.id,
             utxoId: input.txId,
             outputIndex: input.outputIndex,
@@ -1198,14 +1203,14 @@ export class Mempool {
       }
       return true;
     } catch (error) {
-      Logger.error("UTXO validation error:", error);
+      Logger.error('UTXO validation error:', error);
       return false;
     }
   }
 
   private async validateMempoolState(
     transaction: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<boolean> {
     try {
       //Fee requirements
@@ -1214,7 +1219,7 @@ export class Mempool {
       const minFeeRate = await this.getMinFeeRate();
 
       if (feeRate < minFeeRate) {
-        Logger.warn("Insufficient fee rate", {
+        Logger.warn('Insufficient fee rate', {
           txId: transaction.id,
           feeRate: feeRate.toString(),
           minRequired: minFeeRate.toString(),
@@ -1230,7 +1235,7 @@ export class Mempool {
       ) {
         const dynamicMinFee = await this.calculateDynamicMinFee();
         if (feeRate < dynamicMinFee) {
-          Logger.warn("Fee too low during high congestion", {
+          Logger.warn('Fee too low during high congestion', {
             txId: transaction.id,
             feeRate: feeRate.toString(),
             requiredRate: dynamicMinFee.toString(),
@@ -1245,27 +1250,24 @@ export class Mempool {
           (tx) =>
             tx.inputs.some(
               (i) =>
-                i.txId === input.txId && i.outputIndex === input.outputIndex
-            )
+                i.txId === input.txId && i.outputIndex === input.outputIndex,
+            ),
         );
 
         if (isDoubleSpend) {
-          Logger.warn("Double-spend detected in mempool", {
+          Logger.warn('Double-spend detected in mempool', {
             txId: transaction.id,
           });
           return false;
         }
       }
 
-      if (
-        this.transactions.size >=
-        await this.getMaxSize()
-      ) {
+      if (this.transactions.size >= (await this.getMaxSize())) {
         const minFeeRate = this.estimateFee(1);
         const txFeeRate = this.calculateFeePerByte(transaction);
 
         if (txFeeRate < minFeeRate) {
-          Logger.warn("Fee too low for full mempool", {
+          Logger.warn('Fee too low for full mempool', {
             txId: transaction.id,
             feeRate: txFeeRate,
             minFeeRate,
@@ -1276,7 +1278,7 @@ export class Mempool {
 
       // 3. Check ancestry limits
       if (!this.checkAncestryLimits(transaction)) {
-        Logger.warn("Transaction exceeds ancestry limits", {
+        Logger.warn('Transaction exceeds ancestry limits', {
           txId: transaction.id,
         });
         return false;
@@ -1286,7 +1288,7 @@ export class Mempool {
       for (const input of transaction.inputs) {
         const utxo = await utxoSet.get(input.txId, input.outputIndex);
         if (!utxo || utxo.spent) {
-          Logger.warn("UTXO not found or spent", {
+          Logger.warn('UTXO not found or spent', {
             txId: transaction.id,
             inputTxId: input.txId,
           });
@@ -1296,13 +1298,13 @@ export class Mempool {
 
       // 5. Check transaction age
       if (Date.now() - transaction.timestamp > this.maxTransactionAge) {
-        Logger.warn("Transaction too old", { txId: transaction.id });
+        Logger.warn('Transaction too old', { txId: transaction.id });
         return false;
       }
 
       return true;
     } catch (error) {
-      Logger.error("Mempool state validation failed:", error);
+      Logger.error('Mempool state validation failed:', error);
       return false;
     }
   }
@@ -1333,7 +1335,7 @@ export class Mempool {
       const dynamicFee = Math.floor(baseMinFee * multiplier);
       const maxFee = baseMinFee * 20; // Cap at 20x base fee
 
-      Logger.debug("Dynamic fee calculation", {
+      Logger.debug('Dynamic fee calculation', {
         congestion: `${(congestionFactor * 100).toFixed(2)}%`,
         multiplier: multiplier.toFixed(2),
         baseFee: baseMinFee,
@@ -1341,18 +1343,18 @@ export class Mempool {
       });
 
       return Math.min(dynamicFee, maxFee);
-    } catch (error) {
-      Logger.error("Dynamic fee calculation failed:", error);
+    } catch (error: unknown) {
+      Logger.error('Dynamic fee calculation failed:', error);
       // Add audit log for fee calculation failure
       this.auditManager?.log(AuditEventType.FEE_CALCULATION_FAILED, {
-        error: error.message,
+        error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
       // Use a more reasonable fallback
       return Math.max(
         Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE),
         this.lastValidFee ||
-          Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 2
+          Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 2,
       );
     }
   }
@@ -1377,7 +1379,7 @@ export class Mempool {
 
       if (removedCount > 0) {
         Logger.info(
-          `Removed ${removedCount} expired transactions from mempool`
+          `Removed ${removedCount} expired transactions from mempool`,
         );
         this.auditManager?.log(AuditEventType.OLD_TRANSACTIONS_REMOVED, {
           count: removedCount,
@@ -1386,7 +1388,7 @@ export class Mempool {
         });
       }
     } catch (error) {
-      Logger.error("Failed to remove old transactions:", error);
+      Logger.error('Failed to remove old transactions:', error);
     }
   }
 
@@ -1413,7 +1415,7 @@ export class Mempool {
           const release = await mutex.acquire();
           release();
         } catch (error) {
-          Logger.warn("Failed to clean up mutex:", error);
+          Logger.warn('Failed to clean up mutex:', error);
         }
       }
       this.transactionMutexes.clear();
@@ -1422,21 +1424,20 @@ export class Mempool {
       await this.healthMonitor?.dispose();
       await this.ddosProtection?.dispose();
     } catch (error) {
-      Logger.error("Error during mempool disposal:", error);
+      Logger.error('Error during mempool disposal:', error);
       throw error;
     }
   }
 
   private async getAccountAge(address: string): Promise<number> {
     try {
-      const firstTx = await this.blockchain.getFirstTransactionForAddress(
-        address
-      );
+      const firstTx =
+        await this.blockchain.getFirstTransactionForAddress(address);
       if (!firstTx) return 0;
       const currentHeight = await this.blockchain.getCurrentHeight();
       return currentHeight - firstTx.blockHeight;
     } catch (error) {
-      Logger.error("Error getting account age:", error);
+      Logger.error('Error getting account age:', error);
       return 0;
     }
   }
@@ -1461,7 +1462,7 @@ export class Mempool {
           retryCount++;
           if (retryCount === maxRetries) throw error;
           await new Promise((resolve) =>
-            setTimeout(resolve, 1000 * retryCount)
+            setTimeout(resolve, 1000 * retryCount),
           );
         }
       }
@@ -1478,11 +1479,11 @@ export class Mempool {
       });
 
       return contribution;
-    } catch (error) {
-      Logger.error("Error getting PoW contribution:", error);
+    } catch (error: unknown) {
+      Logger.error('Error getting PoW contribution:', error);
       await this.auditManager.log(AuditEventType.POW_CONTRIBUTION_FAILED, {
         address,
-        error: error.message,
+        error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
       return 0;
@@ -1490,9 +1491,9 @@ export class Mempool {
   }
 
   private async loadReputationData(): Promise<Map<string, number>> {
-    const perfMarker = this.performanceMonitor.start("load_reputation_data");
+    const perfMarker = this.performanceMonitor.start('load_reputation_data');
     try {
-      const cacheKey = "validator_reputation";
+      const cacheKey = 'validator_reputation';
       const cached = this.cache.get(cacheKey);
       if (cached) return cached;
 
@@ -1516,36 +1517,36 @@ export class Mempool {
       });
 
       return reputationData;
-    } catch (error) {
-      Logger.error("Failed to load reputation data:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to load reputation data:', error);
       await this.auditManager.log(AuditEventType.REPUTATION_LOAD_FAILED, {
-        error: error.message,
+        error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
       return new Map();
     } finally {
-      if (typeof perfMarker !== "undefined") {
+      if (typeof perfMarker !== 'undefined') {
         this.performanceMonitor.end(perfMarker);
       }
     }
   }
 
   private async calculateValidatorReputation(
-    validator: Validator
+    validator: Validator,
   ): Promise<number> {
     try {
       // Get historical performance data
       const uptime = await this.blockchain.db.getValidatorUptime(
-        validator.address
+        validator.address,
       );
       const voteParticipation = await this.blockchain.db.getVoteParticipation(
-        validator.address
+        validator.address,
       );
       const blockProduction = await this.blockchain.db.getBlockProduction(
-        validator.address
+        validator.address,
       );
       const slashingHistory = await this.blockchain.db.getSlashingHistory(
-        validator.address
+        validator.address,
       );
 
       // Calculate weighted reputation score
@@ -1569,7 +1570,7 @@ export class Mempool {
     } catch (error) {
       Logger.error(
         `Failed to calculate reputation for ${validator.address}:`,
-        error
+        error,
       );
       return 0;
     }
@@ -1579,7 +1580,7 @@ export class Mempool {
   public async updateValidatorReputation(
     validatorAddress: string,
     reputationChange: number,
-    reason: string
+    reason: string,
   ): Promise<boolean> {
     const release = await this.reputationMutex.acquire();
     try {
@@ -1588,7 +1589,7 @@ export class Mempool {
         this.reputationSystem.get(validatorAddress) || 0;
       const newReputation = Math.max(
         0,
-        Math.min(100, currentReputation + reputationChange)
+        Math.min(100, currentReputation + reputationChange),
       );
 
       // Update in-memory state
@@ -1603,7 +1604,7 @@ export class Mempool {
       });
 
       // Clear cache
-      this.cache.delete("validator_reputation");
+      this.cache.delete('validator_reputation');
 
       // Audit trail
       await this.auditManager.log(AuditEventType.REPUTATION_UPDATED, {
@@ -1616,11 +1617,11 @@ export class Mempool {
       });
 
       return true;
-    } catch (error) {
-      Logger.error("Failed to update validator reputation:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to update validator reputation:', error);
       await this.auditManager.log(AuditEventType.REPUTATION_UPDATE_FAILED, {
         validator: validatorAddress,
-        error: error.message,
+        error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
       return false;
@@ -1641,14 +1642,14 @@ export class Mempool {
         this.VALIDATOR_PENALTIES.MISSED_VALIDATION *
         Math.pow(
           this.VALIDATOR_PENALTIES.CONSECUTIVE_MISS_MULTIPLIER,
-          misses - 1
+          misses - 1,
         );
 
       // Update reputation
       await this.updateValidatorReputation(
         validatorAddress,
         penalty,
-        `Missed validation duty (${misses} consecutive misses)`
+        `Missed validation duty (${misses} consecutive misses)`,
       );
 
       // If too many consecutive misses, consider temporary suspension
@@ -1660,15 +1661,15 @@ export class Mempool {
         });
         // Implement suspension logic here
       }
-    } catch (error) {
-      Logger.error("Failed to handle validator absence:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to handle validator absence:', error);
       await this.auditManager.log(
         AuditEventType.VALIDATOR_ABSENCE_HANDLING_FAILED,
         {
           validator: validatorAddress,
-          error: error.message,
+          error: (error as Error).message,
           severity: AuditSeverity.ERROR,
-        }
+        },
       );
     }
   }
@@ -1683,9 +1684,9 @@ export class Mempool {
    */
   public async selectBackupValidator(
     validationTask: string,
-    failedValidator: string
+    failedValidator: string,
   ): Promise<string | null> {
-    const perfMarker = this.performanceMonitor.start("select_backup_validator");
+    const perfMarker = this.performanceMonitor.start('select_backup_validator');
 
     try {
       // Get current validator set
@@ -1697,7 +1698,7 @@ export class Mempool {
           v.address !== failedValidator &&
           !this.activeValidators
             .get(validationTask)
-            ?.backups.includes(v.address)
+            ?.backups.includes(v.address),
       );
 
       // Sort by composite score (reputation, uptime, and recent performance)
@@ -1730,16 +1731,16 @@ export class Mempool {
       }
 
       return null;
-    } catch (error) {
-      Logger.error("Failed to select backup validator:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to select backup validator:', error);
       await this.auditManager.log(AuditEventType.BACKUP_SELECTION_FAILED, {
         task: validationTask,
-        error: error.message,
+        error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
       return null;
     } finally {
-      if (typeof perfMarker !== "undefined") {
+      if (typeof perfMarker !== 'undefined') {
         this.performanceMonitor.end(perfMarker);
       }
     }
@@ -1764,8 +1765,12 @@ export class Mempool {
 
         return isEligible;
       });
-    } catch (error) {
-      Logger.error("Failed to get eligible backup validators:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.error('Failed to get eligible backup validators:', error);
+      } else {
+        Logger.error('Failed to get eligible backup validators:', error);
+      }
       return [];
     }
   }
@@ -1774,17 +1779,17 @@ export class Mempool {
    * Rank backup validators based on multiple criteria
    */
   public async rankBackupValidators(
-    validators: Validator[]
+    validators: Validator[],
   ): Promise<Array<Validator & { score: number }>> {
     try {
       const ranked = await Promise.all(
         validators.map(async (validator) => {
           const reputation = this.reputationSystem.get(validator.address) || 0;
           const recentPerformance = await this.getRecentPerformanceScore(
-            validator.address
+            validator.address,
           );
           const loadFactor = await this.getValidatorLoadFactor(
-            validator.address
+            validator.address,
           );
 
           // Calculate composite score (0-100)
@@ -1795,13 +1800,13 @@ export class Mempool {
             (1 - loadFactor) * 100 * 0.1; // 10% weight on available capacity
 
           return { ...validator, score };
-        })
+        }),
       );
 
       // Sort by score (highest first)
       return ranked.sort((a, b) => b.score - a.score);
     } catch (error) {
-      Logger.error("Failed to rank backup validators:", error);
+      Logger.error('Failed to rank backup validators:', error);
       return [];
     }
   }
@@ -1813,7 +1818,7 @@ export class Mempool {
     let activeCount = 0;
 
     // Count active validation tasks
-    for (const [_, info] of this.activeValidators) {
+    for (const [, info] of this.activeValidators) {
       if (info.primary === address || info.backups.includes(address)) {
         activeCount++;
       }
@@ -1831,15 +1836,19 @@ export class Mempool {
       const recentBlocks = 100; // Look at last 100 blocks
       const performance = await this.blockchain.db.getValidatorPerformance(
         address,
-        recentBlocks
+        recentBlocks,
       );
 
       return (
         (performance.successfulValidations / performance.totalOpportunities) *
         100
       );
-    } catch (error) {
-      Logger.error("Failed to get validator performance:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.error('Failed to get validator performance:', error);
+      } else {
+        Logger.error('Failed to get validator performance:', error);
+      }
       return 0;
     }
   }
@@ -1851,8 +1860,12 @@ export class Mempool {
     try {
       const stats = await this.blockchain.db.getValidatorStats(address);
       return stats.currentLoad / stats.maxCapacity;
-    } catch (error) {
-      Logger.error("Failed to get validator load:", error);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.error('Failed to get validator load:', error);
+      } else {
+        Logger.error('Failed to get validator load:', error);
+      }
       return 1; // Assume fully loaded on error
     }
   }
@@ -1860,7 +1873,7 @@ export class Mempool {
   // Add method to handle validation failure
   public async handleValidationFailure(
     validationTask: string,
-    failedValidator: string
+    failedValidator: string,
   ): Promise<boolean> {
     try {
       // Log and penalize the absent validator
@@ -1869,7 +1882,7 @@ export class Mempool {
       // Try to find a backup validator
       const backupValidator = await this.selectBackupValidator(
         validationTask,
-        failedValidator
+        failedValidator,
       );
 
       if (backupValidator) {
@@ -1890,7 +1903,7 @@ export class Mempool {
       });
       return false;
     } catch (error) {
-      Logger.error("Failed to handle validation failure:", error);
+      Logger.error('Failed to handle validation failure:', error);
       return false;
     }
   }
@@ -1903,7 +1916,7 @@ export class Mempool {
       // Iterate through active validators
       for (let i = 0; i < validatorCount; i++) {
         const validator = await this.blockchain.db.getValidator(
-          `validator_${i}`
+          `validator_${i}`,
         );
         if (validator && validator.isActive) {
           validators.push(validator);
@@ -1912,7 +1925,7 @@ export class Mempool {
 
       return validators;
     } catch (error) {
-      Logger.error("Failed to get expected validators:", error);
+      Logger.error('Failed to get expected validators:', error);
       return [];
     }
   }
@@ -1921,8 +1934,8 @@ export class Mempool {
     try {
       const currentTransactions = this.getTransactions()
         .map((tx) => tx.hash)
-        .join("");
-      const cacheKey = "mempool_state";
+        .join('');
+      const cacheKey = 'mempool_state';
       const cachedState = this.mempoolStateCache.get(cacheKey);
 
       if (cachedState !== currentTransactions) {
@@ -1933,7 +1946,7 @@ export class Mempool {
 
       return false;
     } catch (error) {
-      Logger.error("Error checking mempool changes:", error);
+      Logger.error('Error checking mempool changes:', error);
       return false;
     }
   }
@@ -1951,7 +1964,7 @@ export class Mempool {
       outputIndex: number;
       publicKey: string;
       amount: bigint;
-    }
+    },
   ): Promise<boolean> {
     // Add mutex for the specific transaction instead of global mutex
     const txMutex = await this.getMutexForTransaction(txId);
@@ -1961,7 +1974,7 @@ export class Mempool {
       // Get existing transaction
       const transaction = this.transactions.get(txId);
       if (!transaction) {
-        Logger.warn("Transaction not found for input addition", { txId });
+        Logger.warn('Transaction not found for input addition', { txId });
         return false;
       }
 
@@ -1974,7 +1987,7 @@ export class Mempool {
         input.previousTxId,
         input.outputIndex,
         input.publicKey,
-        input.amount
+        input.amount,
       );
 
       // Add existing inputs
@@ -1983,13 +1996,17 @@ export class Mempool {
           existingInput.txId,
           existingInput.outputIndex,
           existingInput.publicKey,
-          existingInput.amount
+          existingInput.amount,
         );
       }
 
       // Add existing outputs
       for (const output of transaction.outputs) {
-        await txBuilder.addOutput(output.address, output.amount, output.confirmations);
+        await txBuilder.addOutput(
+          output.address,
+          output.amount,
+          output.confirmations,
+        );
       }
 
       // Build updated transaction
@@ -1999,11 +2016,11 @@ export class Mempool {
       const isValid = await this.validateTransaction(
         updatedTx,
         await this.blockchain.getUTXOSet(),
-        this.blockchain.getCurrentHeight()
+        this.blockchain.getCurrentHeight(),
       );
 
       if (!isValid) {
-        Logger.warn("Updated transaction validation failed", { txId });
+        Logger.warn('Updated transaction validation failed', { txId });
         return false;
       }
 
@@ -2020,7 +2037,7 @@ export class Mempool {
 
       return true;
     } catch (error) {
-      Logger.error("Failed to add transaction input:", error);
+      Logger.error('Failed to add transaction input:', error);
       return false;
     } finally {
       release();
@@ -2039,16 +2056,21 @@ export class Mempool {
       address: string;
       amount: bigint;
       confirmations: number;
-    }
+    },
   ): Promise<boolean> {
     // Add input validation
     if (!txId?.match(/^[a-f0-9]{64}$/i)) {
-      Logger.warn("Invalid transaction ID format");
+      Logger.warn('Invalid transaction ID format');
       return false;
     }
 
-    if (!output?.address || !output?.amount || output.amount <= BigInt(0) || !output.confirmations) {
-      Logger.warn("Invalid output parameters");
+    if (
+      !output?.address ||
+      !output?.amount ||
+      output.amount <= BigInt(0) ||
+      !output.confirmations
+    ) {
+      Logger.warn('Invalid output parameters');
       return false;
     }
 
@@ -2059,7 +2081,7 @@ export class Mempool {
       // Get existing transaction
       const transaction = this.transactions.get(txId);
       if (!transaction) {
-        Logger.warn("Transaction not found for output addition", { txId });
+        Logger.warn('Transaction not found for output addition', { txId });
         return false;
       }
 
@@ -2073,7 +2095,7 @@ export class Mempool {
           input.txId,
           input.outputIndex,
           input.publicKey,
-          input.amount
+          input.amount,
         );
       }
 
@@ -2082,12 +2104,16 @@ export class Mempool {
         await txBuilder.addOutput(
           existingOutput.address,
           existingOutput.amount,
-          existingOutput.confirmations
+          existingOutput.confirmations,
         );
       }
 
       // Add new output - script will be generated in TransactionBuilder.addOutput
-      await txBuilder.addOutput(output.address, output.amount, output.confirmations);
+      await txBuilder.addOutput(
+        output.address,
+        output.amount,
+        output.confirmations,
+      );
 
       // Build updated transaction
       const updatedTx = await txBuilder.build();
@@ -2096,11 +2122,11 @@ export class Mempool {
       const isValid = await this.validateTransaction(
         updatedTx,
         await this.blockchain.getUTXOSet(),
-        this.blockchain.getCurrentHeight()
+        this.blockchain.getCurrentHeight(),
       );
 
       if (!isValid) {
-        Logger.warn("Updated transaction validation failed", { txId });
+        Logger.warn('Updated transaction validation failed', { txId });
         return false;
       }
 
@@ -2117,7 +2143,7 @@ export class Mempool {
 
       return true;
     } catch (error) {
-      Logger.error("Failed to add transaction output:", error);
+      Logger.error('Failed to add transaction output:', error);
       return false;
     } finally {
       release();
@@ -2127,7 +2153,7 @@ export class Mempool {
   // Add cache cleanup
   private cleanupCache(): void {
     const now = Date.now();
-    for (const [key, value] of this.mempoolStateCache.entries()) {
+    for (const [key,] of this.mempoolStateCache.entries()) {
       if (now - this.lastChangeTimestamp > this.maxTransactionAge) {
         this.mempoolStateCache.delete(key);
       }
@@ -2142,7 +2168,7 @@ export class Mempool {
         this.updateDynamicFees();
         this.cleanupOldFeeBuckets();
       } catch (error) {
-        Logger.error("Cleanup interval failed:", error);
+        Logger.error('Cleanup interval failed:', error);
       }
     }, BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.CLEANUP_INTERVAL);
   }
@@ -2151,7 +2177,7 @@ export class Mempool {
     try {
       // Basic validation
       if (!transaction?.inputs?.length || !transaction?.outputs?.length) {
-        throw new Error("Invalid transaction structure");
+        throw new Error('Invalid transaction structure');
       }
 
       let size = 0;
@@ -2171,7 +2197,7 @@ export class Mempool {
       size += this.getVarIntSize(transaction.inputs.length);
       for (const input of transaction.inputs) {
         size += SIZES.INPUT_BASE;
-        
+
         // Script validation
         if (input.script) {
           const scriptSize = Buffer.from(input.script).length;
@@ -2206,7 +2232,7 @@ export class Mempool {
       size += this.getVarIntSize(transaction.outputs.length);
       for (const output of transaction.outputs) {
         size += SIZES.OUTPUT_BASE;
-        
+
         if (output.script) {
           const scriptSize = Buffer.from(output.script).length;
           if (scriptSize > BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SCRIPT_SIZE) {
@@ -2220,7 +2246,7 @@ export class Mempool {
       if (transaction.hasWitness && transaction.witness?.stack?.length) {
         size += SIZES.WITNESS_FLAG;
         size += this.getVarIntSize(transaction.witness.stack.length);
-        
+
         for (const witnessData of transaction.witness.stack) {
           const witnessSize = Buffer.from(witnessData, 'hex').length;
           size += this.getVarIntSize(witnessSize) + witnessSize;
@@ -2228,11 +2254,13 @@ export class Mempool {
       }
 
       return size;
-    } catch (error) {
-      Logger.error("Transaction size calculation failed:", {
-        txId: transaction?.id,
-        error: error.message,
-      });
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.error('Transaction size calculation failed:', {
+          txId: transaction?.id,
+          error: error.message,
+        });
+      }
       return Number.MAX_SAFE_INTEGER; // Force validation failure
     }
   }
@@ -2270,7 +2298,7 @@ export class Mempool {
       const RATE_TOLERANCE = 0.00001;
       for (const [rate, txs] of this.feeRateBuckets) {
         if (Math.abs(rate - feeRate) < RATE_TOLERANCE) {
-          Logger.debug("Found fee bucket", {
+          Logger.debug('Found fee bucket', {
             txId: transaction.id,
             feeRate,
             bucketRate: rate,
@@ -2281,7 +2309,7 @@ export class Mempool {
 
       // Create new bucket if none found
       if (!this.feeRateBuckets.has(feeRate)) {
-        Logger.debug("Creating new fee bucket", {
+        Logger.debug('Creating new fee bucket', {
           txId: transaction.id,
           feeRate,
         });
@@ -2291,7 +2319,7 @@ export class Mempool {
 
       return undefined;
     } catch (error) {
-      Logger.error("Error finding fee bucket:", error);
+      Logger.error('Error finding fee bucket:', error);
       return undefined;
     }
   }
@@ -2308,7 +2336,7 @@ export class Mempool {
 
       return bucket;
     } catch (error) {
-      Logger.error("Error managing fee bucket:", error);
+      Logger.error('Error managing fee bucket:', error);
       return new Set<string>();
     }
   }
@@ -2328,7 +2356,7 @@ export class Mempool {
       // Consolidate buckets if there are too many
       if (this.feeRateBuckets.size > BUCKET_CONSOLIDATION_THRESHOLD) {
         const sortedRates = Array.from(this.feeRateBuckets.keys()).sort(
-          (a, b) => a - b
+          (a, b) => a - b,
         );
 
         for (let i = 0; i < sortedRates.length - 1; i++) {
@@ -2345,15 +2373,15 @@ export class Mempool {
         }
       }
 
-      Logger.debug("Fee buckets cleaned up", {
+      Logger.debug('Fee buckets cleaned up', {
         bucketCount: this.feeRateBuckets.size,
         totalTransactions: Array.from(this.feeRateBuckets.values()).reduce(
           (sum, bucket) => sum + bucket.size,
-          0
+          0,
         ),
       });
     } catch (error) {
-      Logger.error("Fee bucket cleanup failed:", error);
+      Logger.error('Fee bucket cleanup failed:', error);
     }
   }
 
@@ -2362,12 +2390,12 @@ export class Mempool {
       const newFee = await this.calculateDynamicMinFee();
       this.lastValidFee = newFee;
 
-      Logger.debug("Updated dynamic fees", {
+      Logger.debug('Updated dynamic fees', {
         newFee,
         timestamp: Date.now(),
       });
     } catch (error) {
-      Logger.error("Failed to update dynamic fees:", error);
+      Logger.error('Failed to update dynamic fees:', error);
     }
   }
 
@@ -2377,7 +2405,7 @@ export class Mempool {
       const votingUtxos = await utxoSet.findUtxosForVoting(address);
       return Number(utxoSet.calculateVotingPower(votingUtxos));
     } catch (error) {
-      Logger.error("Error getting voting contribution:", error);
+      Logger.error('Error getting voting contribution:', error);
       return 0;
     }
   }
@@ -2390,7 +2418,7 @@ export class Mempool {
       // Add timeout to prevent deadlock
       const acquirePromise = mutex.acquire();
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Mutex acquisition timeout")), 5000);
+        setTimeout(() => reject(new Error('Mutex acquisition timeout')), 5000);
       });
 
       release = await Promise.race([acquirePromise, timeoutPromise]);
@@ -2400,7 +2428,7 @@ export class Mempool {
         const utxoKey = `${input.txId}:${input.outputIndex}`;
 
         if (spentUTXOs.has(utxoKey)) {
-          Logger.warn("Double-spend detected within transaction", {
+          Logger.warn('Double-spend detected within transaction', {
             txId: tx.id,
             utxoKey,
           });
@@ -2414,7 +2442,7 @@ export class Mempool {
         ]);
 
         if (!utxo || utxo.spent || isSpentInMempool) {
-          Logger.warn("Invalid or spent UTXO", {
+          Logger.warn('Invalid or spent UTXO', {
             txId: tx.id,
             inputTxId: input.txId,
             outputIndex: input.outputIndex,
@@ -2433,7 +2461,7 @@ export class Mempool {
 
       return true;
     } catch (error) {
-      Logger.error("Transaction input validation failed:", error);
+      Logger.error('Transaction input validation failed:', error);
       return false;
     } finally {
       if (release) release();
@@ -2442,12 +2470,12 @@ export class Mempool {
 
   private async isUTXOSpentInMempool(
     txId: string,
-    outputIndex: number
+    outputIndex: number,
   ): Promise<boolean> {
     for (const tx of this.transactions.values()) {
       if (
         tx.inputs.some(
-          (input) => input.txId === txId && input.outputIndex === outputIndex
+          (input) => input.txId === txId && input.outputIndex === outputIndex,
         )
       ) {
         return true;
@@ -2456,11 +2484,13 @@ export class Mempool {
     return false;
   }
 
-  private async validateTransactionSize(transaction: Transaction): Promise<boolean> {
+  private async validateTransactionSize(
+    transaction: Transaction,
+  ): Promise<boolean> {
     const size = this.calculateTransactionSize(transaction);
 
-    if (size > await this.getMaxSize()) {
-      Logger.warn("Transaction exceeds maximum size", {
+    if (size > (await this.getMaxSize())) {
+      Logger.warn('Transaction exceeds maximum size', {
         txId: transaction.id,
         size,
         maxSize: await this.getMaxSize(),
@@ -2471,9 +2501,9 @@ export class Mempool {
     const minFeeRate = await this.getMinFeeRate();
     // Convert to BigInt before multiplication
     const minFee = BigInt(Math.floor(size * minFeeRate));
-    
+
     if (transaction.fee < minFee) {
-      Logger.warn("Transaction fee too low for size", {
+      Logger.warn('Transaction fee too low for size', {
         txId: transaction.id,
         fee: transaction.fee.toString(),
         minFee: minFee.toString(),
@@ -2493,7 +2523,7 @@ export class Mempool {
   private calculateUsage(): number {
     return Array.from(this.transactions.values()).reduce(
       (sum, tx) => sum + tx.getSize(),
-      0
+      0,
     );
   }
 
@@ -2506,7 +2536,7 @@ export class Mempool {
       // Calculate size metrics
       const bytes = Array.from(this.transactions.values()).reduce(
         (sum, tx) => sum + this.calculateTransactionSize(tx),
-        0
+        0,
       );
 
       // Get fee metrics
@@ -2557,14 +2587,14 @@ export class Mempool {
         },
       };
     } catch (error) {
-      Logger.error("Failed to get mempool info:", error);
-      throw new Error("Failed to retrieve mempool information");
+      Logger.error('Failed to get mempool info:', error);
+      throw new Error('Failed to retrieve mempool information');
     }
   }
 
   private calculateFeeMetrics(): FeeMetrics {
     const fees = Array.from(this.transactions.values()).map((tx) =>
-      this.calculateFeePerByte(tx)
+      this.calculateFeePerByte(tx),
     );
 
     if (fees.length === 0) {
@@ -2605,35 +2635,35 @@ export class Mempool {
 
   private getPendingCount(): number {
     return Array.from(this.transactions.values()).filter(
-      (tx) => !tx.blockHeight
+      (tx) => !tx.blockHeight,
     ).length;
   }
 
   private getOldestTransactionAge(): number {
     const timestamps = Array.from(this.transactions.values()).map(
-      (tx) => tx.timestamp
+      (tx) => tx.timestamp,
     );
     return timestamps.length ? Math.min(...timestamps) : 0;
   }
 
   private getYoungestTransactionAge(): number {
     const timestamps = Array.from(this.transactions.values()).map(
-      (tx) => tx.timestamp
+      (tx) => tx.timestamp,
     );
     return timestamps.length ? Math.max(...timestamps) : 0;
   }
 
-  private getHealthStatus(): "healthy" | "degraded" | "critical" {
+  private getHealthStatus(): 'healthy' | 'degraded' | 'critical' {
     const loadFactor = this.transactions.size / this.maxSize;
     const memoryUsage = process.memoryUsage().heapUsed;
     const maxMemory = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MEMORY_USAGE;
 
     if (loadFactor > 0.9 || memoryUsage > maxMemory * 0.9) {
-      return "critical";
+      return 'critical';
     } else if (loadFactor > 0.7 || memoryUsage > maxMemory * 0.7) {
-      return "degraded";
+      return 'degraded';
     }
-    return "healthy";
+    return 'healthy';
   }
 
   private canAcceptTransactions(): boolean {
@@ -2643,7 +2673,7 @@ export class Mempool {
       BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MEMORY_USAGE;
     const sizeOK = this.transactions.size < this.maxSize;
 
-    return health !== "critical" && memoryOK && sizeOK;
+    return health !== 'critical' && memoryOK && sizeOK;
   }
 
   /**
@@ -2652,7 +2682,7 @@ export class Mempool {
    * @returns {Promise<Record<string, RawMempoolEntry> | string[]>} Mempool transactions
    */
   public async getRawMempool(
-    verbose: boolean = false
+    verbose: boolean = false,
   ): Promise<Record<string, RawMempoolEntry> | string[]> {
     try {
       if (!verbose) {
@@ -2682,8 +2712,8 @@ export class Mempool {
 
       return result;
     } catch (error) {
-      Logger.error("Failed to get raw mempool:", error);
-      throw new Error("Failed to retrieve mempool transactions");
+      Logger.error('Failed to get raw mempool:', error);
+      throw new Error('Failed to retrieve mempool transactions');
     }
   }
 
@@ -2726,8 +2756,8 @@ export class Mempool {
   public async getMempoolEntry(txid: string): Promise<RawMempoolEntry> {
     try {
       // Input validation
-      if (!txid || typeof txid !== "string") {
-        throw new Error("Invalid transaction ID");
+      if (!txid || typeof txid !== 'string') {
+        throw new Error('Invalid transaction ID');
       }
 
       // Get transaction from mempool
@@ -2755,112 +2785,117 @@ export class Mempool {
         depends: Array.from(tx.inputs.map((input) => input.txId)),
       };
 
-      Logger.debug("Retrieved mempool entry", { txid, size: entry.vsize });
+      Logger.debug('Retrieved mempool entry', { txid, size: entry.vsize });
       return entry;
     } catch (error) {
-      Logger.error("Failed to get mempool entry:", error);
+      Logger.error('Failed to get mempool entry:', error);
       throw error;
     }
   }
 
   private isValidInputScript(script: string): boolean {
     try {
-        if (!script || typeof script !== "string") return false;
+      if (!script || typeof script !== 'string') return false;
 
-        // Check for our supported script formats
-        if (script.startsWith("0 ")) {
-            // Native SegWit equivalent (TAG1)
-            return /^0 [a-f0-9]{40}$/i.test(script);
-        } else if (script.startsWith("OP_HASH160")) {
-            // P2SH equivalent (TAG3)
-            return /^OP_HASH160 [a-f0-9]{40} OP_EQUAL$/i.test(script);
-        } else if (script.startsWith("OP_DUP")) {
-            // Legacy P2PKH (TAG)
-            return /^OP_DUP OP_HASH160 [a-f0-9]{40} OP_EQUALVERIFY OP_CHECKSIG$/i.test(script);
-        }
+      // Check for our supported script formats
+      if (script.startsWith('0 ')) {
+        // Native SegWit equivalent (TAG1)
+        return /^0 [a-f0-9]{40}$/i.test(script);
+      } else if (script.startsWith('OP_HASH160')) {
+        // P2SH equivalent (TAG3)
+        return /^OP_HASH160 [a-f0-9]{40} OP_EQUAL$/i.test(script);
+      } else if (script.startsWith('OP_DUP')) {
+        // Legacy P2PKH (TAG)
+        return /^OP_DUP OP_HASH160 [a-f0-9]{40} OP_EQUALVERIFY OP_CHECKSIG$/i.test(
+          script,
+        );
+      }
 
-        Logger.warn("Unsupported script format");
-        return false;
+      Logger.warn('Unsupported script format');
+      return false;
     } catch (error) {
-        Logger.error("Input script validation failed:", error);
-        return false;
+      Logger.error('Input script validation failed:', error);
+      return false;
     }
-}
+  }
 
-private isValidScriptType(script: string): boolean {
+  private isValidScriptType(script: string): boolean {
     try {
-        if (!script || typeof script !== "string") return false;
+      if (!script || typeof script !== 'string') return false;
 
-        // Check script version and format
-        const [version, scriptContent] = script.split(":");
-        if (version !== "01") return false;
+      // Check script version and format
+      const [version, scriptContent] = script.split(':');
+      if (version !== '01') return false;
 
-        return this.isValidInputScript(scriptContent);
+      return this.isValidInputScript(scriptContent);
     } catch (error) {
-        Logger.error("Script type validation failed:", error);
-        return false;
+      Logger.error('Script type validation failed:', error);
+      return false;
     }
-}
-
-public async getCongestionFactor(): Promise<number> {
-  try {
-    const currentSize = this.transactions.size;
-    const maxSize = await this.getMaxSize();
-    return Math.min(currentSize / maxSize, 1);
-  } catch (error) {
-    Logger.error("Failed to get congestion factor:", error);
-    return 0.5; // Return moderate congestion on error
   }
-}
 
-public async getMinFeeRate(): Promise<number> {
-  try {
-    return this.calculateDynamicMinFee();
-  } catch (error) {
-    Logger.error("Failed to get min fee rate:", error);
-    return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+  public async getCongestionFactor(): Promise<number> {
+    try {
+      const currentSize = this.transactions.size;
+      const maxSize = await this.getMaxSize();
+      return Math.min(currentSize / maxSize, 1);
+    } catch (error) {
+      Logger.error('Failed to get congestion factor:', error);
+      return 0.5; // Return moderate congestion on error
+    }
   }
-}
 
-public async getMaxSize(): Promise<number> {
-  try {
-    const baseMaxSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
-    const congestionFactor = await this.getCongestionFactor();
-    
-    // More gradual size reduction based on congestion
-    const dynamicSize = Math.floor(baseMaxSize * (1 - congestionFactor * 0.3));
-    
-    // Never go below minimum viable transaction size
-    const minViableSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_SIZE;
-    return Math.max(dynamicSize, minViableSize);
-  } catch (error) {
-    Logger.error("Failed to get max size:", error);
-    // Fallback to conservative size limit
-    return BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
+  public async getMinFeeRate(): Promise<number> {
+    try {
+      return this.calculateDynamicMinFee();
+    } catch (error) {
+      Logger.error('Failed to get min fee rate:', error);
+      return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+    }
   }
-}
 
-public async getMaxFeeRate(): Promise<number> {
-  try {
-    const minFee = await this.getMinFeeRate();
-    // Cap maximum fee at 20x the minimum fee
-    return minFee * 20;
-  } catch (error) {
-    Logger.error("Failed to get max fee rate:", error);
-    return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 20;
+  public async getMaxSize(): Promise<number> {
+    try {
+      const baseMaxSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
+      const congestionFactor = await this.getCongestionFactor();
+
+      // More gradual size reduction based on congestion
+      const dynamicSize = Math.floor(
+        baseMaxSize * (1 - congestionFactor * 0.3),
+      );
+
+      // Never go below minimum viable transaction size
+      const minViableSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_SIZE;
+      return Math.max(dynamicSize, minViableSize);
+    } catch (error) {
+      Logger.error('Failed to get max size:', error);
+      // Fallback to conservative size limit
+      return BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
+    }
   }
-}
 
-public async getBaseFeeRate(): Promise<number> {
-  try {
-    // Get base fee rate from network conditions
-    const congestionFactor = await this.getCongestionFactor();
-    const baseFee = Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
-    return Math.floor(baseFee * (1 + congestionFactor));
-  } catch (error) {
-    Logger.error("Failed to get base fee rate:", error);
-    return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+  public async getMaxFeeRate(): Promise<number> {
+    try {
+      const minFee = await this.getMinFeeRate();
+      // Cap maximum fee at 20x the minimum fee
+      return minFee * 20;
+    } catch (error) {
+      Logger.error('Failed to get max fee rate:', error);
+      return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 20;
+    }
   }
-}
 
+  public async getBaseFeeRate(): Promise<number> {
+    try {
+      // Get base fee rate from network conditions
+      const congestionFactor = await this.getCongestionFactor();
+      const baseFee = Number(
+        BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
+      );
+      return Math.floor(baseFee * (1 + congestionFactor));
+    } catch (error) {
+      Logger.error('Failed to get base fee rate:', error);
+      return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
+    }
+  }
 }

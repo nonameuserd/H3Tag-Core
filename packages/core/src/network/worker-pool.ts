@@ -1,7 +1,7 @@
-import { Worker } from "worker_threads";
-import { EventEmitter } from "events";
-import { Logger } from "@h3tag-blockchain/shared";
-import os from "os";
+import { Worker } from 'worker_threads';
+import { EventEmitter } from 'events';
+import { Logger } from '@h3tag-blockchain/shared';
+import os from 'os';
 
 interface WorkerMetrics {
   tasksProcessed: number;
@@ -21,7 +21,7 @@ export class WorkerPool {
   constructor(
     maxWorkers: number,
     private readonly scriptPath: string,
-    private readonly workerOptions: WorkerOptions = {}
+    private readonly workerOptions: WorkerOptions = {},
   ) {
     this.maxWorkers = Math.max(1, Math.min(maxWorkers, os.cpus().length));
     this.startHealthCheck();
@@ -53,13 +53,13 @@ export class WorkerPool {
       avgProcessingTime: 0,
     };
 
-    worker.on("error", (error) => {
+    worker.on('error', (error) => {
       metrics.errors++;
-      Logger.error("Worker error:", error);
+      Logger.error('Worker error:', error);
       this.handleWorkerError(worker);
     });
 
-    worker.on("exit", (code) => {
+    worker.on('exit', (code) => {
       if (code !== 0) {
         Logger.warn(`Worker exited with code ${code}`);
       }
@@ -68,7 +68,7 @@ export class WorkerPool {
     });
 
     this.workers.set(worker, metrics);
-    await new Promise((resolve) => worker.once("online", resolve));
+    await new Promise((resolve) => worker.once('online', resolve));
     return worker;
   }
 
@@ -85,7 +85,7 @@ export class WorkerPool {
     try {
       await worker.terminate();
     } catch (error) {
-      Logger.error("Error terminating worker:", error);
+      Logger.error('Error terminating worker:', error);
     } finally {
       this.workers.delete(worker);
       this.available = this.available.filter((w) => w !== worker);
@@ -136,7 +136,7 @@ export class WorkerPool {
 
   public async dispose(): Promise<void> {
     const terminationPromises = Array.from(this.workers.keys()).map((worker) =>
-      this.terminateWorker(worker)
+      this.terminateWorker(worker),
     );
 
     await Promise.all(terminationPromises);
@@ -153,12 +153,12 @@ export class WorkerPool {
   } {
     const totalTasksProcessed = Array.from(this.workers.values()).reduce(
       (sum, metrics) => sum + metrics.tasksProcessed,
-      0
+      0,
     );
 
     const totalErrors = Array.from(this.workers.values()).reduce(
       (sum, metrics) => sum + metrics.errors,
-      0
+      0,
     );
 
     return {

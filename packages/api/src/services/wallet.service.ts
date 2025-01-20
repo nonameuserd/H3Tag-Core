@@ -1,15 +1,15 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { Wallet } from "@h3tag-blockchain/core";
+import { Injectable, Logger } from '@nestjs/common';
+import { Wallet } from '@h3tag-blockchain/core';
 import {
   CreateWalletDto,
   WalletResponseDto,
   ImportPrivateKeyDto,
   TxOutDto,
-} from "../dtos/wallet.dto";
-import { Transaction } from "@h3tag-blockchain/core";
-import { UnspentOutputDto } from "../dtos/wallet.dto";
-import { UTXOSet } from "@h3tag-blockchain/core";
-import { BLOCKCHAIN_CONSTANTS } from "@h3tag-blockchain/core";
+} from '../dtos/wallet.dto';
+import { Transaction } from '@h3tag-blockchain/core';
+import { UnspentOutputDto } from '../dtos/wallet.dto';
+import { UTXOSet } from '@h3tag-blockchain/core';
+import { BLOCKCHAIN_CONSTANTS } from '@h3tag-blockchain/core';
 
 /**
  * @swagger
@@ -47,12 +47,12 @@ export class WalletService {
    *               $ref: '#/components/schemas/WalletResponseDto'
    */
   async createWallet(
-    createWalletDto: CreateWalletDto
+    createWalletDto: CreateWalletDto,
   ): Promise<WalletResponseDto> {
     if (createWalletDto.mnemonic) {
       const wallet = await Wallet.fromMnemonic(
         createWalletDto.mnemonic,
-        createWalletDto.password
+        createWalletDto.password || '',
       );
       this.wallets.set(wallet.getAddress(), wallet);
       return {
@@ -62,7 +62,7 @@ export class WalletService {
     }
 
     const { wallet, mnemonic } = await Wallet.createWithMnemonic(
-      createWalletDto.password
+      createWalletDto.password || '',
     );
     this.wallets.set(wallet.getAddress(), wallet);
     return {
@@ -95,7 +95,7 @@ export class WalletService {
   async getWallet(address: string): Promise<WalletResponseDto> {
     const wallet = this.wallets.get(address);
     if (!wallet) {
-      throw new Error("Wallet not found");
+      throw new Error('Wallet not found');
     }
     return {
       address: wallet.getAddress(),
@@ -140,11 +140,11 @@ export class WalletService {
   async signTransaction(
     address: string,
     transaction: Transaction,
-    password: string
+    password: string,
   ): Promise<string> {
     const wallet = this.wallets.get(address);
     if (!wallet) {
-      throw new Error("Wallet not found");
+      throw new Error('Wallet not found');
     }
     return wallet.signTransaction(transaction, password);
   }
@@ -191,18 +191,20 @@ export class WalletService {
     fromAddress: string,
     toAddress: string,
     amount: string,
-    password: string
+    password: string,
   ): Promise<string> {
     const wallet = this.wallets.get(fromAddress);
     if (!wallet) {
-      throw new Error("Wallet not found");
+      throw new Error('Wallet not found');
     }
 
     try {
       const txId = await wallet.sendToAddress(toAddress, amount, password);
       return txId;
-    } catch (error) {
-      throw new Error(`Failed to send transaction: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(
+        `Failed to send transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -234,11 +236,11 @@ export class WalletService {
    *         description: Wallet not found
    */
   async getBalance(
-    address: string
+    address: string,
   ): Promise<{ confirmed: bigint; unconfirmed: bigint }> {
     const wallet = this.wallets.get(address);
     if (!wallet) {
-      throw new Error("Wallet not found");
+      throw new Error('Wallet not found');
     }
     return wallet.getBalance();
   }
@@ -271,7 +273,7 @@ export class WalletService {
   async getNewAddress(address: string): Promise<string> {
     const wallet = this.wallets.get(address);
     if (!wallet) {
-      throw new Error("Wallet not found");
+      throw new Error('Wallet not found');
     }
     return wallet.getNewAddress();
   }
@@ -280,38 +282,42 @@ export class WalletService {
     try {
       const wallet = await Wallet.load(address, password);
       return wallet.exportPrivateKey(password);
-    } catch (error) {
-      Logger.error("Failed to export private key:", error);
-      throw new Error(`Failed to export private key: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to export private key:', error);
+      throw new Error(
+        `Failed to export private key: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   async importPrivateKey(
-    importDto: ImportPrivateKeyDto
+    importDto: ImportPrivateKeyDto,
   ): Promise<WalletResponseDto> {
     try {
       const wallet = await Wallet.importPrivateKey(
-        importDto.encryptedKey,
-        importDto.originalAddress,
-        importDto.password
+        importDto.encryptedKey || '',
+        importDto.originalAddress || '',
+        importDto.password || '',
       );
 
       return {
         address: wallet.getAddress(),
         publicKey: wallet.getPublicKey(),
-        balance: "0", // Initial balance
+        balance: '0', // Initial balance
         isLocked: wallet.isUnlocked(),
       };
-    } catch (error) {
-      Logger.error("Failed to import private key:", error);
-      throw new Error(`Failed to import private key: ${error.message}`);
+    } catch (error: unknown) {
+      Logger.error('Failed to import private key:', error);
+      throw new Error(
+        `Failed to import private key: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   async listUnspent(address: string): Promise<UnspentOutputDto[]> {
     const wallet = this.wallets.get(address);
     if (!wallet) {
-      throw new Error("Wallet not found");
+      throw new Error('Wallet not found');
     }
 
     try {
@@ -320,20 +326,22 @@ export class WalletService {
         txid: utxo.txId,
         vout: utxo.outputIndex,
         address: utxo.address,
-        amount: utxo.amount.toString(),
+        amount: utxo.amount,
         confirmations: utxo.confirmations,
         spendable: !utxo.spent,
       }));
-    } catch (error) {
-      Logger.error("Failed to list unspent outputs:", error);
-      throw error;
+    } catch (error: unknown) {
+      Logger.error('Failed to list unspent outputs:', error);
+      throw new Error(
+        `Failed to list unspent outputs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   async getTxOut(txid: string, n: number): Promise<TxOutDto> {
     const txOut = await this.utxoSet.getTxOut(txid, n, true);
     if (!txOut) {
-      throw new Error("Transaction output not found");
+      throw new Error('Transaction output not found');
     }
 
     return {

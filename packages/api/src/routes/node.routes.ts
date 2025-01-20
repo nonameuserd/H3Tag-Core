@@ -1,9 +1,9 @@
-import express from "express";
-import { NodeController } from "../controllers/node.controller";
-import { NodeService } from "../services/node.service";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { BlockchainSchema } from "@h3tag-blockchain/core";
-import { AuditManager } from "@h3tag-blockchain/core";
+import express from 'express';
+import { NodeController } from '../controllers/node.controller';
+import { NodeService } from '../services/node.service';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { BlockchainSchema } from '@h3tag-blockchain/core';
+import { AuditManager } from '@h3tag-blockchain/core';
 
 /**
  * @swagger
@@ -15,7 +15,7 @@ const router = express.Router();
 const nodeService = new NodeService(
   new ConfigService(),
   new BlockchainSchema(),
-  new AuditManager()
+  new AuditManager(),
 );
 const nodeController = new NodeController(nodeService);
 
@@ -41,12 +41,12 @@ const nodeController = new NodeController(nodeService);
  *       500:
  *         description: Server error
  */
-router.post("/testnet", async (req, res) => {
+router.post('/testnet', async (req, res) => {
   try {
     const result = await nodeController.createTestnetNode(req.body);
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
@@ -72,12 +72,12 @@ router.post("/testnet", async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post("/mainnet", async (req, res) => {
+router.post('/mainnet', async (req, res) => {
   try {
     const result = await nodeController.createMainnetNode(req.body);
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
@@ -103,12 +103,12 @@ router.post("/mainnet", async (req, res) => {
  *       404:
  *         description: Node not found
  */
-router.get("/:nodeId/status", async (req, res) => {
+router.get('/:nodeId/status', async (req, res) => {
   try {
     const result = await nodeController.getNodeStatus(req.params.nodeId);
     res.json(result);
-  } catch (error) {
-    res.status(404).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(404).json({ error: (error as Error).message });
   }
 });
 
@@ -139,12 +139,12 @@ router.get("/:nodeId/status", async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post("/:nodeId/stop", async (req, res) => {
+router.post('/:nodeId/stop', async (req, res) => {
   try {
     const result = await nodeController.stopNode(req.params.nodeId);
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
@@ -175,12 +175,12 @@ router.post("/:nodeId/stop", async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.get("/:nodeId/validators", async (req, res) => {
+router.get('/:nodeId/validators', async (req, res) => {
   try {
     const result = await nodeController.getActiveValidators(req.params.nodeId);
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 
@@ -209,15 +209,15 @@ router.get("/:nodeId/validators", async (req, res) => {
  *       500:
  *         description: Server error
  */
-router.post("/:nodeId/discover-peers", async (req, res) => {
+router.post('/:nodeId/discover-peers', async (req, res) => {
   try {
     const result = await nodeController.discoverPeers(req.params.nodeId);
     res.json(result);
   } catch (error) {
-    if (error.message.includes("not found")) {
-      res.status(404).json({ error: error.message });
+    if ((error as Error).message.includes('not found')) {
+      res.status(404).json({ error: (error as Error).message });
     } else {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: (error as Error).message });
     }
   }
 });
@@ -253,18 +253,18 @@ router.post("/:nodeId/discover-peers", async (req, res) => {
  *       400:
  *         description: Invalid peer address or connection failed
  */
-router.post("/:nodeId/connect-peer", async (req, res) => {
+router.post('/:nodeId/connect-peer', async (req, res) => {
   try {
     const result = await nodeController.connectToPeer(
       req.params.nodeId,
-      req.body
+      req.body,
     );
     res.json(result);
-  } catch (error) {
-    if (error.message.includes("not found")) {
-      res.status(404).json({ error: error.message });
+  } catch (error: unknown) {
+    if ((error as Error).message.includes('not found')) {
+      res.status(404).json({ error: (error as Error).message });
     } else {
-      res.status(400).json({ error: error.message });
+      res.status(400).json({ error: (error as Error).message });
     }
   }
 });

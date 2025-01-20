@@ -1,8 +1,10 @@
-declare module "gpu-api" {
+declare module 'gpu-api' {
   export interface GPUDevice {
     createBuffer(descriptor: GPUBufferDescriptor): GPUBuffer;
     createCommandEncoder(): GPUCommandEncoder;
-    createComputePipeline(descriptor: GPUComputePipelineDescriptor): GPUComputePipeline;
+    createComputePipeline(
+      descriptor: GPUComputePipelineDescriptor,
+    ): GPUComputePipeline;
     queue: GPUQueue;
   }
 

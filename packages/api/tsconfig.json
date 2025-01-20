@@ -1,7 +1,5 @@
 {
   "extends": "../../tsconfig.json",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",

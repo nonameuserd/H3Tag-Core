@@ -30,15 +30,15 @@ export class ZeroCopyCompression {
   constructor(device?: GPUDevice) {
     // Add proper WebGPU feature detection
     this.isWebGPUSupported =
-      typeof navigator !== "undefined" &&
-      "gpu" in navigator &&
-      typeof GPUBuffer !== "undefined";
+      typeof navigator !== 'undefined' &&
+      'gpu' in navigator &&
+      typeof GPUBuffer !== 'undefined';
 
-    this.device = device || null;
+    this.device = device || new GPUDevice();
     this.sharedBuffers = new Map();
 
     // Add proper environment check
-    if (!this.isWebGPUSupported && process?.env?.NODE_ENV === "test") {
+    if (!this.isWebGPUSupported && process?.env?.NODE_ENV === 'test') {
       this.compressInPlace = async () => Promise.resolve();
       this.compressWithSharedMemory = async () => Promise.resolve();
     }
@@ -46,14 +46,14 @@ export class ZeroCopyCompression {
 
   async compressInPlace(buffer: GPUBuffer): Promise<void> {
     if (!this.device || !buffer) {
-      throw new Error("Invalid device or buffer");
+      throw new Error('Invalid device or buffer');
     }
 
     try {
       // Create shared memory with proper size validation
       const shared = await this.allocateSharedBuffer(
-        "compression",
-        Math.min(buffer.size, Number.MAX_SAFE_INTEGER)
+        'compression',
+        Math.min(buffer.size, Number.MAX_SAFE_INTEGER),
       );
       const view = new Uint8Array(shared);
 
@@ -65,7 +65,7 @@ export class ZeroCopyCompression {
         });
 
       // Copy data from mapped buffer to shared array
-      view.set(new Uint8Array(mapped));
+      view.set(new Uint8Array(mapped || new Uint8Array()));
 
       // Create command encoder with proper error handling
       const commandEncoder = this.device.createCommandEncoder();
@@ -82,16 +82,19 @@ export class ZeroCopyCompression {
       buffer.unmap();
     } catch (error) {
       buffer?.unmap();
-      throw new Error(`Compression failed: ${error.message}`);
+      if (error instanceof Error) {
+        throw new Error(`Compression failed: ${error.message}`);
+      }
+      throw new Error('Compression failed: Unknown error');
     }
   }
 
   private createBindGroup(
     buffer: ArrayBuffer,
-    compressionLevel: number = 1
+    compressionLevel: number = 1,
   ): GPUBindGroup {
     if (!buffer || buffer.byteLength <= 0) {
-      throw new Error("Invalid buffer");
+      throw new Error('Invalid buffer');
     }
 
     // Create buffers with proper error handling
@@ -137,7 +140,7 @@ export class ZeroCopyCompression {
 
   private getCompressionPipeline(): GPUComputePipeline {
     return this.device.createComputePipeline({
-      layout: "auto",
+      layout: 'auto',
       compute: {
         module: this.device.createShaderModule({
           code: `
@@ -312,17 +315,17 @@ export class ZeroCopyCompression {
                         }
                     `,
         }),
-        entryPoint: "main",
+        entryPoint: 'main',
       },
     });
   }
 
   async allocateSharedBuffer(
     id: string,
-    size: number
+    size: number,
   ): Promise<SharedArrayBuffer> {
     if (!id || size <= 0) {
-      throw new Error("Invalid buffer parameters");
+      throw new Error('Invalid buffer parameters');
     }
 
     // Add size validation
@@ -361,8 +364,11 @@ export class ZeroCopyCompression {
 
       computePass.end();
       this.device.queue.submit([commandEncoder.finish()]);
-    } catch (error) {
-      throw new Error(`Shared memory compression failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Shared memory compression failed: ${error.message}`);
+      }
+      throw new Error('Shared memory compression failed: Unknown error');
     }
   }
 

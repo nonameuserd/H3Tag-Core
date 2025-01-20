@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger } from '@nestjs/common';
 import {
   Node,
   Blockchain,
@@ -6,16 +6,16 @@ import {
   AuditManager,
   BlockchainSchema,
   BLOCKCHAIN_CONSTANTS,
-} from "@h3tag-blockchain/core";
+} from '@h3tag-blockchain/core';
 import {
   CreateNodeDto,
   NodeResponseDto,
   NodeStatusDto,
   PeerDiscoveryResponseDto,
   PeerConnectionResponseDto,
-} from "../dtos/node.dto";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { KeyManager } from "@h3tag-blockchain/crypto";
+} from '../dtos/node.dto';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { KeyManager } from '@h3tag-blockchain/crypto';
 
 /**
  * @swagger
@@ -30,7 +30,7 @@ export class NodeService {
   constructor(
     private readonly configService: ConfigService,
     private readonly blockchainSchema: BlockchainSchema,
-    private readonly auditManager: AuditManager
+    private readonly auditManager: AuditManager,
   ) {}
 
   /**
@@ -136,7 +136,8 @@ export class NodeService {
           maxTarget: BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET,
           minDifficulty: BLOCKCHAIN_CONSTANTS.MINING.MIN_DIFFICULTY,
           initialDifficulty: BLOCKCHAIN_CONSTANTS.MINING.INITIAL_DIFFICULTY,
-          maxAdjustmentFactor: BLOCKCHAIN_CONSTANTS.MINING.MAX_ADJUSTMENT_FACTOR,
+          maxAdjustmentFactor:
+            BLOCKCHAIN_CONSTANTS.MINING.MAX_ADJUSTMENT_FACTOR,
           voteInfluence: BLOCKCHAIN_CONSTANTS.MINING.VOTE_INFLUENCE,
           minVotesWeight: BLOCKCHAIN_CONSTANTS.MINING.MIN_VOTES_WEIGHT,
           maxChainLength: BLOCKCHAIN_CONSTANTS.MINING.MAX_CHAIN_LENGTH,
@@ -193,7 +194,8 @@ export class NodeService {
             BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_PERIOD,
           maxVotesPerWindow:
             BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW,
-          maxVotingPower: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTING_POWER,
+          maxVotingPower:
+            BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTING_POWER,
           minAccountAge: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_ACCOUNT_AGE,
           minPeerCount: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_PEER_COUNT,
           minPowContribution:
@@ -203,11 +205,13 @@ export class NodeService {
             BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.PERIOD_CHECK_INTERVAL,
           votingPeriodBlocks:
             BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS,
-          votingPeriodMs: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_MS,
+          votingPeriodMs:
+            BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_MS,
           minVoteAmount: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTE_AMOUNT,
           minVotesForValidity:
             BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTES_FOR_VALIDITY,
-          minVotingPower: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTING_POWER,
+          minVotingPower:
+            BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTING_POWER,
           rateLimitWindow:
             BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.RATE_LIMIT_WINDOW,
           reputationThreshold:
@@ -215,7 +219,8 @@ export class NodeService {
           voteEncryptionVersion:
             BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_ENCRYPTION_VERSION,
           votingWeight: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_WEIGHT,
-          votePowerDecay: BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_POWER_DECAY,
+          votePowerDecay:
+            BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTE_POWER_DECAY,
         },
         util: {
           processingTimeoutMs: BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS,
@@ -264,7 +269,8 @@ export class NodeService {
           maxTxVersion: BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TX_VERSION,
           mempool: {
             highCongestionThreshold:
-              BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.HIGH_CONGESTION_THRESHOLD,
+              BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL
+                .HIGH_CONGESTION_THRESHOLD,
             maxMb: BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MB,
             evictionInterval:
               BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.EVICTION_INTERVAL,
@@ -279,12 +285,15 @@ export class NodeService {
           },
           minInputAge: BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_INPUT_AGE,
           minTxVersion: BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_TX_VERSION,
-          processingTimeout: BLOCKCHAIN_CONSTANTS.TRANSACTION.PROCESSING_TIMEOUT,
+          processingTimeout:
+            BLOCKCHAIN_CONSTANTS.TRANSACTION.PROCESSING_TIMEOUT,
           required: BLOCKCHAIN_CONSTANTS.TRANSACTION.REQUIRED,
         },
         validator: {
-          minBlockProduction: BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_BLOCK_PRODUCTION,
-          minValidatorUptime: BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_VALIDATOR_UPTIME,
+          minBlockProduction:
+            BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_BLOCK_PRODUCTION,
+          minValidatorUptime:
+            BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_VALIDATOR_UPTIME,
           minVoteParticipation:
             BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_VOTE_PARTICIPATION,
         },
@@ -292,7 +301,8 @@ export class NodeService {
           maxBackupAttempts:
             BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MAX_BACKUP_ATTEMPTS,
           backupSelectionTimeout:
-            BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.BACKUP_SELECTION_TIMEOUT,
+            BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG
+              .BACKUP_SELECTION_TIMEOUT,
           minBackupReputation:
             BLOCKCHAIN_CONSTANTS.BACKUP_VALIDATOR_CONFIG.MIN_BACKUP_REPUTATION,
           minBackupUptime:
@@ -302,27 +312,27 @@ export class NodeService {
         minSafeConfirmations: 6,
         maxSafeUtxoAmount: 1_000_000_000_000,
         coinbaseMaturity: 100,
-        userAgent: "/H3Tag:1.0.0/",
+        userAgent: '/H3Tag:1.0.0/',
         protocolVersion: 1,
         maxMempoolSize: 50000,
         minRelayTxFee: 0.00001,
         minPeers: 3,
         message: {
-          prefix: "\x18H3Tag Signed Message:\n",
+          prefix: '\x18H3Tag Signed Message:\n',
           maxLength: 100000,
           minLength: 1,
         },
         wallet: {
-          address: "",
+          address: '',
           publicKey: async (): Promise<string> => {
             const keyPair = await KeyManager.generateKeyPair();
-            return typeof keyPair.publicKey === "function"
+            return typeof keyPair.publicKey === 'function'
               ? await keyPair.publicKey()
               : keyPair.publicKey;
           },
           privateKey: async (): Promise<string> => {
             const keyPair = await KeyManager.generateKeyPair();
-            return typeof keyPair.privateKey === "function"
+            return typeof keyPair.privateKey === 'function'
               ? await keyPair.privateKey()
               : keyPair.privateKey;
           },
@@ -338,7 +348,7 @@ export class NodeService {
         this.blockchainSchema,
         mempool,
         this.configService,
-        this.auditManager
+        this.auditManager,
       );
 
       // Start the node
@@ -354,14 +364,18 @@ export class NodeService {
 
       return {
         nodeId,
-        status: "running",
-        endpoint: `${params.host || "localhost"}:${params.port || 3000}`,
+        status: 'running',
+        endpoint: `${params.host || 'localhost'}:${params.port || 3000}`,
         networkType: params.networkType,
         peerCount: node.getPeerCount(),
         region: params.region,
       };
-    } catch (error) {
-      throw new Error(`Failed to create node: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(
+        `Failed to create node: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
     }
   }
 
@@ -390,12 +404,12 @@ export class NodeService {
   async getNodeStatus(nodeId: string): Promise<NodeStatusDto> {
     const node = this.nodes.get(nodeId);
     if (!node) {
-      throw new Error("Node not found");
+      throw new Error('Node not found');
     }
 
     return {
       nodeId,
-      status: "running",
+      status: 'running',
       peerCount: node.getPeerCount(),
       bannedPeers: node.getBannedPeers(),
       address: node.getAddress(),
@@ -461,7 +475,7 @@ export class NodeService {
   async getActiveValidators(nodeId: string): Promise<{ address: string }[]> {
     const node = this.nodes.get(nodeId);
     if (!node) {
-      throw new Error("Node not found");
+      throw new Error('Node not found');
     }
     return node.getActiveValidators();
   }
@@ -470,7 +484,7 @@ export class NodeService {
     try {
       const node = this.nodes.get(nodeId);
       if (!node) {
-        throw new Error("Node not found");
+        throw new Error('Node not found');
       }
 
       // Initial peer count
@@ -491,19 +505,19 @@ export class NodeService {
         },
       };
     } catch (error) {
-      Logger.error("Failed to discover peers:", error);
+      Logger.error('Failed to discover peers:', error);
       throw error;
     }
   }
 
   async connectToPeer(
     nodeId: string,
-    peerAddress: string
+    peerAddress: string,
   ): Promise<PeerConnectionResponseDto> {
     try {
       const node = this.nodes.get(nodeId);
       if (!node) {
-        throw new Error("Node not found");
+        throw new Error('Node not found');
       }
 
       // Connect to peer
@@ -512,18 +526,18 @@ export class NodeService {
       // Get peer info
       const peer = node.getPeer(peerAddress);
       if (!peer) {
-        throw new Error("Failed to get peer information after connection");
+        throw new Error('Failed to get peer information after connection');
       }
 
       return {
-        status: "connected",
+        status: 'connected',
         address: peerAddress,
-        version: peer.getVersion().toString(),
+        version: peer.getVersion()?.toString() || 'Unknown',
         height: peer.getHeight(),
         connectedAt: new Date().toISOString(),
       };
     } catch (error) {
-      Logger.error("Failed to connect to peer:", error);
+      Logger.error('Failed to connect to peer:', error);
       throw error;
     }
   }

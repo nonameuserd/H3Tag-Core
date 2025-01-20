@@ -5,11 +5,11 @@
  * @module PeerModel
  */
 
-import { BlockHeader } from "./block.model";
+import { BlockHeader } from './block.model';
 
-import { Block } from "./block.model";
-import { Transaction } from "./transaction.model";
-import { Vote } from "./vote.model";
+import { Block } from './block.model';
+import { Transaction } from './transaction.model';
+import { Vote } from './vote.model';
 
 /**
  * @interface PeerMessage
@@ -85,7 +85,7 @@ export interface PeerInfo {
   capabilities: string[];
   connectedAt: number;
   peers: number;
-  consensusRole: "validator" | "participant" | "observer";
+  consensusRole: 'validator' | 'participant' | 'observer';
   consensusStats: {
     powContributions: number;
     votingParticipation: number;
@@ -148,7 +148,7 @@ export interface PeerConfig {
  * @property {string} [error] - Error message if status is "error"
  */
 export interface ExtendedPeerInfo extends PeerInfo {
-  status: "connected" | "disconnected" | "error";
+  status: 'connected' | 'disconnected' | 'error';
   bandwidth: {
     sent: number;
     received: number;
@@ -187,34 +187,41 @@ export interface ExtendedPeerInfo extends PeerInfo {
  * @property {string} GET_VOTES - Votes request
  */
 export enum PeerMessageType {
-  VERSION = "version",
-  VERACK = "verack",
-  PING = "ping",
-  PONG = "pong",
-  ADDR = "addr",
-  INV = "inv",
-  GETDATA = "getdata",
-  NOTFOUND = "notfound",
-  GETBLOCKS = "getblocks",
-  GETHEADERS = "getheaders",
-  GETBLOCKTXN = "getblocktxn",
-  TX = "tx",
-  BLOCK = "block",
-  HEADERS = "headers",
-  GETADDR = "getaddr",
-  MEMPOOL = "mempool",
-  REJECT = "reject",
-  GET_NODE_INFO = "get_node_info",
-  GET_HEADERS = "get_headers",
-  GET_BLOCKS = "get_blocks",
-  GET_BLOCK = "get_block",
-  NEW_BLOCK = "new_block",
-  NEW_TRANSACTION = "new_transaction",
-  GET_VOTES = "get_votes",
+  VERSION = 'version',
+  VERACK = 'verack',
+  PING = 'ping',
+  PONG = 'pong',
+  ADDR = 'addr',
+  INV = 'inv',
+  GETDATA = 'getdata',
+  NOTFOUND = 'notfound',
+  GETBLOCKS = 'getblocks',
+  GETHEADERS = 'getheaders',
+  GETBLOCKTXN = 'getblocktxn',
+  TX = 'tx',
+  BLOCK = 'block',
+  HEADERS = 'headers',
+  GETADDR = 'getaddr',
+  MEMPOOL = 'mempool',
+  REJECT = 'reject',
+  GET_NODE_INFO = 'get_node_info',
+  GET_HEADERS = 'get_headers',
+  GET_BLOCKS = 'get_blocks',
+  GET_BLOCK = 'get_block',
+  NEW_BLOCK = 'new_block',
+  NEW_TRANSACTION = 'new_transaction',
+  GET_VOTES = 'get_votes',
 }
 
 export interface MessagePayload {
-  addresses?:{ url: string; services: number; timestamp: number; lastSeen?: number; hash?: string, type?: string }[];
+  addresses?: {
+    url: string;
+    services: number;
+    timestamp: number;
+    lastSeen?: number;
+    hash?: string;
+    type?: string;
+  }[];
   inventory?: { type: string; hash: string }[];
   data?: { type: string; hash: string }[];
   type?: string;

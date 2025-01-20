@@ -1,30 +1,34 @@
 import * as dns from 'dns';
-import { EventEmitter } from "events";
-import { Peer, PeerMessage } from "./peer";
-import { RateLimit } from "../security/rateLimit";
-import { Cache } from "../scaling/cache";
-import { AuditManager } from "../security/audit";
-import { FileAuditStorage } from "../security/fileAuditStorage";
-import { Mempool } from "../blockchain/mempool";
-import { UTXOSet } from "../models/utxo.model";
-import { MessagePayload, PeerInfo, PeerMessageType } from "../models/peer.model";
-import { Logger } from "@h3tag-blockchain/shared";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { DiscoveryError } from "./discovery-error";
-import { BlockchainSchema } from "../database/blockchain-schema";
+import { EventEmitter } from 'events';
+import { Peer, PeerMessage } from './peer';
+import { RateLimit } from '../security/rateLimit';
+import { Cache } from '../scaling/cache';
+import { AuditManager } from '../security/audit';
+import { FileAuditStorage } from '../security/fileAuditStorage';
+import { Mempool } from '../blockchain/mempool';
+import { UTXOSet } from '../models/utxo.model';
+import {
+  MessagePayload,
+  PeerInfo,
+  PeerMessageType,
+} from '../models/peer.model';
+import { Logger } from '@h3tag-blockchain/shared';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { DiscoveryError } from './discovery-error';
+import { BlockchainSchema } from '../database/blockchain-schema';
 
 export enum DiscoveryState {
-  INITIALIZING = "INITIALIZING",
-  ACTIVE = "ACTIVE",
-  SYNCING = "SYNCING",
-  ERROR = "ERROR",
+  INITIALIZING = 'INITIALIZING',
+  ACTIVE = 'ACTIVE',
+  SYNCING = 'SYNCING',
+  ERROR = 'ERROR',
 }
 
 export enum PeerType {
-  MINER = "miner",
-  FULL_NODE = "full_node",
-  LIGHT_NODE = "light_node",
-  VALIDATOR = "validator",
+  MINER = 'miner',
+  FULL_NODE = 'full_node',
+  LIGHT_NODE = 'light_node',
+  VALIDATOR = 'validator',
 }
 
 interface PeerAddress {
@@ -51,20 +55,20 @@ export class PeerDiscovery {
   private readonly miners: Set<string>;
   private readonly bannedPeers: Map<string, number>;
   private readonly config: ConfigService;
-  private readonly database: BlockchainSchema;
+  private readonly database: BlockchainSchema | undefined;
   private readonly rateLimit: RateLimit;
   private readonly peerCache: Cache<PeerInfo>;
   private readonly utxoSet: UTXOSet;
   private readonly mempool: Mempool;
   private state: DiscoveryState;
-  private discoveryInterval: NodeJS.Timeout;
-  private cleanupInterval: NodeJS.Timeout;
+  private discoveryInterval: NodeJS.Timeout | undefined;
+  private cleanupInterval: NodeJS.Timeout | undefined;
   private peerScores: Map<string, number>;
   private statePromise: Promise<void> = Promise.resolve();
   private readonly peerAddresses: Map<string, PeerAddress>;
   private readonly dnsSeeds: string[];
   private readonly banThreshold = 100;
-  private feelerInterval: NodeJS.Timeout;
+  private feelerInterval: NodeJS.Timeout | undefined;
 
   private static readonly DISCOVERY_INTERVAL = 30000;
   private static readonly CLEANUP_INTERVAL = 300000;
@@ -86,7 +90,7 @@ export class PeerDiscovery {
     this.bannedPeers = new Map();
     this.peerScores = new Map();
     this.peerAddresses = new Map();
-    this.dnsSeeds = (this.config.get("network.dnsSeeds") as string[]) || [];
+    this.dnsSeeds = (this.config.get('network.dnsSeeds') as string[]) || [];
 
     this.rateLimit = new RateLimit(
       {
@@ -96,9 +100,9 @@ export class PeerDiscovery {
           qudraticVote: 150,
           default: 100,
         },
-        keyPrefix: "peer_discovery:",
+        keyPrefix: 'peer_discovery:',
       },
-      new AuditManager(new FileAuditStorage())
+      new AuditManager(new FileAuditStorage()),
     );
 
     this.peerCache = new Cache<PeerInfo>({
@@ -109,24 +113,24 @@ export class PeerDiscovery {
     // Add feeler connection interval for testing new peers
     this.feelerInterval = setInterval(
       () => this.attemptFeelerConnection(),
-      120000
+      120000,
     );
 
     // Set up message handling for each peer
     this.peers.forEach((peer) => {
-      peer.eventEmitter.on("message", (message: PeerMessage) => {
+      peer.eventEmitter.on('message', (message: PeerMessage) => {
         this.processMessage(message).catch((error) => {
-          Logger.error("Error processing peer message:", error);
+          Logger.error('Error processing peer message:', error);
         });
       });
     });
 
     this.initializeDiscovery().catch((error) => {
-      Logger.error("Discovery initialization failed:", error);
+      Logger.error('Discovery initialization failed:', error);
       this.state = DiscoveryState.ERROR;
       throw new DiscoveryError(
-        "Failed to initialize peer discovery",
-        "INIT_FAILED"
+        'Failed to initialize peer discovery',
+        'INIT_FAILED',
       );
     });
   }
@@ -146,7 +150,7 @@ export class PeerDiscovery {
       // Start periodic peer discovery
       this.discoveryInterval = setInterval(
         () => this.managePeerConnections(),
-        PeerDiscovery.DISCOVERY_INTERVAL
+        PeerDiscovery.DISCOVERY_INTERVAL,
       );
 
       await this.setState(DiscoveryState.ACTIVE);
@@ -182,7 +186,7 @@ export class PeerDiscovery {
 
     // Remove excess connections
     while (this.peers.size > targetConnections) {
-      const [oldestPeer] = this.peers.entries().next().value;
+      const [oldestPeer] = Array.from(this.peers.entries())[0];
       await this.removePeer(oldestPeer);
     }
 
@@ -218,7 +222,7 @@ export class PeerDiscovery {
   private selectPeerCandidate(): PeerAddress | null {
     const candidates = Array.from(this.peerAddresses.values())
       .filter(
-        (addr) => !this.peers.has(addr.url) && !this.bannedPeers.has(addr.url)
+        (addr) => !this.peers.has(addr.url) && !this.bannedPeers.has(addr.url),
       )
       .sort((a, b) => {
         // Prefer peers that have succeeded recently
@@ -243,7 +247,7 @@ export class PeerDiscovery {
 
   private async connectToSeedNodes(): Promise<void> {
     const seedNodes =
-      (this.config.get("SEED_NODES") as string)?.split(",") || [];
+      (this.config.get('SEED_NODES') as string)?.split(',') || [];
     const connectPromises = seedNodes
       .filter((node) => !this.peers.has(node) && !this.bannedPeers.has(node))
       .map((node) => this.connectToPeer(node));
@@ -258,10 +262,10 @@ export class PeerDiscovery {
 
     try {
       await this.setState(DiscoveryState.SYNCING);
-      const minPeers = parseInt(this.config.get("MIN_PEERS") || "10");
+      const minPeers = parseInt(this.config.get('MIN_PEERS') || '10');
       if (this.peers.size < minPeers) {
         Logger.info(
-          `Discovering new peers (current: ${this.peers.size}, min: ${minPeers})`
+          `Discovering new peers (current: ${this.peers.size}, min: ${minPeers})`,
         );
         await this.requestNewPeers();
       }
@@ -270,12 +274,12 @@ export class PeerDiscovery {
       await this.setState(DiscoveryState.ACTIVE);
     } catch (error) {
       await this.setState(DiscoveryState.ERROR);
-      this.eventEmitter.emit("discovery_error", error);
+      this.eventEmitter.emit('discovery_error', error);
     }
   }
 
   private async requestNewPeers(): Promise<void> {
-    if (!this.rateLimit.checkLimit("peer_discovery")) {
+    if (!this.rateLimit.checkLimit('peer_discovery')) {
       return;
     }
 
@@ -284,14 +288,14 @@ export class PeerDiscovery {
       .slice(0, 3); // Only query 3 random peers at a time
 
     const discoveryPromises = selectedPeers.map((peer) =>
-      this.requestPeers(peer)
+      this.requestPeers(peer),
     );
 
     const results = await Promise.allSettled(discoveryPromises);
     const newPeers = results
       .filter(
         (result): result is PromiseFulfilledResult<string[]> =>
-          result.status === "fulfilled"
+          result.status === 'fulfilled',
       )
       .map((result) => result.value)
       .flat();
@@ -315,7 +319,7 @@ export class PeerDiscovery {
         if (isValidMiner) {
           this.miners.add(url);
           Logger.debug(
-            `Added TAG miner: ${url}, blocks: ${info.tagInfo.minedBlocks}`
+            `Added TAG miner: ${url}, blocks: ${info.tagInfo.minedBlocks}`,
           );
         } else {
           this.miners.delete(url);
@@ -324,7 +328,7 @@ export class PeerDiscovery {
         // Update peer metrics
         this.peerScores.set(
           url,
-          (this.peerScores.get(url) || 0) + (isValidMiner ? 2 : 1)
+          (this.peerScores.get(url) || 0) + (isValidMiner ? 2 : 1),
         );
       } catch (error) {
         const url = (await peer.getInfo()).url;
@@ -373,7 +377,7 @@ export class PeerDiscovery {
     }
 
     // Limit total connections
-    const maxPeers = parseInt(this.config.get("MAX_PEERS") || "50");
+    const maxPeers = parseInt(this.config.get('MAX_PEERS') || '50');
     if (this.peers.size > maxPeers) {
       const excessPeers = Array.from(this.peers.keys()).slice(maxPeers);
       excessPeers.forEach((url) => this.removePeer(url));
@@ -397,7 +401,7 @@ export class PeerDiscovery {
       clearInterval(this.feelerInterval);
 
       const disconnectPromises = Array.from(this.peers.values()).map((peer) =>
-        peer.disconnect()
+        peer.disconnect(),
       );
       await Promise.allSettled(disconnectPromises);
 
@@ -406,16 +410,16 @@ export class PeerDiscovery {
       this.bannedPeers.clear();
       this.peerCache.clear();
 
-      Logger.info("Peer discovery shutdown complete");
+      Logger.info('Peer discovery shutdown complete');
     } catch (error: unknown) {
       if (error instanceof Error) {
         await this.setState(DiscoveryState.ERROR);
-        throw new DiscoveryError("Shutdown failed", "SHUTDOWN_ERROR");
+        throw new DiscoveryError('Shutdown failed', 'SHUTDOWN_ERROR');
       }
     }
   }
 
-  private isValidPeer(peerInfo: PeerInfo): boolean {
+  private isValidPeer(peerInfo: PeerInfo): string | boolean {
     const now = Date.now();
     return (
       peerInfo.url &&
@@ -427,7 +431,7 @@ export class PeerDiscovery {
 
   private async connectToPeer(url: string, retryCount = 0): Promise<void> {
     try {
-      const [address, portStr] = url.split(":");
+      const [address, portStr] = url.split(':');
       if (!address || !portStr) {
         throw new Error(`Invalid peer URL: ${url}`);
       }
@@ -442,14 +446,14 @@ export class PeerDiscovery {
         port,
         {}, // config
         this.config, // configService
-        this.database
+        this.database || new BlockchainSchema(),
       );
       await peer.connect();
 
       // Set up message handling for the new peer
-      peer.eventEmitter.on("message", (message: PeerMessage) => {
+      peer.eventEmitter.on('message', (message: PeerMessage) => {
         this.processMessage(message).catch((error) => {
-          Logger.error("Error processing peer message:", error);
+          Logger.error('Error processing peer message:', error);
         });
       });
 
@@ -457,7 +461,7 @@ export class PeerDiscovery {
     } catch (error) {
       if (retryCount < PeerDiscovery.MAX_RECONNECT_ATTEMPTS) {
         await new Promise((resolve) =>
-          setTimeout(resolve, PeerDiscovery.RECONNECT_DELAY)
+          setTimeout(resolve, PeerDiscovery.RECONNECT_DELAY),
         );
         return this.connectToPeer(url, retryCount + 1);
       }
@@ -470,7 +474,10 @@ export class PeerDiscovery {
       const peerList = await peer.getPeers();
       return peerList.map((p) => p.url);
     } catch (error) {
-      Logger.warn(`Failed to get peers from ${(await peer.getInfo()).url}:`, error);
+      Logger.warn(
+        `Failed to get peers from ${(await peer.getInfo()).url}:`,
+        error,
+      );
       return [];
     }
   }
@@ -500,7 +507,7 @@ export class PeerDiscovery {
       this.state = newState;
 
       Logger.info(`Discovery state changed: ${oldState} -> ${newState}`);
-      this.eventEmitter.emit("stateChange", { old: oldState, new: newState });
+      this.eventEmitter.emit('stateChange', { old: oldState, new: newState });
 
       if (newState === DiscoveryState.ERROR) {
         await this.cleanup();
@@ -524,13 +531,13 @@ export class PeerDiscovery {
   }
 
   private getTargetOutbound(): number {
-    return parseInt(this.config.get("network.maxPeers") as string) || 8;
+    return parseInt(this.config.get('network.maxPeers') as string) || 8;
   }
 
   private async resolveDnsSeed(seed: string): Promise<string[]> {
     try {
       const addresses = await new Promise<string[]>((resolve, reject) => {
-        dns.resolve(seed, (err: Error, addresses: string[]) => {
+        dns.resolve(seed, (err: Error | null, addresses: string[]) => {
           if (err) reject(err);
           else resolve(addresses);
         });
@@ -550,8 +557,8 @@ export class PeerDiscovery {
       if (!address || address.length > 45) return false;
 
       // IPv4 validation
-      if (address.includes(".")) {
-        const parts = address.split(".");
+      if (address.includes('.')) {
+        const parts = address.split('.');
         if (parts.length !== 4) return false;
 
         return parts.every((part) => {
@@ -563,28 +570,28 @@ export class PeerDiscovery {
       }
 
       // IPv6 validation
-      if (address.includes(":")) {
+      if (address.includes(':')) {
         // Remove IPv6 zone index if present
-        const zoneIndex = address.indexOf("%");
+        const zoneIndex = address.indexOf('%');
         if (zoneIndex !== -1) {
           address = address.substring(0, zoneIndex);
         }
 
-        const parts = address.split(":");
+        const parts = address.split(':');
         if (parts.length > 8) return false;
 
         // Handle :: compression
-        const emptyGroupsCount = parts.filter((p) => p === "").length;
+        const emptyGroupsCount = parts.filter((p) => p === '').length;
         if (
           emptyGroupsCount > 1 &&
-          !(emptyGroupsCount === 2 && parts[0] === "" && parts[1] === "")
+          !(emptyGroupsCount === 2 && parts[0] === '' && parts[1] === '')
         ) {
           return false;
         }
 
         // Validate each hextet
         return parts.every((part) => {
-          if (part === "") return true; // Allow empty parts for ::
+          if (part === '') return true; // Allow empty parts for ::
           if (part.length > 4) return false;
           const num = parseInt(part, 16);
           return !isNaN(num) && num >= 0 && num <= 0xffff;
@@ -614,7 +621,7 @@ export class PeerDiscovery {
           break;
         case PeerMessageType.ADDR:
           await this.handleAddr({
-            addresses: message.payload.addresses,
+            addresses: message.payload.addresses || [],
           });
           break;
         case PeerMessageType.INV:
@@ -634,15 +641,22 @@ export class PeerDiscovery {
   private async handleVersion(payload: MessagePayload): Promise<void> {
     try {
       if (!payload.nodeInfo) {
-        throw new DiscoveryError("Missing node info in version message", "INVALID_VERSION");
+        throw new DiscoveryError(
+          'Missing node info in version message',
+          'INVALID_VERSION',
+        );
       }
 
-      const { version, services, timestamp, startHeight, userAgent } = payload.nodeInfo;
+      const { version, services, timestamp, startHeight, userAgent } =
+        payload.nodeInfo;
 
       // Validate version compatibility
-      const minVersion = (this.config.get("MIN_PROTOCOL_VERSION") || "1");
+      const minVersion = this.config.get('MIN_PROTOCOL_VERSION') || '1';
       if (version < minVersion) {
-        throw new DiscoveryError(`Incompatible protocol version: ${version}`, "VERSION_MISMATCH");
+        throw new DiscoveryError(
+          `Incompatible protocol version: ${version}`,
+          'VERSION_MISMATCH',
+        );
       }
 
       // Update peer information
@@ -651,28 +665,27 @@ export class PeerDiscovery {
         await peer.updateInfo({
           version: Number(version),
           services,
-          startHeight,
+          startHeight: startHeight || 0,
           userAgent,
-          lastSeen: timestamp || Date.now()
+          lastSeen: timestamp || Date.now(),
         });
 
         // Emit version event for monitoring
-        this.eventEmitter.emit("version", {
+        this.eventEmitter.emit('version', {
           peerId: peer.getId(),
           version,
           services,
-          startHeight
+          startHeight,
         });
 
         Logger.debug(
-          `Updated peer version info: ${peer.getId()}, v${version}, services: ${services}`
+          `Updated peer version info: ${peer.getId()}, v${version}, services: ${services}`,
         );
       }
-
     } catch (error) {
       if (error instanceof Error) {
-        Logger.error("Error handling version message:", error);
-        this.eventEmitter.emit("discovery_error", error);
+        Logger.error('Error handling version message:', error);
+        this.eventEmitter.emit('discovery_error', error);
       }
     }
   }
@@ -680,14 +693,18 @@ export class PeerDiscovery {
   private async handleAddr(payload: AddrPayload): Promise<void> {
     try {
       if (!Array.isArray(payload.addresses)) {
-        throw new DiscoveryError("Invalid addr payload format", "INVALID_PAYLOAD");
+        throw new DiscoveryError(
+          'Invalid addr payload format',
+          'INVALID_PAYLOAD',
+        );
       }
 
-      const validAddresses = payload.addresses.filter(addr => 
-        addr.url && 
-        typeof addr.services === 'number' &&
-        this.isValidAddress(addr.url) &&
-        !this.bannedPeers.has(addr.url)
+      const validAddresses = payload.addresses.filter(
+        (addr) =>
+          addr.url &&
+          typeof addr.services === 'number' &&
+          this.isValidAddress(addr.url) &&
+          !this.bannedPeers.has(addr.url),
       );
 
       for (const addr of validAddresses) {
@@ -707,12 +724,11 @@ export class PeerDiscovery {
       // Update peer metrics
       this.eventEmitter.emit('peerDiscovery', {
         newAddresses: validAddresses.length,
-        totalPeers: this.peerAddresses.size
+        totalPeers: this.peerAddresses.size,
       });
-
     } catch (error) {
       if (error instanceof Error) {
-        Logger.error("Error handling addr message:", error);
+        Logger.error('Error handling addr message:', error);
         this.eventEmitter.emit('discoveryError', error);
       }
     }
@@ -721,11 +737,11 @@ export class PeerDiscovery {
   private async handleInventory(payload: MessagePayload): Promise<void> {
     try {
       // Handle inventory announcements (new blocks, transactions, etc)
-      Logger.debug("Received inventory message:", payload);
-      this.eventEmitter.emit("inventory", payload);
+      Logger.debug('Received inventory message:', payload);
+      this.eventEmitter.emit('inventory', payload);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        Logger.error("Error handling inventory message:", error);
+        Logger.error('Error handling inventory message:', error);
       }
     }
   }

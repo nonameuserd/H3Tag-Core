@@ -1,6 +1,9 @@
 export class DiscoveryError extends Error {
-  constructor(message: string, public readonly code?: string) {
+  constructor(
+    message: string,
+    public readonly code?: string,
+  ) {
     super(message);
-    this.name = "DiscoveryError";
+    this.name = 'DiscoveryError';
   }
 }

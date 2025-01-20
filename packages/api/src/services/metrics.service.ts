@@ -1,7 +1,7 @@
-import { Injectable } from "@nestjs/common";
-import { MiningMetrics } from "@h3tag-blockchain/core";
-import { Logger } from "@h3tag-blockchain/shared";
-import { MetricsResponseDto } from "../dtos/metrics.dto";
+import { Injectable } from '@nestjs/common';
+import { MiningMetrics } from '@h3tag-blockchain/core';
+import { Logger } from '@h3tag-blockchain/shared';
+import { MetricsResponseDto } from '../dtos/metrics.dto';
 
 /**
  * @swagger
@@ -36,7 +36,7 @@ export class MetricsService {
         blacklistedPeers: this.metrics.blacklistedPeers,
       };
     } catch (error) {
-      Logger.error("Failed to get metrics:", error);
+      Logger.error('Failed to get metrics:', error);
       throw error;
     }
   }
@@ -50,7 +50,7 @@ export class MetricsService {
     try {
       return this.metrics.getAverageTAGFees(timeWindow);
     } catch (error) {
-      Logger.error("Failed to get average TAG fees:", error);
+      Logger.error('Failed to get average TAG fees:', error);
       throw error;
     }
   }
@@ -64,7 +64,7 @@ export class MetricsService {
     try {
       return this.metrics.getAverageTAGVolume(timeWindow);
     } catch (error) {
-      Logger.error("Failed to get average TAG volume:", error);
+      Logger.error('Failed to get average TAG volume:', error);
       throw error;
     }
   }
@@ -78,7 +78,7 @@ export class MetricsService {
     try {
       return this.metrics.getAverageHashRate(timeWindow);
     } catch (error) {
-      Logger.error("Failed to get average hash rate:", error);
+      Logger.error('Failed to get average hash rate:', error);
       throw error;
     }
   }

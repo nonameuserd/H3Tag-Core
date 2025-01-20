@@ -2,10 +2,10 @@ export class BlockValidationError extends Error {
   constructor(
     message: string,
     public readonly blockHash?: string,
-    public readonly validationDetails?: Record<string, unknown>
+    public readonly validationDetails?: Record<string, unknown>,
   ) {
     super(message);
-    this.name = "BlockValidationError";
+    this.name = 'BlockValidationError';
     Error.captureStackTrace(this, BlockValidationError);
   }
 

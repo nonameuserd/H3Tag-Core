@@ -1,11 +1,11 @@
-import { Level } from "level";
-import { Logger } from "@h3tag-blockchain/shared";
-import { Cache } from "../scaling/cache";
-import { Mutex } from "async-mutex";
-import { retry } from "../utils/retry";
-import { UTXO } from "../models/utxo.model";
-import { databaseConfig } from "./config.database";
-import { AbstractChainedBatch } from "abstract-leveldown";
+import { Level } from 'level';
+import { Logger } from '@h3tag-blockchain/shared';
+import { Cache } from '../scaling/cache';
+import { Mutex } from 'async-mutex';
+import { retry } from '../utils/retry';
+import { UTXO } from '../models/utxo.model';
+import { databaseConfig } from './config.database';
+import { AbstractChainedBatch } from 'abstract-leveldown';
 
 /**
  * @fileoverview UTXODatabase implements persistent storage and management of Unspent Transaction Outputs (UTXOs).
@@ -43,13 +43,10 @@ export class UTXODatabase {
   private transactionInProgress = false;
 
   constructor(dbPath: string) {
-    if (!dbPath) throw new Error("Database path is required");
+    if (!dbPath) throw new Error('Database path is required');
 
     this.db = new Level(`${dbPath}/utxo`, {
-      valueEncoding: "json",
-      createIfMissing: true,
-      cacheSize: 512 * 1024 * 1024, // 512MB cache
-      compression: true,
+      valueEncoding: 'json',
       ...databaseConfig.options,
     });
 
@@ -61,7 +58,7 @@ export class UTXODatabase {
     });
 
     this.initialize().catch((err) => {
-      Logger.error("Failed to initialize UTXO database:", err);
+      Logger.error('Failed to initialize UTXO database:', err);
       throw err;
     });
   }
@@ -71,9 +68,9 @@ export class UTXODatabase {
     try {
       await this.db.open();
       this.initialized = true;
-      Logger.info("UTXO database initialized successfully");
+      Logger.info('UTXO database initialized successfully');
     } catch (error) {
-      Logger.error("Failed to initialize UTXO database:", error);
+      Logger.error('Failed to initialize UTXO database:', error);
       throw error;
     }
   }
@@ -98,8 +95,8 @@ export class UTXODatabase {
    */
   @retry({ maxAttempts: 3, delay: 1000 })
   async insertUTXO(utxo: UTXO): Promise<void> {
-    if (!this.initialized) throw new Error("Database not initialized");
-    if (!this.validateUTXO(utxo)) throw new Error("Invalid UTXO data");
+    if (!this.initialized) throw new Error('Database not initialized');
+    if (!this.validateUTXO(utxo)) throw new Error('Invalid UTXO data');
 
     return await this.mutex.runExclusive(async () => {
       const key = `utxo:${utxo.txId}:${utxo.outputIndex}`;
@@ -107,7 +104,7 @@ export class UTXODatabase {
         // Check for existing UTXO
         const existing = await this.getUTXO(utxo.txId, utxo.outputIndex);
         if (existing) {
-          throw new Error("UTXO already exists");
+          throw new Error('UTXO already exists');
         }
 
         const batch = this.batch || this.db.batch();
@@ -115,7 +112,7 @@ export class UTXODatabase {
         batch.put(key, JSON.stringify(utxo));
         batch.put(
           `address:${utxo.address}:${utxo.txId}:${utxo.outputIndex}`,
-          key
+          key,
         );
 
         if (!utxo.spent) {
@@ -130,14 +127,14 @@ export class UTXODatabase {
 
         this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
 
-        Logger.debug("UTXO inserted successfully", {
+        Logger.debug('UTXO inserted successfully', {
           txId: utxo.txId,
           index: utxo.outputIndex,
         });
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        Logger.error("Failed to insert UTXO:", { error: errorMessage });
+          error instanceof Error ? error.message : 'Unknown error';
+        Logger.error('Failed to insert UTXO:', { error: errorMessage });
         throw new Error(`Failed to insert UTXO: ${errorMessage}`);
       }
     });
@@ -156,7 +153,7 @@ export class UTXODatabase {
    * const utxo = await utxoDb.getUTXO(txId, outputIndex);
    */
   async getUTXO(txId: string, outputIndex: number): Promise<UTXO | null> {
-    if (!this.initialized) throw new Error("Database not initialized");
+    if (!this.initialized) throw new Error('Database not initialized');
 
     const key = `utxo:${txId}:${outputIndex}`;
     const cached = this.cache.get(key);
@@ -173,10 +170,10 @@ export class UTXODatabase {
 
       this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
       return utxo;
-    } catch (error) {
-      if (error.notFound) return null;
-      Logger.error("Failed to get UTXO:", error);
-      throw new Error("Failed to get UTXO");
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
+      Logger.error('Failed to get UTXO:', error instanceof Error ? error.message : 'Unknown error');
+      throw new Error('Failed to get UTXO');
     }
   }
 
@@ -200,14 +197,14 @@ export class UTXODatabase {
       })) {
         const utxoKey = value as string;
         const utxo = await this.getUTXO(
-          utxoKey.split(":")[1],
-          parseInt(utxoKey.split(":")[2])
+          utxoKey.split(':')[1],
+          parseInt(utxoKey.split(':')[2]),
         );
         if (utxo && !utxo.spent) utxos.push(utxo);
       }
       return utxos;
     } catch (error) {
-      Logger.error("Failed to get unspent UTXOs:", error);
+      Logger.error('Failed to get unspent UTXOs:', error);
       throw error;
     }
   }
@@ -226,15 +223,15 @@ export class UTXODatabase {
     const addresses = new Set<string>();
     try {
       for await (const [key] of this.db.iterator({
-        gte: "address:",
-        lte: "address:\xFF",
+        gte: 'address:',
+        lte: 'address:\xFF',
       })) {
-        const address = key.split(":")[1];
+        const address = key.split(':')[1];
         addresses.add(address);
       }
       return Array.from(addresses);
     } catch (error) {
-      Logger.error("Failed to get all addresses:", error);
+      Logger.error('Failed to get all addresses:', error);
       throw error;
     }
   }
@@ -253,7 +250,7 @@ export class UTXODatabase {
   async startTransaction(): Promise<void> {
     await this.mutex.runExclusive(() => {
       if (this.transactionInProgress) {
-        throw new Error("Transaction already in progress");
+        throw new Error('Transaction already in progress');
       }
       this.batch = this.db.batch();
       this.transactionInProgress = true;
@@ -274,10 +271,10 @@ export class UTXODatabase {
   async commitTransaction(): Promise<void> {
     await this.mutex.runExclusive(async () => {
       if (!this.transactionInProgress) {
-        throw new Error("No transaction in progress");
+        throw new Error('No transaction in progress');
       }
       if (this.batch) {
-        await (this.batch).write((err) => {
+        await this.batch.write((err) => {
           if (err) throw err;
         });
         this.batch = null;
@@ -300,7 +297,7 @@ export class UTXODatabase {
   async rollbackTransaction(): Promise<void> {
     await this.mutex.runExclusive(() => {
       if (!this.transactionInProgress) {
-        throw new Error("No transaction in progress");
+        throw new Error('No transaction in progress');
       }
       if (this.batch) {
         this.batch.clear();
@@ -314,10 +311,10 @@ export class UTXODatabase {
     return !!(
       utxo &&
       utxo.txId &&
-      typeof utxo.outputIndex === "number" &&
+      typeof utxo.outputIndex === 'number' &&
       utxo.address &&
-      typeof utxo.amount === "bigint" &&
-      typeof utxo.spent === "boolean"
+      typeof utxo.amount === 'bigint' &&
+      typeof utxo.spent === 'boolean'
     );
   }
 
@@ -325,7 +322,7 @@ export class UTXODatabase {
     try {
       return JSON.parse(value) as T;
     } catch (error) {
-      Logger.error("Failed to parse stored value:", error);
+      Logger.error('Failed to parse stored value:', error);
       return null;
     }
   }

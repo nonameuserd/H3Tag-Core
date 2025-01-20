@@ -1,6 +1,6 @@
-import { Level } from "level";
-import { EncryptedKeystore } from "../wallet/keystore";
-import { databaseConfig } from "./config.database";
+import { Level } from 'level';
+import { EncryptedKeystore } from '../wallet/keystore';
+import { databaseConfig } from './config.database';
 
 /**
  * @fileoverview KeystoreDatabase manages encrypted keystore storage and retrieval.
@@ -90,36 +90,36 @@ export class KeystoreDatabase {
 
   constructor(dbPath: string) {
     this.db = new Level(`${dbPath}/keystore`, {
-      valueEncoding: "json",
+      valueEncoding: 'json',
       ...databaseConfig.options,
     });
   }
 
   async ping(): Promise<boolean> {
     try {
-      await this.db.get("__health_check__");
+      await this.db.get('__health_check__');
       return true;
-    } catch (error) {
-      if (error && "notFound" in error) return true; // DB is accessible but key not found
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return true; // DB is accessible but key not found
       return false;
     }
   }
 
   async store(address: string, keystore: EncryptedKeystore): Promise<void> {
-    if (!address) throw new Error("Address is required");
-    if (!keystore) throw new Error("Keystore is required");
+    if (!address) throw new Error('Address is required');
+    if (!keystore) throw new Error('Keystore is required');
 
     await this.db.put(`keystore:${address}`, JSON.stringify(keystore));
   }
 
   async get(address: string): Promise<EncryptedKeystore | null> {
-    if (!address) throw new Error("Address is required");
+    if (!address) throw new Error('Address is required');
 
     try {
       const value = await this.db.get(`keystore:${address}`);
       return JSON.parse(value) as EncryptedKeystore;
-    } catch (error) {
-      if (error && "notFound" in error) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       throw error;
     }
   }

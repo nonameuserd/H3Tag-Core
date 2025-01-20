@@ -1,6 +1,6 @@
-import { Router } from "express";
-import { MetricsController } from "../controllers/metrics.controller";
-import { MetricsService } from "../services/metrics.service";
+import { Router } from 'express';
+import { MetricsController } from '../controllers/metrics.controller';
+import { MetricsService } from '../services/metrics.service';
 
 /**
  * @swagger
@@ -45,7 +45,7 @@ export function setupMetricsRoutes(router: Router): void {
    *                 message:
    *                   type: string
    */
-  router.get("/metrics", (req, res) => {
+  router.get('/metrics', (req, res) => {
     try {
       const timeWindow = req.query.timeWindow
         ? Number(req.query.timeWindow)
@@ -53,11 +53,11 @@ export function setupMetricsRoutes(router: Router): void {
       const metrics = metricsController.getMetrics({ timeWindow });
       res.json(metrics);
     } catch (error: unknown) {
-        if (error instanceof Error) {
-            res.status(500).json({ message: error.message });
-        } else {
-            res.status(500).json({ message: "Failed to get metrics" });
-        }
+      if (error instanceof Error) {
+        res.status(500).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: 'Failed to get metrics' });
+      }
     }
   });
 
@@ -74,7 +74,7 @@ export function setupMetricsRoutes(router: Router): void {
    *           type: number
    *         description: Time window in milliseconds
    */
-  router.get("/metrics/average-tag-fees", (req, res) => {
+  router.get('/metrics/average-tag-fees', (req, res) => {
     try {
       const timeWindow = req.query.timeWindow
         ? Number(req.query.timeWindow)
@@ -87,7 +87,7 @@ export function setupMetricsRoutes(router: Router): void {
       if (error instanceof Error) {
         res.status(500).json({ message: error.message });
       } else {
-        res.status(500).json({ message: "Failed to get average TAG fees" });
+        res.status(500).json({ message: 'Failed to get average TAG fees' });
       }
     }
   });
@@ -105,7 +105,7 @@ export function setupMetricsRoutes(router: Router): void {
    *           type: number
    *         description: Time window in milliseconds
    */
-  router.get("/metrics/average-tag-volume", (req, res) => {
+  router.get('/metrics/average-tag-volume', (req, res) => {
     try {
       const timeWindow = req.query.timeWindow
         ? Number(req.query.timeWindow)
@@ -118,7 +118,7 @@ export function setupMetricsRoutes(router: Router): void {
       if (error instanceof Error) {
         res.status(500).json({ message: error.message });
       } else {
-        res.status(500).json({ message: "Failed to get average TAG volume" });
+        res.status(500).json({ message: 'Failed to get average TAG volume' });
       }
     }
   });
@@ -136,7 +136,7 @@ export function setupMetricsRoutes(router: Router): void {
    *           type: number
    *         description: Time window in milliseconds
    */
-  router.get("/metrics/average-hash-rate", (req, res) => {
+  router.get('/metrics/average-hash-rate', (req, res) => {
     try {
       const timeWindow = req.query.timeWindow
         ? Number(req.query.timeWindow)
@@ -149,7 +149,7 @@ export function setupMetricsRoutes(router: Router): void {
       if (error instanceof Error) {
         res.status(500).json({ message: error.message });
       } else {
-        res.status(500).json({ message: "Failed to get average hash rate" });
+        res.status(500).json({ message: 'Failed to get average hash rate' });
       }
     }
   });

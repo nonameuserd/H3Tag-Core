@@ -12,6 +12,7 @@
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "baseUrl": "",
+    "strict": true,
     "paths": {
       "@h3tag-blockchain/api": ["packages/api/src/*"],
       "@h3tag-blockchain/cli": ["packages/cli/src/*"],

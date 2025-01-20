@@ -1,6 +1,6 @@
-import { BlockchainSchema } from "./blockchain-schema";
-import { Logger } from "@h3tag-blockchain/shared";
-import { AbstractChainedBatch } from "abstract-leveldown";
+import { BlockchainSchema } from './blockchain-schema';
+import { Logger } from '@h3tag-blockchain/shared';
+import { AbstractChainedBatch } from 'abstract-leveldown';
 
 /**
  * @fileoverview DatabaseTransaction implements atomic database operations with rollback support.
@@ -148,7 +148,7 @@ import { AbstractChainedBatch } from "abstract-leveldown";
 export class DatabaseTransaction {
   private batch: AbstractChainedBatch;
   private operations: Array<{
-    type: "put" | "del";
+    type: 'put' | 'del';
     key: string;
     value?: string;
   }> = [];
@@ -162,18 +162,18 @@ export class DatabaseTransaction {
   put(key: string, value: string): void {
     this.validateTransactionState();
     if (!key || !value) {
-      throw new Error("Key and value must be provided");
+      throw new Error('Key and value must be provided');
     }
-    this.operations.push({ type: "put", key, value });
+    this.operations.push({ type: 'put', key, value });
     this.batch.put(key, value);
   }
 
   delete(key: string): void {
     this.validateTransactionState();
     if (!key) {
-      throw new Error("Key must be provided");
+      throw new Error('Key must be provided');
     }
-    this.operations.push({ type: "del", key });
+    this.operations.push({ type: 'del', key });
     this.batch.del(key);
   }
 
@@ -189,12 +189,15 @@ export class DatabaseTransaction {
       });
       this.committed = true;
       Logger.debug(
-        `Transaction committed with ${this.operations.length} operations`
+        `Transaction committed with ${this.operations.length} operations`,
       );
-    } catch (error) {
-      Logger.error("Transaction commit failed:", error);
+    } catch (error: unknown) {
+      Logger.error('Transaction commit failed:', error);
       await this.rollback();
-      throw new Error("Transaction commit failed: " + error.message);
+      throw new Error(
+        'Transaction commit failed: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
+      );
     }
   }
 
@@ -213,7 +216,10 @@ export class DatabaseTransaction {
             keyStates.set(op.key, value);
           } catch (err) {
             if (err instanceof Error) {
-              keyStates.set(op.key, JSON.stringify({ value: null, timestamp: Date.now() }));
+              keyStates.set(
+                op.key,
+                JSON.stringify({ value: null, timestamp: Date.now() }),
+              );
             } else {
               throw err;
             }
@@ -226,26 +232,26 @@ export class DatabaseTransaction {
         if (originalValue === null) {
           reverseBatch.del(key);
         } else {
-          reverseBatch.put(key, originalValue);
+          reverseBatch.put(key, originalValue ?? '');
         }
       }
 
       await new Promise<void>((resolve, reject) => {
-        reverseBatch.write((error) => {
-          if (error) reject(error);
+        reverseBatch.write((error: unknown) => {
+          if (error instanceof Error) reject(error);
           else resolve();
         });
       });
 
       this.rolledBack = true;
       Logger.debug(
-        `Transaction rolled back ${this.operations.length} operations`
+        `Transaction rolled back ${this.operations.length} operations`,
       );
     } catch (error) {
-      Logger.error("Transaction rollback failed:", error);
+      Logger.error('Transaction rollback failed:', error);
       throw new Error(
-        "Transaction rollback failed: " +
-          (error instanceof Error ? error.message : "Unknown error")
+        'Transaction rollback failed: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
       );
     }
   }
@@ -257,14 +263,14 @@ export class DatabaseTransaction {
   private validateTransactionState(): void {
     if (this.committed && this.rolledBack) {
       throw new Error(
-        "Transaction in invalid state: both committed and rolled back"
+        'Transaction in invalid state: both committed and rolled back',
       );
     }
     if (this.committed) {
-      throw new Error("Transaction already committed");
+      throw new Error('Transaction already committed');
     }
     if (this.rolledBack) {
-      throw new Error("Transaction already rolled back");
+      throw new Error('Transaction already rolled back');
     }
   }
 
@@ -307,13 +313,13 @@ export class DatabaseTransaction {
    * Returns the current state of the transaction
    */
   public getTransactionState():
-    | "active"
-    | "committed"
-    | "rolled_back"
-    | "invalid" {
-    if (this.committed && this.rolledBack) return "invalid";
-    if (this.committed) return "committed";
-    if (this.rolledBack) return "rolled_back";
-    return "active";
+    | 'active'
+    | 'committed'
+    | 'rolled_back'
+    | 'invalid' {
+    if (this.committed && this.rolledBack) return 'invalid';
+    if (this.committed) return 'committed';
+    if (this.rolledBack) return 'rolled_back';
+    return 'active';
   }
 }

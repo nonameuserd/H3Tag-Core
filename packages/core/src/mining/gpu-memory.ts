@@ -116,30 +116,30 @@
  */
 
 export class AdaptiveGPUMemory {
-  private device: GPUDevice;
-  private memoryPools: Map<string, GPUBuffer[]>;
-  private memoryUsage: Map<string, number>;
+  private device: GPUDevice | null | undefined = null;
+  private memoryPools: Map<string, GPUBuffer[] | null | undefined> = new Map();
+  private memoryUsage: Map<string, number | null | undefined> = new Map();
   private readonly MAX_MEMORY_USAGE = 0.8; // 80% of available GPU memory
-  private bufferUsageMap: Map<GPUBuffer, number> = new Map();
+  private bufferUsageMap: Map<GPUBuffer, number | null | undefined> = new Map();
 
   async initialize(device: GPUDevice): Promise<void> {
-    if (!device) throw new Error("GPU device not initialized");
+    if (!device) throw new Error('GPU device not initialized');
     this.device = device;
     this.memoryPools = new Map();
     this.memoryUsage = new Map();
 
     // Initialize with safer buffer sizes
-    await this.createMemoryPool("hash", 64 * 1024 * 1024); // 64MB for hashes
-    await this.createMemoryPool("nonce", 32 * 1024 * 1024); // 32MB for nonces
+    await this.createMemoryPool('hash', 64 * 1024 * 1024); // 64MB for hashes
+    await this.createMemoryPool('nonce', 32 * 1024 * 1024); // 32MB for nonces
   }
 
   private async createMemoryPool(
     type: string,
-    initialSize: number
+    initialSize: number,
   ): Promise<void> {
-    if (initialSize <= 0) throw new Error("Invalid initial size");
+    if (initialSize <= 0) throw new Error('Invalid initial size');
 
-    const buffer = this.device.createBuffer({
+    const buffer = this.device?.createBuffer({
       size: initialSize,
       usage:
         GPUBufferUsage.STORAGE |
@@ -149,13 +149,13 @@ export class AdaptiveGPUMemory {
       label: `pool-${type}`, // Add label for debugging
     });
 
-    this.memoryPools.set(type, [buffer]);
+    this.memoryPools.set(type, [buffer || new GPUBuffer()]);
     this.memoryUsage.set(type, 0);
-    this.bufferUsageMap.set(buffer, 0);
+    this.bufferUsageMap.set(buffer || new GPUBuffer(), 0);
   }
 
   async allocateMemory(type: string, size: number): Promise<GPUBuffer> {
-    if (!type || size <= 0) throw new Error("Invalid allocation parameters");
+    if (!type || size <= 0) throw new Error('Invalid allocation parameters');
 
     const pool = this.memoryPools.get(type);
     if (!pool) throw new Error(`Memory pool not found for type: ${type}`);
@@ -172,20 +172,26 @@ export class AdaptiveGPUMemory {
       const buffer = this.findAvailableBuffer(type, size);
       this.memoryUsage.set(type, usage + size);
       return buffer;
-    } catch (error) {
-      throw new Error(`Memory allocation failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Memory allocation failed: ${error.message}`);
+      }
+      throw new Error('Memory allocation failed: Unknown error');
     }
   }
 
   private async expandPool(type: string): Promise<void> {
     const currentSize = this.getPoolSize(type);
-    if (currentSize >= this.device.limits.maxBufferSize) {
-      throw new Error("Maximum GPU buffer size reached");
+    if (currentSize >= (this.device?.limits.maxBufferSize || 0)) {
+      throw new Error('Maximum GPU buffer size reached');
     }
 
-    const newSize = Math.min(currentSize * 2, this.device.limits.maxBufferSize);
+    const newSize = Math.min(
+      currentSize * 2,
+      this.device?.limits.maxBufferSize || 0,
+    );
 
-    const newBuffer = this.device.createBuffer({
+    const newBuffer = this.device?.createBuffer({
       size: newSize,
       usage:
         GPUBufferUsage.STORAGE |
@@ -194,8 +200,8 @@ export class AdaptiveGPUMemory {
       label: `pool-${type}-expanded`,
     });
 
-    this.memoryPools.get(type)?.push(newBuffer);
-    this.bufferUsageMap.set(newBuffer, 0);
+    this.memoryPools.get(type)?.push(newBuffer || new GPUBuffer());
+    this.bufferUsageMap.set(newBuffer || new GPUBuffer(), 0);
   }
 
   private findAvailableBuffer(type: string, size: number): GPUBuffer {
@@ -205,12 +211,12 @@ export class AdaptiveGPUMemory {
     // Check total GPU memory usage with proper error handling
     try {
       const totalUsage = Array.from(this.bufferUsageMap.values()).reduce(
-        (sum, usage) => sum + usage,
-        0
+        (sum, usage) => (sum || 0) + (usage || 0),
+        0,
       );
-      const gpuMemory = this.device.limits.maxBufferSize;
-      if (totalUsage + size > gpuMemory * this.MAX_MEMORY_USAGE) {
-        throw new Error("GPU memory limit exceeded");
+      const gpuMemory = this.device?.limits.maxBufferSize || 0;
+      if ((totalUsage || 0) + size > gpuMemory * this.MAX_MEMORY_USAGE) {
+        throw new Error('GPU memory limit exceeded');
       }
 
       // Find first buffer with enough space
@@ -223,7 +229,7 @@ export class AdaptiveGPUMemory {
       }
 
       // Create new buffer if within limits
-      const newBuffer = this.device.createBuffer({
+      const newBuffer = this.device?.createBuffer({
         size: Math.max(size, this.getPoolSize(type)),
         usage:
           GPUBufferUsage.STORAGE |
@@ -231,11 +237,14 @@ export class AdaptiveGPUMemory {
           GPUBufferUsage.COPY_DST,
       });
 
-      pool.push(newBuffer);
-      this.bufferUsageMap.set(newBuffer, size);
-      return newBuffer;
-    } catch (error) {
-      throw new Error(`Memory allocation failed: ${error.message}`);
+      pool?.push(newBuffer || new GPUBuffer());
+      this.bufferUsageMap.set(newBuffer || new GPUBuffer(), size);
+      return newBuffer || new GPUBuffer();
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Memory allocation failed: ${error.message}`);
+      }
+      throw new Error('Memory allocation failed: Unknown error');
     }
   }
 
@@ -249,7 +258,7 @@ export class AdaptiveGPUMemory {
     this.bufferUsageMap.delete(buffer);
 
     // Ensure buffer is not in use before destroying
-    await this.device.queue.onSubmittedWorkDone();
+    await this.device?.queue?.onSubmittedWorkDone();
     buffer.destroy();
   }
 
@@ -262,8 +271,10 @@ export class AdaptiveGPUMemory {
   public async dispose(): Promise<void> {
     // Destroy all buffers
     for (const pool of this.memoryPools.values()) {
-      for (const buffer of pool) {
-        buffer.destroy();
+      if (pool) {
+        for (const buffer of pool) {
+          buffer.destroy();
+        }
       }
     }
     this.memoryPools.clear();

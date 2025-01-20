@@ -1,5 +1,5 @@
-import { HybridCrypto } from "@h3tag-blockchain/crypto";
-import { Logger } from "@h3tag-blockchain/shared";
+import { HybridCrypto } from '@h3tag-blockchain/crypto';
+import { Logger } from '@h3tag-blockchain/shared';
 
 export interface MerkleProof {
   index: number;
@@ -21,7 +21,7 @@ export class MerkleTree {
   async createRoot(data: string[]): Promise<string> {
     try {
       if (!Array.isArray(data) || !data.length) {
-        throw new Error("Invalid input: data must be non-empty array");
+        throw new Error('Invalid input: data must be non-empty array');
       }
 
       // Clear previous state
@@ -41,7 +41,7 @@ export class MerkleTree {
 
       return this.layers[0][0];
     } catch (error) {
-      Logger.error("Failed to create merkle root:", error);
+      Logger.error('Failed to create merkle root:', error);
       throw error;
     }
   }
@@ -57,7 +57,7 @@ export class MerkleTree {
       const computedRoot = await this.createRoot(data);
       return computedRoot === root;
     } catch (error) {
-      Logger.error("Merkle verification failed:", error);
+      Logger.error('Merkle verification failed:', error);
       return false;
     }
   }
@@ -70,7 +70,7 @@ export class MerkleTree {
   async generateProof(index: number): Promise<MerkleProof> {
     try {
       if (index < 0 || index >= this.leaves.length) {
-        throw new Error("Invalid leaf index");
+        throw new Error('Invalid leaf index');
       }
 
       const proof: MerkleProof = {
@@ -94,7 +94,7 @@ export class MerkleTree {
 
       return proof;
     } catch (error) {
-      Logger.error("Failed to generate merkle proof:", error);
+      Logger.error('Failed to generate merkle proof:', error);
       throw error;
     }
   }
@@ -109,7 +109,7 @@ export class MerkleTree {
   async verifyProof(
     proof: MerkleProof,
     data: string,
-    root: string
+    root: string,
   ): Promise<boolean> {
     try {
       if (
@@ -133,7 +133,7 @@ export class MerkleTree {
 
       return hash === root;
     } catch (error) {
-      Logger.error("Merkle proof verification failed:", error);
+      Logger.error('Merkle proof verification failed:', error);
       return false;
     }
   }
@@ -165,10 +165,10 @@ export class MerkleTree {
     if (
       !left ||
       !right ||
-      typeof left !== "string" ||
-      typeof right !== "string"
+      typeof left !== 'string' ||
+      typeof right !== 'string'
     ) {
-      throw new Error("Invalid hash pair inputs");
+      throw new Error('Invalid hash pair inputs');
     }
 
     const key = `${left}:${right}`;

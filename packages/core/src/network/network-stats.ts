@@ -1,9 +1,9 @@
-import { Peer } from "./peer";
-import { EventEmitter } from "events";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import { NetworkError, NetworkErrorCode } from "./network-error";
-import { ConfigService, Logger } from "@h3tag-blockchain/shared";
-import { Blockchain } from "../blockchain/blockchain";
+import { Peer } from './peer';
+import { EventEmitter } from 'events';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import { NetworkError, NetworkErrorCode } from './network-error';
+import { ConfigService, Logger } from '@h3tag-blockchain/shared';
+import { Blockchain } from '../blockchain/blockchain';
 
 type NetworkStatsEvent = {
   timestamp: number;
@@ -30,21 +30,21 @@ export class NetworkStats {
   private static readonly MAX_LATENCY = 5000; // 5 seconds
   private static readonly MIN_LATENCY = 0;
   private static readonly MAX_PEERS = 100;
-  private static readonly PEER_EVENTS = ["disconnect", "error", "ban"];
+  private static readonly PEER_EVENTS = ['disconnect', 'error', 'ban'];
   private static readonly DEFAULT_LATENCY = 0;
   private static readonly MAX_SAMPLE_SIZE = 1000;
   private static readonly VALID_EVENTS = new Set([
-    "disconnect",
-    "error",
-    "ban",
-    "timeout",
-    "message",
-    "sync",
+    'disconnect',
+    'error',
+    'ban',
+    'timeout',
+    'message',
+    'sync',
   ]);
   private static readonly DEFAULT_PROPAGATION_TIME = 0;
   private static readonly OUTLIER_THRESHOLD = 3; // Standard deviations
-  private readonly blockchain: Blockchain;
-  private readonly configService: ConfigService;
+  private readonly blockchain: Blockchain | undefined;
+  private readonly configService: ConfigService | undefined;
 
   private discoveryTimer: NodeJS.Timeout | null = null;
   private readonly peerScores: Map<string, number> = new Map();
@@ -89,7 +89,7 @@ export class NetworkStats {
           } catch (error) {
             Logger.error(`Failed to remove peer ${peerId}:`, error);
           }
-        })
+        }),
       );
 
       // Update scores atomically
@@ -99,14 +99,14 @@ export class NetworkStats {
         }
       }
 
-      this.eventEmitter.emit("discovery_cycle", {
+      this.eventEmitter.emit('discovery_cycle', {
         timestamp: now,
         activePeers: this.getActivePeerCount(),
         bannedPeers: this.bannedPeers.size,
         averageScore: this.getAveragePeerScore(),
       });
     } catch (error) {
-      Logger.error("Discovery cycle failed:", error);
+      Logger.error('Discovery cycle failed:', error);
     }
   }
 
@@ -115,15 +115,15 @@ export class NetworkStats {
       // Check if peer exists
       if (!this.peers.has(peerId)) {
         throw new NetworkError(
-          "Peer not found",
-          NetworkErrorCode.PEER_NOT_FOUND
+          'Peer not found',
+          NetworkErrorCode.PEER_NOT_FOUND,
         );
       }
 
       const currentScore = this.peerScores.get(peerId) ?? 0;
       const newScore = Math.max(
         NetworkStats.MIN_SCORE,
-        Math.min(NetworkStats.MAX_SCORE, currentScore + delta)
+        Math.min(NetworkStats.MAX_SCORE, currentScore + delta),
       );
 
       this.peerScores.set(peerId, newScore);
@@ -133,7 +133,7 @@ export class NetworkStats {
         this.banPeer(peerId);
       }
     } catch (error) {
-      Logger.error("Failed to update peer score:", error);
+      Logger.error('Failed to update peer score:', error);
     }
   }
 
@@ -142,13 +142,13 @@ export class NetworkStats {
       this.bannedPeers.add(peerId);
       this.removePeer(peerId);
 
-      this.eventEmitter.emit("peer_banned", {
+      this.eventEmitter.emit('peer_banned', {
         peerId,
         timestamp: Date.now(),
-        reason: "Low score",
+        reason: 'Low score',
       });
     } catch (error) {
-      Logger.error("Failed to ban peer:", error);
+      Logger.error('Failed to ban peer:', error);
     }
   }
 
@@ -159,11 +159,17 @@ export class NetworkStats {
       : 0;
   }
 
-  public on(event: string, listener: (eventData: NetworkStatsEvent) => void): void {
+  public on(
+    event: string,
+    listener: (eventData: NetworkStatsEvent) => void,
+  ): void {
     this.eventEmitter.on(event, listener);
   }
 
-  public off(event: string, listener: (...args: NetworkStatsEvent[]) => void): void {
+  public off(
+    event: string,
+    listener: (...args: NetworkStatsEvent[]) => void,
+  ): void {
     this.eventEmitter.off(event, listener);
   }
 
@@ -194,32 +200,32 @@ export class NetworkStats {
     try {
       if (!peer || !(peer instanceof Peer)) {
         throw new NetworkError(
-          "Invalid peer object",
+          'Invalid peer object',
           NetworkErrorCode.PEER_VALIDATION_FAILED,
-          { peer }
+          { peer },
         );
       }
 
       const peerInfo = await peer.getInfo();
       if (!peerInfo?.id) {
         throw new NetworkError(
-          "Invalid peer info",
+          'Invalid peer info',
           NetworkErrorCode.PEER_VALIDATION_FAILED,
-          { peerInfo }
+          { peerInfo },
         );
       }
 
       // Check peer limit
       if (this.peers.size >= NetworkStats.MAX_PEERS) {
         throw new NetworkError(
-          "Maximum peer limit reached",
+          'Maximum peer limit reached',
           NetworkErrorCode.PEER_VALIDATION_FAILED,
-          { currentPeers: this.peers.size }
+          { currentPeers: this.peers.size },
         );
       }
 
       if (this.bannedPeers.has(peerInfo.id)) {
-        throw new NetworkError("Peer is banned", NetworkErrorCode.PEER_BANNED, {
+        throw new NetworkError('Peer is banned', NetworkErrorCode.PEER_BANNED, {
           peerId: peerInfo.id,
         });
       }
@@ -231,14 +237,14 @@ export class NetworkStats {
       // Add event listeners
       NetworkStats.PEER_EVENTS.forEach((event) => {
         peer.eventEmitter.on(event, (...args) =>
-          this.handlePeerEvent(peerInfo.id, event, ...args)
+          this.handlePeerEvent(peerInfo.id, event, ...args),
         );
       });
 
       this.peers.set(peerInfo.id, peer);
 
       // Emit peer added event
-      this.eventEmitter.emit("peer_added", {
+      this.eventEmitter.emit('peer_added', {
         peerId: peerInfo.id,
         peerInfo,
         timestamp: Date.now(),
@@ -246,21 +252,21 @@ export class NetworkStats {
       });
 
       Logger.info(
-        `Peer added: ${peerInfo.id}, total peers: ${this.peers.size}`
+        `Peer added: ${peerInfo.id}, total peers: ${this.peers.size}`,
       );
     } catch (error) {
-      Logger.error("Failed to add peer:", error);
+      Logger.error('Failed to add peer:', error);
       throw error;
     }
   }
 
   public removePeer(peerId: string): void {
     try {
-      if (!peerId || typeof peerId !== "string") {
+      if (!peerId || typeof peerId !== 'string') {
         throw new NetworkError(
-          "Invalid peer ID",
+          'Invalid peer ID',
           NetworkErrorCode.PEER_VALIDATION_FAILED,
-          { peerId }
+          { peerId },
         );
       }
 
@@ -279,17 +285,17 @@ export class NetworkStats {
       this.peerLatencies.delete(peerId);
 
       // Emit peer removed event
-      this.eventEmitter.emit("peer_removed", {
+      this.eventEmitter.emit('peer_removed', {
         peerId,
         timestamp: Date.now(),
         remainingPeers: this.peers.size,
       });
 
       Logger.info(
-        `Peer removed: ${peerId}, remaining peers: ${this.peers.size}`
+        `Peer removed: ${peerId}, remaining peers: ${this.peers.size}`,
       );
     } catch (error) {
-      Logger.error("Failed to remove peer:", error);
+      Logger.error('Failed to remove peer:', error);
       throw error;
     }
   }
@@ -297,11 +303,11 @@ export class NetworkStats {
   public getActivePeerCount(): number {
     try {
       const activePeers = Array.from(this.peers.values()).filter((peer) =>
-        peer.isConnected()
+        peer.isConnected(),
       ).length;
 
       // Emit metrics
-      this.eventEmitter.emit("active_peers_updated", {
+      this.eventEmitter.emit('active_peers_updated', {
         count: activePeers,
         total: this.peers.size,
         timestamp: Date.now(),
@@ -309,11 +315,11 @@ export class NetworkStats {
 
       return activePeers;
     } catch (error) {
-      Logger.error("Failed to get active peer count:", error);
+      Logger.error('Failed to get active peer count:', error);
       throw new NetworkError(
-        "Failed to get active peer count",
+        'Failed to get active peer count',
         NetworkErrorCode.PEER_VALIDATION_FAILED,
-        { error }
+        { error },
       );
     }
   }
@@ -326,39 +332,48 @@ export class NetworkStats {
         .slice(0, NetworkStats.MAX_SAMPLE_SIZE); // Limit sample size for performance
 
       if (connectedPeers.length === 0) {
-        Logger.debug("No connected peers for latency calculation");
+        Logger.debug('No connected peers for latency calculation');
         return NetworkStats.DEFAULT_LATENCY;
       }
 
       let validSamples = 0;
       const latencies = await Promise.all(
-        connectedPeers.map(async peer => {
+        connectedPeers.map(async (peer) => {
           try {
             const peerInfo = await peer.getInfo();
             const latency = peerInfo?.latency;
-            if (typeof latency === "number" && latency >= NetworkStats.MIN_LATENCY && latency <= NetworkStats.MAX_LATENCY) {
+            if (
+              typeof latency === 'number' &&
+              latency >= NetworkStats.MIN_LATENCY &&
+              latency <= NetworkStats.MAX_LATENCY
+            ) {
               validSamples++;
               return latency;
             }
             return 0;
-          } catch (error) {
-            Logger.warn(`Failed to get latency for peer, error: ${error.message}`, error);
+          } catch (error: unknown) {
+            Logger.warn(
+              `Failed to get latency for peer, error: ${
+                error instanceof Error ? error.message : 'Unknown error'
+              }`,
+              error,
+            );
             return 0;
           }
-        })
+        }),
       );
 
       const totalLatency = latencies.reduce((sum, latency) => sum + latency, 0);
 
       if (validSamples === 0) {
-        Logger.warn("No valid latency samples available");
+        Logger.warn('No valid latency samples available');
         return NetworkStats.DEFAULT_LATENCY;
       }
 
       const averageLatency = totalLatency / validSamples;
 
       // Emit metrics
-      this.eventEmitter.emit("average_latency_updated", {
+      this.eventEmitter.emit('average_latency_updated', {
         average: averageLatency,
         sampleSize: validSamples,
         totalPeers: this.peers.size,
@@ -367,11 +382,11 @@ export class NetworkStats {
 
       return averageLatency;
     } catch (error) {
-      Logger.error("Failed to calculate average latency:", error);
+      Logger.error('Failed to calculate average latency:', error);
       throw new NetworkError(
-        "Failed to calculate average latency",
+        'Failed to calculate average latency',
         NetworkErrorCode.PEER_VALIDATION_FAILED,
-        { error }
+        { error },
       );
     }
   }
@@ -384,9 +399,9 @@ export class NetworkStats {
         time > NetworkStats.MAX_PROPAGATION_TIME
       ) {
         throw new NetworkError(
-          "Invalid propagation time",
+          'Invalid propagation time',
           NetworkErrorCode.INVALID_PROPAGATION_TIME,
-          { time }
+          { time },
         );
       }
       this.blockPropagationTimes.push(time);
@@ -395,9 +410,9 @@ export class NetworkStats {
       ) {
         this.blockPropagationTimes.shift();
       }
-      this.eventEmitter.emit("propagation_time_added", { time });
+      this.eventEmitter.emit('propagation_time_added', { time });
     } catch (error) {
-      Logger.error("Failed to add propagation time:", error);
+      Logger.error('Failed to add propagation time:', error);
       throw error;
     }
   }
@@ -406,26 +421,26 @@ export class NetworkStats {
     try {
       if (!Number.isFinite(hashRate) || hashRate < NetworkStats.MIN_HASH_RATE) {
         throw new NetworkError(
-          "Invalid hash rate value",
+          'Invalid hash rate value',
           NetworkErrorCode.INVALID_HASH_RATE,
-          { hashRate }
+          { hashRate },
         );
       }
       this.globalHashRate = hashRate;
-      this.eventEmitter.emit("hashrate_updated", { hashRate });
+      this.eventEmitter.emit('hashrate_updated', { hashRate });
     } catch (error) {
-      Logger.error("Hash rate update failed:", error);
+      Logger.error('Hash rate update failed:', error);
       throw error;
     }
   }
 
   public updatePeerLatency(peerId: string, latency: number): void {
     try {
-      if (!peerId || typeof peerId !== "string") {
+      if (!peerId || typeof peerId !== 'string') {
         throw new NetworkError(
-          "Invalid peer ID",
+          'Invalid peer ID',
           NetworkErrorCode.PEER_VALIDATION_FAILED,
-          { peerId }
+          { peerId },
         );
       }
       if (
@@ -434,15 +449,15 @@ export class NetworkStats {
         latency > NetworkStats.MAX_LATENCY
       ) {
         throw new NetworkError(
-          "Invalid latency value",
+          'Invalid latency value',
           NetworkErrorCode.PEER_VALIDATION_FAILED,
-          { peerId, latency }
+          { peerId, latency },
         );
       }
       this.peerLatencies.set(peerId, latency);
-      this.eventEmitter.emit("peer_latency_updated", { peerId, latency });
+      this.eventEmitter.emit('peer_latency_updated', { peerId, latency });
     } catch (error) {
-      Logger.error("Latency update failed:", error);
+      Logger.error('Latency update failed:', error);
       throw error;
     }
   }
@@ -454,7 +469,7 @@ export class NetworkStats {
       }
 
       const samples = this.blockPropagationTimes.slice(
-        -NetworkStats.MAX_SAMPLE_SIZE
+        -NetworkStats.MAX_SAMPLE_SIZE,
       );
       const mean = samples.reduce((a, b) => a + b, 0) / samples.length;
 
@@ -465,7 +480,7 @@ export class NetworkStats {
 
       const validSamples = samples.filter(
         (time) =>
-          Math.abs(time - mean) <= NetworkStats.OUTLIER_THRESHOLD * stdDev
+          Math.abs(time - mean) <= NetworkStats.OUTLIER_THRESHOLD * stdDev,
       );
 
       // Return mean if no valid samples after filtering
@@ -473,7 +488,7 @@ export class NetworkStats {
         ? validSamples.reduce((a, b) => a + b, 0) / validSamples.length
         : mean;
     } catch (error) {
-      Logger.error("Failed to calculate average propagation time:", error);
+      Logger.error('Failed to calculate average propagation time:', error);
       return NetworkStats.DEFAULT_PROPAGATION_TIME;
     }
   }
@@ -486,8 +501,8 @@ export class NetworkStats {
     try {
       if (!NetworkStats.VALID_EVENTS.has(event)) {
         throw new NetworkError(
-          "Invalid event type",
-          NetworkErrorCode.MESSAGE_VALIDATION_FAILED
+          'Invalid event type',
+          NetworkErrorCode.MESSAGE_VALIDATION_FAILED,
         );
       }
 
@@ -508,7 +523,7 @@ export class NetworkStats {
         peer.eventEmitter.on(event, listener);
       }
     } catch (error) {
-      Logger.error("Failed to handle peer event:", error);
+      Logger.error('Failed to handle peer event:', error);
     }
   }
 
@@ -520,7 +535,7 @@ export class NetworkStats {
     try {
       // Calculate voting participation rate
       const activeVoters = Array.from(this.peers.values()).filter((peer) =>
-        peer.hasVoted()
+        peer.hasVoted(),
       ).length;
 
       return {
@@ -529,7 +544,7 @@ export class NetworkStats {
         totalVoters: this.peers.size,
       };
     } catch (error) {
-      Logger.error("Failed to calculate voting stats:", error);
+      Logger.error('Failed to calculate voting stats:', error);
       return {
         participation: 0,
         averageVoteTime: 0,
@@ -547,7 +562,7 @@ export class NetworkStats {
       if (voteTimes.length === 0) return 0;
       return voteTimes.reduce((a, b) => a + b, 0) / voteTimes.length;
     } catch (error) {
-      Logger.error("Failed to calculate average vote time:", error);
+      Logger.error('Failed to calculate average vote time:', error);
       return 0;
     }
   }
@@ -569,17 +584,17 @@ export class NetworkStats {
     try {
       Object.assign(this.h3TagMetrics, metrics);
 
-      this.eventEmitter.emit("h3Tag_metrics_updated", {
+      this.eventEmitter.emit('h3Tag_metrics_updated', {
         ...this.h3TagMetrics,
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY,
         timestamp: Date.now(),
       });
     } catch (error) {
-      Logger.error("Failed to update TAG metrics:", error);
+      Logger.error('Failed to update TAG metrics:', error);
       throw new NetworkError(
-        "Failed to update TAG metrics",
+        'Failed to update TAG metrics',
         NetworkErrorCode.METRICS_UPDATE_FAILED,
-        { metrics }
+        { metrics },
       );
     }
   }
@@ -601,7 +616,7 @@ export class NetworkStats {
   public async initialize(): Promise<void> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new Error("Network stats initialization timeout"));
+        reject(new Error('Network stats initialization timeout'));
       }, 30000); // 30 second timeout
 
       try {
@@ -613,11 +628,11 @@ export class NetworkStats {
         this.startDiscoveryLoop();
 
         clearTimeout(timeout);
-        Logger.debug("Network stats initialized");
+        Logger.debug('Network stats initialized');
         resolve();
       } catch (error) {
         clearTimeout(timeout);
-        Logger.error("Failed to initialize network stats:", error);
+        Logger.error('Failed to initialize network stats:', error);
         reject(error);
       }
     });
@@ -674,29 +689,29 @@ export class NetworkStats {
     try {
       // Get connected peers
       const connectedPeers = Array.from(this.peers.values()).filter((peer) =>
-        peer.isConnected()
+        peer.isConnected(),
       );
 
       // Calculate connection metrics
       const inbound = connectedPeers.filter((peer) => peer.isInbound()).length;
       const outbound = connectedPeers.length - inbound;
       const verified = connectedPeers.filter((peer) =>
-        peer.isVerified()
+        peer.isVerified(),
       ).length;
 
       // Get network metrics
       const metrics = {
         totalBytesRecv: connectedPeers.reduce(
           (sum, peer) => sum + peer.getBytesReceived(),
-          0
+          0,
         ),
         totalBytesSent: connectedPeers.reduce(
           (sum, peer) => sum + peer.getBytesSent(),
-          0
+          0,
         ),
         timeConnected: Math.floor(Date.now() / 1000) - this.startTime,
-        blockHeight: this.blockchain.getHeight(),
-        difficulty: this.blockchain.getCurrentDifficulty(),
+        blockHeight: this.blockchain?.getHeight() || 0,
+        difficulty: this.blockchain?.getCurrentDifficulty() || 0,
         hashRate: this.globalHashRate,
         mempool: this.getMempoolInfo(),
       };
@@ -717,24 +732,24 @@ export class NetworkStats {
         },
         networks: [
           {
-            name: "ipv4",
+            name: 'ipv4',
             limited: false,
             reachable: true,
-            proxy: this.configService.get("PROXY_IPV4") || "none",
+            proxy: this.configService?.get('PROXY_IPV4') || 'none',
             proxy_randomize_credentials: true,
           },
           {
-            name: "ipv6",
+            name: 'ipv6',
             limited: false,
             reachable: true,
-            proxy: this.configService.get("PROXY_IPV6") || "none",
+            proxy: this.configService?.get('PROXY_IPV6') || 'none',
             proxy_randomize_credentials: true,
           },
           {
-            name: "onion",
+            name: 'onion',
             limited: true,
             reachable: false,
-            proxy: "none",
+            proxy: 'none',
             proxy_randomize_credentials: true,
           },
         ],
@@ -743,27 +758,27 @@ export class NetworkStats {
         metrics,
       };
     } catch (error) {
-      Logger.error("Failed to get network info:", error);
+      Logger.error('Failed to get network info:', error);
       throw new NetworkError(
-        "Failed to get network info",
+        'Failed to get network info',
         NetworkErrorCode.NETWORK_INFO_FAILED,
-        { error }
+        { error },
       );
     }
   }
 
   private getMempoolInfo() {
     try {
-      const mempool = this.blockchain.getMempool();
+      const mempool = this.blockchain?.getMempool();
       return {
-        size: mempool.size,
-        bytes: mempool.bytes,
-        usage: mempool.usage,
+        size: mempool?.size || 0,
+        bytes: mempool?.bytes || 0,
+        usage: mempool?.usage || 0,
         maxmempool: BLOCKCHAIN_CONSTANTS.MAX_MEMPOOL_SIZE,
         mempoolminfee: BLOCKCHAIN_CONSTANTS.MIN_RELAY_TX_FEE,
       };
     } catch (error) {
-      Logger.warn("Failed to get mempool info:", error);
+      Logger.warn('Failed to get mempool info:', error);
       return {
         size: 0,
         bytes: 0,
@@ -776,22 +791,23 @@ export class NetworkStats {
 
   private getLocalServices(): string[] {
     const services = [];
-    if (this.configService.get("NETWORK_NODE")) services.push("NODE_NETWORK");
-    if (this.configService.get("NETWORK_BLOOM")) services.push("NODE_BLOOM");
-    if (this.configService.get("NETWORK_WITNESS"))
-      services.push("NODE_WITNESS");
-    if (this.configService.get("NETWORK_COMPACT"))
-      services.push("NODE_COMPACT_FILTERS");
+    if (this.configService?.get('NETWORK_NODE'))
+      services.push('NODE_NETWORK');
+    if (this.configService?.get('NETWORK_BLOOM')) services.push('NODE_BLOOM');
+    if (this.configService?.get('NETWORK_WITNESS'))
+      services.push('NODE_WITNESS');
+    if (this.configService?.get('NETWORK_COMPACT'))
+      services.push('NODE_COMPACT_FILTERS');
     return services;
   }
 
   private getLocalAddresses(): string[] {
     try {
       return (
-        (this.configService.get("LOCAL_ADDRESSES") as string)?.split(",") || []
+        (this.configService?.get('LOCAL_ADDRESSES') as string)?.split(',') || []
       );
     } catch (error) {
-      Logger.warn("Failed to get local addresses:", error);
+      Logger.warn('Failed to get local addresses:', error);
       return [];
     }
   }
@@ -801,35 +817,35 @@ export class NetworkStats {
 
     // Check for version updates
     if (this.isVersionOutdated()) {
-      warnings.push("WARNING: Client version is outdated. Please upgrade.");
+      warnings.push('WARNING: Client version is outdated. Please upgrade.');
     }
 
     // Check network health
     if (this.peers.size < BLOCKCHAIN_CONSTANTS.MIN_PEERS) {
       warnings.push(
-        "WARNING: Low peer count. Network connectivity may be limited."
+        'WARNING: Low peer count. Network connectivity may be limited.',
       );
     }
 
     // Check sync status
     if (!this.isSynced()) {
-      warnings.push("WARNING: Node is not fully synced with the network.");
+      warnings.push('WARNING: Node is not fully synced with the network.');
     }
 
-    return warnings.join(" ");
+    return warnings.join(' ');
   }
 
   private isVersionOutdated(): boolean {
     try {
       const currentVersion = parseFloat(
-        BLOCKCHAIN_CONSTANTS.VERSION.toString()
+        BLOCKCHAIN_CONSTANTS.VERSION.toString(),
       );
       const latestVersion = parseFloat(
-        this.configService.get("LATEST_VERSION") as string
+        this.configService?.get('LATEST_VERSION') as string,
       );
       return currentVersion < latestVersion;
     } catch (error) {
-      Logger.warn("Failed to check version:", error);
+      Logger.warn('Failed to check version:', error);
       return false;
     }
   }
@@ -837,11 +853,11 @@ export class NetworkStats {
   private async isSynced(): Promise<boolean> {
     try {
       return (
-        !this.blockchain.isInitialBlockDownload() &&
-        (await this.blockchain.getVerificationProgress()) >= 0.99
+        !this.blockchain?.isInitialBlockDownload() &&
+        (await this.blockchain?.getVerificationProgress() || 0) >= 0.99
       );
-    } catch (error) {
-      Logger.warn("Failed to check sync status:", error);
+    } catch (error: unknown) {
+      Logger.warn('Failed to check sync status:', error as Error);
       return false;
     }
   }

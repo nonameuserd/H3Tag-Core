@@ -2,14 +2,17 @@ import { BlockchainConfig, defaultConfig } from './config';
 import { Logger } from './logger';
 
 export class ConfigurationError extends Error {
-  constructor(message: string, public readonly key?: string) {
+  constructor(
+    message: string,
+    public readonly key?: string,
+  ) {
     super(message);
     this.name = 'ConfigurationError';
   }
 }
 
 export class ConfigService {
-  private readonly config: BlockchainConfig;
+  private readonly config!: BlockchainConfig;
   private readonly cache: Map<string, any> = new Map();
   private static instance: ConfigService;
 
@@ -30,7 +33,9 @@ export class ConfigService {
     }
   }
 
-  public static getInstance(customConfig?: Partial<BlockchainConfig>): ConfigService {
+  public static getInstance(
+    customConfig?: Partial<BlockchainConfig>,
+  ): ConfigService {
     if (!ConfigService.instance) {
       ConfigService.instance = new ConfigService(customConfig);
     }
@@ -57,12 +62,15 @@ export class ConfigService {
           if (envValue !== undefined) {
             return this.parseValue<T>(envValue);
           }
-          
+
           if (defaultValue !== undefined) {
             return defaultValue;
           }
-          
-          throw new ConfigurationError(`Configuration key not found: ${key}`, key);
+
+          throw new ConfigurationError(
+            `Configuration key not found: ${key}`,
+            key,
+          );
         }
       }
 
@@ -133,4 +141,4 @@ export class ConfigService {
   public static resetInstance(): void {
     ConfigService.instance = undefined as any;
   }
-} 
+}

@@ -7,13 +7,18 @@
   "workspaces": [
     "packages/*"
   ],
+  "exports": {
+    ".": "./dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "format": "prettier --write .",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prettier": "prettier --ignore-path .gitignore --write \"./src/**/*.+(js|ts|json)\"",
+    "prettier:fix": "prettier --write src"
   },
   "dependencies": {
-    "@h3tag-blockchain/shared": "^0.1.0",
     "axios": "^1.7.9",
     "commander": "^11.0.0"
   },

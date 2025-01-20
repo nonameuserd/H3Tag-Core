@@ -1,4 +1,4 @@
-import { CurrencyConstants } from "./currency-constants";
+import { CurrencyConstantsInterface } from './currency-constants';
 
 export interface NetworkConfig {
   type: {
@@ -211,7 +211,7 @@ export interface MessageConfig {
 }
 
 export interface BlockchainConfig {
-  currency: CurrencyConstants;
+  currency: CurrencyConstantsInterface;
   network: NetworkConfig;
   mining: MiningConfig;
   consensus: ConsensusConfig;
@@ -235,8 +235,8 @@ export interface BlockchainConfig {
 
 export const defaultConfig: BlockchainConfig = {
   currency: {
-    name: "H3TAG",
-    symbol: "TAG",
+    name: 'H3TAG',
+    symbol: 'TAG',
     decimals: 8,
     initialSupply: BigInt(21000000),
     maxSupply: BigInt(696900000),
@@ -249,9 +249,9 @@ export const defaultConfig: BlockchainConfig = {
   },
   network: {
     type: {
-      MAINNET: "mainnet",
-      TESTNET: "testnet",
-      DEVNET: "devnet",
+      MAINNET: 'mainnet',
+      TESTNET: 'testnet',
+      DEVNET: 'devnet',
     },
     port: {
       MAINNET: 8333,
@@ -259,25 +259,25 @@ export const defaultConfig: BlockchainConfig = {
       DEVNET: 10002,
     },
     host: {
-      MAINNET: "mainnet.h3tag.com",
-      TESTNET: "testnet.h3tag.com",
-      DEVNET: "devnet.h3tag.com",
+      MAINNET: 'mainnet.h3tag.com',
+      TESTNET: 'testnet.h3tag.com',
+      DEVNET: 'devnet.h3tag.com',
     },
     seedDomains: {
       MAINNET: [
-        "seed1.h3tag.com",
-        "seed2.h3tag.com",
-        "seed3.h3tag.com",
-        "seed4.h3tag.com",
-        "seed5.h3tag.com",
-        "seed6.h3tag.com",
+        'seed1.h3tag.com',
+        'seed2.h3tag.com',
+        'seed3.h3tag.com',
+        'seed4.h3tag.com',
+        'seed5.h3tag.com',
+        'seed6.h3tag.com',
       ],
       TESTNET: [
-        "test-seed1.h3tag.com",
-        "test-seed2.h3tag.com",
-        "test-seed3.h3tag.com",
+        'test-seed1.h3tag.com',
+        'test-seed2.h3tag.com',
+        'test-seed3.h3tag.com',
       ],
-      DEVNET: ["dev-seed1.h3tag.com", "dev-seed2.h3tag.com"],
+      DEVNET: ['dev-seed1.h3tag.com', 'dev-seed2.h3tag.com'],
     },
   },
   mining: {
@@ -306,7 +306,7 @@ export const defaultConfig: BlockchainConfig = {
     initialDifficulty: 0x1d0000ffff,
     hashBatchSize: 10000,
     maxTarget: BigInt(
-      "0x0000000000ffff0000000000000000000000000000000000000000000000000000"
+      '0x0000000000ffff0000000000000000000000000000000000000000000000000000',
     ),
     minDifficulty: 2,
     nodeSelectionThreshold: 0.67,
@@ -329,7 +329,7 @@ export const defaultConfig: BlockchainConfig = {
     blockReward: 50n * 10n ** 8n,
     maxTxSize: 1048576,
     minFeePerByte: 1n,
-    autoMine: process.env.AUTO_MINE === "true" || false,
+    autoMine: process.env.AUTO_MINE === 'true' || false,
     cacheTtl: 3600000,
     maxSupply: BigInt(50000000),
     safeConfirmationTime: 3600000,
@@ -366,7 +366,7 @@ export const defaultConfig: BlockchainConfig = {
     maxVotesPerWindow: 5,
     minAccountAge: 20160,
     minPeerCount: 3,
-    voteEncryptionVersion: "1.0",
+    voteEncryptionVersion: '1.0',
     maxVoteSizeBytes: 1024 * 100,
     votingWeight: 0.4,
     minVotesForValidity: 0.1,
@@ -414,7 +414,7 @@ export const defaultConfig: BlockchainConfig = {
     maxTimeDrift: 7200000,
     amountLimits: {
       min: BigInt(1),
-      max: BigInt("5000000000000000"),
+      max: BigInt('5000000000000000'),
       decimals: 8,
     },
     mempool: {
@@ -430,7 +430,7 @@ export const defaultConfig: BlockchainConfig = {
     processingTimeout: 30000,
     maxSize: 1000000,
     maxScriptSize: 1000000,
-    maxTotalInput: BigInt("1000000000000000"),
+    maxTotalInput: BigInt('1000000000000000'),
     maxSignatureSize: 520,
     maxPubkeySize: 65,
     minInputAge: 3600000,
@@ -454,19 +454,19 @@ export const defaultConfig: BlockchainConfig = {
   minSafeConfirmations: 6,
   maxSafeUtxoAmount: 1_000_000_000_000,
   coinbaseMaturity: 100,
-  userAgent: "/H3Tag:1.0.0/",
+  userAgent: '/H3Tag:1.0.0/',
   protocolVersion: 1,
   maxMempoolSize: 50000,
   minRelayTxFee: 0.00001,
   minPeers: 3,
   message: {
-    prefix: "\x18H3Tag Signed Message:\n",
+    prefix: '\x18H3Tag Signed Message:\n',
     maxLength: 100000,
     minLength: 1,
   },
   wallet: {
-    address: "",
-    privateKey: "",
-    publicKey: "",
+    address: '',
+    privateKey: '',
+    publicKey: '',
   },
 };

@@ -1,15 +1,18 @@
-import { EventEmitter } from "events";
-import { Cache } from "../scaling/cache";
-import { HybridCrypto } from "@h3tag-blockchain/crypto";
-import zlib from "zlib";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import { DefaultAuditStorage } from "./default-audit-storage";
+import { EventEmitter } from 'events';
+import { Cache } from '../scaling/cache';
+import { HybridCrypto } from '@h3tag-blockchain/crypto';
+import zlib from 'zlib';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import { DefaultAuditStorage } from './default-audit-storage';
 
 export class AuditError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
     super(message);
-    this.name = "AuditError";
+    this.name = 'AuditError';
   }
 }
 
@@ -51,64 +54,64 @@ export interface IAuditStorage {
 }
 
 export enum AuditEventType {
-  CONSENSUS = "CONSENSUS", // Combined PoW + Direct Voting events
-  POW_BLOCK = "POW_BLOCK", // New block mined
-  VOTE = "VOTE", // Direct token holder vote
-  SECURITY = "SECURITY", // Security-related events
-  VALIDATION = "VALIDATION", // Block/transaction validation
-  VOTING_HEALTH_CHECK_FAILED = "VOTING_HEALTH_CHECK_FAILED",
-  CONSENSUS_HEALTH_CHECK_FAILED = "CONSENSUS_HEALTH_CHECK_FAILED",
-  MEMPOOL_HEALTH_CHECK_FAILED = "MEMPOOL_HEALTH_CHECK_FAILED",
-  MINING_HEALTH_CHECK_FAILED = "MINING_HEALTH_CHECK_FAILED",
-  CURRENCY_VALIDATION_FAILED = "CURRENCY_VALIDATION_FAILED",
-  VALIDATION_ERROR = "VALIDATION_ERROR",
-  VALIDATION_FAILED = "VALIDATION_FAILED",
-  BLOCK_VALIDATED = "BLOCK_VALIDATED",
-  VOTE_HANDLING_ERROR = "VOTE_HANDLING_ERROR",
-  VALIDATION_SUCCESS = "VALIDATION_SUCCESS",
-  TYPE = "node_selection",
-  CACHE_EVICTION = "CACHE_EVICTION",
-  POW_CONTRIBUTION_CHECKED = "POW_CONTRIBUTION_CHECKED",
-  POW_CONTRIBUTION_FAILED = "POW_CONTRIBUTION_FAILED",
-  VOTE_VERIFIED = "VOTE_VERIFIED",
-  VOTE_VERIFICATION_FAILED = "VOTE_VERIFICATION_FAILED",
-  VOTE_TRANSACTION_ADDED = "VOTE_TRANSACTION_ADDED",
-  VOTE_TRANSACTION_FAILED = "VOTE_TRANSACTION_FAILED",
-  REPUTATION_DATA_LOADED = "REPUTATION_DATA_LOADED",
-  REPUTATION_LOAD_FAILED = "REPUTATION_LOAD_FAILED",
-  REPUTATION_UPDATED = "REPUTATION_UPDATED",
-  REPUTATION_UPDATE_FAILED = "REPUTATION_UPDATE_FAILED",
-  MERKLE_ERROR = "MERKLE_ERROR",
-  VALIDATOR_SUSPENSION = "VALIDATOR_SUSPENSION",
-  VALIDATOR_ABSENCE_HANDLING_FAILED = "VALIDATOR_ABSENCE_HANDLING_FAILED",
-  BACKUP_VALIDATOR_SELECTED = "BACKUP_VALIDATOR_SELECTED",
-  BACKUP_SELECTION_FAILED = "BACKUP_SELECTION_FAILED",
-  VALIDATOR_BACKUP_ASSIGNED = "VALIDATOR_BACKUP_ASSIGNED",
-  VALIDATOR_BACKUP_FAILED = "VALIDATOR_BACKUP_FAILED",
-  TRANSACTIONS_ADDED = "TRANSACTIONS_ADDED",
-  TRANSACTIONS_FAILED = "TRANSACTIONS_FAILED",
-  LARGE_MERKLE_TREE = "LARGE_MERKLE_TREE",
-  OLD_TRANSACTIONS_REMOVED = "OLD_TRANSACTIONS_REMOVED",
-  TRANSACTION_INPUT_ADDED = "TRANSACTION_INPUT_ADDED",
-  TRANSACTION_OUTPUT_ADDED = "TRANSACTION_OUTPUT_ADDED",
-  FEE_CALCULATION_FAILED = "FEE_CALCULATION_FAILED",
-  FEE_BUCKET_UPDATE_FAILED = "FEE_BUCKET_UPDATE_FAILED",
-  SHARD_INITIALIZED = "SHARD_INITIALIZED",
-  SHARD_RESHARD = "SHARD_RESHARD",
-  SHARD_SYNC_FAILED = "SHARD_SYNC_FAILED",
-  SHARD_TX_LOOKUP_FAILED = "SHARD_TX_LOOKUP_FAILED",
-  SHARD_HEALTH_CHECK = "SHARD_HEALTH_CHECK",
-  DDOS_VIOLATION = "DDOS_VIOLATION",
-  TRANSACTION_VALIDATION_FAILED = "TRANSACTION_VALIDATION_FAILED",
-  TRANSACTION_COMMIT = "TRANSACTION_COMMIT",
+  CONSENSUS = 'CONSENSUS', // Combined PoW + Direct Voting events
+  POW_BLOCK = 'POW_BLOCK', // New block mined
+  VOTE = 'VOTE', // Direct token holder vote
+  SECURITY = 'SECURITY', // Security-related events
+  VALIDATION = 'VALIDATION', // Block/transaction validation
+  VOTING_HEALTH_CHECK_FAILED = 'VOTING_HEALTH_CHECK_FAILED',
+  CONSENSUS_HEALTH_CHECK_FAILED = 'CONSENSUS_HEALTH_CHECK_FAILED',
+  MEMPOOL_HEALTH_CHECK_FAILED = 'MEMPOOL_HEALTH_CHECK_FAILED',
+  MINING_HEALTH_CHECK_FAILED = 'MINING_HEALTH_CHECK_FAILED',
+  CURRENCY_VALIDATION_FAILED = 'CURRENCY_VALIDATION_FAILED',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  VALIDATION_FAILED = 'VALIDATION_FAILED',
+  BLOCK_VALIDATED = 'BLOCK_VALIDATED',
+  VOTE_HANDLING_ERROR = 'VOTE_HANDLING_ERROR',
+  VALIDATION_SUCCESS = 'VALIDATION_SUCCESS',
+  TYPE = 'node_selection',
+  CACHE_EVICTION = 'CACHE_EVICTION',
+  POW_CONTRIBUTION_CHECKED = 'POW_CONTRIBUTION_CHECKED',
+  POW_CONTRIBUTION_FAILED = 'POW_CONTRIBUTION_FAILED',
+  VOTE_VERIFIED = 'VOTE_VERIFIED',
+  VOTE_VERIFICATION_FAILED = 'VOTE_VERIFICATION_FAILED',
+  VOTE_TRANSACTION_ADDED = 'VOTE_TRANSACTION_ADDED',
+  VOTE_TRANSACTION_FAILED = 'VOTE_TRANSACTION_FAILED',
+  REPUTATION_DATA_LOADED = 'REPUTATION_DATA_LOADED',
+  REPUTATION_LOAD_FAILED = 'REPUTATION_LOAD_FAILED',
+  REPUTATION_UPDATED = 'REPUTATION_UPDATED',
+  REPUTATION_UPDATE_FAILED = 'REPUTATION_UPDATE_FAILED',
+  MERKLE_ERROR = 'MERKLE_ERROR',
+  VALIDATOR_SUSPENSION = 'VALIDATOR_SUSPENSION',
+  VALIDATOR_ABSENCE_HANDLING_FAILED = 'VALIDATOR_ABSENCE_HANDLING_FAILED',
+  BACKUP_VALIDATOR_SELECTED = 'BACKUP_VALIDATOR_SELECTED',
+  BACKUP_SELECTION_FAILED = 'BACKUP_SELECTION_FAILED',
+  VALIDATOR_BACKUP_ASSIGNED = 'VALIDATOR_BACKUP_ASSIGNED',
+  VALIDATOR_BACKUP_FAILED = 'VALIDATOR_BACKUP_FAILED',
+  TRANSACTIONS_ADDED = 'TRANSACTIONS_ADDED',
+  TRANSACTIONS_FAILED = 'TRANSACTIONS_FAILED',
+  LARGE_MERKLE_TREE = 'LARGE_MERKLE_TREE',
+  OLD_TRANSACTIONS_REMOVED = 'OLD_TRANSACTIONS_REMOVED',
+  TRANSACTION_INPUT_ADDED = 'TRANSACTION_INPUT_ADDED',
+  TRANSACTION_OUTPUT_ADDED = 'TRANSACTION_OUTPUT_ADDED',
+  FEE_CALCULATION_FAILED = 'FEE_CALCULATION_FAILED',
+  FEE_BUCKET_UPDATE_FAILED = 'FEE_BUCKET_UPDATE_FAILED',
+  SHARD_INITIALIZED = 'SHARD_INITIALIZED',
+  SHARD_RESHARD = 'SHARD_RESHARD',
+  SHARD_SYNC_FAILED = 'SHARD_SYNC_FAILED',
+  SHARD_TX_LOOKUP_FAILED = 'SHARD_TX_LOOKUP_FAILED',
+  SHARD_HEALTH_CHECK = 'SHARD_HEALTH_CHECK',
+  DDOS_VIOLATION = 'DDOS_VIOLATION',
+  TRANSACTION_VALIDATION_FAILED = 'TRANSACTION_VALIDATION_FAILED',
+  TRANSACTION_COMMIT = 'TRANSACTION_COMMIT',
 }
 
 export enum AuditSeverity {
-  INFO = "INFO",
-  WARNING = "WARNING",
-  ERROR = "ERROR",
-  CRITICAL = "CRITICAL",
-  HIGH = "HIGH",
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  CRITICAL = 'CRITICAL',
+  HIGH = 'HIGH',
 }
 
 interface AuditConfig {
@@ -138,7 +141,7 @@ export class AuditManager {
   private readonly eventEmitter = new EventEmitter();
   private events: Map<string, AuditEvent>;
   private eventCache: Cache<AuditEvent>;
-  private syncInterval: NodeJS.Timeout;
+  private syncInterval: NodeJS.Timeout | undefined;
   private readonly config: AuditConfig;
   private readonly storage: IAuditStorage;
   private metrics: AuditMetrics = {
@@ -161,7 +164,7 @@ export class AuditManager {
     compressionLevel: 6,
     maxRetries: 3,
     enabled: false,
-    auditPath: "./audit",
+    auditPath: './audit',
     auditInterval: 60000,
   };
 
@@ -188,28 +191,28 @@ export class AuditManager {
 
   private validateConfig(config: AuditConfig): void {
     if (config.retentionPeriod < 1) {
-      throw new AuditError("Invalid retention period", "INVALID_CONFIG");
+      throw new AuditError('Invalid retention period', 'INVALID_CONFIG');
     }
     if (config.maxEvents < 1) {
-      throw new AuditError("Invalid max events", "INVALID_CONFIG");
+      throw new AuditError('Invalid max events', 'INVALID_CONFIG');
     }
     if (config.batchSize < 1 || config.batchSize > config.maxEvents) {
-      throw new AuditError("Invalid batch size", "INVALID_CONFIG");
+      throw new AuditError('Invalid batch size', 'INVALID_CONFIG');
     }
   }
 
   public async initialize(): Promise<void> {
     this.startSyncInterval();
-    this.eventEmitter.emit("initialized");
-    Logger.info("Audit manager initialized");
+    this.eventEmitter.emit('initialized');
+    Logger.info('Audit manager initialized');
   }
 
   public async logEvent(options: AuditEventOptions): Promise<string> {
     try {
       if (!options.source || !options.type || !options.severity) {
         throw new AuditError(
-          "Missing required audit event fields",
-          "INVALID_INPUT"
+          'Missing required audit event fields',
+          'INVALID_INPUT',
         );
       }
 
@@ -218,14 +221,14 @@ export class AuditManager {
         timestamp: Date.now(),
         ...options,
         currency: options.currency || BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-        hash: "",
+        hash: '',
       };
 
       event.hash = await this.calculateEventHash(event);
       await this.storeEvent(event);
 
       this.metrics.totalEvents++;
-      this.eventEmitter.emit("event_logged", {
+      this.eventEmitter.emit('event_logged', {
         id: event.id,
         type: event.type,
         currency: event.currency,
@@ -236,15 +239,17 @@ export class AuditManager {
       }
 
       return event.id;
-    } catch (error) {
+    } catch (error: unknown) {
       this.metrics.failedEvents++;
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       Logger.error(
         `Failed to log ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit event:`,
-        error
+        errorMessage,
       );
       throw new AuditError(
-        `Failed to log ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} event: ${error.message}`,
-        "LOG_FAILED"
+        `Failed to log ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} event: ${errorMessage}`,
+        'LOG_FAILED',
       );
     }
   }
@@ -263,7 +268,7 @@ export class AuditManager {
         id: event.id,
         type: event.type,
         severity: event.severity,
-      }
+      },
     );
   }
 
@@ -271,7 +276,7 @@ export class AuditManager {
     const cutoffTime =
       Date.now() - this.config.retentionPeriod * 24 * 60 * 60 * 1000;
     const evictedEvents = Array.from(this.events.values()).filter(
-      (event) => event.timestamp < cutoffTime
+      (event) => event.timestamp < cutoffTime,
     );
 
     for (const event of evictedEvents) {
@@ -280,7 +285,7 @@ export class AuditManager {
     }
 
     this.metrics.evictedEvents += evictedEvents.length;
-    this.eventEmitter.emit("events_evicted", { count: evictedEvents.length });
+    this.eventEmitter.emit('events_evicted', { count: evictedEvents.length });
   }
 
   public async queryEvents(options: {
@@ -316,7 +321,7 @@ export class AuditManager {
           (!type?.length || type.includes(event.type)) &&
           (!severity?.length || severity.includes(event.severity)) &&
           (!source?.length || source.includes(event.source)) &&
-          (!currency || event.currency === currency)
+          (!currency || event.currency === currency),
       )
       .sort((a, b) => b.timestamp - a.timestamp);
 
@@ -335,7 +340,7 @@ export class AuditManager {
 
     const batch = Array.from(this.events.values()).slice(
       0,
-      AuditManager.BATCH_SIZE
+      AuditManager.BATCH_SIZE,
     );
     let retryCount = 0;
 
@@ -346,17 +351,17 @@ export class AuditManager {
 
         batch.forEach((event) => this.events.delete(event.id));
         this.metrics.lastSync = Date.now();
-        this.eventEmitter.emit("sync_complete", batch.length);
+        this.eventEmitter.emit('sync_complete', batch.length);
         return;
       } catch (error) {
         retryCount++;
         if (retryCount === AuditManager.MAX_RETRY_ATTEMPTS) {
-          Logger.error("Max retry attempts reached for sync:", error);
-          this.eventEmitter.emit("sync_failed", error);
+          Logger.error('Max retry attempts reached for sync:', error);
+          this.eventEmitter.emit('sync_failed', error);
           throw error;
         }
         await new Promise((resolve) =>
-          setTimeout(resolve, AuditManager.RETRY_DELAY)
+          setTimeout(resolve, AuditManager.RETRY_DELAY),
         );
       }
     }
@@ -377,23 +382,23 @@ export class AuditManager {
           },
           (error, compressed) => {
             if (error) {
-              reject(new AuditError(error.message, "COMPRESSION_FAILED"));
+              reject(new AuditError(error.message, 'COMPRESSION_FAILED'));
             } else {
               this.metrics.compressionRatio = compressed.length / originalSize;
-              resolve(compressed.toString("base64"));
+              resolve(compressed.toString('base64'));
             }
-          }
+          },
         );
       });
     } catch (error) {
-      Logger.error("Compression failed:", error);
-      throw new AuditError("Failed to compress events", "COMPRESSION_ERROR");
+      Logger.error('Compression failed:', error);
+      throw new AuditError('Failed to compress events', 'COMPRESSION_ERROR');
     }
   }
 
   private async generateEventId(): Promise<string> {
     const entropy = Buffer.from(
-      Date.now().toString() + Math.random().toString()
+      Date.now().toString() + Math.random().toString(),
     );
     return HybridCrypto.generateSharedSecret(entropy);
   }
@@ -405,14 +410,14 @@ export class AuditManager {
   }
 
   private handleCriticalEvent(event: AuditEvent): void {
-    Logger.error("Critical audit event:", event);
-    this.eventEmitter.emit("critical_event", event);
+    Logger.error('Critical audit event:', event);
+    this.eventEmitter.emit('critical_event', event);
   }
 
   private startSyncInterval(): void {
     this.syncInterval = setInterval(() => {
       this.syncEvents().catch((error) => {
-        Logger.error("Failed to sync audit events:", error);
+        Logger.error('Failed to sync audit events:', error);
       });
     }, this.config.syncInterval);
 
@@ -426,7 +431,7 @@ export class AuditManager {
   public async verifyEventIntegrity(event: AuditEvent): Promise<boolean> {
     const calculatedHash = await this.calculateEventHash({
       ...event,
-      hash: "",
+      hash: '',
     });
     return calculatedHash === event.hash;
   }
@@ -436,12 +441,12 @@ export class AuditManager {
     await this.syncEvents(); // Final sync
     this.eventCache.shutdown();
     this.events.clear();
-    this.eventEmitter.emit("shutdown");
-    Logger.info("Audit manager shutdown");
+    this.eventEmitter.emit('shutdown');
+    Logger.info('Audit manager shutdown');
   }
 
   public async logConsensusEvent(options: {
-    type: "block_mined" | "vote_cast" | "consensus_reached";
+    type: 'block_mined' | 'vote_cast' | 'consensus_reached';
     blockHeight: number;
     minerAddress?: string;
     voterAddress?: string;
@@ -452,14 +457,14 @@ export class AuditManager {
     return this.logEvent({
       type: AuditEventType.CONSENSUS,
       severity: AuditSeverity.INFO,
-      source: options.minerAddress || options.voterAddress || "system",
+      source: options.minerAddress || options.voterAddress || 'system',
       details: options,
     });
   }
 
   async log(
     eventType: AuditEventType,
-    data: { [key: string]: unknown }
+    data: { [key: string]: unknown },
   ): Promise<void> {
     const auditLog = {
       eventType,
@@ -469,7 +474,7 @@ export class AuditManager {
 
     await this.storage.writeAuditLog(
       `${eventType}_${Date.now()}.log`,
-      JSON.stringify(auditLog)
+      JSON.stringify(auditLog),
     );
   }
 
@@ -479,22 +484,24 @@ export class AuditManager {
 
   async getAuditorSignature(
     auditorId: string,
-    voteId: string
+    voteId: string,
   ): Promise<string> {
     try {
       const key = `auditor_signature:${auditorId}:${voteId}`;
       const data = await this.storage.readAuditLog(key);
       return JSON.parse(data).signature;
-    } catch (error) {
-      Logger.error(`Failed to get auditor signature: ${error.message}`);
-      return "";
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(`Failed to get auditor signature: ${errorMessage}`);
+      return '';
     }
   }
 
   public async cleanup(): Promise<void> {
     const now = Date.now();
     const oldEvents = Array.from(this.events.values()).filter(
-      (event) => now - event.timestamp > AuditManager.MAX_EVENT_AGE
+      (event) => now - event.timestamp > AuditManager.MAX_EVENT_AGE,
     );
 
     for (const event of oldEvents) {
@@ -502,7 +509,7 @@ export class AuditManager {
     }
 
     this.metrics.eventsRemoved += oldEvents.length;
-    this.eventEmitter.emit("cleanup_complete", oldEvents.length);
+    this.eventEmitter.emit('cleanup_complete', oldEvents.length);
   }
 
   public async dispose(): Promise<void> {
@@ -510,7 +517,7 @@ export class AuditManager {
     this.events.clear();
     this.eventCache.clear();
     this.eventEmitter.removeAllListeners();
-    Logger.info("Audit manager disposed");
+    Logger.info('Audit manager disposed');
   }
 
   public on(event: string, listener: (...args: unknown[]) => void): void {

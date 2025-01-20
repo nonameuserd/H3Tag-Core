@@ -1,5 +1,5 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { Mutex } from "async-mutex";
+import { Logger } from '@h3tag-blockchain/shared';
+import { Mutex } from 'async-mutex';
 
 /**
  * @fileoverview Core metrics tracking system for the H3Tag blockchain. Includes performance metrics,
@@ -127,16 +127,36 @@ export class MiningMetrics {
   private cleanupOldMetrics(now: number): void {
     const cutoff = now - 24 * 60 * 60 * 1000; // 24 hours
     const startIdx = this.metrics.timestamp.findIndex(
-      (t) => Number(t) > cutoff // Convert BigInt to Number for comparison
+      (t) => Number(t) > cutoff, // Convert BigInt to Number for comparison
     );
 
     if (startIdx > 0) {
-      // Cleanup all metric arrays at once
-      Object.keys(this.metrics).forEach((key) => {
-        if (Array.isArray(this.metrics[key])) {
-          this.metrics[key] = this.metrics[key].slice(startIdx);
-        }
-      });
+      this.metrics.timestamp = this.metrics.timestamp.slice(startIdx);
+
+      // Handle number arrays
+      // Handle numeric arrays
+      ['hashRate', 'difficulty', 'blockTimes', 'tagVolume', 'tagFees'].forEach(
+        (key) => {
+          if (key in this.metrics) {
+            (this.metrics[
+              key as
+                | 'hashRate'
+                | 'difficulty'
+                | 'blockTimes'
+                | 'tagVolume'
+                | 'tagFees'
+            ] as number[]) =
+              this.metrics[
+                key as
+                  | 'hashRate'
+                  | 'difficulty'
+                  | 'blockTimes'
+                  | 'tagVolume'
+                  | 'tagFees'
+              ].slice(startIdx);
+          }
+        },
+      );
     }
   }
 
@@ -153,7 +173,7 @@ export class MiningMetrics {
 
       const cutoff = Date.now() - timeWindow;
       const startIdx = this.metrics.timestamp.findIndex(
-        (t) => Number(t) > cutoff
+        (t) => Number(t) > cutoff,
       );
 
       if (startIdx === -1) return 0;
@@ -163,7 +183,7 @@ export class MiningMetrics {
         ? recentHashes.reduce((a, b) => a + b, 0) / recentHashes.length
         : 0;
     } catch (error) {
-      Logger.error("Error calculating average hash rate:", error);
+      Logger.error('Error calculating average hash rate:', error);
       return 0;
     }
   }
@@ -179,14 +199,14 @@ export class MiningMetrics {
 
       // Early return if no data
       if (!this.metrics.tagVolume.length || !this.metrics.timestamp.length) {
-        Logger.debug("No TAG volume data available for averaging");
+        Logger.debug('No TAG volume data available for averaging');
         return 0;
       }
 
       // Find starting index for optimization
       const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
       if (startIdx === -1) {
-        Logger.debug("No TAG volume data within specified timeWindow");
+        Logger.debug('No TAG volume data within specified timeWindow');
         return 0;
       }
 
@@ -196,7 +216,7 @@ export class MiningMetrics {
 
       for (let i = startIdx; i < this.metrics.tagVolume.length; i++) {
         const volume = this.metrics.tagVolume[i];
-        if (typeof volume === "number" && !isNaN(volume)) {
+        if (typeof volume === 'number' && !isNaN(volume)) {
           sum += volume;
           count++;
         }
@@ -206,11 +226,11 @@ export class MiningMetrics {
       const average = count > 0 ? Number((sum / count).toFixed(8)) : 0;
 
       Logger.debug(
-        `Calculated average TAG volume: ${average} over ${timeWindow}ms`
+        `Calculated average TAG volume: ${average} over ${timeWindow}ms`,
       );
       return average;
     } catch (error) {
-      Logger.error("Error calculating average TAG volume:", error);
+      Logger.error('Error calculating average TAG volume:', error);
       return 0;
     }
   }
@@ -226,14 +246,14 @@ export class MiningMetrics {
 
       // Early return if no data
       if (!this.metrics.tagFees.length || !this.metrics.timestamp.length) {
-        Logger.debug("No TAG fee data available for averaging");
+        Logger.debug('No TAG fee data available for averaging');
         return 0;
       }
 
       // Find starting index for optimization
       const startIdx = this.metrics.timestamp.findIndex((t) => t > cutoff);
       if (startIdx === -1) {
-        Logger.debug("No TAG fee data within specified timeWindow");
+        Logger.debug('No TAG fee data within specified timeWindow');
         return 0;
       }
 
@@ -243,7 +263,7 @@ export class MiningMetrics {
 
       for (let i = startIdx; i < this.metrics.tagFees.length; i++) {
         const fee = this.metrics.tagFees[i];
-        if (typeof fee === "number" && !isNaN(fee)) {
+        if (typeof fee === 'number' && !isNaN(fee)) {
           sum += fee;
           count++;
         }
@@ -253,11 +273,11 @@ export class MiningMetrics {
       const average = count > 0 ? Number((sum / count).toFixed(8)) : 0;
 
       Logger.debug(
-        `Calculated average TAG fees: ${average} over ${timeWindow}ms`
+        `Calculated average TAG fees: ${average} over ${timeWindow}ms`,
       );
       return average;
     } catch (error) {
-      Logger.error("Error calculating average TAG fees:", error);
+      Logger.error('Error calculating average TAG fees:', error);
       return 0;
     }
   }
@@ -274,10 +294,10 @@ export class MiningMetrics {
         difficulty: this.difficulty,
         blockTime: 0,
       }).catch((err) =>
-        Logger.error("Failed to update metrics on error:", err)
+        Logger.error('Failed to update metrics on error:', err),
       );
     } catch (error) {
-      Logger.error("Failed to record error:", error);
+      Logger.error('Failed to record error:', error);
     }
   }
 
@@ -287,32 +307,32 @@ export class MiningMetrics {
    * @param {number} value - Gauge value
    */
   public gauge(name: string, value: number): void {
-    if (typeof value !== "number" || isNaN(value)) {
+    if (typeof value !== 'number' || isNaN(value)) {
       Logger.error(`Invalid gauge value for ${name}`);
       return;
     }
 
     try {
       switch (name) {
-        case "blocks_in_flight":
+        case 'blocks_in_flight':
           this.blockHeight = value;
           break;
-        case "synced_headers":
+        case 'synced_headers':
           this.syncedHeaders = value;
           break;
-        case "synced_blocks":
+        case 'synced_blocks':
           this.syncedBlocks = value;
           break;
-        case "whitelisted":
+        case 'whitelisted':
           this.whitelistedPeers = value;
           break;
-        case "blacklisted":
+        case 'blacklisted':
           this.blacklistedPeers = value;
           break;
-        case "hash_rate":
+        case 'hash_rate':
           this.hashRate = value;
           break;
-        case "difficulty":
+        case 'difficulty':
           this.difficulty = value;
           break;
         default:

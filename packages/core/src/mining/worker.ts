@@ -1,5 +1,5 @@
-import { parentPort } from "worker_threads";
-import { WasmSHA3, SIMD } from "@h3tag-blockchain/crypto";
+import { parentPort } from 'worker_threads';
+import { WasmSHA3, SIMD } from '@h3tag-blockchain/crypto';
 
 interface MiningTask {
   start: number;
@@ -143,7 +143,7 @@ export class MiningWorker {
     } catch (error) {
       parentPort?.postMessage({
         error: `Worker initialization failed: ${
-          error instanceof Error ? error.message : "Unknown error"
+          error instanceof Error ? error.message : 'Unknown error'
         }`,
       });
     }
@@ -177,7 +177,7 @@ export class MiningWorker {
 
     if (start >= end || start < 0 || end > Number.MAX_SAFE_INTEGER) {
       parentPort?.postMessage({
-        error: "Invalid range parameters",
+        error: 'Invalid range parameters',
         hashRate: this.calculateHashRate(),
       });
       return;
@@ -240,7 +240,7 @@ export class MiningWorker {
     } catch (error) {
       parentPort?.postMessage({
         error: `Mining error: ${
-          error instanceof Error ? error.message : "Unknown error"
+          error instanceof Error ? error.message : 'Unknown error'
         }`,
         hashRate: this.calculateHashRate(),
       });
@@ -251,13 +251,13 @@ export class MiningWorker {
 // Initialize worker and handle messages with error handling
 const worker = new MiningWorker();
 
-parentPort?.on("message", async (task: MiningTask) => {
+parentPort?.on('message', async (task: MiningTask) => {
   try {
     await worker.mineRange(task);
   } catch (error) {
     parentPort?.postMessage({
       error: `Worker error: ${
-        error instanceof Error ? error.message : "Unknown error"
+        error instanceof Error ? error.message : 'Unknown error'
       }`,
       hashRate: worker.calculateHashRate(),
     });
@@ -265,10 +265,10 @@ parentPort?.on("message", async (task: MiningTask) => {
 });
 
 // Handle termination gracefully
-process.on("SIGTERM", () => {
+process.on('SIGTERM', () => {
   try {
     parentPort?.postMessage({
-      error: "Worker terminated",
+      error: 'Worker terminated',
       hashRate: worker.calculateHashRate(),
     });
   } finally {

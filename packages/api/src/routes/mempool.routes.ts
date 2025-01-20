@@ -1,14 +1,14 @@
-import { Router } from "express";
-import { MempoolController } from "../controllers/mempool.controller";
-import { MempoolService } from "../services/mempool.service";
+import { Router } from 'express';
+import { MempoolController } from '../controllers/mempool.controller';
+import { MempoolService } from '../services/mempool.service';
 import {
   Node,
   Blockchain,
   BlockchainSchema,
   Mempool,
   AuditManager,
-} from "@h3tag-blockchain/core";
-import { ConfigService } from "@h3tag-blockchain/shared";
+} from '@h3tag-blockchain/core';
+import { ConfigService } from '@h3tag-blockchain/shared';
 
 /**
  * @swagger
@@ -71,7 +71,11 @@ const controller = new MempoolController(service);
  *       500:
  *         description: Server error
  */
-router.get("/info", controller.getMempoolInfo.bind(controller));
+router.get('/info', (req, res, next) => {
+  controller.getMempoolInfo()
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -102,7 +106,11 @@ router.get("/info", controller.getMempoolInfo.bind(controller));
  *       500:
  *         description: Server error
  */
-router.get("/raw", controller.getRawMempool.bind(controller));
+router.get('/raw', (req, res, next) => {
+  controller.getRawMempool()
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -129,6 +137,10 @@ router.get("/raw", controller.getRawMempool.bind(controller));
  *       500:
  *         description: Server error
  */
-router.get("/entry/:txid", controller.getMempoolEntry.bind(controller));
+router.get('/entry/:txid', (req, res, next) => {
+  controller.getMempoolEntry(req.params.txid)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 export default router;

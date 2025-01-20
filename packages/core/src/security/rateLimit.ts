@@ -1,22 +1,25 @@
-import { EventEmitter } from "events";
-import { Cache } from "../scaling/cache";
-import { AuditManager, AuditEventType, AuditSeverity } from "./audit";
-import { Request, Response, NextFunction } from "express";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
+import { EventEmitter } from 'events';
+import { Cache } from '../scaling/cache';
+import { AuditManager, AuditEventType, AuditSeverity } from './audit';
+import { Request, Response, NextFunction } from 'express';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 
 export class RateLimitError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
     super(message);
-    this.name = "RateLimitError";
+    this.name = 'RateLimitError';
   }
 }
 
 interface RateLimitRequest extends Request {
-  consensusType?: "pow" | "quadraticVote" | "default";
+  consensusType?: 'pow' | 'quadraticVote' | 'default';
   headers: {
-    "x-forwarded-for"?: string;
-  };
+    'x-forwarded-for'?: string;
+  } & Request['headers'];
 }
 
 interface RateLimitResponse extends Response {
@@ -69,7 +72,7 @@ export class RateLimit {
   private limiter: Cache<RateLimitInfo>;
   private readonly config: RateLimitConfig;
   private readonly auditManager: AuditManager;
-  private metrics: RateLimitMetrics;
+  private metrics: RateLimitMetrics | undefined;
   private limits = new Map<string, { count: number; timestamp: number }>();
   private readonly MAX_REQUESTS = 100;
   private readonly WINDOW_MS = 60000; // 1 minute
@@ -81,7 +84,7 @@ export class RateLimit {
       qudraticVote: 100,
       default: 50,
     },
-    keyPrefix: "rl:",
+    keyPrefix: 'rl:',
     skipFailedRequests: false,
     headers: true,
     trustProxy: false,
@@ -120,8 +123,8 @@ export class RateLimit {
   private validateConfig(config: Partial<RateLimitConfig>): void {
     if (config.windowMs && config.windowMs < 1000) {
       throw new RateLimitError(
-        "Window must be at least 1 second",
-        "INVALID_CONFIG"
+        'Window must be at least 1 second',
+        'INVALID_CONFIG',
       );
     }
     if (
@@ -131,8 +134,8 @@ export class RateLimit {
         config.maxRequests.default < 1)
     ) {
       throw new RateLimitError(
-        "Max requests must be positive",
-        "INVALID_CONFIG"
+        'Max requests must be positive',
+        'INVALID_CONFIG',
       );
     }
   }
@@ -151,17 +154,17 @@ export class RateLimit {
     return async (
       req: RateLimitRequest,
       res: RateLimitResponse,
-      next: NextFunction
+      next: NextFunction,
     ) => {
-      if (this.config.skip(req)) {
+      if (this.config.skip?.(req) ?? false) {
         return next();
       }
 
       try {
-        const key = this.config.keyGenerator(req);
+        const key = this.config.keyGenerator?.(req) ?? '';
         const info = await this.checkRateLimit(
           key,
-          req.consensusType || "default"
+          req.consensusType || 'default',
         );
 
         if (this.config.headers) {
@@ -169,14 +172,18 @@ export class RateLimit {
         }
 
         if (info.blocked) {
-          this.metrics.blockedRequests++;
-          return this.config.handler(req, res, next);
+          if (this.metrics) {
+            this.metrics.blockedRequests++;
+          }
+          return this.config.handler?.(req, res, next);
         }
 
-        this.metrics.totalRequests++;
+        if (this.metrics) {
+          this.metrics.totalRequests++;
+        }
 
         if (this.config.skipFailedRequests) {
-          res.on("finish", () => {
+          res.on('finish', () => {
             if (res.statusCode < 400) {
               this.incrementCounter(key);
             }
@@ -187,7 +194,7 @@ export class RateLimit {
 
         next();
       } catch (error) {
-        Logger.error("Rate limit error:", error);
+        Logger.error('Rate limit error:', error);
         next(error);
       }
     };
@@ -195,16 +202,16 @@ export class RateLimit {
 
   private async checkRateLimit(
     key: string,
-    type: "pow" | "quadraticVote" | "default"
+    type: 'pow' | 'quadraticVote' | 'default',
   ): Promise<RateLimitInfo> {
     const now = Date.now();
     let info = this.limiter.get(key);
 
     if (!info || now > info.resetTime) {
       info = {
-        limit: this.config.maxRequests[type],
+        limit: this.config.maxRequests[type as keyof typeof this.config.maxRequests],
         current: 0,
-        remaining: this.config.maxRequests[type],
+        remaining: this.config.maxRequests[type as keyof typeof this.config.maxRequests],
         resetTime: now + this.config.windowMs,
         blocked: false,
         lastRequest: now,
@@ -214,17 +221,17 @@ export class RateLimit {
 
     if (info.current >= info.limit) {
       info.blocked = true;
-      info.resetTime = now + this.config.blockDuration;
+      info.resetTime = now + (this.config.blockDuration ?? 0);
       await this.auditManager.logEvent({
         type: AuditEventType.SECURITY,
         severity: AuditSeverity.WARNING,
-        source: "rate_limit",
+        source: 'rate_limit',
         details: { key, requests: info.current },
       });
     }
 
     this.limiter.set(key, info, {
-      priority: this.config.priorityLevels[type],
+      priority: this.config.priorityLevels?.[type as keyof typeof this.config.priorityLevels] ?? 0,
     });
 
     return info;
@@ -239,12 +246,12 @@ export class RateLimit {
 
       if (info.remaining === 0) {
         info.blocked = true;
-        info.resetTime = Date.now() + this.config.blockDuration;
-        this.eventEmitter.emit("blocked", { key });
+        info.resetTime = Date.now() + (this.config.blockDuration ?? 0);
+        this.eventEmitter.emit('blocked', { key });
         await this.auditManager.logEvent({
           type: AuditEventType.SECURITY,
           severity: AuditSeverity.WARNING,
-          source: "rate_limit",
+          source: 'rate_limit',
           details: { key, requests: info.current },
         });
       }
@@ -255,11 +262,11 @@ export class RateLimit {
 
   private defaultKeyGenerator(req: RateLimitRequest): string {
     const ip = this.config.trustProxy
-      ? req.ip || req.headers["x-forwarded-for"]?.split(",")[0]
+      ? req.ip || req.headers['x-forwarded-for']?.split(',')[0]
       : req.connection?.remoteAddress;
 
     if (!ip) {
-      throw new RateLimitError("Unable to determine client IP", "INVALID_IP");
+      throw new RateLimitError('Unable to determine client IP', 'INVALID_IP');
     }
 
     return this.config.keyPrefix + ip.trim();
@@ -272,25 +279,25 @@ export class RateLimit {
         ip: req.ip,
         path: req.path,
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-      }
+      },
     );
 
     res.status(429).json({
-      error: "Too Many Requests",
+      error: 'Too Many Requests',
       message: `Rate limit exceeded for ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL}`,
-      retryAfter: Math.ceil(this.config.blockDuration / 1000),
+      retryAfter: Math.ceil((this.config.blockDuration ?? 0) / 1000),
       currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
     });
   }
 
   private setHeaders(res: RateLimitResponse, info: RateLimitInfo): void {
     if (this.config.headers) {
-      res.setHeader("X-RateLimit-Limit", info.limit);
-      res.setHeader("X-RateLimit-Remaining", info.remaining);
-      res.setHeader("X-RateLimit-Reset", Math.ceil(info.resetTime / 1000));
+      res.setHeader('X-RateLimit-Limit', info.limit);
+      res.setHeader('X-RateLimit-Remaining', info.remaining);
+      res.setHeader('X-RateLimit-Reset', Math.ceil(info.resetTime / 1000));
       res.setHeader(
-        "X-RateLimit-Currency",
-        BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
+        'X-RateLimit-Currency',
+        BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
       );
     }
   }
@@ -299,24 +306,26 @@ export class RateLimit {
     return {
       ...this.metrics,
       currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-    };
+    } as RateLimitMetrics;
   }
 
   public resetLimit(key: string): void {
     if (this.limiter.delete(key)) {
-      this.metrics.activeKeys = Math.max(0, this.metrics.activeKeys - 1);
+      if (this.metrics) {
+        this.metrics.activeKeys = Math.max(0, this.metrics.activeKeys - 1);
+      }
     }
   }
 
   public async shutdown(): Promise<void> {
     this.limiter.shutdown();
-    this.eventEmitter.emit("shutdown");
-    Logger.info("Rate limiter shutdown");
+    this.eventEmitter.emit('shutdown');
+    Logger.info('Rate limiter shutdown');
   }
 
   public async checkLimit(
     key: string,
-    type: "pow" | "quadraticVote" | "default" = "default"
+    type: 'pow' | 'quadraticVote' | 'default' = 'default',
   ): Promise<boolean> {
     const info = await this.checkRateLimit(key, type);
     await this.incrementCounter(key);

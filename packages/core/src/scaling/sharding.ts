@@ -1,14 +1,14 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { BlockchainSchema } from "../database/blockchain-schema";
-import { Transaction } from "../models/transaction.model";
-import { Cache } from "./cache";
-import { Mutex } from "async-mutex";
-import { EventEmitter } from "events";
-import { AuditManager, AuditEventType } from "../security/audit";
-import { PerformanceMonitor } from "../monitoring/performance-monitor";
-import { retry } from "../utils/retry";
-import { MetricsCollector } from "../monitoring/metrics-collector";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
+import { Logger } from '@h3tag-blockchain/shared';
+import { BlockchainSchema } from '../database/blockchain-schema';
+import { Transaction } from '../models/transaction.model';
+import { Cache } from './cache';
+import { Mutex } from 'async-mutex';
+import { EventEmitter } from 'events';
+import { AuditManager, AuditEventType } from '../security/audit';
+import { PerformanceMonitor } from '../monitoring/performance-monitor';
+import { retry } from '../utils/retry';
+import { MetricsCollector } from '../monitoring/metrics-collector';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 
 interface ShardConfig {
   shardCount: number;
@@ -35,7 +35,7 @@ export class ShardManager {
   private readonly cache: Cache<Transaction>;
   private readonly performanceMonitor: PerformanceMonitor;
   private readonly auditManager: AuditManager;
-  private readonly metricsCollector: MetricsCollector;
+  private readonly metricsCollector: MetricsCollector | undefined;
   private syncTimer?: NodeJS.Timeout;
   private readonly circuitBreaker = {
     failures: 0,
@@ -48,11 +48,11 @@ export class ShardManager {
 
   constructor(
     private readonly config: ShardConfig,
-    private readonly db: BlockchainSchema
+    private readonly db: BlockchainSchema,
   ) {
     this.shards = new Map();
     this.shardMetrics = new Map();
-    this.performanceMonitor = new PerformanceMonitor("shard_manager");
+    this.performanceMonitor = new PerformanceMonitor('shard_manager');
     this.auditManager = new AuditManager();
     this.cache = new Cache({
       ttl: 300000, // 5 minutes
@@ -93,7 +93,7 @@ export class ShardManager {
         powShards: this.config.powShards,
       });
     } catch (error) {
-      Logger.error("Failed to initialize shards:", error);
+      Logger.error('Failed to initialize shards:', error);
     }
   }
 
@@ -114,7 +114,7 @@ export class ShardManager {
 
     const metrics = {
       size: shard.size,
-      transactions: Array.from(shard).filter((id) => id.startsWith("tx"))
+      transactions: Array.from(shard).filter((id) => id.startsWith('tx'))
         .length,
       lastAccess: Date.now(),
       loadFactor: shard.size / this.config.maxShardSize,
@@ -123,7 +123,7 @@ export class ShardManager {
     this.shardMetrics.set(shardId, metrics);
 
     // Emit metrics
-    this.eventEmitter.emit("shard_metrics", {
+    this.eventEmitter.emit('shard_metrics', {
       shardId,
       metrics,
     });
@@ -192,7 +192,7 @@ export class ShardManager {
   private startSyncTimer(): void {
     this.syncTimer = setInterval(
       () => this.syncShards(),
-      this.config.syncInterval
+      this.config.syncInterval,
     );
   }
 
@@ -206,7 +206,7 @@ export class ShardManager {
         await this.db.syncShard(shardId, Array.from(shard));
       }
     } catch (error) {
-      Logger.error("Shard sync failed:", error);
+      Logger.error('Shard sync failed:', error);
     } finally {
       release();
     }
@@ -246,21 +246,21 @@ export class ShardManager {
   })
   public async getTransaction(hash: string): Promise<Transaction | undefined> {
     if (this.isCircuitBreakerOpen()) {
-      throw new Error("Circuit breaker is open");
+      throw new Error('Circuit breaker is open');
     }
-    const perfMarker = this.performanceMonitor.start("get_transaction");
+    const perfMarker = this.performanceMonitor.start('get_transaction');
     const release = await this.mutex.acquire();
 
     try {
       // Input validation
-      if (!hash || typeof hash !== "string") {
-        throw new Error("Invalid transaction hash");
+      if (!hash || typeof hash !== 'string') {
+        throw new Error('Invalid transaction hash');
       }
 
       // Check cache first
       const cachedTx = await this.cache.get(`tx:${hash}`);
       if (cachedTx) {
-        this.metricsCollector.increment("tx_cache_hit");
+        this.metricsCollector?.increment('tx_cache_hit');
         return cachedTx;
       }
 
@@ -271,7 +271,7 @@ export class ShardManager {
       const shard = this.shards.get(targetShardId);
 
       if (!shard?.has(hash)) {
-        this.metricsCollector.increment("tx_not_found");
+        this.metricsCollector?.increment('tx_not_found');
         return undefined;
       }
 
@@ -280,20 +280,22 @@ export class ShardManager {
       if (tx) {
         // Cache the result
         await this.cache.set(`tx:${hash}`, tx, { ttl: 300000 }); // 5 minutes
-        this.metricsCollector.increment("tx_found");
+        this.metricsCollector?.increment('tx_found');
 
         // Update shard metrics
         await this.updateShardMetrics(targetShardId);
       }
 
       return tx;
-    } catch (error) {
-      this.metricsCollector.increment("tx_lookup_error");
-      Logger.error(`Transaction lookup failed for hash ${hash}:`, error);
+    } catch (error: unknown) {
+      this.metricsCollector?.increment('tx_lookup_error');
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(`Transaction lookup failed for hash ${hash}:`, errorMessage);
 
       await this.auditManager.log(AuditEventType.SHARD_TX_LOOKUP_FAILED, {
         hash,
-        error: error.message,
+        error: errorMessage,
         timestamp: Date.now(),
       });
 
@@ -357,7 +359,7 @@ export class ShardManager {
 
       return isHealthy;
     } catch (error) {
-      Logger.error("Shard health check failed:", error);
+      Logger.error('Shard health check failed:', error);
       return false;
     }
   }
@@ -366,7 +368,7 @@ export class ShardManager {
     const release = await this.mutex.acquire();
     try {
       const shardSizes = Array.from(this.shards.entries()).map(
-        ([id, shard]) => ({ id, size: shard.size })
+        ([id, shard]) => ({ id, size: shard.size }),
       );
 
       const avgSize =
@@ -395,9 +397,9 @@ export class ShardManager {
           await this.checkResharding(shardId);
         }
 
-        Logger.info("Shard maintenance completed successfully");
+        Logger.info('Shard maintenance completed successfully');
       } catch (error) {
-        Logger.error("Shard maintenance failed:", error);
+        Logger.error('Shard maintenance failed:', error);
       }
     }, this.MAINTENANCE_INTERVAL);
   }

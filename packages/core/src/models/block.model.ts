@@ -5,15 +5,15 @@
  * @module BlockModel
  */
 
-import { Transaction } from "./transaction.model";
-import { Logger } from "@h3tag-blockchain/shared";
-import { MerkleTree } from "../utils/merkle";
-import { Vote } from "./vote.model";
-import { Validator } from "./validator";
-import { Mutex } from "async-mutex";
-import { AuditEventType, AuditSeverity, AuditManager } from "../security/audit";
-import { HybridCrypto, HybridKeyPair } from "@h3tag-blockchain/crypto";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
+import { Transaction } from './transaction.model';
+import { Logger } from '@h3tag-blockchain/shared';
+import { MerkleTree } from '../utils/merkle';
+import { Vote } from './vote.model';
+import { Validator } from './validator';
+import { Mutex } from 'async-mutex';
+import { AuditEventType, AuditSeverity, AuditManager } from '../security/audit';
+import { HybridCrypto, HybridKeyPair } from '@h3tag-blockchain/crypto';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 
 /**
  * @class BlockError
@@ -26,7 +26,7 @@ import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
 export class BlockError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "BlockError";
+    this.name = 'BlockError';
   }
 }
 
@@ -146,14 +146,14 @@ export class BlockBuilder {
   private static readonly MAX_TRANSACTIONS = 2000;
   private static readonly MIN_DIFFICULTY = 1;
   private readonly maxTransactionAge: number = 72 * 60 * 60 * 1000; // 72 hours
-  public header: Block["header"];
+  public header: Block['header'];
   private transactions: Transaction[] = [];
   private votes: Vote[] = [];
   private validators: Validator[] = [];
   private readonly merkleTree: MerkleTree;
   private readonly mutex = new Mutex();
   private readonly auditManager: AuditManager;
-  private hash: string = "";
+  private hash: string = '';
 
   /**
    * Creates a new BlockBuilder instance
@@ -165,10 +165,10 @@ export class BlockBuilder {
   constructor(
     previousHash: string,
     difficulty: number,
-    auditManager: AuditManager
+    auditManager: AuditManager,
   ) {
     if (difficulty < BlockBuilder.MIN_DIFFICULTY) {
-      throw new BlockError("Invalid difficulty");
+      throw new BlockError('Invalid difficulty');
     }
 
     this.auditManager = auditManager;
@@ -178,27 +178,27 @@ export class BlockBuilder {
       height: 0,
       previousHash,
       timestamp: Date.now(),
-      merkleRoot: "",
+      merkleRoot: '',
       difficulty,
       locator: [],
-      hashStop: "",
+      hashStop: '',
       nonce: 0,
-      miner: "",
-      validatorMerkleRoot: "",
+      miner: '',
+      validatorMerkleRoot: '',
       totalTAG: 0,
       blockReward: 0,
       fees: 0,
-      target: "",
+      target: '',
       consensusData: {
         powScore: 0,
         votingScore: 0,
         participationRate: 0,
         periodId: 0,
       },
-      minerAddress: "",
+      minerAddress: '',
       signature: undefined,
-      publicKey: "",
-      hash: "",
+      publicKey: '',
+      hash: '',
     };
   }
 
@@ -210,13 +210,13 @@ export class BlockBuilder {
 
       // Input validation
       if (!this.transactions || !Array.isArray(this.transactions)) {
-        throw new BlockError("Invalid transaction array");
+        throw new BlockError('Invalid transaction array');
       }
 
       // Handle empty transaction list
       if (this.transactions.length === 0) {
-        Logger.debug("Calculating merkle root for empty transaction list");
-        return await this.merkleTree.createRoot([""]); // Empty tree
+        Logger.debug('Calculating merkle root for empty transaction list');
+        return await this.merkleTree.createRoot(['']); // Empty tree
       }
 
       // Validate each transaction has an ID
@@ -228,7 +228,7 @@ export class BlockBuilder {
 
       // Map transactions to their hashes
       const txHashes = this.transactions.map((tx) => {
-        if (typeof tx.id !== "string") {
+        if (typeof tx.id !== 'string') {
           throw new BlockError(`Invalid transaction ID format: ${tx.id}`);
         }
         return tx.id;
@@ -240,16 +240,16 @@ export class BlockBuilder {
       // Validate merkle root
       if (
         !merkleRoot ||
-        typeof merkleRoot !== "string" ||
+        typeof merkleRoot !== 'string' ||
         merkleRoot.length === 0
       ) {
-        throw new BlockError("Invalid merkle root generated");
+        throw new BlockError('Invalid merkle root generated');
       }
 
       // Log performance metrics
       const duration = Date.now() - startTime;
       Logger.debug(
-        `Merkle root calculation completed in ${duration}ms for ${txHashes.length} transactions`
+        `Merkle root calculation completed in ${duration}ms for ${txHashes.length} transactions`,
       );
 
       // Audit log for significant transaction counts
@@ -264,11 +264,11 @@ export class BlockBuilder {
 
       return merkleRoot;
     } catch (error) {
-      Logger.error("Merkle root calculation failed:", error);
+      Logger.error('Merkle root calculation failed:', error);
       throw new BlockError(
         error instanceof BlockError
           ? error.message
-          : "Failed to calculate merkle root"
+          : 'Failed to calculate merkle root',
       );
     } finally {
       release();
@@ -286,13 +286,13 @@ export class BlockBuilder {
     try {
       // Validate input
       if (!Array.isArray(transactions)) {
-        throw new BlockError("Invalid transactions array");
+        throw new BlockError('Invalid transactions array');
       }
 
       // Check transaction limit
       if (transactions.length > BlockBuilder.MAX_TRANSACTIONS) {
         throw new BlockError(
-          `Too many transactions: ${transactions.length}/${BlockBuilder.MAX_TRANSACTIONS}`
+          `Too many transactions: ${transactions.length}/${BlockBuilder.MAX_TRANSACTIONS}`,
         );
       }
 
@@ -326,7 +326,7 @@ export class BlockBuilder {
         totalFees += BigInt(tx.fee);
 
         if (totalSize > BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE) {
-          throw new BlockError("Block size exceeds maximum limit");
+          throw new BlockError('Block size exceeds maximum limit');
         }
       }
 
@@ -343,7 +343,7 @@ export class BlockBuilder {
 
         // Log transaction addition
         Logger.info(
-          `Added ${transactions.length} transactions to block. Total fees: ${totalFees}`
+          `Added ${transactions.length} transactions to block. Total fees: ${totalFees}`,
         );
 
         await this.auditManager?.log(AuditEventType.TRANSACTIONS_ADDED, {
@@ -356,16 +356,16 @@ export class BlockBuilder {
 
         return this;
       } catch (error) {
-        Logger.error("Failed to update block with transactions:", error);
-        throw new BlockError("Failed to update block with transactions");
+        Logger.error('Failed to update block with transactions:', error);
+        throw new BlockError('Failed to update block with transactions');
       }
     } catch (error) {
-      Logger.error("Transaction validation failed:", error);
+      Logger.error('Transaction validation failed:', error);
       if (error instanceof BlockError) {
         throw error;
       }
       throw new BlockError(
-        error instanceof Error ? error.message : "Failed to set transactions"
+        error instanceof Error ? error.message : 'Failed to set transactions',
       );
     } finally {
       release();
@@ -385,7 +385,7 @@ export class BlockBuilder {
         !this.header.previousHash ||
         !this.header.merkleRoot
       ) {
-        throw new BlockError("Invalid block header");
+        throw new BlockError('Invalid block header');
       }
 
       // Performance tracking
@@ -406,11 +406,11 @@ export class BlockBuilder {
 
       return hash;
     } catch (error) {
-      Logger.error("Failed to calculate block hash:", error);
+      Logger.error('Failed to calculate block hash:', error);
       throw new BlockError(
         error instanceof Error
           ? error.message
-          : "Failed to calculate block hash"
+          : 'Failed to calculate block hash',
       );
     }
   }
@@ -430,9 +430,8 @@ export class BlockBuilder {
 
       if (!this.header.validatorMerkleRoot && this.validators.length > 0) {
         const validatorHashes = this.validators.map((v) => v.address);
-        this.header.validatorMerkleRoot = await this.merkleTree.createRoot(
-          validatorHashes
-        );
+        this.header.validatorMerkleRoot =
+          await this.merkleTree.createRoot(validatorHashes);
       }
 
       // Calculate final block hash
@@ -442,7 +441,7 @@ export class BlockBuilder {
       // Calculate total fees and rewards
       const totalFees = this.transactions.reduce(
         (sum, tx) => sum + Number(tx.fee),
-        0
+        0,
       );
       this.header.fees = totalFees;
 
@@ -450,7 +449,7 @@ export class BlockBuilder {
       const headerString = JSON.stringify(this.header);
       this.header.signature = await HybridCrypto.sign(
         headerString,
-        minerKeyPair
+        minerKeyPair,
       );
 
       // Build final block object with all components
@@ -483,9 +482,9 @@ export class BlockBuilder {
 
       return block;
     } catch (error) {
-      Logger.error("Failed to build block:", error);
+      Logger.error('Failed to build block:', error);
       throw new BlockError(
-        error instanceof Error ? error.message : "Failed to build block"
+        error instanceof Error ? error.message : 'Failed to build block',
       );
     }
   }
@@ -493,19 +492,19 @@ export class BlockBuilder {
   // Helper method to validate block structure
   private validateBlockStructure(block: Block): void {
     if (!block.hash || !block.header || !Array.isArray(block.transactions)) {
-      throw new BlockError("Invalid block structure");
+      throw new BlockError('Invalid block structure');
     }
 
     // Validate header fields
     const requiredFields = [
-      "version",
-      "height",
-      "previousHash",
-      "timestamp",
-      "merkleRoot",
-      "difficulty",
-      "nonce",
-      "miner",
+      'version',
+      'height',
+      'previousHash',
+      'timestamp',
+      'merkleRoot',
+      'difficulty',
+      'nonce',
+      'miner',
     ];
 
     for (const field of requiredFields) {
@@ -521,7 +520,7 @@ export class BlockBuilder {
       block.header.consensusData.participationRate < 0 ||
       block.header.consensusData.participationRate > 1
     ) {
-      throw new BlockError("Invalid consensus data values");
+      throw new BlockError('Invalid consensus data values');
     }
   }
 
@@ -533,7 +532,7 @@ export class BlockBuilder {
    */
   public setHeight(height: number): this {
     if (height < 0 || !Number.isInteger(height)) {
-      throw new BlockError("Invalid block height");
+      throw new BlockError('Invalid block height');
     }
     this.header.height = height;
     return this;
@@ -562,17 +561,17 @@ export class BlockBuilder {
 
     // Validate timestamp is not in the future (with small tolerance)
     if (timestamp > oneHourInFuture) {
-      throw new BlockError("Block timestamp cannot be in the future");
+      throw new BlockError('Block timestamp cannot be in the future');
     }
 
     // Validate timestamp is not too old
     if (timestamp < oneYearAgo) {
-      throw new BlockError("Block timestamp is too old");
+      throw new BlockError('Block timestamp is too old');
     }
 
     // Validate timestamp is a valid number
     if (!Number.isFinite(timestamp) || timestamp <= 0) {
-      throw new BlockError("Invalid timestamp value");
+      throw new BlockError('Invalid timestamp value');
     }
 
     this.header.timestamp = timestamp;
@@ -589,7 +588,7 @@ export class BlockBuilder {
       const calculatedHash = await this.calculateHash();
       return calculatedHash === this.hash;
     } catch (error) {
-      Logger.error("Hash verification failed:", error);
+      Logger.error('Hash verification failed:', error);
       return false;
     }
   }
@@ -602,8 +601,8 @@ export class BlockBuilder {
   public async verifySignature(): Promise<boolean> {
     return HybridCrypto.verify(
       this.header.hash,
-      this.header.signature,
-      this.header.publicKey
+      this.header.signature || '',
+      this.header.publicKey,
     );
   }
 

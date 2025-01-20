@@ -1,10 +1,10 @@
-import { Level } from "level";
-import { Logger } from "@h3tag-blockchain/shared";
-import { Cache } from "../scaling/cache";
-import { Mutex } from "async-mutex";
-import { retry } from "../utils/retry";
-import { Vote, VotingPeriod } from "../models/vote.model";
-import { VotingError } from "../blockchain/utils/voting-error";
+import { Level } from 'level';
+import { Logger } from '@h3tag-blockchain/shared';
+import { Cache } from '../scaling/cache';
+import { Mutex } from 'async-mutex';
+import { retry } from '../utils/retry';
+import { Vote, VotingPeriod } from '../models/vote.model';
+import { VotingError } from '../blockchain/utils/voting-error';
 
 /**
  * @fileoverview VotingSchema implements the database schema and operations for blockchain voting.
@@ -63,10 +63,10 @@ export class VotingDatabase implements IVotingSchema {
   private readonly CACHE_TTL = 3600; // 1 hour
 
   constructor(dbPath: string) {
-    if (!dbPath) throw new Error("Database path is required");
+    if (!dbPath) throw new Error('Database path is required');
 
     this.db = new Level(`${dbPath}/voting`, {
-      valueEncoding: "json",
+      valueEncoding: 'json',
       createIfMissing: true,
       compression: true,
     });
@@ -78,7 +78,7 @@ export class VotingDatabase implements IVotingSchema {
     });
 
     this.initialize().catch((err) => {
-      Logger.error("Failed to initialize voting database:", err);
+      Logger.error('Failed to initialize voting database:', err);
       throw err;
     });
   }
@@ -87,9 +87,9 @@ export class VotingDatabase implements IVotingSchema {
     try {
       await this.db.open();
       this.isInitialized = true;
-      Logger.info("Voting database initialized successfully");
+      Logger.info('Voting database initialized successfully');
     } catch (error) {
-      Logger.error("Failed to initialize voting database:", error);
+      Logger.error('Failed to initialize voting database:', error);
       throw error;
     }
   }
@@ -118,7 +118,7 @@ export class VotingDatabase implements IVotingSchema {
         await this.db.put(key, JSON.stringify(period));
         this.cache.set(key, period);
       } catch (error) {
-        Logger.error("Failed to create voting period:", error);
+        Logger.error('Failed to create voting period:', error);
         throw error;
       }
     });
@@ -143,8 +143,8 @@ export class VotingDatabase implements IVotingSchema {
    */
   @retry({ maxAttempts: 3, delay: 1000 })
   async recordVote(vote: Vote): Promise<void> {
-    if (!this.isInitialized) throw new Error("Database not initialized");
-    if (!this.validateVote(vote)) throw new Error("Invalid vote data");
+    if (!this.isInitialized) throw new Error('Database not initialized');
+    if (!this.validateVote(vote)) throw new Error('Invalid vote data');
 
     return await this.mutex.runExclusive(async () => {
       const key = `vote:${vote.periodId}:${vote.voterAddress}`;
@@ -153,8 +153,8 @@ export class VotingDatabase implements IVotingSchema {
         const existing = await this.getVote(vote.periodId, vote.voterAddress);
         if (existing) {
           throw new VotingError(
-            "DUPLICATE_VOTE",
-            "Voter has already voted in this period"
+            'DUPLICATE_VOTE',
+            'Voter has already voted in this period',
           );
         }
 
@@ -169,17 +169,17 @@ export class VotingDatabase implements IVotingSchema {
         await batch.write();
         this.cache.set(key, vote, { ttl: this.CACHE_TTL });
 
-        Logger.debug("Vote recorded successfully", {
+        Logger.debug('Vote recorded successfully', {
           periodId: vote.periodId,
           voter: vote.voterAddress,
         });
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
-        Logger.error("Failed to record vote:", { error: errorMessage });
+          error instanceof Error ? error.message : 'Unknown error';
+        Logger.error('Failed to record vote:', { error: errorMessage });
         throw new VotingError(
-          "RECORD_FAILED",
-          `Failed to record vote: ${errorMessage}`
+          'RECORD_FAILED',
+          `Failed to record vote: ${errorMessage}`,
         );
       }
     });
@@ -214,7 +214,7 @@ export class VotingDatabase implements IVotingSchema {
     const voters = new Set<string>();
 
     try {
-      for await (const [,value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `vote:${periodId}:`,
         lte: `vote:${periodId}:\xFF`,
       })) {
@@ -236,7 +236,7 @@ export class VotingDatabase implements IVotingSchema {
         uniqueVoters: voters.size,
       };
     } catch (error) {
-      Logger.error("Failed to aggregate votes:", error);
+      Logger.error('Failed to aggregate votes:', error);
       throw error;
     }
   }
@@ -254,7 +254,7 @@ export class VotingDatabase implements IVotingSchema {
    */
   async getLatestVote(voterAddress: string): Promise<Vote | null> {
     try {
-      for await (const [,value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `vote:${voterAddress}:`,
         lte: `vote:${voterAddress}:\xFF`,
         reverse: true,
@@ -264,7 +264,7 @@ export class VotingDatabase implements IVotingSchema {
           return JSON.parse(value);
         } catch (error) {
           if (error instanceof SyntaxError) {
-            Logger.error("Invalid JSON in vote:", error);
+            Logger.error('Invalid JSON in vote:', error);
             continue;
           }
           throw error;
@@ -272,7 +272,7 @@ export class VotingDatabase implements IVotingSchema {
       }
       return null;
     } catch (error) {
-      Logger.error("Failed to get latest vote:", error);
+      Logger.error('Failed to get latest vote:', error);
       return null;
     }
   }
@@ -291,7 +291,7 @@ export class VotingDatabase implements IVotingSchema {
   async getVotesByVoter(voterAddress: string): Promise<Vote[]> {
     const votes: Vote[] = [];
     try {
-      for await (const [,value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `vote:${voterAddress}:`,
         lte: `vote:${voterAddress}:\xFF`,
       })) {
@@ -299,7 +299,7 @@ export class VotingDatabase implements IVotingSchema {
       }
       return votes;
     } catch (error) {
-      Logger.error("Failed to get votes by voter:", error);
+      Logger.error('Failed to get votes by voter:', error);
       return [];
     }
   }
@@ -315,8 +315,8 @@ export class VotingDatabase implements IVotingSchema {
     let count = 0;
     try {
       for await (const [, value] of this.db.iterator({
-        gte: "vote:",
-        lte: "vote:\xFF",
+        gte: 'vote:',
+        lte: 'vote:\xFF',
       })) {
         const vote = this.safeParse<Vote>(value);
         if (vote && this.validateVote(vote)) {
@@ -325,7 +325,7 @@ export class VotingDatabase implements IVotingSchema {
       }
       return count;
     } catch (error) {
-      Logger.error("Failed to get total votes:", error);
+      Logger.error('Failed to get total votes:', error);
       return 0;
     }
   }
@@ -345,11 +345,11 @@ export class VotingDatabase implements IVotingSchema {
         await this.db.close();
         this.cache.clear();
         this.isInitialized = false;
-        Logger.info("Voting database closed successfully");
+        Logger.info('Voting database closed successfully');
       });
     } catch (error) {
-      Logger.error("Error closing voting database:", error);
-      throw new VotingError("CLOSE_FAILED", "Failed to close database");
+      Logger.error('Error closing voting database:', error);
+      throw new VotingError('CLOSE_FAILED', 'Failed to close database');
     }
   }
 
@@ -363,13 +363,13 @@ export class VotingDatabase implements IVotingSchema {
       const vote = JSON.parse(value);
       this.cache.set(key, vote);
       return vote;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       if (error instanceof SyntaxError) {
-        Logger.error("Invalid JSON in vote:", error);
+        Logger.error('Invalid JSON in vote:', error);
         return null;
       }
-      Logger.error("Failed to get vote:", error);
+      Logger.error('Failed to get vote:', error);
       return null;
     }
   }
@@ -385,7 +385,7 @@ export class VotingDatabase implements IVotingSchema {
   async getVotesByPeriod(periodId: number): Promise<Vote[]> {
     const votes: Vote[] = [];
     try {
-      for await (const [,value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `vote:${periodId}:`,
         lte: `vote:${periodId}:\xFF`,
       })) {
@@ -393,7 +393,7 @@ export class VotingDatabase implements IVotingSchema {
       }
       return votes;
     } catch (error) {
-      Logger.error("Failed to get votes by period:", error);
+      Logger.error('Failed to get votes by period:', error);
       return [];
     }
   }
@@ -408,16 +408,16 @@ export class VotingDatabase implements IVotingSchema {
   async getTotalEligibleVoters(): Promise<number> {
     try {
       const voters = new Set<string>();
-      for await (const [,value] of this.db.iterator({
-        gte: "voter:",
-        lte: "voter:\xFF",
+      for await (const [, value] of this.db.iterator({
+        gte: 'voter:',
+        lte: 'voter:\xFF',
       })) {
         const voter = JSON.parse(value);
         if (voter.eligible) voters.add(voter.address);
       }
       return voters.size;
     } catch (error) {
-      Logger.error("Failed to get total eligible voters:", error);
+      Logger.error('Failed to get total eligible voters:', error);
       return 0;
     }
   }
@@ -432,9 +432,9 @@ export class VotingDatabase implements IVotingSchema {
    * @throws {VotingError} If address is invalid or database not initialized
    */
   async getVotesByAddress(address: string): Promise<Vote[]> {
-    if (!this.isInitialized) throw new Error("Database not initialized");
-    if (!address || typeof address !== "string") {
-      throw new VotingError("INVALID_ADDRESS", "Invalid address format");
+    if (!this.isInitialized) throw new Error('Database not initialized');
+    if (!address || typeof address !== 'string') {
+      throw new VotingError('INVALID_ADDRESS', 'Invalid address format');
     }
 
     return await this.mutex.runExclusive(async () => {
@@ -463,7 +463,7 @@ export class VotingDatabase implements IVotingSchema {
               batch = [];
             }
           } catch (parseError) {
-            Logger.error("Failed to parse vote:", parseError);
+            Logger.error('Failed to parse vote:', parseError);
             continue;
           }
         }
@@ -474,8 +474,8 @@ export class VotingDatabase implements IVotingSchema {
 
         return votes;
       } catch (error) {
-        Logger.error("Failed to get votes by address:", error);
-        throw new VotingError("RETRIEVAL_FAILED", "Failed to retrieve votes");
+        Logger.error('Failed to get votes by address:', error);
+        throw new VotingError('RETRIEVAL_FAILED', 'Failed to retrieve votes');
       }
     });
   }
@@ -485,8 +485,8 @@ export class VotingDatabase implements IVotingSchema {
       vote &&
       vote.periodId &&
       vote.voterAddress &&
-      typeof vote.approve === "boolean" &&
-      typeof vote.votingPower === "bigint"
+      typeof vote.approve === 'boolean' &&
+      typeof vote.votingPower === 'bigint'
     );
   }
 
@@ -498,7 +498,7 @@ export class VotingDatabase implements IVotingSchema {
     try {
       return JSON.parse(value) as T;
     } catch (error) {
-      Logger.error("Failed to parse stored value:", error);
+      Logger.error('Failed to parse stored value:', error);
       return null;
     }
   }
@@ -523,14 +523,14 @@ export class VotingDatabase implements IVotingSchema {
       try {
         // Validate vote
         if (!vote?.voteId || !vote.periodId) {
-          throw new VotingError("INVALID_VOTE", "Invalid vote format");
+          throw new VotingError('INVALID_VOTE', 'Invalid vote format');
         }
 
         await this.db.put(key, JSON.stringify(vote));
         this.cache.set(key, vote);
       } catch (error) {
-        Logger.error("Failed to store vote:", error);
-        throw new VotingError("STORE_FAILED", "Failed to store vote", {
+        Logger.error('Failed to store vote:', error);
+        throw new VotingError('STORE_FAILED', 'Failed to store vote', {
           voteId: vote.voteId,
         });
       }
@@ -554,13 +554,13 @@ export class VotingDatabase implements IVotingSchema {
         // Check if period exists
         const exists = await this.db.get(key).catch(() => null);
         if (!exists) {
-          throw new VotingError("NO_ACTIVE_PERIOD", "Voting period not found");
+          throw new VotingError('NO_ACTIVE_PERIOD', 'Voting period not found');
         }
 
         await this.db.put(key, JSON.stringify(period));
         this.cache.set(key, period);
       } catch (error) {
-        Logger.error("Failed to update voting period:", error);
+        Logger.error('Failed to update voting period:', error);
         throw error;
       }
     });
@@ -570,8 +570,8 @@ export class VotingDatabase implements IVotingSchema {
     const votes: Vote[] = [];
     try {
       for await (const [value] of this.db.iterator({
-        gte: "vote:",
-        lte: "vote:\xFF",
+        gte: 'vote:',
+        lte: 'vote:\xFF',
         limit: 1000,
       })) {
         const vote = this.safeParse<Vote>(value);
@@ -581,7 +581,7 @@ export class VotingDatabase implements IVotingSchema {
       }
       return votes;
     } catch (error) {
-      Logger.error("Failed to get votes:", error);
+      Logger.error('Failed to get votes:', error);
       return [];
     }
   }

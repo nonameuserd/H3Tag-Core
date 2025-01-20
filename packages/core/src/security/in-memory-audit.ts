@@ -1,5 +1,5 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { IAuditStorage } from "./audit";
+import { Logger } from '@h3tag-blockchain/shared';
+import { IAuditStorage } from './audit';
 
 export class InMemoryAuditStorage implements IAuditStorage {
   private auditLogs: Map<string, string> = new Map();

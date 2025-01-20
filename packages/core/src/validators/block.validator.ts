@@ -1,22 +1,25 @@
-import { Block } from "../models/block.model";
-import { Transaction, TransactionBuilder } from "../models/transaction.model";
-import { UTXOSet } from "../models/utxo.model";
-import { EventEmitter } from "events";
-import { TransactionType } from "../models/transaction.model";
-import { Vote } from "../models/vote.model";
-import { HybridCrypto } from "@h3tag-blockchain/crypto";
-import { createHash } from "crypto";
-import { Mempool } from "../blockchain/mempool";
-import { BlockchainStats } from "../blockchain/blockchain-stats";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import { ValidatorSet, Validator } from "../models/validator";
-import { retry } from "../utils/retry";
+import { Block } from '../models/block.model';
+import { Transaction, TransactionBuilder } from '../models/transaction.model';
+import { UTXOSet } from '../models/utxo.model';
+import { EventEmitter } from 'events';
+import { TransactionType } from '../models/transaction.model';
+import { Vote } from '../models/vote.model';
+import { HybridCrypto } from '@h3tag-blockchain/crypto';
+import { createHash } from 'crypto';
+import { Mempool } from '../blockchain/mempool';
+import { BlockchainStats } from '../blockchain/blockchain-stats';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import { ValidatorSet, Validator } from '../models/validator';
+import { retry } from '../utils/retry';
 
 export class BlockValidationError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
     super(`${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} ${message}`);
-    this.name = "BlockValidationError";
+    this.name = 'BlockValidationError';
   }
 }
 
@@ -63,7 +66,7 @@ export class BlockValidator {
   static async validateBlock(
     block: Block,
     previousBlock: Block | null,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<boolean> {
     try {
       await Promise.race([
@@ -77,10 +80,10 @@ export class BlockValidator {
     } catch (error) {
       if (error instanceof BlockValidationError) {
         Logger.error(
-          `Block validation failed: ${error.message} (${error.code})`
+          `Block validation failed: ${error.message} (${error.code})`,
         );
       } else {
-        Logger.error("Unexpected error during block validation:", error);
+        Logger.error('Unexpected error during block validation:', error);
       }
       return false;
     }
@@ -92,8 +95,8 @@ export class BlockValidator {
         reject(
           new BlockValidationError(
             `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} validation timeout`,
-            "VALIDATION_TIMEOUT"
-          )
+            'VALIDATION_TIMEOUT',
+          ),
         );
       }, this.BLOCK_CONSTANTS.MAX_VALIDATION_TIME);
     });
@@ -102,7 +105,7 @@ export class BlockValidator {
   private static async performValidation(
     block: Block,
     previousBlock: Block | null,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<void> {
     await this.validateBlockStructure(block);
     await this.validateBlockSize(block);
@@ -123,23 +126,23 @@ export class BlockValidator {
     if (!block.header || !block.transactions || !block.hash) {
       throw new BlockValidationError(
         `Invalid ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block structure`,
-        "INVALID_STRUCTURE"
+        'INVALID_STRUCTURE',
       );
     }
 
     const requiredFields = [
-      "version",
-      "previousHash",
-      "merkleRoot",
-      "timestamp",
-      "difficulty",
-      "nonce",
+      'version',
+      'previousHash',
+      'merkleRoot',
+      'timestamp',
+      'difficulty',
+      'nonce',
     ];
     for (const field of requiredFields) {
       if (!(field in block.header)) {
         throw new BlockValidationError(
           `Missing ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} header field: ${field}`,
-          "MISSING_FIELD"
+          'MISSING_FIELD',
         );
       }
     }
@@ -150,7 +153,7 @@ export class BlockValidator {
     if (block.transactions.length > this.BLOCK_CONSTANTS.MAX_TRANSACTIONS) {
       throw new BlockValidationError(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block has excess transactions`,
-        "EXCESS_TRANSACTIONS"
+        'EXCESS_TRANSACTIONS',
       );
     }
 
@@ -162,7 +165,7 @@ export class BlockValidator {
     if (blockSize > (await dynamicSizeLimit)) {
       throw new BlockValidationError(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block size ${blockSize} exceeds dynamic limit ${dynamicSizeLimit}`,
-        "EXCESS_SIZE"
+        'EXCESS_SIZE',
       );
     }
   }
@@ -175,25 +178,25 @@ export class BlockValidator {
       blockTime < currentTime + this.BLOCK_CONSTANTS.MIN_TIMESTAMP_OFFSET ||
       blockTime > currentTime + this.BLOCK_CONSTANTS.MAX_TIMESTAMP_OFFSET
     ) {
-      throw new BlockValidationError("Invalid timestamp", "INVALID_TIMESTAMP");
+      throw new BlockValidationError('Invalid timestamp', 'INVALID_TIMESTAMP');
     }
   }
 
   private static async validatePreviousBlock(
     block: Block,
-    previousBlock: Block
+    previousBlock: Block,
   ): Promise<void> {
     if (block.header.previousHash !== previousBlock.hash) {
       throw new BlockValidationError(
-        "Invalid previous block",
-        "INVALID_PREV_BLOCK"
+        'Invalid previous block',
+        'INVALID_PREV_BLOCK',
       );
     }
 
     if (block.header.timestamp <= previousBlock.header.timestamp) {
       throw new BlockValidationError(
-        "Invalid timestamp order",
-        "INVALID_TIMESTAMP_ORDER"
+        'Invalid timestamp order',
+        'INVALID_TIMESTAMP_ORDER',
       );
     }
   }
@@ -202,15 +205,15 @@ export class BlockValidator {
     const calculatedRoot = await this.calculateMerkleRoot(block.transactions);
     if (calculatedRoot !== block.header.merkleRoot) {
       throw new BlockValidationError(
-        "Invalid merkle root",
-        "INVALID_MERKLE_ROOT"
+        'Invalid merkle root',
+        'INVALID_MERKLE_ROOT',
       );
     }
   }
 
   private static async validateTransactions(
     block: Block,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<void> {
     const txBatch = 100; // Process transactions in batches
 
@@ -221,12 +224,12 @@ export class BlockValidator {
   }
 
   private static async calculateMerkleRoot(
-    transactions: Transaction[]
+    transactions: Transaction[],
   ): Promise<string> {
     if (transactions.length === 0) {
       throw new BlockValidationError(
-        "Empty transaction list",
-        "EMPTY_TRANSACTIONS"
+        'Empty transaction list',
+        'EMPTY_TRANSACTIONS',
       );
     }
 
@@ -236,7 +239,7 @@ export class BlockValidator {
     for (let i = 0; i < transactions.length; i += batchSize) {
       const batch = transactions.slice(i, i + batchSize);
       const batchHashes = await Promise.all(
-        batch.map((tx) => this.hashTransaction(tx))
+        batch.map((tx) => this.hashTransaction(tx)),
       );
       hashes.push(...batchHashes);
     }
@@ -269,12 +272,12 @@ export class BlockValidator {
   }
 
   private static async hashData(data: string): Promise<string> {
-    return createHash("sha3-256").update(data).digest("hex");
+    return createHash('sha3-256').update(data).digest('hex');
   }
 
   private static async validateProofOfWork(block: Block): Promise<void> {
     if (!block.header.nonce || !(await this.meetsHashTarget(block))) {
-      throw new BlockValidationError("Invalid proof of work", "INVALID_POW");
+      throw new BlockValidationError('Invalid proof of work', 'INVALID_POW');
     }
 
     // Add quantum security validation
@@ -283,13 +286,13 @@ export class BlockValidator {
 
   private static async validateVotes(block: Block): Promise<void> {
     const votes = (block.votes || []).map((vote) =>
-      typeof vote === "string" ? JSON.parse(vote) : vote
+      typeof vote === 'string' ? JSON.parse(vote) : vote,
     ) as Vote[];
 
     if (!(await this.validateVoteSignatures(votes))) {
       throw new BlockValidationError(
-        "Invalid vote signatures",
-        "INVALID_VOTES"
+        'Invalid vote signatures',
+        'INVALID_VOTES',
       );
     }
   }
@@ -300,17 +303,17 @@ export class BlockValidator {
         const isValid = await HybridCrypto.verify(
           vote.blockHash,
           vote.signature,
-          vote.publicKey
+          vote.publicKey,
         );
 
         if (!isValid) {
-          Logger.warn("Invalid vote signature detected", { voter: vote.voter });
+          Logger.warn('Invalid vote signature detected', { voter: vote.voter });
           return false;
         }
       }
       return true;
     } catch (error) {
-      Logger.error("Vote signature validation failed:", error);
+      Logger.error('Vote signature validation failed:', error);
       return false;
     }
   }
@@ -318,10 +321,10 @@ export class BlockValidator {
   private static async validateTransactionBatch(
     transactions: Transaction[],
     utxoSet: UTXOSet,
-    isFirstBatch: boolean
+    isFirstBatch: boolean,
   ): Promise<void> {
     if (!transactions?.length) {
-      throw new BlockValidationError("Empty transaction batch", "EMPTY_BATCH");
+      throw new BlockValidationError('Empty transaction batch', 'EMPTY_BATCH');
     }
 
     for (const tx of transactions) {
@@ -344,26 +347,26 @@ export class BlockValidator {
   private static async validateCoinbase(tx: Transaction): Promise<void> {
     if (!tx.powData?.nonce || !tx.outputs[0]?.amount) {
       throw new BlockValidationError(
-        "Invalid coinbase structure",
-        "INVALID_COINBASE"
+        'Invalid coinbase structure',
+        'INVALID_COINBASE',
       );
     }
 
     // Validate mining reward amount
     if (tx.outputs[0].amount > this.calculateBlockReward()) {
-      throw new BlockValidationError("Invalid mining reward", "EXCESS_REWARD");
+      throw new BlockValidationError('Invalid mining reward', 'EXCESS_REWARD');
     }
   }
 
   private static async validateTransaction(
     tx: Transaction,
-    utxoSet: UTXOSet
+    utxoSet: UTXOSet,
   ): Promise<void> {
     // Verify transaction signature and structure
     if (!(await TransactionBuilder.verify(tx))) {
       throw new BlockValidationError(
-        "Invalid transaction signature",
-        "INVALID_TX_SIGNATURE"
+        'Invalid transaction signature',
+        'INVALID_TX_SIGNATURE',
       );
     }
 
@@ -371,10 +374,10 @@ export class BlockValidator {
     for (const input of tx.inputs) {
       const utxo = await utxoSet.get(input.txId, input.outputIndex);
       if (!utxo) {
-        throw new BlockValidationError("UTXO not found", "INVALID_UTXO_REF");
+        throw new BlockValidationError('UTXO not found', 'INVALID_UTXO_REF');
       }
       if (utxo.amount !== input.amount) {
-        throw new BlockValidationError("Amount mismatch", "AMOUNT_MISMATCH");
+        throw new BlockValidationError('Amount mismatch', 'AMOUNT_MISMATCH');
       }
     }
   }
@@ -383,13 +386,13 @@ export class BlockValidator {
     try {
       const currentHeight = this.getCurrentHeight();
       if (currentHeight < 0) {
-        Logger.error("Invalid block height for reward calculation");
+        Logger.error('Invalid block height for reward calculation');
         return this.REWARD_CONSTANTS.MIN_REWARD;
       }
 
       const halvings = Math.min(
         Math.floor(currentHeight / this.REWARD_CONSTANTS.HALVING_INTERVAL),
-        this.REWARD_CONSTANTS.MAX_HALVINGS
+        this.REWARD_CONSTANTS.MAX_HALVINGS,
       );
 
       if (halvings >= this.REWARD_CONSTANTS.MAX_HALVINGS) {
@@ -401,16 +404,16 @@ export class BlockValidator {
         ? reward
         : this.REWARD_CONSTANTS.MIN_REWARD;
     } catch (error) {
-      Logger.error("Block reward calculation failed:", error);
+      Logger.error('Block reward calculation failed:', error);
       return this.REWARD_CONSTANTS.MIN_REWARD;
     }
   }
 
   private static getCurrentHeight(): number {
     try {
-      return this.blockchain.getCurrentHeight() ?? 0;
+      return this.blockchain?.getCurrentHeight() ?? 0;
     } catch (error) {
-      Logger.error("Failed to get current height:", error);
+      Logger.error('Failed to get current height:', error);
       return 0;
     }
   }
@@ -442,22 +445,19 @@ export class BlockValidator {
       header: { ...block.header, hash: null },
       transactions: block.transactions.map((tx) => tx.id),
     });
-    const hash = createHash("sha3-256").update(data).digest("hex");
+    const hash = createHash('sha3-256').update(data).digest('hex');
 
     return hash;
   }
 
   private static calculateDifficultyTarget(difficulty: number): bigint {
-    const maxTarget = BigInt(
-      "0x00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
-    );
-    return maxTarget / BigInt(Math.floor(difficulty));
+    return BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET / BigInt(Math.floor(difficulty));
   }
 
   public static async calculateDynamicBlockSize(block: Block): Promise<number> {
     try {
       // Get network metrics
-      const mempool = this.blockchain.getMempool();
+      const mempool = this.blockchain?.getMempool();
       const stats = this.blockchain?.getBlockchainStats();
 
       if (!mempool || !stats) {
@@ -472,7 +472,7 @@ export class BlockValidator {
       // Network congestion factor (0.5 to 2.0)
       const congestionFactor = Math.min(
         2.0,
-        Math.max(0.5, mempoolSize / this.BLOCK_CONSTANTS.MAX_TRANSACTIONS)
+        Math.max(0.5, mempoolSize / this.BLOCK_CONSTANTS.MAX_TRANSACTIONS),
       );
 
       // Block time factor (0.8 to 1.2)
@@ -480,14 +480,14 @@ export class BlockValidator {
         1.2,
         Math.max(
           0.8,
-          this.BLOCK_CONSTANTS.TARGET_BLOCK_TIME / Number(avgBlockTime)
-        )
+          this.BLOCK_CONSTANTS.TARGET_BLOCK_TIME / Number(avgBlockTime),
+        ),
       );
 
       // Propagation factor (0.7 to 1.3)
       const propagationFactor = Math.min(
         1.3,
-        Math.max(0.7, 1000 / (await propagationStats).median)
+        Math.max(0.7, 1000 / (await propagationStats).median),
       );
 
       // Calculate target size with all factors
@@ -505,15 +505,15 @@ export class BlockValidator {
           this.BLOCK_CONSTANTS.MIN_BLOCK_SIZE,
           Math.min(
             previousSize + maxChange,
-            Math.max(previousSize - maxChange, adjustedSize)
-          )
+            Math.max(previousSize - maxChange, adjustedSize),
+          ),
         ),
-        this.BLOCK_CONSTANTS.MAX_BLOCK_SIZE
+        this.BLOCK_CONSTANTS.MAX_BLOCK_SIZE,
       );
 
       return Math.floor(targetSize);
     } catch (error) {
-      Logger.error("Dynamic block size calculation failed:", error);
+      Logger.error('Dynamic block size calculation failed:', error);
       return this.BLOCK_CONSTANTS.MIN_BLOCK_SIZE;
     }
   }
@@ -529,9 +529,9 @@ export class BlockValidator {
       }
 
       // Get latest block and calculate size
-      const previousBlock = this.blockchain.getLatestBlock();
+      const previousBlock = this.blockchain?.getLatestBlock();
       if (!previousBlock) {
-        Logger.warn("No previous block found, using minimum size");
+        Logger.warn('No previous block found, using minimum size');
         return this.BLOCK_CONSTANTS.MIN_BLOCK_SIZE;
       }
 
@@ -546,7 +546,7 @@ export class BlockValidator {
 
       return size;
     } catch (error) {
-      Logger.error("Failed to get previous block size:", error);
+      Logger.error('Failed to get previous block size:', error);
       return this.blockSizeCache?.size || this.BLOCK_CONSTANTS.MIN_BLOCK_SIZE;
     }
   }
@@ -557,20 +557,20 @@ export class BlockValidator {
       const headerSize = JSON.stringify(block.header).length;
       const txSize = block.transactions.reduce(
         (sum, tx) => sum + JSON.stringify(tx).length,
-        0
+        0,
       );
       const votesSize = (block.votes || []).reduce(
         (sum, vote) =>
           sum +
-          (typeof vote === "string"
+          (typeof vote === 'string'
             ? (vote as string).length
             : JSON.stringify(vote as Vote).length),
-        0
+        0,
       );
 
       return headerSize + txSize + votesSize;
     } catch (error) {
-      Logger.error("Block size calculation failed:", error);
+      Logger.error('Block size calculation failed:', error);
       return this.BLOCK_CONSTANTS.MIN_BLOCK_SIZE;
     }
   }
@@ -581,8 +581,8 @@ export class BlockValidator {
 
     if (validators.length < this.VALIDATOR_CONSTANTS.MIN_VALIDATORS) {
       throw new BlockValidationError(
-        "Insufficient validators",
-        "INSUFFICIENT_VALIDATORS"
+        'Insufficient validators',
+        'INSUFFICIENT_VALIDATORS',
       );
     }
 
@@ -593,7 +593,7 @@ export class BlockValidator {
           const [merkleValid, signaturesValid] = await Promise.all([
             this.validatorSet.verifyValidator(
               validator,
-              block.header.validatorMerkleRoot
+              block.header.validatorMerkleRoot,
             ),
             this.verifyValidatorSignatures(validator),
           ]);
@@ -608,32 +608,32 @@ export class BlockValidator {
           Logger.error(`Validator verification failed: ${validator.id}`, error);
           return { validator, isValid: false, weight: 0 };
         }
-      })
+      }),
     );
 
     // Calculate weighted validation score
     const totalWeight = validatorResults.reduce(
       (sum, { isValid, weight }) => sum + (isValid ? weight : 0),
-      0
+      0,
     );
 
     if (totalWeight < this.VALIDATOR_CONSTANTS.VALIDATION_WEIGHT_THRESHOLD) {
       throw new BlockValidationError(
-        "Insufficient validator weight",
-        "INSUFFICIENT_VALIDATOR_WEIGHT"
+        'Insufficient validator weight',
+        'INSUFFICIENT_VALIDATOR_WEIGHT',
       );
     }
   }
 
   private static async verifyValidatorSignatures(
-    validator: Validator
+    validator: Validator,
   ): Promise<boolean> {
     try {
       const [classicSig] = await Promise.all([
         HybridCrypto.verify(
           validator.validationData,
-          validator.signature,
-          validator.publicKey
+          validator.signature ?? '',
+          validator.publicKey ?? '',
         ),
       ]);
 
@@ -641,7 +641,7 @@ export class BlockValidator {
     } catch (error) {
       Logger.error(
         `Validator signature verification failed: ${validator.id}`,
-        error
+        error,
       );
       return false;
     }
@@ -651,7 +651,7 @@ export class BlockValidator {
     try {
       await this.validatorSet.cleanup();
     } catch (error) {
-      Logger.warn("Validator set cleanup failed:", error);
+      Logger.warn('Validator set cleanup failed:', error);
     }
   }
 

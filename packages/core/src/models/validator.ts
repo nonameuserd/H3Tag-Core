@@ -1,6 +1,6 @@
-import { HybridCrypto } from "@h3tag-blockchain/crypto";
-import { MerkleTree, MerkleProof } from "../utils/merkle";
-import { Logger } from "@h3tag-blockchain/shared";
+import { HybridCrypto } from '@h3tag-blockchain/crypto';
+import { MerkleTree, MerkleProof } from '../utils/merkle';
+import { Logger } from '@h3tag-blockchain/shared';
 
 /**
  * @fileoverview Validator model definitions for the H3Tag blockchain. Includes validator structure,
@@ -94,13 +94,13 @@ export class ValidatorSet {
    */
   async addValidator(validator: Validator): Promise<void> {
     if (!this.isValidValidator(validator)) {
-      throw new Error("Invalid validator data");
+      throw new Error('Invalid validator data');
     }
 
     try {
       const validatorData = this.serializeValidator(validator);
       const validators = Array.from(this.validators.values()).map((v) =>
-        this.serializeValidator(v)
+        this.serializeValidator(v),
       );
       validators.push(validatorData);
 
@@ -125,7 +125,7 @@ export class ValidatorSet {
       this.validatorCache.set(validator.id, validator);
       this.cacheTimestamps.set(validator.id, Date.now());
     } catch (error) {
-      Logger.error("Failed to add validator:", error);
+      Logger.error('Failed to add validator:', error);
       throw error;
     }
   }
@@ -138,7 +138,7 @@ export class ValidatorSet {
    */
   async verifyValidator(
     validator: Validator,
-    merkleRoot?: string
+    merkleRoot?: string,
   ): Promise<boolean> {
     if (!validator?.merkleProof || !merkleRoot) return false;
 
@@ -147,7 +147,7 @@ export class ValidatorSet {
       const isValid = await this.merkleTree.verifyProof(
         validator.merkleProof,
         validatorData,
-        merkleRoot
+        merkleRoot,
       );
 
       // Add signature verification
@@ -156,14 +156,14 @@ export class ValidatorSet {
         const isValidSignature = await HybridCrypto.verify(
           data.toString(),
           validator.signature,
-          validator.publicKey
+          validator.publicKey,
         );
         return isValidSignature;
       }
 
       return isValid;
     } catch (error) {
-      Logger.error("Validator verification failed:", error);
+      Logger.error('Validator verification failed:', error);
       return false;
     }
   }
@@ -179,17 +179,17 @@ export class ValidatorSet {
       validator &&
       validator.id &&
       validator.publicKey &&
-      typeof validator.lastActive === "number" &&
-      typeof validator.reputation === "number" &&
+      typeof validator.lastActive === 'number' &&
+      typeof validator.reputation === 'number' &&
       validator.address &&
-      typeof validator.isActive === "boolean" &&
-      typeof validator.isSuspended === "boolean" &&
-      typeof validator.isAbsent === "boolean" &&
-      typeof validator.uptime === "number" &&
+      typeof validator.isActive === 'boolean' &&
+      typeof validator.isSuspended === 'boolean' &&
+      typeof validator.isAbsent === 'boolean' &&
+      typeof validator.uptime === 'number' &&
       validator.metrics &&
-      typeof validator.metrics.uptime === "number" &&
-      typeof validator.metrics.voteParticipation === "number" &&
-      typeof validator.metrics.blockProduction === "number"
+      typeof validator.metrics.uptime === 'number' &&
+      typeof validator.metrics.voteParticipation === 'number' &&
+      typeof validator.metrics.blockProduction === 'number'
     );
   }
 
@@ -213,7 +213,7 @@ export class ValidatorSet {
       this.validatorCache.clear();
       this.cacheTimestamps.clear();
     } catch (error) {
-      Logger.error("ValidatorSet cleanup failed:", error);
+      Logger.error('ValidatorSet cleanup failed:', error);
     }
   }
 
@@ -237,7 +237,7 @@ export class ValidatorSet {
    * @throws {Error} If validator not found or invalid reputation change
    */ async updateValidator(validator: Validator): Promise<void> {
     if (!this.validators.has(validator.id)) {
-      throw new Error("Validator not found");
+      throw new Error('Validator not found');
     }
 
     const existingValidator = this.validators.get(validator.id);
@@ -245,7 +245,7 @@ export class ValidatorSet {
 
     // Prevent reputation manipulation
     if (Math.abs(validator.reputation - existingValidator.reputation) > 10) {
-      throw new Error("Invalid reputation change");
+      throw new Error('Invalid reputation change');
     }
 
     await this.addValidator({

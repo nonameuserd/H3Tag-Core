@@ -9,7 +9,7 @@ export interface KeystoreSecurityConfig {
 
 export interface KeystoreAuditLog {
   timestamp: number;
-  eventType: "access" | "rotation" | "backup" | "alert" | "error";
+  eventType: 'access' | 'rotation' | 'backup' | 'alert' | 'error';
   address?: string;
   metadata: Record<string, unknown>;
 }

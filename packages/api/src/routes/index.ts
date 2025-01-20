@@ -1,11 +1,11 @@
-import { Router } from "express";
-import nodeRoutes from "./node.routes";
-import walletRoutes from "./wallet.routes";
-import peerRoutes from "./peer.routes";
-import blockchainRoutes from "./blockchain.routes";
-import miningRoutes from "./mining.routes";
-import transactionRoutes from "./transaction.routes";
-import mempoolRoutes from "./mempool.routes";
+import { Router } from 'express';
+import nodeRoutes from './node.routes';
+import walletRoutes from './wallet.routes';
+import peerRoutes from './peer.routes';
+import blockchainRoutes from './blockchain.routes';
+import miningRoutes from './mining.routes';
+import transactionRoutes from './transaction.routes';
+import mempoolRoutes from './mempool.routes';
 
 /**
  * @swagger
@@ -42,25 +42,25 @@ const router = Router();
  */
 
 // Node management routes
-router.use("/nodes", nodeRoutes);
+router.use('/nodes', nodeRoutes);
 
 // Wallet management routes
-router.use("/wallets", walletRoutes);
+router.use('/wallets', walletRoutes);
 
 // Peer management routes
-router.use("/peers", peerRoutes);
+router.use('/peers', peerRoutes);
 
 // Blockchain management routes
-router.use("/blockchain", blockchainRoutes);
+router.use('/blockchain', blockchainRoutes);
 
 // Transaction management routes
-router.use("/transactions", transactionRoutes);
+router.use('/transactions', transactionRoutes);
 
 // Mining management routes
-router.use("/mining", miningRoutes);
+router.use('/mining', miningRoutes);
 
 // Mempool management routes
-router.use("/mempool", mempoolRoutes);
+router.use('/mempool', mempoolRoutes);
 
 // Health check endpoint
 /**
@@ -84,9 +84,9 @@ router.use("/mempool", mempoolRoutes);
  *                   type: string
  *                   format: date-time
  */
-router.get("/health", (req, res) => {
+router.get('/health', (req, res) => {
   res.json({
-    status: "ok",
+    status: 'ok',
     timestamp: new Date().toISOString(),
   });
 });

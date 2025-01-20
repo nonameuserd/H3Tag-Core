@@ -1,26 +1,26 @@
-import { EventEmitter } from "events";
-import { Block } from "../models/block.model";
-import { Transaction } from "../models/transaction.model";
-import { Peer } from "./peer";
-import { Blockchain } from "../blockchain/blockchain";
-import { Mempool } from "../blockchain/mempool";
-import { BlockchainSchema } from "../database/blockchain-schema";
-import { MessagePayload, PeerMessageType } from "../models/peer.model";
-import { Logger } from "@h3tag-blockchain/shared";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import { Mutex } from "async-mutex";
+import { EventEmitter } from 'events';
+import { Block } from '../models/block.model';
+import { Transaction } from '../models/transaction.model';
+import { Peer } from './peer';
+import { Blockchain } from '../blockchain/blockchain';
+import { Mempool } from '../blockchain/mempool';
+import { BlockchainSchema } from '../database/blockchain-schema';
+import { MessagePayload, PeerMessageType } from '../models/peer.model';
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import { Mutex } from 'async-mutex';
 
 export enum SyncState {
-  IDLE = "IDLE",
-  SYNCING = "SYNCING",
-  SYNCED = "SYNCED",
-  ERROR = "ERROR",
+  IDLE = 'IDLE',
+  SYNCING = 'SYNCING',
+  SYNCED = 'SYNCED',
+  ERROR = 'ERROR',
 }
 
 export class SyncError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "SyncError";
+    this.name = 'SyncError';
   }
 }
 
@@ -98,7 +98,7 @@ export class BlockchainSync {
     private readonly consensusPublicKey: {
       publicKey: string;
     },
-    private readonly db: BlockchainSchema
+    private readonly db: BlockchainSchema,
   ) {
     this.blockchain = blockchain;
     this.mempool = mempool;
@@ -118,34 +118,34 @@ export class BlockchainSync {
   }
 
   private setupPeerListeners(peer: Peer): void {
-    peer.eventEmitter.on("new_block", async (block: Block) => {
+    peer.eventEmitter.on('new_block', async (block: Block) => {
       try {
         await this.handleNewBlock(block, peer);
       } catch (error) {
         Logger.error(
           `Error handling new block from peer ${(await peer.getInfo()).url}:`,
-          error
+          error,
         );
-        this.eventEmitter.emit("sync_error", error);
+        this.eventEmitter.emit('sync_error', error);
       }
     });
 
     peer.eventEmitter.on(
-      "new_transaction",
+      'new_transaction',
       async (transaction: Transaction) => {
         try {
           await this.handleNewTransaction({ transaction }, peer);
         } catch (error) {
           Logger.error(
             `Error handling new transaction from peer ${(await peer.getInfo()).url}:`,
-            error
+            error,
           );
-          this.eventEmitter.emit("sync_error", error);
+          this.eventEmitter.emit('sync_error', error);
         }
-      }
+      },
     );
 
-    peer.eventEmitter.on("disconnect", () => {
+    peer.eventEmitter.on('disconnect', () => {
       if (peer === this.syncingPeer) {
         this.handleSyncingPeerDisconnect();
       }
@@ -153,7 +153,7 @@ export class BlockchainSync {
   }
 
   private async handleSyncingPeerDisconnect(): Promise<void> {
-    Logger.warn("Syncing peer disconnected, attempting to find new peer");
+    Logger.warn('Syncing peer disconnected, attempting to find new peer');
     this.syncingPeer = undefined;
     if (this.state === SyncState.SYNCING) {
       await this.startSync();
@@ -164,7 +164,7 @@ export class BlockchainSync {
     setInterval(() => {
       if (this.state === SyncState.IDLE) {
         this.checkSync().catch((error) => {
-          Logger.error("Periodic sync check failed:", error);
+          Logger.error('Periodic sync check failed:', error);
         });
       }
     }, BlockchainSync.SYNC_CHECK_INTERVAL);
@@ -185,18 +185,18 @@ export class BlockchainSync {
 
     try {
       this.state = SyncState.SYNCING;
-      this.eventEmitter.emit("sync_started", {
+      this.eventEmitter.emit('sync_started', {
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         timestamp: Date.now(),
       });
       Logger.info(
-        `Starting ${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization`
+        `Starting ${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization`,
       );
 
       const bestPeer = await this.selectBestPeer();
       if (!bestPeer) {
         throw new SyncError(
-          `No suitable peers for ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} synchronization`
+          `No suitable peers for ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} synchronization`,
         );
       }
 
@@ -206,17 +206,17 @@ export class BlockchainSync {
 
       this.state = SyncState.SYNCED;
       this.clearSyncTimeout();
-      this.eventEmitter.emit("sync_completed", {
+      this.eventEmitter.emit('sync_completed', {
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         timestamp: Date.now(),
       });
       Logger.info(
-        `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization completed`
+        `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization completed`,
       );
-    } catch (error) {
+    } catch (error: unknown) {
       this.syncStats.failedAttempts++;
       this.syncStats.endTime = Date.now();
-      this.handleSyncError(error);
+      this.handleSyncError(error as Error);
     }
   }
 
@@ -236,41 +236,41 @@ export class BlockchainSync {
 
   private handleSyncTimeout(): void {
     Logger.error(
-      `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync timeout occurred`
+      `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync timeout occurred`,
     );
     this.state = SyncState.ERROR;
-    this.eventEmitter.emit("sync_timeout", {
+    this.eventEmitter.emit('sync_timeout', {
       currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
       timestamp: Date.now(),
     });
     this.handleSyncError(
-      new SyncError(`${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync timeout`)
+      new SyncError(`${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync timeout`),
     );
   }
 
   private async handleSyncError(error: Error): Promise<void> {
     this.state = SyncState.ERROR;
-    this.eventEmitter.emit("sync_error", {
+    this.eventEmitter.emit('sync_error', {
       error,
       currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
       timestamp: Date.now(),
     });
     Logger.error(
       `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization failed:`,
-      error
+      error,
     );
 
     if (this.retryAttempts < BlockchainSync.MAX_RETRY_ATTEMPTS) {
       this.retryAttempts++;
       Logger.info(
-        `Retrying ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync (attempt ${this.retryAttempts})`
+        `Retrying ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync (attempt ${this.retryAttempts})`,
       );
       await this.startSync();
     } else {
       Logger.error(
-        `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync: Max retry attempts reached`
+        `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} sync: Max retry attempts reached`,
       );
-      this.eventEmitter.emit("sync_failed", {
+      this.eventEmitter.emit('sync_failed', {
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         timestamp: Date.now(),
       });
@@ -279,7 +279,7 @@ export class BlockchainSync {
 
   private async selectBestPeer(): Promise<Peer | undefined> {
     const connectedPeers = Array.from(this.peers.values()).filter(
-      (peer) => peer.isConnected() && !peer.isBanned()
+      (peer) => peer.isConnected() && !peer.isBanned(),
     );
 
     if (connectedPeers.length === 0) {
@@ -292,13 +292,13 @@ export class BlockchainSync {
         connectedPeers.map(async (peer) => ({
           peer,
           isValid: await this.validatePeerBeforeSync(peer).catch(() => false),
-        }))
+        })),
       ),
       new Promise<never>((_, reject) =>
         setTimeout(
-          () => reject(new Error("Peer validation timeout")),
-          BlockchainSync.SYNC_TIMEOUTS.PEER_SELECTION
-        )
+          () => reject(new Error('Peer validation timeout')),
+          BlockchainSync.SYNC_TIMEOUTS.PEER_SELECTION,
+        ),
       ),
     ]);
 
@@ -307,10 +307,10 @@ export class BlockchainSync {
       .map(({ peer }) => peer);
 
     const peersWithInfo = await Promise.all(
-      validConnectedPeers.map(async peer => ({
+      validConnectedPeers.map(async (peer) => ({
         peer,
-        info: await peer.getInfo()
-      }))
+        info: await peer.getInfo(),
+      })),
     );
 
     return peersWithInfo
@@ -326,15 +326,17 @@ export class BlockchainSync {
     let syncTimeout: NodeJS.Timeout | undefined;
     try {
       syncTimeout = setTimeout(() => {
-        throw new SyncError("Sync timeout");
+        throw new SyncError('Sync timeout');
       }, BlockchainSync.SYNC_TIMEOUT);
 
       await this.syncHeaders(peer);
       await this.syncBlocks(peer);
       await this.verifyChain();
     } catch (error) {
-      Logger.error("Synchronization failed:", error);
-      throw new SyncError(`Sync failed: ${error.message}`);
+      Logger.error('Synchronization failed:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new SyncError(`Sync failed: ${errorMessage}`);
     } finally {
       if (syncTimeout) clearTimeout(syncTimeout);
     }
@@ -359,27 +361,27 @@ export class BlockchainSync {
       };
 
       Logger.info(
-        `Starting headers sync from ${currentHeight} to ${targetHeight}`
+        `Starting headers sync from ${currentHeight} to ${targetHeight}`,
       );
 
       while (this.headerSync.currentHeight <= targetHeight) {
         const endHeight = Math.min(
           this.headerSync.currentHeight +
             BlockchainSync.SYNC_PARAMETERS.HEADERS_BATCH_SIZE,
-          targetHeight
+          targetHeight,
         );
 
         try {
           const headers = await this.requestHeadersWithRetry(
             peer,
             this.headerSync.currentHeight,
-            endHeight
+            endHeight,
           );
 
           if (!this.validateHeaders(headers)) {
             // Rewind some headers on validation failure
             this.rewindHeaders(
-              BlockchainSync.SYNC_PARAMETERS.MAX_HEADERS_REWIND
+              BlockchainSync.SYNC_PARAMETERS.MAX_HEADERS_REWIND,
             );
             continue;
           }
@@ -394,9 +396,9 @@ export class BlockchainSync {
         } catch (error) {
           Logger.error(
             `Header sync failed at height ${this.headerSync.currentHeight}:`,
-            error
+            error,
           );
-          await this.handleSyncError(error);
+          await this.handleSyncError(error as Error);
         }
       }
     } finally {
@@ -427,7 +429,7 @@ export class BlockchainSync {
 
   private async downloadBlockBatch(
     peer: Peer,
-    heights: Set<number>
+    heights: Set<number>,
   ): Promise<void> {
     const promises = Array.from(heights).map(async (height) => {
       try {
@@ -447,7 +449,7 @@ export class BlockchainSync {
     // Verify block matches stored header
     const storedHeader = this.headerSync.headers.get(block.header.height);
     if (!storedHeader || storedHeader.header.hash !== block.header.hash) {
-      throw new SyncError("Block does not match stored header");
+      throw new SyncError('Block does not match stored header');
     }
 
     await this.processBlock(block);
@@ -456,7 +458,7 @@ export class BlockchainSync {
   private rewindHeaders(count: number): void {
     const newHeight = Math.max(
       this.headerSync.startHeight,
-      this.headerSync.currentHeight - count
+      this.headerSync.currentHeight - count,
     );
 
     // Remove headers after new height
@@ -491,15 +493,20 @@ export class BlockchainSync {
         } catch (error) {
           Logger.warn(
             `Failed to remove transaction ${tx.id} from mempool:`,
-            error
+            error,
           );
         }
       }
     } catch (error) {
       this.syncStats.failedAttempts++;
-      Logger.error(`Error processing block ${block.header.height}:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(
+        `Error processing block ${block.header.height}:`,
+        errorMessage,
+      );
       throw new SyncError(
-        `Failed to process block ${block.header.height}: ${error.message}`
+        `Failed to process block ${block.header.height}: ${errorMessage}`,
       );
     }
   }
@@ -507,9 +514,9 @@ export class BlockchainSync {
   private emitSyncProgress(
     currentHeight: number,
     endHeight: number,
-    targetHeight: number
+    targetHeight: number,
   ): void {
-    this.eventEmitter.emit("sync_progress", {
+    this.eventEmitter.emit('sync_progress', {
       currentHeight: endHeight,
       targetHeight,
       percentage:
@@ -521,11 +528,11 @@ export class BlockchainSync {
   private async requestBlocks(
     peer: Peer,
     startHeight: number,
-    endHeight: number
+    endHeight: number,
   ): Promise<Block[]> {
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
-        reject(new SyncError("Block request timeout"));
+        reject(new SyncError('Block request timeout'));
       }, BlockchainSync.SYNC_TIMEOUT);
 
       peer
@@ -533,7 +540,7 @@ export class BlockchainSync {
         .then((response) => {
           clearTimeout(timeout);
           if (!Array.isArray(response.blocks)) {
-            throw new SyncError("Invalid blocks response from peer");
+            throw new SyncError('Invalid blocks response from peer');
           }
           resolve(response.blocks);
         })
@@ -549,7 +556,7 @@ export class BlockchainSync {
       }
 
       await this.blockchain.addBlock(block);
-      this.eventEmitter.emit("new_block", {
+      this.eventEmitter.emit('new_block', {
         block,
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         timestamp: Date.now(),
@@ -557,36 +564,40 @@ export class BlockchainSync {
 
       // Broadcast to other peers
       this.broadcastToPeers(PeerMessageType.NEW_BLOCK, block, peer);
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       Logger.error(
         `Error handling new ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block:`,
-        error
+        errorMessage,
       );
       throw new SyncError(
-        `Failed to handle new ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block: ${error.message}`
+        `Failed to handle new ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block: ${errorMessage}`,
       );
     }
   }
 
   private async handleNewTransaction(
     transaction: { transaction: Transaction },
-    peer: Peer
+    peer: Peer,
   ): Promise<void> {
     try {
       await this.mempool.addTransaction(transaction.transaction);
-      this.eventEmitter.emit("new_transaction", transaction);
+      this.eventEmitter.emit('new_transaction', transaction);
 
       // Broadcast to other peers
       this.broadcastToPeers(PeerMessageType.NEW_TRANSACTION, transaction, peer);
-    } catch (error) {
-      Logger.error(`Error handling new transaction:`, error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error('Error handling new transaction:', errorMessage);
     }
   }
 
   private async broadcastToPeers(
     type: PeerMessageType,
     data: MessagePayload,
-    excludePeer: Peer
+    excludePeer: Peer,
   ): Promise<void> {
     const broadcastPromises = Array.from(this.peers.values())
       .filter((peer) => peer !== excludePeer && peer.isConnected())
@@ -594,9 +605,9 @@ export class BlockchainSync {
         peer.request(type, data).catch((error) => {
           Logger.error(
             `Failed to broadcast to peer, error: ${error.message}`,
-            error
+            error,
           );
-        })
+        }),
       );
 
     await Promise.all(broadcastPromises);
@@ -610,12 +621,15 @@ export class BlockchainSync {
     this.clearSyncTimeout();
     this.state = SyncState.IDLE;
     this.syncingPeer = undefined;
-    this.eventEmitter.emit("sync_stopped");
+    this.eventEmitter.emit('sync_stopped');
   }
 
   private async checkSync(): Promise<void> {
     const bestPeer = await this.selectBestPeer();
-    if (bestPeer && (await bestPeer.getInfo()).height > this.blockchain.getHeight()) {
+    if (
+      bestPeer &&
+      (await bestPeer.getInfo()).height > this.blockchain.getHeight()
+    ) {
       await this.startSync();
     }
   }
@@ -636,21 +650,21 @@ export class BlockchainSync {
 
       return true;
     } catch (error) {
-      Logger.error("Peer validation failed:", error);
+      Logger.error('Peer validation failed:', error);
       return false;
     }
   }
 
-  public on(event: string, listener: (...args: unknown[]) => void): void {
+  public on(event: string, listener: (...args: Error[]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
   private emitSyncComplete(): void {
-    this.eventEmitter.emit("sync_completed");
+    this.eventEmitter.emit('sync_completed');
   }
 
   private emitSyncError(error: Error): void {
-    this.eventEmitter.emit("sync_error", error);
+    this.eventEmitter.emit('sync_error', error);
   }
 
   public off(event: string, listener: (...args: unknown[]) => void): void {
@@ -667,35 +681,47 @@ export class BlockchainSync {
       }
     }
 
-    Logger.info("Chain verification completed successfully");
+    Logger.info('Chain verification completed successfully');
   }
 
   private async requestHeadersWithRetry(
     peer: Peer,
     startHeight: number,
-    endHeight: number
+    endHeight: number,
   ): Promise<Block[]> {
-    for (let attempt = 0; attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST; attempt++) {
+    for (
+      let attempt = 0;
+      attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST;
+      attempt++
+    ) {
       try {
         const response = await Promise.race([
           peer.request(PeerMessageType.GETHEADERS, { startHeight, endHeight }),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error("Timeout")), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST)
+            setTimeout(
+              () => reject(new Error('Timeout')),
+              BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST,
+            ),
           ),
         ]);
-        return response.blocks;
-      } catch (error) {
-        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        return response.blocks as Block[];
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
+          throw new Error(errorMessage);
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * (attempt + 1)),
+        );
       }
     }
-    throw new Error("Max retries exceeded");
+    throw new Error('Max retries exceeded');
   }
 
   private validateHeaders(headers: Block[]): boolean {
     try {
       if (!headers?.length) {
-        Logger.warn("Empty headers array received for validation");
+        Logger.warn('Empty headers array received for validation');
         return false;
       }
 
@@ -703,7 +729,7 @@ export class BlockchainSync {
       const firstHeader = headers[0];
       if (firstHeader.header.height !== this.headerSync.currentHeight) {
         Logger.warn(
-          `Invalid starting height. Expected: ${this.headerSync.currentHeight}, Got: ${firstHeader.header.height}`
+          `Invalid starting height. Expected: ${this.headerSync.currentHeight}, Got: ${firstHeader.header.height}`,
         );
         return false;
       }
@@ -718,7 +744,7 @@ export class BlockchainSync {
           Logger.warn(
             `Non-sequential block heights at index ${i}. Expected: ${
               prevHeader.header.height + 1
-            }, Got: ${currentHeader.header.height}`
+            }, Got: ${currentHeader.header.height}`,
           );
           return false;
         }
@@ -726,7 +752,7 @@ export class BlockchainSync {
         // Validate hash linkage
         if (currentHeader.header.previousHash !== prevHeader.header.hash) {
           Logger.warn(
-            `Invalid hash chain at height ${currentHeader.header.height}. Expected previous: ${prevHeader.header.hash}, Got: ${currentHeader.header.previousHash}`
+            `Invalid hash chain at height ${currentHeader.header.height}. Expected previous: ${prevHeader.header.hash}, Got: ${currentHeader.header.previousHash}`,
           );
           return false;
         }
@@ -734,7 +760,7 @@ export class BlockchainSync {
         // Validate timestamp is reasonable
         if (currentHeader.header.timestamp <= prevHeader.header.timestamp) {
           Logger.warn(
-            `Invalid timestamp at height ${currentHeader.header.height}`
+            `Invalid timestamp at height ${currentHeader.header.height}`,
           );
           return false;
         }
@@ -742,34 +768,47 @@ export class BlockchainSync {
 
       return true;
     } catch (error) {
-      Logger.error("Header validation failed:", error);
+      Logger.error('Header validation failed:', error);
       return false;
     }
   }
 
   private async requestBlockWithRetry(
     peer: Peer,
-    height: number
+    height: number,
   ): Promise<Block> {
-    for (let attempt = 0; attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST; attempt++) {
+    for (
+      let attempt = 0;
+      attempt < BlockchainSync.MAX_RETRIES.BLOCK_REQUEST;
+      attempt++
+    ) {
       try {
         const response = await Promise.race([
           peer.request(PeerMessageType.GET_BLOCK, { height }),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST))
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () => reject(new Error('Timeout')),
+              BlockchainSync.SYNC_TIMEOUTS.BLOCK_REQUEST,
+            ),
+          ),
         ]);
         return response.block as Block;
       } catch (error) {
-        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+        if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
+          throw error;
+        await new Promise((resolve) =>
+          setTimeout(resolve, 1000 * (attempt + 1)),
+        );
       }
     }
-    throw new Error("Max retries exceeded");
+    throw new Error('Max retries exceeded');
   }
 
   public async getVerificationProgress(): Promise<number> {
     if (this.state !== SyncState.SYNCING) return 1;
     const currentHeight = this.blockchain.getCurrentHeight();
-    const targetHeight = (await this.syncingPeer.getInfo()).height || currentHeight;
+    const targetHeight =
+      (await this.syncingPeer?.getInfo())?.height || currentHeight;
     return targetHeight ? currentHeight / targetHeight : 1;
   }
 

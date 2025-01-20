@@ -1,27 +1,31 @@
-import { EventEmitter } from "events";
-import { Logger } from "@h3tag-blockchain/shared";
-import { Blockchain } from "../blockchain/blockchain";
-import { Peer } from "./peer";
-import { BlockchainSchema } from "../database/blockchain-schema";
-import { Mempool } from "../blockchain/mempool";
-import { Block } from "../models/block.model";
-import { Transaction } from "../models/transaction.model";
-import { DNSSeeder } from "./dnsSeed";
-import { CircuitBreaker } from "./circuit-breaker";
-import { Cache } from "../scaling/cache";
-import { Mutex } from "async-mutex";
-import { MetricsCollector } from "../monitoring/metrics-collector";
-import { HealthMonitor } from "../monitoring/health";
-import { DDoSProtection } from "../security/ddos";
-import { AuditManager } from "../security/audit";
-import { ConfigService } from "@h3tag-blockchain/shared";
-import { NetworkType } from "./dnsSeed";
-import { PeerDiscovery, PeerType } from "./discovery";
-import { UTXOSet } from "../models/utxo.model";
-import { MessagePayload, PeerMessageType, PeerServices } from "../models/peer.model";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import { TransactionBuilder } from "../models/transaction.model";
-import { NodeVerifier } from "./verification";
+import { EventEmitter } from 'events';
+import { Logger } from '@h3tag-blockchain/shared';
+import { Blockchain } from '../blockchain/blockchain';
+import { Peer } from './peer';
+import { BlockchainSchema } from '../database/blockchain-schema';
+import { Mempool } from '../blockchain/mempool';
+import { Block } from '../models/block.model';
+import { Transaction } from '../models/transaction.model';
+import { DNSSeeder } from './dnsSeed';
+import { CircuitBreaker } from './circuit-breaker';
+import { Cache } from '../scaling/cache';
+import { Mutex } from 'async-mutex';
+import { MetricsCollector } from '../monitoring/metrics-collector';
+import { HealthMonitor } from '../monitoring/health';
+import { DDoSProtection } from '../security/ddos';
+import { AuditManager } from '../security/audit';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { NetworkType } from './dnsSeed';
+import { PeerDiscovery, PeerType } from './discovery';
+import { UTXOSet } from '../models/utxo.model';
+import {
+  MessagePayload,
+  PeerMessageType,
+  PeerServices,
+} from '../models/peer.model';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import { TransactionBuilder } from '../models/transaction.model';
+import { NodeVerifier } from './verification';
 
 interface NodeConfig {
   networkType: NetworkType;
@@ -68,11 +72,10 @@ export class Node {
   private isRunning = false;
   private maintenanceTimer?: NodeJS.Timeout;
   private readonly discovery: PeerDiscovery;
-  private readonly eventEmitter: EventEmitter;
+  private readonly eventEmitter: EventEmitter | undefined;
 
   private static readonly DEFAULT_CONFIG: NodeConfig = {
-    networkType:
-      NetworkType[BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type.MAINNET],
+    networkType: NetworkType.MAINNET,
     port: BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.port.MAINNET,
     maxPeers: 100000,
     minPeers: 1,
@@ -91,7 +94,7 @@ export class Node {
     private readonly db: BlockchainSchema,
     private readonly mempool: Mempool,
     private readonly configService: ConfigService,
-    private readonly auditManager: AuditManager
+    private readonly auditManager: AuditManager,
   ) {
     this.config = {
       ...Node.DEFAULT_CONFIG,
@@ -110,7 +113,7 @@ export class Node {
       port: this.config.port,
     });
 
-    this.metrics = new MetricsCollector("node");
+    this.metrics = new MetricsCollector('node');
     this.health = new HealthMonitor({
       interval: 60000,
       thresholds: {
@@ -129,7 +132,7 @@ export class Node {
         },
         windowMs: 60000, // 1 minute
       },
-      this.audit
+      this.auditManager,
     );
     this.audit = new AuditManager();
 
@@ -145,17 +148,20 @@ export class Node {
   }
 
   private setupEventHandlers(): void {
-    this.eventEmitter.on("peer:connect", this.handlePeerConnect.bind(this));
-    this.eventEmitter.on(
-      "peer:disconnect",
-      this.handlePeerDisconnect.bind(this)
+    this.eventEmitter?.on('peer:connect', this.handlePeerConnect.bind(this));
+    this.eventEmitter?.on(
+      'peer:disconnect',
+      this.handlePeerDisconnect.bind(this),
     );
-    this.eventEmitter.on("peer:message", this.handlePeerMessage.bind(this));
-    this.eventEmitter.on("peer:error", this.handlePeerError.bind(this));
-    this.eventEmitter.on("block:received", this.handleBlockReceived.bind(this));
-    this.eventEmitter.on(
-      "tx:received",
-      this.handleTransactionReceived.bind(this)
+    this.eventEmitter?.on('peer:message', this.handlePeerMessage.bind(this));
+    this.eventEmitter?.on('peer:error', this.handlePeerError.bind(this));
+    this.eventEmitter?.on(
+      'block:received',
+      this.handleBlockReceived.bind(this),
+    );
+    this.eventEmitter?.on(
+      'tx:received',
+      this.handleTransactionReceived.bind(this),
     );
   }
 
@@ -177,16 +183,16 @@ export class Node {
       // Start maintenance timer
       this.maintenanceTimer = setInterval(
         () => this.performMaintenance(),
-        this.config.pruneInterval
+        this.config.pruneInterval,
       );
 
-      Logger.info("Node started successfully", {
+      Logger.info('Node started successfully', {
         network: this.config.networkType,
         port: this.config.port,
       });
     } catch (error) {
       this.isRunning = false;
-      Logger.error("Failed to start node:", error);
+      Logger.error('Failed to start node:', error);
       throw error;
     }
   }
@@ -204,7 +210,7 @@ export class Node {
 
       // Disconnect all peers
       await Promise.all(
-        Array.from(this.peers.values()).map((peer) => peer.disconnect())
+        Array.from(this.peers.values()).map((peer) => peer.disconnect()),
       );
 
       // Stop DNS seeder
@@ -213,9 +219,9 @@ export class Node {
       // Save peer cache
       await this.savePeerCache();
 
-      Logger.info("Node stopped successfully");
+      Logger.info('Node stopped successfully');
     } catch (error) {
-      Logger.error("Error stopping node:", error);
+      Logger.error('Error stopping node:', error);
       throw error;
     }
   }
@@ -234,10 +240,10 @@ export class Node {
 
       await Promise.allSettled(connectPromises);
 
-      this.metrics.gauge("peer_count", this.peers.size);
+      this.metrics.gauge('peer_count', this.peers.size);
 
       if (this.peers.size < this.config.minPeers) {
-        Logger.warn("Low peer count", {
+        Logger.warn('Low peer count', {
           current: this.peers.size,
           minimum: this.config.minPeers,
         });
@@ -267,7 +273,7 @@ export class Node {
           timeout: this.config.connectionTimeout,
         },
         this.configService,
-        this.db
+        this.db,
       );
 
       // Get node info through handshake
@@ -293,7 +299,7 @@ export class Node {
       });
 
       if (!isVerified) {
-        Logger.warn("Peer verification failed", { address });
+        Logger.warn('Peer verification failed', { address });
         tempPeer.disconnect();
         this.increasePeerBanScore(address, 10);
         return;
@@ -314,18 +320,18 @@ export class Node {
       });
 
       breaker.onSuccess();
-      this.eventEmitter.emit("peer:connect", tempPeer);
+      this.eventEmitter?.emit('peer:connect', tempPeer);
 
-      Logger.info("Peer connected and verified", {
+      Logger.info('Peer connected and verified', {
         address,
         version: nodeInfo.version,
         height: nodeInfo.height,
       });
     } catch (error) {
       this.getCircuitBreaker(address).onFailure();
-      Logger.error("Failed to connect to peer:", {
+      Logger.error('Failed to connect to peer:', {
         address,
-        error: error.message,
+        error: (error as Error).message,
       });
       this.increasePeerBanScore(address, 1);
     } finally {
@@ -334,41 +340,53 @@ export class Node {
   }
 
   // Message Handling
-  private async handlePeerMessage(peer: Peer, message: {
-    type: PeerMessageType;
-    data: MessagePayload;
-  }): Promise<void> {
+  private async handlePeerMessage(
+    peer: Peer,
+    message: {
+      type: PeerMessageType;
+      data: MessagePayload;
+    },
+  ): Promise<void> {
     try {
-      if (!this.ddosProtection.checkRequest("peer_message", peer.getId())) {
+      if (!this.ddosProtection.checkRequest('peer_message', peer.getId())) {
         this.increasePeerBanScore(peer.getId(), 10);
         return;
       }
 
       switch (message.type) {
-        case "block":
-          await this.handleBlockMessage(peer, message.data.block);
+        case 'block':
+          if (message.data.block) {
+            await this.handleBlockMessage(peer, message.data.block);
+          }
           break;
-        case "tx":
-          await this.handleTransactionMessage(peer, message.data.transaction);
+        case 'tx':
+          if (message.data.transaction) {
+            await this.handleTransactionMessage(
+              peer,
+              message.data.transaction,
+            );
+          }
           break;
-        case "inv":
-          await this.handleInventoryMessage(peer, message.data.inventory);
+        case 'inv':
+          await this.handleInventoryMessage(peer, message.data.inventory || []);
           break;
-        case "getdata":
-          await this.handleGetDataMessage(peer, message.data.data);
+        case 'getdata':
+          await this.handleGetDataMessage(peer, message.data.data || []);
           break;
-        case "ping":
-          await peer.send(PeerMessageType.PONG, { nonce: message.data.headers[0].nonce });
+        case 'ping':
+          await peer.send(PeerMessageType.PONG, {
+            nonce: message.data.headers?.[0]?.nonce || 0,
+          });
           break;
         default:
-          Logger.warn("Unknown message type:", message.type);
+          Logger.warn('Unknown message type:', message.type);
       }
 
       this.updatePeerLastSeen(peer.getId());
     } catch (error) {
-      Logger.error("Error handling peer message:", {
+      Logger.error('Error handling peer message:', {
         peerId: peer.getId(),
-        error: error.message,
+        error: (error as Error).message,
       });
       this.increasePeerBanScore(peer.getId(), 1);
     }
@@ -394,18 +412,18 @@ export class Node {
 
       await this.blockchain.addBlock(block);
       this.processOrphanBlocks(block.hash);
-      this.eventEmitter.emit("block:received", block);
-    } catch (error) {
-      Logger.error("Error handling block message:", {
+      this.eventEmitter?.emit('block:received', block);
+    } catch (error: unknown) {
+      Logger.error('Error handling block message:', {
         blockHash: block.hash,
-        error: error.message,
+        error: (error as Error).message,
       });
     }
   }
 
   private async handleTransactionMessage(
     peer: Peer,
-    tx: Transaction
+    tx: Transaction,
   ): Promise<void> {
     try {
       if (this.mempool.hasTransaction(tx.id)) return;
@@ -414,7 +432,7 @@ export class Node {
         !(await this.mempool.validateTransaction(
           tx,
           await this.blockchain.getUTXOSet(),
-          this.blockchain.getCurrentHeight()
+          this.blockchain.getCurrentHeight(),
         ))
       ) {
         this.increasePeerBanScore(peer.getId(), 10);
@@ -422,11 +440,11 @@ export class Node {
       }
 
       await this.mempool.addTransaction(tx);
-      this.eventEmitter.emit("tx:received", tx);
-    } catch (error) {
-      Logger.error("Error handling transaction message:", {
+      this.eventEmitter?.emit('tx:received', tx);
+    } catch (error: unknown) {
+      Logger.error('Error handling transaction message:', {
         txId: tx.id,
-        error: error.message,
+        error: (error as Error).message,
       });
     }
   }
@@ -434,12 +452,12 @@ export class Node {
   // Peer State Management
   private updatePeerState(address: string, state: Partial<PeerState>): void {
     if (!address) {
-      Logger.warn("Attempted to update state for null peer address");
+      Logger.warn('Attempted to update state for null peer address');
       return;
     }
 
     const currentState = this.peerStates.get(address) || {
-      id: "",
+      id: '',
       address,
       port: this.config.port,
       version: 0,
@@ -471,7 +489,7 @@ export class Node {
       this.peers.delete(peerId);
       this.bannedPeers.set(peerId, Date.now() + this.config.banTime);
 
-      Logger.warn("Peer banned:", {
+      Logger.warn('Peer banned:', {
         peerId,
         banScore: this.peerStates.get(peerId)?.banScore,
       });
@@ -486,14 +504,14 @@ export class Node {
         new CircuitBreaker({
           failureThreshold: 3,
           resetTimeout: 60000,
-        })
+        }),
       );
     }
     return this.peerCircuitBreakers.get(address)!;
   }
 
   private isCompatibleVersion(version: number): boolean {
-    const minVersion = this.configService.get("MIN_PEER_VERSION") as number;
+    const minVersion = this.configService.get('MIN_PEER_VERSION') as number;
     return version >= minVersion;
   }
 
@@ -510,7 +528,7 @@ export class Node {
 
   // Public Methods
   public getAddress(): string {
-    return this.configService.get("NODE_ADDRESS");
+    return this.configService.get('NODE_ADDRESS');
   }
 
   public getPeerCount(): number {
@@ -524,23 +542,23 @@ export class Node {
   public async broadcastBlock(block: Block): Promise<void> {
     try {
       const promises = Array.from(this.peers.values()).map((peer) =>
-        peer.send(PeerMessageType.BLOCK, block)
+        peer.send(PeerMessageType.BLOCK, block),
       );
       await Promise.allSettled(promises);
     } catch (error) {
-      Logger.error("Failed to broadcast block:", error);
+      Logger.error('Failed to broadcast block:', error);
     }
   }
 
   public async broadcastTransaction(tx: Transaction): Promise<void> {
     const promises = Array.from(this.peers.values()).map((peer) =>
-      peer.send(PeerMessageType.TX, { transaction: tx })
+      peer.send(PeerMessageType.TX, { transaction: tx }),
     );
     await Promise.allSettled(promises);
   }
 
   private handlePeerConnect(peer: Peer): void {
-    Logger.info("Peer connected:", peer.getId());
+    Logger.info('Peer connected:', peer.getId());
   }
 
   private handlePeerDisconnect(peer: Peer): void {
@@ -548,22 +566,22 @@ export class Node {
     this.peers.delete(peerId);
     this.peerStates.delete(peerId);
     this.peerCircuitBreakers.delete(peerId);
-    Logger.info("Peer disconnected:", peerId);
+    Logger.info('Peer disconnected:', peerId);
   }
 
   private handlePeerError(peer: Peer, error: Error): void {
-    Logger.error("Peer error:", {
+    Logger.error('Peer error:', {
       peerId: peer.getId(),
       error: error.message,
     });
   }
 
   private handleBlockReceived(block: Block): void {
-    Logger.info("Block received:", block.hash);
+    Logger.info('Block received:', block.hash);
   }
 
   private handleTransactionReceived(tx: Transaction): void {
-    Logger.info("Transaction received:", tx.id);
+    Logger.info('Transaction received:', tx.id);
   }
 
   private async loadPeerCache(): Promise<void> {
@@ -572,11 +590,11 @@ export class Node {
       for (const [address, state] of Object.entries(cachedPeers)) {
         this.peerStates.set(address, state);
       }
-      Logger.debug("Loaded peer cache:", {
+      Logger.debug('Loaded peer cache:', {
         peerCount: Object.keys(cachedPeers).length,
       });
     } catch (error) {
-      Logger.error("Failed to load peer cache:", error);
+      Logger.error('Failed to load peer cache:', error);
     }
   }
 
@@ -585,9 +603,9 @@ export class Node {
       for (const [address, state] of this.peerStates.entries()) {
         this.peerCache.set(address, state);
       }
-      Logger.debug("Saved peer cache:", { peerCount: this.peerStates.size });
+      Logger.debug('Saved peer cache:', { peerCount: this.peerStates.size });
     } catch (error) {
-      Logger.error("Failed to save peer cache:", error);
+      Logger.error('Failed to save peer cache:', error);
     }
   }
 
@@ -602,9 +620,9 @@ export class Node {
       // Save peer cache
       await this.savePeerCache();
 
-      Logger.debug("Maintenance completed");
+      Logger.debug('Maintenance completed');
     } catch (error) {
-      Logger.error("Maintenance error:", error);
+      Logger.error('Maintenance error:', error);
     }
   }
 
@@ -620,7 +638,7 @@ export class Node {
           this.peers.delete(address);
         }
         this.peerStates.delete(address);
-        Logger.debug("Evicted stale peer:", { address });
+        Logger.debug('Evicted stale peer:', { address });
       }
     }
   }
@@ -638,20 +656,20 @@ export class Node {
 
   private async handleInventoryMessage(
     peer: Peer,
-    data: { type: string; hash: string }[]
+    data: { type: string; hash: string }[],
   ): Promise<void> {
     for (const item of data) {
-      if (item.type === "block" && !this.blockchain.hasBlock(item.hash)) {
+      if (item.type === 'block' && !this.blockchain.hasBlock(item.hash)) {
         await peer.send(PeerMessageType.GETDATA, {
           hash: item.hash,
-          type: "block",
+          type: 'block',
         });
       } else if (
-        item.type === "tx" &&
+        item.type === 'tx' &&
         !this.mempool.hasTransaction(item.hash)
       ) {
         await peer.send(PeerMessageType.GETDATA, {
-          type: "tx",
+          type: 'tx',
           hash: item.hash,
         });
       }
@@ -660,13 +678,13 @@ export class Node {
 
   private async handleGetDataMessage(
     peer: Peer,
-    data: { type: string; hash: string }[]
+    data: { type: string; hash: string }[],
   ): Promise<void> {
     for (const item of data) {
-      if (item.type === "block") {
+      if (item.type === 'block') {
         const block = await this.blockchain.getBlock(item.hash);
         if (block) await peer.send(PeerMessageType.BLOCK, block);
-      } else if (item.type === "tx") {
+      } else if (item.type === 'tx') {
         const tx = this.mempool.getTransaction(item.hash);
         if (tx) await peer.send(PeerMessageType.TX, { transaction: tx });
       }
@@ -682,7 +700,7 @@ export class Node {
   private async handleOrphanBlock(block: Block): Promise<void> {
     const orphanKey = `${block.header.previousHash}:${block.hash}`;
     this.orphanBlocks.set(orphanKey, block);
-    Logger.debug("Added orphan block:", {
+    Logger.debug('Added orphan block:', {
       hash: block.hash,
       previousHash: block.header.previousHash,
     });
@@ -723,7 +741,7 @@ export class Node {
 
     // Disconnect all peers
     const disconnectPromises = Array.from(this.peers.values()).map((peer) =>
-      peer.disconnect()
+      peer.disconnect(),
     );
     await Promise.all(disconnectPromises);
 
@@ -761,7 +779,7 @@ export class Node {
       // Get transaction object
       const tx = await this.db.getTransaction(txId);
       if (!tx) {
-        throw new Error("Transaction not found after creation");
+        throw new Error('Transaction not found after creation');
       }
 
       // Broadcast to all connected peers
@@ -774,15 +792,15 @@ export class Node {
 
       // Check broadcast success rate
       const successCount = results.filter(
-        (r) => r.status === "fulfilled"
+        (r) => r.status === 'fulfilled',
       ).length;
       const minPeers = Math.ceil(this.peers.size * 0.51); // Require >50% success
 
       if (successCount < minPeers) {
-        throw new Error("Failed to broadcast to sufficient peers");
+        throw new Error('Failed to broadcast to sufficient peers');
       }
 
-      Logger.info("Transaction broadcast successful", {
+      Logger.info('Transaction broadcast successful', {
         txId,
         successPeers: successCount,
         totalPeers: this.peers.size,
@@ -790,7 +808,7 @@ export class Node {
 
       return txId;
     } catch (error) {
-      Logger.error("Transaction broadcast failed:", error);
+      Logger.error('Transaction broadcast failed:', error);
       throw error;
     } finally {
       release();

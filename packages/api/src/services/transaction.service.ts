@@ -1,14 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
-import {
-  TransactionBuilder,
-  estimateFee,
-} from "@h3tag-blockchain/core";
+import { Injectable, Logger } from '@nestjs/common';
+import { TransactionBuilder, estimateFee } from '@h3tag-blockchain/core';
 import {
   TransactionResponseDto,
   RawTransactionResponseDto,
   DecodedTransactionDto,
-} from "../dtos/transaction.dto";
-import { BlockchainService } from "./blockchain.service";
+} from '../dtos/transaction.dto';
+import { BlockchainService } from './blockchain.service';
 
 /**
  * Service handling transaction-related operations
@@ -21,7 +18,7 @@ import { BlockchainService } from "./blockchain.service";
 export class TransactionService {
   constructor(
     private readonly blockchainService: BlockchainService,
-    private readonly transactionBuilder: TransactionBuilder
+    private readonly transactionBuilder: TransactionBuilder,
   ) {}
 
   /**
@@ -53,16 +50,14 @@ export class TransactionService {
   async getTransaction(txId: string): Promise<TransactionResponseDto> {
     const tx = await this.transactionBuilder.getTransaction(txId);
     if (!tx) {
-      throw new Error("Transaction not found");
+      throw new Error('Transaction not found');
     }
 
     return {
       id: tx.id,
       fromAddress: tx.sender,
       toAddress: tx.recipient,
-      amount: tx.outputs
-        .reduce((sum, output) => sum + output.amount, BigInt(0))
-        .toString(),
+      amount: tx.outputs[0]?.amount || 0n,
       timestamp: new Date(tx.timestamp).toISOString(),
       blockHeight: tx.blockHeight,
       confirmations: tx.inputs[0]?.confirmations || 0,
@@ -88,19 +83,19 @@ export class TransactionService {
     try {
       // Validate hex string format
       if (!/^[0-9a-fA-F]+$/.test(rawTransaction)) {
-        throw new Error("Invalid raw transaction format - must be hex string");
+        throw new Error('Invalid raw transaction format - must be hex string');
       }
 
       // Call core blockchain service to broadcast transaction
       const txId = await this.blockchainService.sendRawTransaction(
-        rawTransaction
+        rawTransaction,
       );
 
-      Logger.log("Raw transaction broadcast successfully:", { txId });
+      Logger.log('Raw transaction broadcast successfully:', { txId });
 
       return txId;
     } catch (error) {
-      Logger.error("Failed to send raw transaction:", error);
+      Logger.error('Failed to send raw transaction:', error);
       throw error;
     }
   }
@@ -109,7 +104,7 @@ export class TransactionService {
     const transaction = await this.transactionBuilder.getTransaction(txId);
 
     if (!transaction) {
-      throw new Error("Transaction not found");
+      throw new Error('Transaction not found');
     }
 
     return {
@@ -119,11 +114,11 @@ export class TransactionService {
   }
 
   async decodeRawTransaction(
-    rawTransaction: string
+    rawTransaction: string,
   ): Promise<DecodedTransactionDto> {
     try {
       const decodedTx = await TransactionBuilder.decodeRawTransaction(
-        rawTransaction
+        rawTransaction,
       );
       return {
         txid: decodedTx.id,
@@ -141,16 +136,18 @@ export class TransactionService {
           index: output.index,
         })),
       };
-    } catch (error) {
-      throw new Error(`Failed to decode transaction: ${error.message}`);
+    } catch (error: unknown) {
+      throw new Error(
+        `Failed to decode transaction: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
   async estimateFee(targetBlocks: number = 6): Promise<bigint> {
     try {
       return await estimateFee(targetBlocks);
-    } catch (error) {
-      Logger.error("Failed to estimate fee:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to estimate fee:', error);
       throw error;
     }
   }
@@ -158,8 +155,8 @@ export class TransactionService {
   async signMessage(message: string, privateKey: string): Promise<string> {
     try {
       return await TransactionBuilder.signMessage(message, privateKey);
-    } catch (error) {
-      Logger.error("Failed to sign message:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to sign message:', error);
       throw error;
     }
   }
@@ -167,16 +164,16 @@ export class TransactionService {
   async verifyMessage(
     message: string,
     signature: string,
-    publicKey: string
+    publicKey: string,
   ): Promise<boolean> {
     try {
       return await TransactionBuilder.verifyMessage(
         message,
         signature,
-        publicKey
+        publicKey,
       );
-    } catch (error) {
-      Logger.error("Failed to verify message:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to verify message:', error);
       throw error;
     }
   }
@@ -184,13 +181,13 @@ export class TransactionService {
   async validateAddress(address: string): Promise<boolean> {
     try {
       return TransactionBuilder.validateAddress(address);
-    } catch (error) {
-      Logger.error("Failed to validate address:", error);
+    } catch (error: unknown) {
+      Logger.error('Failed to validate address:', error);
       throw error;
     }
   }
 
   getNetworkType(): string {
-    return TransactionBuilder["getNetworkType"]();
+    return TransactionBuilder['getNetworkType']();
   }
 }

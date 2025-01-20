@@ -1,5 +1,5 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { HybridDirectConsensus } from "../blockchain/consensus/hybrid-direct";
+import { Logger } from '@h3tag-blockchain/shared';
+import { HybridDirectConsensus } from '../blockchain/consensus/hybrid-direct';
 
 /**
  * @fileoverview Performance monitoring system for the H3Tag blockchain. Includes timing metrics,
@@ -24,7 +24,17 @@ import { HybridDirectConsensus } from "../blockchain/consensus/hybrid-direct";
  */
 export class Performance {
   private static instance: Performance;
-  private static metrics: Map<string, { startTime: number; count: number; total: number; min: number; max: number; avg: number }> = new Map();
+  private static metrics: Map<
+    string,
+    {
+      startTime: number;
+      count: number;
+      total: number;
+      min: number;
+      max: number;
+      avg: number;
+    }
+  > = new Map();
   private static readonly MAX_METRICS_AGE = 24 * 60 * 60 * 1000; // 24 hours
   private static readonly CLEANUP_INTERVAL = 3600000; // 1 hour
   private cleanupTimer: NodeJS.Timeout;
@@ -33,7 +43,7 @@ export class Performance {
     // Initialize cleanup timer
     this.cleanupTimer = setInterval(() => {
       this.cleanupOldMetrics().catch((err) =>
-        Logger.error("Metrics cleanup failed:", err)
+        Logger.error('Metrics cleanup failed:', err),
       );
     }, Performance.CLEANUP_INTERVAL);
   }
@@ -51,18 +61,18 @@ export class Performance {
    */
   public updateCacheMetrics(consensus: HybridDirectConsensus) {
     if (!consensus) {
-      Logger.error("Invalid consensus instance");
+      Logger.error('Invalid consensus instance');
       return;
     }
 
     try {
       const cacheMetrics = consensus.getCacheMetrics();
       if (!cacheMetrics) {
-        Logger.error("Failed to get cache metrics");
+        Logger.error('Failed to get cache metrics');
         return;
       }
 
-      Performance.metrics.set("cache_hit_rate", {
+      Performance.metrics.set('cache_hit_rate', {
         startTime: Date.now(),
         count: 0,
         total: 0,
@@ -70,7 +80,7 @@ export class Performance {
         max: -Infinity,
         avg: 0,
       });
-      Performance.metrics.set("cache_size", {
+      Performance.metrics.set('cache_size', {
         startTime: Date.now(),
         count: 0,
         total: 0,
@@ -78,7 +88,7 @@ export class Performance {
         max: -Infinity,
         avg: 0,
       });
-      Performance.metrics.set("cache_evictions", {
+      Performance.metrics.set('cache_evictions', {
         startTime: Date.now(),
         count: 0,
         total: 0,
@@ -86,7 +96,7 @@ export class Performance {
         max: -Infinity,
         avg: 0,
       });
-      Performance.metrics.set("cache_memory_usage", {
+      Performance.metrics.set('cache_memory_usage', {
         startTime: Date.now(),
         count: 0,
         total: 0,
@@ -97,20 +107,20 @@ export class Performance {
 
       // Alert if cache performance degrades
       if (cacheMetrics.hitRate < 0.3) {
-        Logger.warn("Cache hit rate is low", {
+        Logger.warn('Cache hit rate is low', {
           hitRate: cacheMetrics.hitRate,
           threshold: 0.3,
         });
       }
 
       if (cacheMetrics.evictionCount > 1000) {
-        Logger.warn("High cache eviction rate", {
+        Logger.warn('High cache eviction rate', {
           evictions: cacheMetrics.evictionCount,
           threshold: 1000,
         });
       }
     } catch (error) {
-      Logger.error("Failed to update cache metrics:", error);
+      Logger.error('Failed to update cache metrics:', error);
     }
   }
 
@@ -122,8 +132,8 @@ export class Performance {
    */
   public static startTimer(label: string): string {
     if (!label) {
-      Logger.error("Timer label is required");
-      throw new Error("Timer label is required");
+      Logger.error('Timer label is required');
+      throw new Error('Timer label is required');
     }
 
     const marker = `${label}_${Date.now()}`;
@@ -145,32 +155,32 @@ export class Performance {
    */
   public static stopTimer(marker: string): number {
     if (!marker) {
-      Logger.error("Timer marker is required");
+      Logger.error('Timer marker is required');
       return 0;
     }
 
     try {
       const metric = this.metrics.get(marker) as { startTime: number };
       if (!metric?.startTime) {
-        Logger.warn("No start time found for marker:", marker);
+        Logger.warn('No start time found for marker:', marker);
         return 0;
       }
 
       const duration = Date.now() - metric.startTime;
-      const label = marker.split("_")[0];
+      const label = marker.split('_')[0];
 
       this.recordMetric(label, duration);
       this.metrics.delete(marker);
       return duration;
     } catch (error) {
-      Logger.error("Failed to stop timer:", error);
+      Logger.error('Failed to stop timer:', error);
       return 0;
     }
   }
 
   private static recordMetric(label: string, duration: number): void {
-    if (!label || typeof duration !== "number" || duration < 0) {
-      Logger.error("Invalid metric parameters", { label, duration });
+    if (!label || typeof duration !== 'number' || duration < 0) {
+      Logger.error('Invalid metric parameters', { label, duration });
       return;
     }
 
@@ -192,7 +202,7 @@ export class Performance {
 
       this.metrics.set(label, current);
     } catch (error) {
-      Logger.error("Failed to record metric:", error);
+      Logger.error('Failed to record metric:', error);
     }
   }
 
@@ -206,7 +216,7 @@ export class Performance {
         }
       }
     } catch (error) {
-      Logger.error("Failed to cleanup metrics:", error);
+      Logger.error('Failed to cleanup metrics:', error);
       throw error;
     }
   }
@@ -230,7 +240,7 @@ export class Performance {
       }
       Performance.metrics.clear();
     } catch (error) {
-      Logger.error("Failed to dispose Performance monitor:", error);
+      Logger.error('Failed to dispose Performance monitor:', error);
       throw error;
     }
   }

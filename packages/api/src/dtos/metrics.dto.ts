@@ -1,5 +1,5 @@
-import { IsNumber, IsOptional } from "class-validator";
-import { ApiProperty } from "@nestjs/swagger";
+import { IsNumber, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 
 /**
  * @swagger
@@ -14,7 +14,7 @@ import { ApiProperty } from "@nestjs/swagger";
  */
 export class MetricsQueryDto {
   @ApiProperty({
-    description: "Time window in milliseconds",
+    description: 'Time window in milliseconds',
     required: false,
     example: 3600000,
   })
@@ -59,30 +59,30 @@ export class MetricsQueryDto {
  *           description: Number of blacklisted peers
  */
 export class MetricsResponseDto {
-  @ApiProperty({ description: "Average TAG fees" })
-  averageTAGFees: number;
+  @ApiProperty({ description: 'Average TAG fees' })
+  averageTAGFees: number | undefined;
 
-  @ApiProperty({ description: "Average TAG volume" })
-  averageTAGVolume: number;
+  @ApiProperty({ description: 'Average TAG volume' })
+  averageTAGVolume: number | undefined;
 
-  @ApiProperty({ description: "Current hash rate" })
-  hashRate: number;
+  @ApiProperty({ description: 'Current hash rate' })
+  hashRate: number | undefined;
 
-  @ApiProperty({ description: "Current mining difficulty" })
-  difficulty: number;
+  @ApiProperty({ description: 'Current mining difficulty' })
+  difficulty: number | undefined;
 
-  @ApiProperty({ description: "Current block height" })
-  blockHeight: number;
+  @ApiProperty({ description: 'Current block height' })
+  blockHeight: number | undefined;
 
-  @ApiProperty({ description: "Number of synced headers" })
-  syncedHeaders: number;
+  @ApiProperty({ description: 'Number of synced headers' })
+  syncedHeaders: number | undefined;
 
-  @ApiProperty({ description: "Number of synced blocks" })
-  syncedBlocks: number;
+  @ApiProperty({ description: 'Number of synced blocks' })
+  syncedBlocks: number | undefined;
 
-  @ApiProperty({ description: "Number of whitelisted peers" })
-  whitelistedPeers: number;
+  @ApiProperty({ description: 'Number of whitelisted peers' })
+  whitelistedPeers: number | undefined;
 
-  @ApiProperty({ description: "Number of blacklisted peers" })
-  blacklistedPeers: number;
+  @ApiProperty({ description: 'Number of blacklisted peers' })
+  blacklistedPeers: number | undefined;
 }

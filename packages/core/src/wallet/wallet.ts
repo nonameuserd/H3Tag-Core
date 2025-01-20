@@ -2,43 +2,46 @@ import {
   HybridCrypto,
   HybridKeyPair,
   KeyManager,
-} from "@h3tag-blockchain/crypto";
-import { Logger } from "@h3tag-blockchain/shared/dist/utils/logger";
-import { Keystore, EncryptedKeystore } from "./keystore";
-import { EventEmitter } from "events";
+} from '@h3tag-blockchain/crypto';
+import { Logger } from '@h3tag-blockchain/shared/dist/utils/logger';
+import { Keystore, EncryptedKeystore } from './keystore';
+import { EventEmitter } from 'events';
 import {
   Transaction,
   TransactionStatus,
   TransactionType,
-} from "../models/transaction.model";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import * as bip39 from "bip39";
-import { HDKey } from "@scure/bip32";
-import { HashUtils } from "@h3tag-blockchain/crypto";
-import { Mutex } from "async-mutex";
-import { WalletDatabase } from "../database/wallet-schema";
-import { databaseConfig } from "../database/config.database";
-import { UTXO, UTXOSet } from "../models/utxo.model";
+} from '../models/transaction.model';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import * as bip39 from 'bip39';
+import { HDKey } from '@scure/bip32';
+import { HashUtils } from '@h3tag-blockchain/crypto';
+import { Mutex } from 'async-mutex';
+import { WalletDatabase } from '../database/wallet-schema';
+import { databaseConfig } from '../database/config.database';
+import { UTXO, UTXOSet } from '../models/utxo.model';
 
 export class WalletError extends Error {
-  constructor(message: string, public readonly code: WalletErrorCode) {
+  constructor(
+    message: string,
+    public readonly code: WalletErrorCode,
+  ) {
     super(`${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} Wallet Error: ${message}`);
-    this.name = "WalletError";
+    this.name = 'WalletError';
   }
 }
 
 export enum WalletErrorCode {
-  INITIALIZATION_ERROR = "INITIALIZATION_ERROR",
-  TRANSACTION_ERROR = "TRANSACTION_ERROR",
-  KEYSTORE_ERROR = "KEYSTORE_ERROR",
-  INVALID_STATE = "INVALID_STATE",
-  INVALID_PASSWORD = "INVALID_PASSWORD",
-  CLEANUP_ERROR = "CLEANUP_ERROR",
-  LOCK_ERROR = "LOCK_ERROR",
+  INITIALIZATION_ERROR = 'INITIALIZATION_ERROR',
+  TRANSACTION_ERROR = 'TRANSACTION_ERROR',
+  KEYSTORE_ERROR = 'KEYSTORE_ERROR',
+  INVALID_STATE = 'INVALID_STATE',
+  INVALID_PASSWORD = 'INVALID_PASSWORD',
+  CLEANUP_ERROR = 'CLEANUP_ERROR',
+  LOCK_ERROR = 'LOCK_ERROR',
 }
 
 export class Wallet {
-  private static readonly DERIVATION_PATH = "m/44'/60'/0'/0/0";
+  private static readonly DERIVATION_PATH = 'm/44\'/60\'/0\'/0/0';
 
   private readonly keyPair: HybridKeyPair;
   private readonly address: string;
@@ -65,7 +68,7 @@ export class Wallet {
     this.keystore = keystore;
     this.utxoSet = new UTXOSet();
     // Add cleanup on process exit
-    process.on("exit", () => {
+    process.on('exit', () => {
       this.secureCleanup();
     });
   }
@@ -73,16 +76,16 @@ export class Wallet {
   private secureCleanup(): void {
     if (this.keyPair) {
       // Clear sensitive data
-      this.keyPair.privateKey = null;
-      this.keyPair.publicKey = null;
+      this.keyPair.privateKey = '';
+      this.keyPair.publicKey = '';
     }
   }
 
   static async create(password: string): Promise<Wallet> {
     if (!password || password.length < 8) {
       throw new WalletError(
-        "Invalid password",
-        WalletErrorCode.INVALID_PASSWORD
+        'Invalid password',
+        WalletErrorCode.INVALID_PASSWORD,
       );
     }
     try {
@@ -95,13 +98,13 @@ export class Wallet {
       await walletDb.saveKeystore(address, keystore);
 
       const wallet = new Wallet(keyPair, keystore);
-      wallet.eventEmitter.emit("created", { address });
+      wallet.eventEmitter.emit('created', { address });
       return wallet;
     } catch (error) {
-      Logger.error("Wallet creation failed:", error);
+      Logger.error('Wallet creation failed:', error);
       throw new WalletError(
-        "Failed to create wallet",
-        WalletErrorCode.INITIALIZATION_ERROR
+        'Failed to create wallet',
+        WalletErrorCode.INITIALIZATION_ERROR,
       );
     }
   }
@@ -113,20 +116,20 @@ export class Wallet {
 
       if (!keystore) {
         throw new WalletError(
-          "Wallet not found",
-          WalletErrorCode.INITIALIZATION_ERROR
+          'Wallet not found',
+          WalletErrorCode.INITIALIZATION_ERROR,
         );
       }
 
       const keyPair = await Keystore.decrypt(keystore, password);
       const wallet = new Wallet(keyPair, keystore);
-      wallet.eventEmitter.emit("loaded", { address });
+      wallet.eventEmitter.emit('loaded', { address });
       return wallet;
     } catch (error) {
-      Logger.error("Wallet loading failed:", error);
+      Logger.error('Wallet loading failed:', error);
       throw new WalletError(
-        "Failed to load wallet",
-        WalletErrorCode.INITIALIZATION_ERROR
+        'Failed to load wallet',
+        WalletErrorCode.INITIALIZATION_ERROR,
       );
     }
   }
@@ -136,7 +139,7 @@ export class Wallet {
     try {
       if (this.isLocked) return;
       this.isLocked = true;
-      this.eventEmitter.emit("locked", { address: this.address });
+      this.eventEmitter.emit('locked', { address: this.address });
     } finally {
       this.lockMutex.release();
     }
@@ -151,15 +154,15 @@ export class Wallet {
         lastActivity: Date.now(),
         failedAttempts: 0,
       });
-      this.eventEmitter.emit("unlocked", { address: this.address });
+      this.eventEmitter.emit('unlocked', { address: this.address });
     } catch (error: unknown) {
       if (error instanceof Error) {
         this.updateState({
           failedAttempts: this.state.failedAttempts + 1,
         });
         throw new WalletError(
-          "Failed to unlock wallet",
-          WalletErrorCode.KEYSTORE_ERROR
+          'Failed to unlock wallet',
+          WalletErrorCode.KEYSTORE_ERROR,
         );
       }
     }
@@ -167,10 +170,10 @@ export class Wallet {
 
   async signTransaction(
     transaction: Transaction,
-    password: string
+    password: string,
   ): Promise<string> {
     if (this.isLocked) {
-      throw new WalletError("Wallet is locked", WalletErrorCode.INVALID_STATE);
+      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
     }
 
     try {
@@ -180,13 +183,13 @@ export class Wallet {
       const txString = JSON.stringify(transaction);
       const signature = await HybridCrypto.sign(txString, this.keyPair);
       // Clear sensitive data
-      txString.replace(/./g, "0");
+      txString.replace(/./g, '0');
       return signature;
     } catch (error) {
-      Logger.error("Transaction signing failed:", error);
+      Logger.error('Transaction signing failed:', error);
       throw new WalletError(
-        "Failed to sign transaction",
-        WalletErrorCode.TRANSACTION_ERROR
+        'Failed to sign transaction',
+        WalletErrorCode.TRANSACTION_ERROR,
       );
     }
   }
@@ -202,8 +205,8 @@ export class Wallet {
   async backup(password: string): Promise<string> {
     if (!password) {
       throw new WalletError(
-        "Password is required for backup",
-        WalletErrorCode.INVALID_PASSWORD
+        'Password is required for backup',
+        WalletErrorCode.INVALID_PASSWORD,
       );
     }
 
@@ -214,29 +217,33 @@ export class Wallet {
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new WalletError(
-          "Failed to backup wallet",
-          WalletErrorCode.KEYSTORE_ERROR
+          'Failed to backup wallet',
+          WalletErrorCode.KEYSTORE_ERROR,
         );
       }
+      throw new WalletError(
+        'Failed to backup wallet',
+        WalletErrorCode.KEYSTORE_ERROR,
+      );
     }
   }
 
   async rotateKeys(password: string): Promise<void> {
     try {
       await Keystore.rotateKey(this.address, password);
-      this.eventEmitter.emit("keysRotated", { address: this.address });
+      this.eventEmitter.emit('keysRotated', { address: this.address });
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new WalletError(
-          "Failed to rotate keys",
-          WalletErrorCode.KEYSTORE_ERROR
+          'Failed to rotate keys',
+          WalletErrorCode.KEYSTORE_ERROR,
         );
       }
     }
   }
 
   static async createWithMnemonic(
-    password: string
+    password: string,
   ): Promise<{ wallet: Wallet; mnemonic: string }> {
     try {
       // Generate mnemonic
@@ -246,31 +253,35 @@ export class Wallet {
       return { wallet, mnemonic };
     } catch (error: unknown) {
       if (error instanceof Error) {
-        Logger.error("Wallet creation with mnemonic failed:", error);
+        Logger.error('Wallet creation with mnemonic failed:', error);
         throw new WalletError(
-          "Failed to create wallet with mnemonic",
-          WalletErrorCode.INITIALIZATION_ERROR
+          'Failed to create wallet with mnemonic',
+          WalletErrorCode.INITIALIZATION_ERROR,
         );
       }
+      throw new WalletError(
+        'Failed to create wallet with mnemonic',
+        WalletErrorCode.INITIALIZATION_ERROR,
+      );
     }
   }
 
   static async fromMnemonic(
     mnemonic: string,
-    password: string
+    password: string,
   ): Promise<Wallet> {
     if (!mnemonic || !password) {
       throw new WalletError(
-        "Invalid parameters",
-        WalletErrorCode.INITIALIZATION_ERROR
+        'Invalid parameters',
+        WalletErrorCode.INITIALIZATION_ERROR,
       );
     }
     try {
       // Validate mnemonic
       if (!bip39.validateMnemonic(mnemonic)) {
         throw new WalletError(
-          "Invalid mnemonic phrase",
-          WalletErrorCode.INITIALIZATION_ERROR
+          'Invalid mnemonic phrase',
+          WalletErrorCode.INITIALIZATION_ERROR,
         );
       }
 
@@ -283,27 +294,27 @@ export class Wallet {
 
       if (!derived.privateKey) {
         throw new WalletError(
-          "Failed to derive private key",
-          WalletErrorCode.INITIALIZATION_ERROR
+          'Failed to derive private key',
+          WalletErrorCode.INITIALIZATION_ERROR,
         );
       }
 
       // Convert to HybridKeyPair
       const keyPair = await HybridCrypto.generateKeyPair(
-        HashUtils.sha256(derived.privateKey.toString())
+        HashUtils.sha256(derived.privateKey.toString()),
       );
 
       const address = await KeyManager.deriveAddress(keyPair.publicKey);
       const keystore = await Keystore.encrypt(keyPair, password, address);
 
       const wallet = new Wallet(keyPair, keystore);
-      wallet.eventEmitter.emit("created", { address });
+      wallet.eventEmitter.emit('created', { address });
       return wallet;
     } catch (error) {
-      Logger.error("Wallet creation failed:", error);
+      Logger.error('Wallet creation failed:', error);
       throw new WalletError(
-        "Failed to create wallet from mnemonic",
-        WalletErrorCode.INITIALIZATION_ERROR
+        'Failed to create wallet from mnemonic',
+        WalletErrorCode.INITIALIZATION_ERROR,
       );
     }
   }
@@ -317,7 +328,7 @@ export class Wallet {
       if (!derived.privateKey) return false;
 
       const keyPair = await HybridCrypto.generateKeyPair(
-        HashUtils.sha256(derived.privateKey.toString())
+        HashUtils.sha256(derived.privateKey.toString()),
       );
       const address = await KeyManager.deriveAddress(keyPair.publicKey);
 
@@ -326,6 +337,7 @@ export class Wallet {
       if (error instanceof Error) {
         return false;
       }
+      return false;
     }
   }
 
@@ -347,16 +359,16 @@ export class Wallet {
     recipientAddress: string,
     amount: string,
     password: string,
-    memo?: string
+    memo?: string,
   ): Promise<string> {
     if (this.isLocked) {
-      throw new WalletError("Wallet is locked", WalletErrorCode.INVALID_STATE);
+      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
     }
 
     if (!recipientAddress || BigInt(amount) <= 0) {
       throw new WalletError(
-        "Invalid recipient address or amount",
-        WalletErrorCode.TRANSACTION_ERROR
+        'Invalid recipient address or amount',
+        WalletErrorCode.TRANSACTION_ERROR,
       );
     }
 
@@ -369,18 +381,18 @@ export class Wallet {
         recipient: recipientAddress,
         fee: BigInt(amount),
         timestamp: Date.now(),
-        memo: memo || "",
+        memo: memo || '',
         type: TransactionType.TRANSFER,
-        hash: "", // Will be set after signing
+        hash: '', // Will be set after signing
         status: TransactionStatus.PENDING,
-        signature: "",
+        signature: '',
         nonce: 0,
         transaction: {
-          hash: "",
+          hash: '',
           timestamp: Date.now(),
           fee: BigInt(amount),
           lockTime: 0,
-          signature: "",
+          signature: '',
         },
         currency: {
           name: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
@@ -398,7 +410,7 @@ export class Wallet {
       const signature = await this.signTransaction(transaction, password);
 
       // Emit event for tracking
-      this.eventEmitter.emit("transactionSent", {
+      this.eventEmitter.emit('transactionSent', {
         txHash: signature,
         from: this.address,
         to: recipientAddress,
@@ -407,10 +419,10 @@ export class Wallet {
 
       return signature;
     } catch (error) {
-      Logger.error("Send to address failed:", error);
+      Logger.error('Send to address failed:', error);
       throw new WalletError(
-        "Failed to send transaction",
-        WalletErrorCode.TRANSACTION_ERROR
+        'Failed to send transaction',
+        WalletErrorCode.TRANSACTION_ERROR,
       );
     }
   }
@@ -419,10 +431,11 @@ export class Wallet {
     try {
       const address = await KeyManager.deriveAddress(this.keyPair.publicKey);
       return address === this.address;
-    } catch (error: unknown ) {
+    } catch (error: unknown) {
       if (error instanceof Error) {
         return false;
       }
+      return false;
     }
   }
 
@@ -432,7 +445,7 @@ export class Wallet {
    */
   async getBalance(): Promise<{ confirmed: bigint; unconfirmed: bigint }> {
     if (this.isLocked) {
-      throw new WalletError("Wallet is locked", WalletErrorCode.INVALID_STATE);
+      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
     }
 
     try {
@@ -459,10 +472,10 @@ export class Wallet {
 
       return balance;
     } catch (error) {
-      Logger.error("Failed to get wallet balance:", error);
+      Logger.error('Failed to get wallet balance:', error);
       throw new WalletError(
-        "Failed to get wallet balance",
-        WalletErrorCode.TRANSACTION_ERROR
+        'Failed to get wallet balance',
+        WalletErrorCode.TRANSACTION_ERROR,
       );
     }
   }
@@ -473,7 +486,7 @@ export class Wallet {
    */
   async getNewAddress(): Promise<string> {
     if (this.isLocked) {
-      throw new WalletError("Wallet is locked", WalletErrorCode.INVALID_STATE);
+      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
     }
 
     try {
@@ -490,14 +503,14 @@ export class Wallet {
 
       if (!derived.privateKey) {
         throw new WalletError(
-          "Failed to derive private key",
-          WalletErrorCode.INITIALIZATION_ERROR
+          'Failed to derive private key',
+          WalletErrorCode.INITIALIZATION_ERROR,
         );
       }
 
       // Generate new key pair and address
       const keyPair = await HybridCrypto.generateKeyPair(
-        HashUtils.sha256(derived.privateKey.toString())
+        HashUtils.sha256(derived.privateKey.toString()),
       );
       const newAddress = await KeyManager.deriveAddress(keyPair.publicKey);
 
@@ -505,7 +518,7 @@ export class Wallet {
       await walletDb.saveAddress(this.address, newAddress, nextIndex);
 
       // Emit event for new address generation
-      this.eventEmitter.emit("addressGenerated", {
+      this.eventEmitter.emit('addressGenerated', {
         masterAddress: this.address,
         newAddress: newAddress,
         index: nextIndex,
@@ -513,10 +526,10 @@ export class Wallet {
 
       return newAddress;
     } catch (error) {
-      Logger.error("Failed to generate new address:", error);
+      Logger.error('Failed to generate new address:', error);
       throw new WalletError(
-        "Failed to generate new address",
-        WalletErrorCode.INITIALIZATION_ERROR
+        'Failed to generate new address',
+        WalletErrorCode.INITIALIZATION_ERROR,
       );
     }
   }
@@ -528,7 +541,7 @@ export class Wallet {
    */
   async exportPrivateKey(password: string): Promise<string> {
     if (this.isLocked) {
-      throw new WalletError("Wallet is locked", WalletErrorCode.INVALID_STATE);
+      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
     }
 
     try {
@@ -538,15 +551,15 @@ export class Wallet {
       // Encrypt private key before returning
       const encryptedKey = await HybridCrypto.encrypt(
         this.keyPair.privateKey as string,
-        this.address
+        this.address,
       );
 
       return encryptedKey;
     } catch (error) {
-      Logger.error("Failed to export private key:", error);
+      Logger.error('Failed to export private key:', error);
       throw new WalletError(
-        "Failed to export private key",
-        WalletErrorCode.KEYSTORE_ERROR
+        'Failed to export private key',
+        WalletErrorCode.KEYSTORE_ERROR,
       );
     }
   }
@@ -561,11 +574,14 @@ export class Wallet {
   static async importPrivateKey(
     encryptedKey: string,
     originalAddress: string,
-    password: string
+    password: string,
   ): Promise<Wallet> {
     try {
       // Decrypt using the original address
-      const privateKey = await HybridCrypto.decrypt(encryptedKey, originalAddress);
+      const privateKey = await HybridCrypto.decrypt(
+        encryptedKey,
+        originalAddress,
+      );
 
       // Generate key pair from private key
       const keyPair = await HybridCrypto.generateKeyPair(privateKey);
@@ -583,14 +599,14 @@ export class Wallet {
       const walletDb = new WalletDatabase(databaseConfig.databases.wallet.path);
       await walletDb.saveKeystore(address, keystore);
 
-      wallet.eventEmitter.emit("imported", { address });
+      wallet.eventEmitter.emit('imported', { address });
 
       return wallet;
     } catch (error) {
-      Logger.error("Failed to import private key:", error);
+      Logger.error('Failed to import private key:', error);
       throw new WalletError(
-        "Failed to import private key",
-        WalletErrorCode.INITIALIZATION_ERROR
+        'Failed to import private key',
+        WalletErrorCode.INITIALIZATION_ERROR,
       );
     }
   }
@@ -601,7 +617,7 @@ export class Wallet {
 
   async listUnspent(): Promise<UTXO[]> {
     if (this.isLocked) {
-      throw new WalletError("Wallet is locked", WalletErrorCode.INVALID_STATE);
+      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
     }
 
     try {
@@ -610,10 +626,10 @@ export class Wallet {
         minConfirmations: 1,
       });
     } catch (error) {
-      Logger.error("Failed to list unspent outputs:", error);
+      Logger.error('Failed to list unspent outputs:', error);
       throw new WalletError(
-        "Failed to list unspent outputs",
-        WalletErrorCode.TRANSACTION_ERROR
+        'Failed to list unspent outputs',
+        WalletErrorCode.TRANSACTION_ERROR,
       );
     }
   }

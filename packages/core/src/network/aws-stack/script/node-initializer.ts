@@ -1,4 +1,4 @@
-import { BlockchainConfig } from "@h3tag-blockchain/shared";
+import { BlockchainConfig } from '@h3tag-blockchain/shared';
 
 interface DatabaseConfig {
   path: string;
@@ -14,7 +14,7 @@ interface DatabaseConfig {
 
 export class NodeInitializer {
   private static getDatabaseConfig(
-    basePath: string
+    basePath: string,
   ): Record<string, DatabaseConfig> {
     const defaultOptions = {
       createIfMissing: true,
@@ -40,7 +40,7 @@ export class NodeInitializer {
   }
 
   static getInitializationScript(blockchainConfig: BlockchainConfig): string {
-    const dbConfig = this.getDatabaseConfig("/data/blockchain");
+    const dbConfig = this.getDatabaseConfig('/data/blockchain');
 
     return `
       // 1. Core Dependencies
@@ -148,7 +148,7 @@ export class NodeInitializer {
 
           // 4. Initialize Blockchain with deep config copy
           const blockchainConfigCopy = JSON.parse(JSON.stringify(${JSON.stringify(
-            blockchainConfig
+            blockchainConfig,
           )}));
           blockchainConfigCopy.wallet.privateKey = securityKeys.privateKey;
           

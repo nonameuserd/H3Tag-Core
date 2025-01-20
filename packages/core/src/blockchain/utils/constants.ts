@@ -1,7 +1,7 @@
 export const BLOCKCHAIN_CONSTANTS = {
   CURRENCY: {
-    NAME: "H3Tag",
-    SYMBOL: "TAG",
+    NAME: 'H3Tag',
+    SYMBOL: 'TAG',
     DECIMALS: 8,
     INITIAL_SUPPLY: 0,
     MAX_SUPPLY: 696900000,
@@ -13,9 +13,9 @@ export const BLOCKCHAIN_CONSTANTS = {
     },
     NETWORK: {
       type: {
-        MAINNET: "mainnet",
-        TESTNET: "testnet",
-        DEVNET: "devnet",
+        MAINNET: 'mainnet',
+        TESTNET: 'testnet',
+        DEVNET: 'devnet',
       },
       port: {
         MAINNET: 8333,
@@ -23,25 +23,25 @@ export const BLOCKCHAIN_CONSTANTS = {
         DEVNET: 10002,
       },
       host: {
-        MAINNET: "mainnet.h3tag.com",
-        TESTNET: "testnet.h3tag.com",
-        DEVNET: "devnet.h3tag.com",
+        MAINNET: 'mainnet.h3tag.com',
+        TESTNET: 'testnet.h3tag.com',
+        DEVNET: 'devnet.h3tag.com',
       },
       seedDomains: {
         MAINNET: [
-          "seed1.h3tag.com",
-          "seed2.h3tag.com",
-          "seed3.h3tag.com",
-          "seed4.h3tag.com",
-          "seed5.h3tag.com",
-          "seed6.h3tag.com",
+          'seed1.h3tag.com',
+          'seed2.h3tag.com',
+          'seed3.h3tag.com',
+          'seed4.h3tag.com',
+          'seed5.h3tag.com',
+          'seed6.h3tag.com',
         ],
         TESTNET: [
-          "test-seed1.h3tag.com",
-          "test-seed2.h3tag.com",
-          "test-seed3.h3tag.com",
+          'test-seed1.h3tag.com',
+          'test-seed2.h3tag.com',
+          'test-seed3.h3tag.com',
         ],
-        DEVNET: ["dev-seed1.h3tag.com", "dev-seed2.h3tag.com"],
+        DEVNET: ['dev-seed1.h3tag.com', 'dev-seed2.h3tag.com'],
       },
     },
   },
@@ -71,7 +71,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     INITIAL_DIFFICULTY: 0x1d0000ffff,
     HASH_BATCH_SIZE: 10000,
     MAX_TARGET: BigInt(
-      "0x0000000000ffff0000000000000000000000000000000000000000000000000000"
+      '0x0000000000ffff0000000000000000000000000000000000000000000000000000',
     ),
     MIN_DIFFICULTY: 2,
     NODE_SELECTION_THRESHOLD: 0.67,
@@ -94,7 +94,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     BLOCK_REWARD: 50n * 10n ** 8n,
     MAX_TX_SIZE: 1048576,
     MIN_FEE_PER_BYTE: 1n,
-    AUTO_MINE: process.env.AUTO_MINE === "true" || false,
+    AUTO_MINE: process.env.AUTO_MINE === 'true' || false,
     CACHE_TTL: 3600000,
     MAX_SUPPLY: BigInt(50000000),
     SAFE_CONFIRMATION_TIME: 3600000,
@@ -109,7 +109,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     MAX_VOTES_PER_WINDOW: 5,
     MIN_ACCOUNT_AGE: 20160,
     MIN_PEER_COUNT: 3,
-    VOTE_ENCRYPTION_VERSION: "1.0",
+    VOTE_ENCRYPTION_VERSION: '1.0',
     MAX_VOTE_SIZE_BYTES: 1024 * 100,
     VOTING_WEIGHT: 0.4,
     MIN_VOTES_FOR_VALIDITY: 0.1,
@@ -185,7 +185,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     MAX_TIME_DRIFT: 7200000,
     AMOUNT_LIMITS: {
       MIN: BigInt(1),
-      MAX: BigInt("5000000000000000"),
+      MAX: BigInt('5000000000000000'),
       DECIMALS: 8,
     },
     MEMPOOL: {
@@ -202,7 +202,7 @@ export const BLOCKCHAIN_CONSTANTS = {
     PROCESSING_TIMEOUT: 30000,
     MAX_SIZE: 1000000, // 1MB limit
     MAX_SCRIPT_SIZE: 1000000, // 1MB limit
-    MAX_TOTAL_INPUT: BigInt("1000000000000000"),
+    MAX_TOTAL_INPUT: BigInt('1000000000000000'),
     MAX_SIGNATURE_SIZE: 520,
     MAX_PUBKEY_SIZE: 65,
     MIN_INPUT_AGE: 3600000,
@@ -221,19 +221,18 @@ export const BLOCKCHAIN_CONSTANTS = {
   MIN_SAFE_CONFIRMATIONS: 6,
   MAX_SAFE_UTXO_AMOUNT: 1_000_000_000_000,
   COINBASE_MATURITY: 100,
-  USER_AGENT: "/H3Tag:1.0.0/",
+  USER_AGENT: '/H3Tag:1.0.0/',
   PROTOCOL_VERSION: 1,
   MAX_MEMPOOL_SIZE: 50000,
   MIN_RELAY_TX_FEE: 0.00001,
   MIN_PEERS: 3,
   MESSAGE: {
-    PREFIX: "\x18H3Tag Signed Message:\n",
+    PREFIX: '\x18H3Tag Signed Message:\n',
     MAX_LENGTH: 100000,
     MIN_LENGTH: 1,
   },
 };
 
-
 BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_SIZE = Math.floor(
-  BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE * 0.8
+  BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE * 0.8,
 );

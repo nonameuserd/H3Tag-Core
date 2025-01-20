@@ -21,10 +21,10 @@ export const StatusCodes = {
 } as const;
 
 export const StatusMessages = {
-  [StatusCodes.OK]: "Success",
-  [StatusCodes.CREATED]: "Resource created successfully",
-  [StatusCodes.BAD_REQUEST]: "Invalid request",
-  [StatusCodes.NOT_FOUND]: "Resource not found",
-  [StatusCodes.INTERNAL_SERVER_ERROR]: "Internal server error",
-  [StatusCodes.REQUEST_TIMEOUT]: "Request timeout",
+  [StatusCodes.OK]: 'Success',
+  [StatusCodes.CREATED]: 'Resource created successfully',
+  [StatusCodes.BAD_REQUEST]: 'Invalid request',
+  [StatusCodes.NOT_FOUND]: 'Resource not found',
+  [StatusCodes.INTERNAL_SERVER_ERROR]: 'Internal server error',
+  [StatusCodes.REQUEST_TIMEOUT]: 'Request timeout',
 } as const;

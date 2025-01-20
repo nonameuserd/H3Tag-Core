@@ -1,11 +1,18 @@
-import { Router } from "express";
-import { VotingController } from "../controllers/voting.controller";
-import { VotingService } from "../services/voting.service";
+import { Router } from 'express';
+import { VotingController } from '../controllers/voting.controller';
+import { VotingService } from '../services/voting.service';
 import {
   DirectVoting,
   BlockchainSchema,
   AuditManager,
-} from "@h3tag-blockchain/core";
+  Node,
+  Mempool,
+  Blockchain,
+  DirectVotingUtil,
+  VotingDatabase,
+  BlockchainSync,
+} from '@h3tag-blockchain/core';
+import { ConfigService } from '@h3tag-blockchain/shared';
 
 /**
  * @swagger
@@ -16,16 +23,25 @@ import {
 
 const router = Router();
 const db = new BlockchainSchema();
+const blockchain = new Blockchain();
+const configService = new ConfigService();
+const votingDb = new VotingDatabase('votingDbPath');
 const auditManager = new AuditManager();
+const votingUtil = new DirectVotingUtil(db, auditManager);
+const mempool = new Mempool(blockchain);
+const node = new Node(blockchain, db, mempool, configService, auditManager);
+const sync = new BlockchainSync(blockchain, mempool, new Map(), {
+  publicKey: '',
+}, db);
 
 // Initialize DirectVoting with required dependencies
 const directVoting = new DirectVoting(
   db,
-  null, // votingDb - needs to be injected
+  votingDb,
   auditManager,
-  null, // votingUtil - needs to be injected
-  null, // node - needs to be injected
-  null // sync - needs to be injected
+  votingUtil,
+  node,
+  sync,
 );
 
 const votingService = new VotingService(directVoting);
@@ -58,7 +74,11 @@ const votingController = new VotingController(votingService);
  *       400:
  *         description: Invalid vote submission
  */
-router.post("/vote", votingController.submitVote);
+router.post('/vote', (req, res, next) => {
+  votingController.submitVote(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -76,7 +96,12 @@ router.post("/vote", votingController.submitVote);
  *       500:
  *         description: Internal server error
  */
-router.get("/metrics", votingController.getMetrics);
+router.get('/metrics', (req, res, next) => {
+  votingController.getMetrics()
+    .then((result) => res.json(result))
+    .catch(next);
+});
+
 
 /**
  * @swagger
@@ -94,7 +119,11 @@ router.get("/metrics", votingController.getMetrics);
  *       500:
  *         description: Internal server error
  */
-router.get("/period/current", votingController.getCurrentPeriod);
+router.get('/period/current', (req, res, next) => {
+  votingController.getCurrentPeriod()
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -121,7 +150,11 @@ router.get("/period/current", votingController.getCurrentPeriod);
  *       404:
  *         description: No votes found for address
  */
-router.get("/votes/:address", votingController.getVotesByAddress);
+router.get('/votes/:address', (req, res, next) => {
+  votingController.getVotesByAddress(req.params.address)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -149,14 +182,14 @@ router.get("/votes/:address", votingController.getVotesByAddress);
  *       400:
  *         description: Invalid address format
  */
-router.get("/participation/:address", async (req, res) => {
+router.get('/participation/:address', async (req, res) => {
   try {
     const hasParticipated = await directVoting.hasParticipated(
-      req.params.address
+      req.params.address,
     );
     res.json({ hasParticipated });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(400).json({ error: (error as Error).message });
   }
 });
 
@@ -183,12 +216,12 @@ router.get("/participation/:address", async (req, res) => {
  *       500:
  *         description: Internal server error
  */
-router.get("/schedule", async (req, res) => {
+router.get('/schedule', async (req, res) => {
   try {
     const schedule = await directVoting.getVotingSchedule();
     res.json(schedule);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
+  } catch (error: unknown) {
+    res.status(500).json({ error: (error as Error).message });
   }
 });
 

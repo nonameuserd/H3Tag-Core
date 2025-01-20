@@ -4,7 +4,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-   "build": "tsc -b",
+    "build": "tsc -b",
     "clean": "rimraf dist && rimraf node_modules"
   },
   "dependencies": {

@@ -12,7 +12,7 @@
  * @property {"node_selection"} node_selection - Voting for node selection
  * @property {"parameter_change"} parameter_change - Voting for parameter changes
  */
-export type VotingType = "node_selection" | "parameter_change";
+export type VotingType = 'node_selection' | 'parameter_change';
 
 /**
  * @interface Vote
@@ -113,7 +113,7 @@ export interface VotingPeriod {
   startHeight: number;
   endHeight: number;
   endTime: number;
-  status: "active" | "completed" | "cancelled";
+  status: 'active' | 'completed' | 'cancelled';
   votes: Map<string, Vote>;
   votesMerkleRoot?: string;
   type?: VotingType;

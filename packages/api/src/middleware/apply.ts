@@ -1,5 +1,5 @@
-import { Express } from "express";
-import express from "express";
+import { Express } from 'express';
+import express from 'express';
 import {
   rateLimiter,
   errorHandler,
@@ -9,8 +9,9 @@ import {
   securityHeaders,
   bodyLimit,
   timeout,
-} from "./index";
-import cors from "cors";
+} from './index';
+import cors from 'cors';
+import { RequestHandler } from 'express';
 
 export const applyMiddleware = (app: Express) => {
   // Basic middleware
@@ -24,10 +25,10 @@ export const applyMiddleware = (app: Express) => {
 
   // Custom middleware
   app.use(requestLogger);
-  app.use(timeout);
+  app.use(timeout as RequestHandler);
 
   // Protected routes middleware
-  app.use("/api/v1/admin/*", apiKeyAuth);
+  app.use('/api/v1/admin/*', apiKeyAuth as RequestHandler);
 
   // Error handling (should be last)
   app.use(errorHandler);

@@ -3,35 +3,38 @@ import {
   HashUtils,
   HybridKeyPair,
   KeyManager,
-} from "@h3tag-blockchain/crypto";
-import { Logger } from "@h3tag-blockchain/shared/dist/utils/logger";
-import { BLOCKCHAIN_CONSTANTS } from "../blockchain/utils/constants";
-import crypto from "crypto";
-import { KeystoreDatabase } from "../database/keystore-schema";
-import { KeyRotationMetadata } from "./keystore-types";
-import { promisify } from "util";
-import { scrypt as scryptCallback } from "crypto";
-import { databaseConfig } from "../database/config.database";
-import * as bip39 from "bip39";
+} from '@h3tag-blockchain/crypto';
+import { Logger } from '@h3tag-blockchain/shared/dist/utils/logger';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import crypto from 'crypto';
+import { KeystoreDatabase } from '../database/keystore-schema';
+import { KeyRotationMetadata } from './keystore-types';
+import { promisify } from 'util';
+import { scrypt as scryptCallback } from 'crypto';
+import { databaseConfig } from '../database/config.database';
+import * as bip39 from 'bip39';
 
 const scrypt = promisify(scryptCallback);
 
 export enum KeystoreErrorCode {
-  ENCRYPTION_ERROR = "ENCRYPTION_ERROR",
-  DECRYPTION_ERROR = "DECRYPTION_ERROR",
-  INVALID_PASSWORD = "INVALID_PASSWORD",
-  KDF_ERROR = "KDF_ERROR",
-  INVALID_KEYSTORE_STRUCTURE = "INVALID_KEYSTORE_STRUCTURE",
-  DATABASE_ERROR = "DATABASE_ERROR",
-  NOT_FOUND = "NOT_FOUND",
-  BACKUP_ERROR = "BACKUP_ERROR",
-  RESTORE_ERROR = "RESTORE_ERROR",
+  ENCRYPTION_ERROR = 'ENCRYPTION_ERROR',
+  DECRYPTION_ERROR = 'DECRYPTION_ERROR',
+  INVALID_PASSWORD = 'INVALID_PASSWORD',
+  KDF_ERROR = 'KDF_ERROR',
+  INVALID_KEYSTORE_STRUCTURE = 'INVALID_KEYSTORE_STRUCTURE',
+  DATABASE_ERROR = 'DATABASE_ERROR',
+  NOT_FOUND = 'NOT_FOUND',
+  BACKUP_ERROR = 'BACKUP_ERROR',
+  RESTORE_ERROR = 'RESTORE_ERROR',
 }
 
 export class KeystoreError extends Error {
-  constructor(message: string, public readonly code: string) {
+  constructor(
+    message: string,
+    public readonly code: string,
+  ) {
     super(`${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} Keystore Error: ${message}`);
-    this.name = "KeystoreError";
+    this.name = 'KeystoreError';
   }
 }
 
@@ -59,8 +62,8 @@ export interface EncryptedKeystore {
 
 export class Keystore {
   private static readonly VERSION = 1;
-  private static readonly CIPHER = "hybrid-aes";
-  private static readonly KDF = "scrypt";
+  private static readonly CIPHER = 'hybrid-aes';
+  private static readonly KDF = 'scrypt';
   private static readonly KDF_PARAMS = {
     dklen: 64,
     n: 1048576,
@@ -80,14 +83,14 @@ export class Keystore {
 
   static async initialize(): Promise<void> {
     this.database = new KeystoreDatabase(
-      databaseConfig.databases.keystore.path
+      databaseConfig.databases.keystore.path,
     );
   }
 
   static async encrypt(
     keyPair: HybridKeyPair,
     password: string,
-    address: string
+    address: string,
   ): Promise<EncryptedKeystore> {
     try {
       const keystore = await this.encryptKeyPair(keyPair, password, address);
@@ -96,50 +99,50 @@ export class Keystore {
     } catch (error) {
       Logger.error(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} keystore encryption failed:`,
-        error
+        error,
       );
       throw new KeystoreError(
-        "Encryption failed",
-        error instanceof KeystoreError ? error.code : "ENCRYPTION_ERROR"
+        'Encryption failed',
+        error instanceof KeystoreError ? error.code : 'ENCRYPTION_ERROR',
       );
     }
   }
 
   static async decryptFromAddress(
     address: string,
-    password: string
+    password: string,
   ): Promise<HybridKeyPair> {
     try {
       if (!this.database) {
-        throw new KeystoreError("Database not initialized", "DATABASE_ERROR");
+        throw new KeystoreError('Database not initialized', 'DATABASE_ERROR');
       }
       const keystore = await this.database.get(address);
       if (!keystore) {
-        throw new KeystoreError("Keystore not found", "NOT_FOUND");
+        throw new KeystoreError('Keystore not found', 'NOT_FOUND');
       }
       return await this.decrypt(keystore, password);
     } catch (error) {
       Logger.error(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} keystore decryption failed:`,
-        error
+        error,
       );
       throw new KeystoreError(
-        "Decryption failed",
-        error instanceof KeystoreError ? error.code : "DECRYPTION_ERROR"
+        'Decryption failed',
+        error instanceof KeystoreError ? error.code : 'DECRYPTION_ERROR',
       );
     }
   }
 
   static async decrypt(
     keystore: EncryptedKeystore,
-    password: string
+    password: string,
   ): Promise<HybridKeyPair> {
     try {
       const address = keystore.address;
       this.checkRateLimit(address);
 
       if (!keystore || !password) {
-        throw new KeystoreError("Invalid input parameters", "INVALID_INPUT");
+        throw new KeystoreError('Invalid input parameters', 'INVALID_INPUT');
       }
 
       // Check if key rotation is needed
@@ -161,7 +164,7 @@ export class Keystore {
   private static async encryptKeyPair(
     keyPair: HybridKeyPair,
     password: string,
-    address: string
+    address: string,
   ): Promise<EncryptedKeystore> {
     try {
       this.validateInputs(keyPair, password, address);
@@ -171,15 +174,15 @@ export class Keystore {
       const derivedKeys = await this.deriveMultipleKeys(
         password,
         salt,
-        this.KDF_PARAMS
+        this.KDF_PARAMS,
       );
 
       const serializedKeyPair = await this.secureSerialize(keyPair);
 
       // Use IV in encryption
       const encrypted = await HybridCrypto.encrypt(
-        serializedKeyPair + iv.toString("base64"), // Include IV in the message
-        derivedKeys.address
+        serializedKeyPair + iv.toString('base64'), // Include IV in the message
+        derivedKeys.address,
       );
 
       const mac = await this.calculateEnhancedMAC(derivedKeys, encrypted, salt);
@@ -191,27 +194,30 @@ export class Keystore {
         crypto: {
           cipher: this.CIPHER,
           ciphertext: encrypted,
-          cipherparams: { iv: iv.toString("base64") },
+          cipherparams: { iv: iv.toString('base64') },
           kdf: this.KDF,
           kdfparams: {
             ...this.KDF_PARAMS,
-            salt: salt.toString("base64"),
+            salt: salt.toString('base64'),
           },
           mac,
         },
       };
-    } catch (error) {
-      Logger.error(`Encryption failed:`, error);
+    } catch (error: unknown) {
+      Logger.error(
+        'Encryption failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw new KeystoreError(
-        "Encryption failed",
-        error instanceof KeystoreError ? error.code : "ENCRYPTION_ERROR"
+        'Encryption failed',
+        error instanceof KeystoreError ? error.code : 'ENCRYPTION_ERROR',
       );
     }
   }
 
   private static async decryptKeystore(
     keystore: EncryptedKeystore,
-    password: string
+    password: string,
   ): Promise<HybridKeyPair> {
     try {
       this.validateKeystore(keystore);
@@ -219,32 +225,35 @@ export class Keystore {
 
       const derivedKeys = await this.deriveMultipleKeys(
         password,
-        Buffer.from(keystore.crypto.kdfparams.salt, "base64"),
-        this.KDF_PARAMS
+        Buffer.from(keystore.crypto.kdfparams.salt, 'base64'),
+        this.KDF_PARAMS,
       );
 
       await this.verifyMAC(
         derivedKeys,
         keystore.crypto.ciphertext,
         keystore.crypto.mac,
-        keystore.crypto.kdfparams.salt
+        keystore.crypto.kdfparams.salt,
       );
 
       const decrypted = await HybridCrypto.decrypt(
         keystore.crypto.ciphertext,
-        derivedKeys.address
+        derivedKeys.address,
       );
 
       // Extract IV and actual data from decrypted message
-      const iv = Buffer.from(keystore.crypto.cipherparams.iv, "base64");
+      const iv = Buffer.from(keystore.crypto.cipherparams.iv, 'base64');
       const actualData = decrypted.slice(0, -iv.length);
 
       return await this.secureDeserialize(actualData);
-    } catch (error) {
-      Logger.error(`Decryption failed:`, error);
+    } catch (error: unknown) {
+      Logger.error(
+        'Decryption failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw new KeystoreError(
-        "Decryption failed",
-        error instanceof KeystoreError ? error.code : "DECRYPTION_ERROR"
+        'Decryption failed',
+        error instanceof KeystoreError ? error.code : 'DECRYPTION_ERROR',
       );
     }
   }
@@ -261,8 +270,8 @@ export class Keystore {
       return HashUtils.sha3Buffer(combinedSalt);
     } catch (error) {
       Logger.error(
-        "Quantum salt generation failed, falling back to classical:",
-        error
+        'Quantum salt generation failed, falling back to classical:',
+        error,
       );
       return crypto.randomBytes(32);
     }
@@ -275,12 +284,12 @@ export class Keystore {
   private static async deriveMultipleKeys(
     password: string,
     salt: Buffer,
-    params: typeof Keystore.KDF_PARAMS
+    params: typeof Keystore.KDF_PARAMS,
   ): Promise<{ address: string; encryption: string }> {
     try {
       const baseKey = await this.deriveKey(password, salt, params);
       if (!baseKey || baseKey.length < 32) {
-        throw new KeystoreError("Invalid derived key", "KDF_ERROR");
+        throw new KeystoreError('Invalid derived key', 'KDF_ERROR');
       }
       return {
         address: baseKey,
@@ -295,28 +304,32 @@ export class Keystore {
   private static async deriveKey(
     password: string,
     salt: Buffer,
-    params: typeof Keystore.KDF_PARAMS
+    params: typeof Keystore.KDF_PARAMS,
   ): Promise<string> {
     try {
-      const derivedKey = await scrypt(password, salt, params.dklen);
+      const derivedKey = (await scrypt(password, salt, params.dklen)) as Buffer;
 
       return derivedKey.toString();
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new KeystoreError(
-          "Key derivation failed",
-          KeystoreErrorCode.KDF_ERROR
+          'Key derivation failed',
+          KeystoreErrorCode.KDF_ERROR,
         );
       }
+      throw new KeystoreError(
+        'Unknown key derivation error',
+        KeystoreErrorCode.KDF_ERROR,
+      );
     }
   }
 
   private static async calculateEnhancedMAC(
     keys: { address: string },
     ciphertext: string,
-    salt: Buffer
+    salt: Buffer,
   ): Promise<string> {
-    const combinedData = keys.address + ciphertext + salt.toString("base64");
+    const combinedData = keys.address + ciphertext + salt.toString('base64');
     return HashUtils.sha3(combinedData);
   }
 
@@ -324,23 +337,23 @@ export class Keystore {
     keys: { address: string },
     ciphertext: string,
     storedMac: string,
-    salt: string
+    salt: string,
   ): Promise<void> {
     const calculatedMac = await this.calculateEnhancedMAC(
       keys,
       ciphertext,
-      Buffer.from(salt, "base64")
+      Buffer.from(salt, 'base64'),
     );
 
     if (
       !crypto.timingSafeEqual(
         Buffer.from(calculatedMac),
-        Buffer.from(storedMac)
+        Buffer.from(storedMac),
       )
     ) {
       throw new KeystoreError(
-        "Invalid password or corrupted keystore",
-        "INVALID_MAC"
+        'Invalid password or corrupted keystore',
+        'INVALID_MAC',
       );
     }
   }
@@ -348,26 +361,26 @@ export class Keystore {
   private static validateInputs(
     keyPair: HybridKeyPair,
     password: string,
-    address: string
+    address: string,
   ): void {
     this.validatePassword(password);
-    if (!address || typeof address !== "string" || address.length < 1) {
+    if (!address || typeof address !== 'string' || address.length < 1) {
       throw new KeystoreError(
         `Invalid ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} address`,
-        "INVALID_ADDRESS"
+        'INVALID_ADDRESS',
       );
     }
     if (!keyPair || !keyPair.publicKey || !keyPair.privateKey) {
       throw new KeystoreError(
         `Invalid ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} key pair`,
-        "INVALID_KEYPAIR"
+        'INVALID_KEYPAIR',
       );
     }
   }
 
   private static validatePassword(password: string): void {
-    if (!password || typeof password !== "string") {
-      throw new KeystoreError("Invalid password format", "INVALID_PASSWORD");
+    if (!password || typeof password !== 'string') {
+      throw new KeystoreError('Invalid password format', 'INVALID_PASSWORD');
     }
 
     // Use constant-time comparison for length check
@@ -375,24 +388,27 @@ export class Keystore {
     if (
       !crypto.timingSafeEqual(
         Buffer.from([passwordLength]),
-        Buffer.from([this.MIN_PASSWORD_LENGTH])
+        Buffer.from([this.MIN_PASSWORD_LENGTH]),
       )
     ) {
       // Use generic error message to avoid length information leakage
-      throw new KeystoreError("Invalid password", "INVALID_PASSWORD");
+      throw new KeystoreError('Invalid password', 'INVALID_PASSWORD');
     }
   }
 
-
   private static async secureSerialize(
-    keyPair: HybridKeyPair
+    keyPair: HybridKeyPair,
   ): Promise<string> {
     try {
       return KeyManager.serializeKeyPair(keyPair);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        throw new KeystoreError("Serialization failed", "SERIALIZATION_ERROR");
+        throw new KeystoreError('Serialization failed', 'SERIALIZATION_ERROR');
       }
+      throw new KeystoreError(
+        'Unknown serialization error',
+        'SERIALIZATION_ERROR',
+      );
     }
   }
 
@@ -402,47 +418,51 @@ export class Keystore {
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new KeystoreError(
-          "Deserialization failed",
-          "DESERIALIZATION_ERROR"
+          'Deserialization failed',
+          'DESERIALIZATION_ERROR',
         );
       }
+      throw new KeystoreError(
+        'Unknown deserialization error',
+        'DESERIALIZATION_ERROR',
+      );
     }
   }
 
   private static validateKeystore(keystore: EncryptedKeystore): void {
     // Basic structure validation
-    if (!keystore || typeof keystore !== "object") {
+    if (!keystore || typeof keystore !== 'object') {
       throw new KeystoreError(
-        "Invalid keystore structure",
-        "INVALID_KEYSTORE_STRUCTURE"
+        'Invalid keystore structure',
+        'INVALID_KEYSTORE_STRUCTURE',
       );
     }
 
     // Version check
     if (
-      typeof keystore.version !== "number" ||
+      typeof keystore.version !== 'number' ||
       keystore.version !== this.VERSION
     ) {
       throw new KeystoreError(
         `Unsupported keystore version. Expected ${this.VERSION}`,
-        "INVALID_VERSION"
+        'INVALID_VERSION',
       );
     }
 
     // Address validation
     if (
       !keystore.address ||
-      typeof keystore.address !== "string" ||
+      typeof keystore.address !== 'string' ||
       keystore.address.length < 1
     ) {
-      throw new KeystoreError("Invalid address in keystore", "INVALID_ADDRESS");
+      throw new KeystoreError('Invalid address in keystore', 'INVALID_ADDRESS');
     }
 
     // Crypto section validation
-    if (!keystore.crypto || typeof keystore.crypto !== "object") {
+    if (!keystore.crypto || typeof keystore.crypto !== 'object') {
       throw new KeystoreError(
-        "Invalid crypto section",
-        "INVALID_CRYPTO_SECTION"
+        'Invalid crypto section',
+        'INVALID_CRYPTO_SECTION',
       );
     }
 
@@ -450,32 +470,32 @@ export class Keystore {
     if (keystore.crypto.cipher !== this.CIPHER) {
       throw new KeystoreError(
         `Unsupported cipher. Expected ${this.CIPHER}`,
-        "UNSUPPORTED_CIPHER"
+        'UNSUPPORTED_CIPHER',
       );
     }
 
     // Ciphertext validation
     if (
       !keystore.crypto.ciphertext ||
-      typeof keystore.crypto.ciphertext !== "string"
+      typeof keystore.crypto.ciphertext !== 'string'
     ) {
-      throw new KeystoreError("Invalid ciphertext", "INVALID_CIPHERTEXT");
+      throw new KeystoreError('Invalid ciphertext', 'INVALID_CIPHERTEXT');
     }
 
     // IV validation
     if (
       !keystore.crypto.cipherparams?.iv ||
-      typeof keystore.crypto.cipherparams.iv !== "string" ||
+      typeof keystore.crypto.cipherparams.iv !== 'string' ||
       !this.isValidBase64(keystore.crypto.cipherparams.iv)
     ) {
-      throw new KeystoreError("Invalid IV parameter", "INVALID_IV");
+      throw new KeystoreError('Invalid IV parameter', 'INVALID_IV');
     }
 
     // KDF validation
     if (keystore.crypto.kdf !== this.KDF) {
       throw new KeystoreError(
         `Unsupported KDF. Expected ${this.KDF}`,
-        "UNSUPPORTED_KDF"
+        'UNSUPPORTED_KDF',
       );
     }
 
@@ -485,10 +505,10 @@ export class Keystore {
     // MAC validation
     if (
       !keystore.crypto.mac ||
-      typeof keystore.crypto.mac !== "string" ||
+      typeof keystore.crypto.mac !== 'string' ||
       !this.isValidBase64(keystore.crypto.mac)
     ) {
-      throw new KeystoreError("Invalid MAC", "INVALID_MAC_FORMAT");
+      throw new KeystoreError('Invalid MAC', 'INVALID_MAC_FORMAT');
     }
   }
 
@@ -500,10 +520,10 @@ export class Keystore {
       p: number;
       salt: string;
     },
-    keystore: EncryptedKeystore
+    keystore: EncryptedKeystore,
   ): void {
-    if (!params || typeof params !== "object") {
-      throw new KeystoreError("Invalid KDF parameters", "INVALID_KDF_PARAMS");
+    if (!params || typeof params !== 'object') {
+      throw new KeystoreError('Invalid KDF parameters', 'INVALID_KDF_PARAMS');
     }
 
     const requiredParams = {
@@ -514,46 +534,52 @@ export class Keystore {
     };
 
     for (const [key, expectedValue] of Object.entries(requiredParams)) {
-      if (typeof params[key] !== "number" || params[key] !== expectedValue) {
+      if (
+        typeof params[key as keyof typeof params] !== 'number' ||
+        params[key as keyof typeof params] !== expectedValue
+      ) {
         throw new KeystoreError(
           `Invalid KDF parameter: ${key} for address ${keystore.address}`,
-          "INVALID_KDF_PARAM_VALUE"
+          'INVALID_KDF_PARAM_VALUE',
         );
       }
     }
 
     if (
       !params.salt ||
-      typeof params.salt !== "string" ||
+      typeof params.salt !== 'string' ||
       !this.isValidBase64(params.salt)
     ) {
       throw new KeystoreError(
         `Invalid salt parameter for address ${keystore.address}`,
-        "INVALID_SALT"
+        'INVALID_SALT',
       );
     }
   }
 
   private static isValidBase64(str: string): boolean {
     try {
-      return Buffer.from(str, "base64").toString("base64") === str;
+      return Buffer.from(str, 'base64').toString('base64') === str;
     } catch {
       return false;
     }
   }
 
   private static secureCleanup(
-    sensitiveData: Buffer | string | HybridKeyPair
+    sensitiveData: Buffer | string | HybridKeyPair,
   ): void {
     if (Buffer.isBuffer(sensitiveData)) {
       sensitiveData.fill(0);
-    } else if (typeof sensitiveData === "string") {
+    } else if (typeof sensitiveData === 'string') {
       const buf = Buffer.from(sensitiveData);
       buf.fill(0);
     } else if (sensitiveData instanceof Object) {
-      Object.keys(sensitiveData).forEach((key) => {
-        sensitiveData[key] = null;
-      });
+      if ('publicKey' in sensitiveData) {
+        sensitiveData.publicKey = '';
+      }
+      if ('privateKey' in sensitiveData) {
+        sensitiveData.privateKey = '';
+      }
     }
   }
 
@@ -568,9 +594,9 @@ export class Keystore {
       if (timeLeft > 0) {
         throw new KeystoreError(
           `Too many failed attempts. Try again in ${Math.ceil(
-            timeLeft / 1000
+            timeLeft / 1000,
           )} seconds`,
-          "RATE_LIMIT_EXCEEDED"
+          'RATE_LIMIT_EXCEEDED',
         );
       }
       attempts.delete(address);
@@ -589,17 +615,17 @@ export class Keystore {
 
   static async rotateKey(
     address: string,
-    password: string
+    password: string,
   ): Promise<EncryptedKeystore> {
     try {
       // Get existing keystore
       if (!this.database) {
-        throw new KeystoreError("Database not initialized", "DATABASE_ERROR");
+        throw new KeystoreError('Database not initialized', 'DATABASE_ERROR');
       }
 
       const existingKeystore = await this.database.get(address);
       if (!existingKeystore) {
-        throw new KeystoreError("Keystore not found", "NOT_FOUND");
+        throw new KeystoreError('Keystore not found', 'NOT_FOUND');
       }
 
       // Decrypt existing keystore
@@ -623,7 +649,7 @@ export class Keystore {
       };
 
       metadata.previousKeyHashes.push(
-        await HashUtils.sha3(JSON.stringify(existingKeystore))
+        await HashUtils.sha3(JSON.stringify(existingKeystore)),
       );
       metadata.lastRotation = Date.now();
       metadata.rotationCount++;
@@ -635,8 +661,8 @@ export class Keystore {
     } catch (error) {
       Logger.error(`Key rotation failed for address: ${address}`, error);
       throw new KeystoreError(
-        "Key rotation failed",
-        error instanceof KeystoreError ? error.code : "ROTATION_ERROR"
+        'Key rotation failed',
+        error instanceof KeystoreError ? error.code : 'ROTATION_ERROR',
       );
     }
   }
@@ -645,13 +671,13 @@ export class Keystore {
     try {
       const keystore = await this.database.get(address);
       if (!keystore) {
-        throw new KeystoreError("Keystore not found", "NOT_FOUND");
+        throw new KeystoreError('Keystore not found', 'NOT_FOUND');
       }
 
       const keyAge = Date.now() - keystore.version;
       return keyAge >= this.MAX_KEY_AGE;
     } catch (error) {
-      Logger.error("Key rotation check failed:", error);
+      Logger.error('Key rotation check failed:', error);
       return false;
     }
   }
@@ -664,16 +690,16 @@ export class Keystore {
     try {
       if (!this.database) {
         throw new KeystoreError(
-          "Database not initialized",
-          KeystoreErrorCode.DATABASE_ERROR
+          'Database not initialized',
+          KeystoreErrorCode.DATABASE_ERROR,
         );
       }
 
       const keystore = await this.database.get(address);
       if (!keystore) {
         throw new KeystoreError(
-          "Keystore not found",
-          KeystoreErrorCode.NOT_FOUND
+          'Keystore not found',
+          KeystoreErrorCode.NOT_FOUND,
         );
       }
 
@@ -687,10 +713,10 @@ export class Keystore {
     } catch (error) {
       Logger.error(`Backup failed for address: ${address}`, error);
       throw new KeystoreError(
-        "Backup failed",
+        'Backup failed',
         error instanceof KeystoreError
           ? error.code
-          : KeystoreErrorCode.BACKUP_ERROR
+          : KeystoreErrorCode.BACKUP_ERROR,
       );
     }
   }
@@ -714,12 +740,12 @@ export class Keystore {
 
       return keystore.address;
     } catch (error) {
-      Logger.error("Restore failed:", error);
+      Logger.error('Restore failed:', error);
       throw new KeystoreError(
-        "Restore failed",
+        'Restore failed',
         error instanceof KeystoreError
           ? error.code
-          : KeystoreErrorCode.RESTORE_ERROR
+          : KeystoreErrorCode.RESTORE_ERROR,
       );
     }
   }
@@ -728,23 +754,29 @@ export class Keystore {
     try {
       if (!this.database) {
         throw new KeystoreError(
-          "Database not initialized",
-          KeystoreErrorCode.DATABASE_ERROR
+          'Database not initialized',
+          KeystoreErrorCode.DATABASE_ERROR,
         );
       }
 
       await this.database.ping();
 
       const testKey = await this.generateSecureSalt();
-      const testData = testKey.toString("hex");
-      const encrypted = await HybridCrypto.encrypt(testData, testKey.toString("base64"));
+      const testData = testKey.toString('hex');
+      const encrypted = await HybridCrypto.encrypt(
+        testData,
+        testKey.toString('base64'),
+      );
 
       // Verify encryption worked by attempting decryption
-      const decrypted = await HybridCrypto.decrypt(encrypted, testKey.toString("base64"));
+      const decrypted = await HybridCrypto.decrypt(
+        encrypted,
+        testKey.toString('base64'),
+      );
 
       return decrypted === testData;
     } catch (error) {
-      Logger.error("Keystore health check failed:", error);
+      Logger.error('Keystore health check failed:', error);
       return false;
     }
   }

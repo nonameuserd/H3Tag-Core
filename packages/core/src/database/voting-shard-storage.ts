@@ -1,9 +1,9 @@
-import { Transaction } from "../models/transaction.model";
-import { BlockchainSchema } from "./blockchain-schema";
-import { Logger } from "@h3tag-blockchain/shared";
-import { retry } from "../utils/retry";
-import { Cache } from "../scaling/cache";
-import { Mutex } from "async-mutex";
+import { Transaction } from '../models/transaction.model';
+import { BlockchainSchema } from './blockchain-schema';
+import { Logger } from '@h3tag-blockchain/shared';
+import { retry } from '../utils/retry';
+import { Cache } from '../scaling/cache';
+import { Mutex } from 'async-mutex';
 
 /**
  * @fileoverview VotingShardStorage implements sharded storage for blockchain voting data.
@@ -38,7 +38,7 @@ export class VotingShardStorage {
   private initialized = false;
 
   constructor(db: BlockchainSchema) {
-    if (!db) throw new Error("Database instance is required");
+    if (!db) throw new Error('Database instance is required');
 
     this.db = db;
     this.mutex = new Mutex();
@@ -49,7 +49,7 @@ export class VotingShardStorage {
     });
 
     this.initialize().catch((err) => {
-      Logger.error("Failed to initialize voting shard storage:", err);
+      Logger.error('Failed to initialize voting shard storage:', err);
       throw err;
     });
   }
@@ -59,9 +59,9 @@ export class VotingShardStorage {
     try {
       await this.db.ping();
       this.initialized = true;
-      Logger.info("Voting shard storage initialized successfully");
+      Logger.info('Voting shard storage initialized successfully');
     } catch (error) {
-      Logger.error("Failed to initialize voting shard storage:", error);
+      Logger.error('Failed to initialize voting shard storage:', error);
       throw error;
     }
   }
@@ -82,10 +82,10 @@ export class VotingShardStorage {
   @retry({ maxAttempts: 3, delay: 1000 })
   async getTransaction(
     shardId: string,
-    hash: string
+    hash: string,
   ): Promise<Transaction | undefined> {
-    if (!this.initialized) throw new Error("Storage not initialized");
-    if (!shardId || !hash) throw new Error("Shard ID and hash are required");
+    if (!this.initialized) throw new Error('Storage not initialized');
+    if (!shardId || !hash) throw new Error('Shard ID and hash are required');
 
     const cacheKey = `tx:${shardId}:${hash}`;
     try {
@@ -104,7 +104,7 @@ export class VotingShardStorage {
     } catch (error) {
       Logger.error(
         `Failed to get transaction ${hash} in shard ${shardId}:`,
-        error
+        error,
       );
       return undefined;
     }
@@ -126,11 +126,11 @@ export class VotingShardStorage {
   @retry({ maxAttempts: 3, delay: 1000 })
   async saveTransaction(
     shardId: string,
-    transaction: Transaction
+    transaction: Transaction,
   ): Promise<void> {
-    if (!this.initialized) throw new Error("Storage not initialized");
+    if (!this.initialized) throw new Error('Storage not initialized');
     if (!shardId || !transaction)
-      throw new Error("Shard ID and transaction are required");
+      throw new Error('Shard ID and transaction are required');
 
     return await this.mutex.runExclusive(async () => {
       const key = `tx:${shardId}:${transaction.hash}`;
@@ -138,21 +138,21 @@ export class VotingShardStorage {
         // Check for existing transaction
         const existing = await this.getTransaction(shardId, transaction.hash);
         if (existing) {
-          throw new Error("Transaction already exists");
+          throw new Error('Transaction already exists');
         }
 
         await this.db.saveTransaction(transaction);
         this.cache.set(key, transaction, { ttl: this.CACHE_TTL });
 
         Logger.info(
-          `Transaction ${transaction.hash} saved in shard ${shardId}`
+          `Transaction ${transaction.hash} saved in shard ${shardId}`,
         );
       } catch (error) {
         const errorMessage =
-          error instanceof Error ? error.message : "Unknown error";
+          error instanceof Error ? error.message : 'Unknown error';
         Logger.error(
           `Failed to save transaction ${transaction.hash} in shard ${shardId}:`,
-          error
+          error,
         );
         throw new Error(`Failed to save transaction: ${errorMessage}`);
       }
@@ -174,8 +174,8 @@ export class VotingShardStorage {
    */
   @retry({ maxAttempts: 3, delay: 1000 })
   async deleteTransaction(shardId: string, hash: string): Promise<void> {
-    if (!this.initialized) throw new Error("Storage not initialized");
-    if (!shardId || !hash) throw new Error("Shard ID and hash are required");
+    if (!this.initialized) throw new Error('Storage not initialized');
+    if (!shardId || !hash) throw new Error('Shard ID and hash are required');
 
     return await this.mutex.runExclusive(async () => {
       const key = `tx:${shardId}:${hash}`;
@@ -186,7 +186,7 @@ export class VotingShardStorage {
       } catch (error) {
         Logger.error(
           `Failed to delete transaction ${hash} from shard ${shardId}:`,
-          error
+          error,
         );
         throw error;
       }
@@ -206,8 +206,8 @@ export class VotingShardStorage {
    * const transactions = await storage.getTransactions('shard1');
    */
   async getTransactions(shardId: string): Promise<Transaction[]> {
-    if (!this.initialized) throw new Error("Storage not initialized");
-    if (!shardId) throw new Error("Shard ID is required");
+    if (!this.initialized) throw new Error('Storage not initialized');
+    if (!shardId) throw new Error('Shard ID is required');
 
     try {
       return await this.db.getTransactions();
@@ -233,21 +233,21 @@ export class VotingShardStorage {
   @retry({ maxAttempts: 3, delay: 1000 })
   async replicateShard(
     shardId: string,
-    transactions: Transaction[]
+    transactions: Transaction[],
   ): Promise<void> {
-    if (!this.initialized) throw new Error("Storage not initialized");
+    if (!this.initialized) throw new Error('Storage not initialized');
     if (!shardId || !transactions)
-      throw new Error("Shard ID and transactions are required");
+      throw new Error('Shard ID and transactions are required');
 
     return await this.mutex.runExclusive(async () => {
       try {
         await Promise.all(
           transactions.map(async (tx) => {
             await this.saveTransaction(shardId, tx);
-          })
+          }),
         );
         Logger.info(
-          `Shard ${shardId} replicated with ${transactions.length} transactions`
+          `Shard ${shardId} replicated with ${transactions.length} transactions`,
         );
       } catch (error) {
         Logger.error(`Failed to replicate shard ${shardId}:`, error);
@@ -274,11 +274,11 @@ export class VotingShardStorage {
         await this.db.close();
         this.cache.clear();
         this.initialized = false;
-        Logger.info("Voting shard storage closed successfully");
+        Logger.info('Voting shard storage closed successfully');
       });
     } catch (error) {
-      Logger.error("Error closing voting shard storage:", error);
-      throw new Error("Failed to close storage");
+      Logger.error('Error closing voting shard storage:', error);
+      throw new Error('Failed to close storage');
     }
   }
 }

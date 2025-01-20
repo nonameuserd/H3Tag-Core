@@ -33,6 +33,7 @@
 ### Logs
 
 CloudWatch Log Groups:
+
 - `/aws/ec2/seed-server`
 - VPC flow logs
 - Application logs
@@ -40,6 +41,7 @@ CloudWatch Log Groups:
 ### Metrics
 
 Custom CloudWatch metrics:
+
 - Node status
 - Peer count
 - Network performance
@@ -48,6 +50,7 @@ Custom CloudWatch metrics:
 ## Troubleshooting
 
 1. **Deployment Failures**
+
    ```bash
    # Get deployment logs
    cdk doctor
@@ -55,6 +58,7 @@ Custom CloudWatch metrics:
    ```
 
 2. **Instance Access**
+
    ```bash
    # Connect via SSM
    aws ssm start-session --target i-1234567890abcdef0 --region {region}

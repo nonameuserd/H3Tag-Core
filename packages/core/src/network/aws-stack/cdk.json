@@ -1,9 +1,7 @@
 {
   "app": "npx ts-node --prefer-ts-exts bin/seed-server.ts",
   "watch": {
-    "include": [
-      "**"
-    ],
+    "include": ["**"],
     "exclude": [
       "README.md",
       "cdk*.json",
@@ -22,10 +20,7 @@
     "@aws-cdk/aws-rds:lowercaseDbIdentifier": true,
     "@aws-cdk/aws-lambda:recognizeVersionProps": true,
     "@aws-cdk/aws-cloudfront:defaultSecurityPolicyTLSv1.2_2021": true,
-    "@aws-cdk/core:target-partitions": [
-      "aws",
-      "aws-cn"
-    ],
+    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"],
     "environments": {
       "dev": {
         "domainName": "dev.h3tag.net",
@@ -35,7 +30,14 @@
       "prod": {
         "domainName": "h3tag.net",
         "account": "YOUR_PROD_ACCOUNT_ID",
-        "regions": ["us-east-1", "us-west-2", "eu-west-1", "eu-central-1", "ap-southeast-1", "ap-northeast-1"]
+        "regions": [
+          "us-east-1",
+          "us-west-2",
+          "eu-west-1",
+          "eu-central-1",
+          "ap-southeast-1",
+          "ap-northeast-1"
+        ]
       }
     },
     "ubuntu": {

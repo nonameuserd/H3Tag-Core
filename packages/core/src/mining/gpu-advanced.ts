@@ -1,4 +1,4 @@
-import { GPUMiner } from "./gpu";
+import { GPUMiner } from './gpu';
 
 /**
  * @fileoverview AdvancedGPUMiner implements optimized GPU-based mining operations.
@@ -29,16 +29,16 @@ import { GPUMiner } from "./gpu";
 
 export class AdvancedGPUMiner extends GPUMiner {
   private workgroupSize = 256;
-  private maxComputeUnits: number;
-  private shaderCache: Map<string, GPUComputePipeline>;
-  private blockBuffer: GPUBuffer;
-  private resultBuffer: GPUBuffer;
+  private maxComputeUnits: number = 0;
+  private shaderCache: Map<string, GPUComputePipeline> = new Map();
+  private blockBuffer: GPUBuffer | null | undefined = null;
+  private resultBuffer: GPUBuffer | null | undefined = null;
 
   // Add currency constants
   private readonly CURRENCY_CONSTANTS = {
     REWARD_PRECISION: 100000000, // 8 decimals for TAG
-    SYMBOL: "TAG",
-    NAME: "H3Tag",
+    SYMBOL: 'TAG',
+    NAME: 'H3Tag',
   };
 
   /**
@@ -58,7 +58,7 @@ export class AdvancedGPUMiner extends GPUMiner {
 
     // Add error handling for device initialization
     if (!this.device) {
-      throw new Error("GPU device not initialized");
+      throw new Error('GPU device not initialized');
     }
 
     // Increase buffer sizes to handle potential overflow
@@ -74,7 +74,7 @@ export class AdvancedGPUMiner extends GPUMiner {
 
     // Add null check for adapter
     const adapter = await navigator.gpu.requestAdapter();
-    if (!adapter) throw new Error("No GPU adapter found");
+    if (!adapter) throw new Error('No GPU adapter found');
 
     // Get compute capabilities
     const limits = adapter.limits;
@@ -97,7 +97,7 @@ export class AdvancedGPUMiner extends GPUMiner {
     // Adjust based on GPU architecture
     return Math.min(
       this.maxComputeUnits * 32, // 32 threads per compute unit
-      1024 // WebGPU max workgroup size
+      1024, // WebGPU max workgroup size
     );
   }
 
@@ -112,7 +112,7 @@ export class AdvancedGPUMiner extends GPUMiner {
    */
 
   private async createOptimizedPipeline(
-    target: bigint
+    target: bigint,
   ): Promise<GPUComputePipeline> {
     const cacheKey = `pipeline_${target}`;
 
@@ -151,18 +151,22 @@ export class AdvancedGPUMiner extends GPUMiner {
                 }
             `;
 
+      if (!this.device) throw new Error('GPU device not initialized');
       pipeline = this.device.createComputePipeline({
-        layout: "auto",
+        layout: 'auto',
         compute: {
           module: this.device.createShaderModule({ code: shader }),
-          entryPoint: "main",
+          entryPoint: 'main',
         },
       });
 
       this.shaderCache.set(cacheKey, pipeline);
       return pipeline;
-    } catch (error) {
-      throw new Error(`Failed to create pipeline: ${error.message}`);
+    } catch (error: unknown) {
+      if(error instanceof Error){
+        throw new Error(`Failed to create pipeline: ${error.message}`);
+      }
+      throw new Error('Failed to create pipeline: Unknown error');
     }
   }
 
@@ -181,21 +185,21 @@ export class AdvancedGPUMiner extends GPUMiner {
 
   async mineOptimized(
     blockBuffer: GPUBuffer,
-    target: number
+    target: number,
   ): Promise<number | null> {
     // Split work into optimal chunks
     const chunks = Math.ceil(
-      this.MAX_NONCE / (this.workgroupSize * this.maxComputeUnits)
+      this.MAX_NONCE / (this.workgroupSize * this.maxComputeUnits),
     );
     const commands: GPUCommandBuffer[] = [];
 
     for (let i = 0; i < chunks; i++) {
-      const commandEncoder = this.device.createCommandEncoder();
-      const pass = commandEncoder.beginComputePass();
+      const commandEncoder = this.device?.createCommandEncoder();
+      const pass = commandEncoder?.beginComputePass();
 
       // Read difficulty from buffer
       const difficultyView = new DataView(
-        await this.readBufferData(blockBuffer)
+        await this.readBufferData(blockBuffer),
       );
       const difficulty = difficultyView.getUint32(0);
 
@@ -207,16 +211,16 @@ export class AdvancedGPUMiner extends GPUMiner {
         this.shaderCache.set(pipelineKey, pipeline);
       }
 
-      pass.setPipeline(pipeline);
-      pass.setBindGroup(0, this.createBindGroup(i));
-      pass.dispatchWorkgroups(this.maxComputeUnits);
-      pass.end();
+      pass?.setPipeline(pipeline);
+      pass?.setBindGroup(0, this.createBindGroup(i));
+      pass?.dispatchWorkgroups(this.maxComputeUnits);
+      pass?.end();
 
-      commands.push(commandEncoder.finish());
+      commands.push(commandEncoder?.finish() ?? new GPUCommandBuffer());
     }
 
     // Submit all work in parallel
-    this.device.queue.submit(commands);
+    this.device?.queue.submit(commands);
     return this.getResult();
   }
 
@@ -232,13 +236,13 @@ export class AdvancedGPUMiner extends GPUMiner {
 
   private createBindGroup(chunkIndex: number): GPUBindGroup {
     // Fix potential race condition with pipeline access
-    const pipeline = this.shaderCache.get("current_pipeline");
-    if (!pipeline) throw new Error("Pipeline not initialized");
+    const pipeline = this.shaderCache.get('current_pipeline');
+    if (!pipeline) throw new Error('Pipeline not initialized');
 
     // Add offset calculation for chunk-based mining
     const offset = chunkIndex * this.workgroupSize * this.maxComputeUnits;
 
-    return this.device.createBindGroup({
+    return this.device?.createBindGroup({
       layout: pipeline.getBindGroupLayout(0),
       entries: [
         {
@@ -246,7 +250,7 @@ export class AdvancedGPUMiner extends GPUMiner {
           resource: {
             buffer: this.blockBuffer,
             offset: offset * 4, // 4 bytes per uint32
-            size: this.blockBuffer.size - (offset * 4),
+            size: (this.blockBuffer?.size || 0) - offset * 4,
           },
         },
         {
@@ -254,11 +258,11 @@ export class AdvancedGPUMiner extends GPUMiner {
           resource: {
             buffer: this.resultBuffer,
             offset: 0,
-            size: this.resultBuffer.size,
+            size: this.resultBuffer?.size || 0,
           },
         },
-      ],
-    });
+      ] as GPUBindGroupEntry[],
+    }) as GPUBindGroup;
   }
 
   /**
@@ -271,21 +275,21 @@ export class AdvancedGPUMiner extends GPUMiner {
 
   private async getResult(): Promise<number> {
     // Create a buffer to read results
-    const readBuffer = this.device.createBuffer({
+    const readBuffer = this.device?.createBuffer({
       size: 4, // uint32
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
 
     // Copy result to readable buffer
-    const commandEncoder = this.device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(this.resultBuffer, 0, readBuffer, 0, 4);
-    this.device.queue.submit([commandEncoder.finish()]);
+    const commandEncoder = this.device?.createCommandEncoder();
+    commandEncoder?.copyBufferToBuffer(this.resultBuffer || new GPUBuffer(), 0, readBuffer as GPUBuffer, 0, 4);
+    this.device?.queue.submit([commandEncoder?.finish() ?? new GPUCommandBuffer()]);
 
     // Read the result
-    await readBuffer.mapAsync(GPUMapMode.READ);
-    const result = new Uint32Array(readBuffer.getMappedRange())[0];
-    readBuffer.unmap();
-    readBuffer.destroy();
+    await (readBuffer as GPUBuffer).mapAsync(GPUMapMode.READ);
+    const result = new Uint32Array(readBuffer?.getMappedRange() ?? new ArrayBuffer(0))[0];
+    readBuffer?.unmap();
+    readBuffer?.destroy();
 
     return result;
   }
@@ -300,19 +304,19 @@ export class AdvancedGPUMiner extends GPUMiner {
    */
 
   private async readBufferData(buffer: GPUBuffer): Promise<ArrayBuffer> {
-    const readBuffer = this.device.createBuffer({
+    const readBuffer = this.device?.createBuffer({
       size: buffer.size,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
 
-    const commandEncoder = this.device.createCommandEncoder();
-    commandEncoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, buffer.size);
-    this.device.queue.submit([commandEncoder.finish()]);
+    const commandEncoder = this.device?.createCommandEncoder();
+    commandEncoder?.copyBufferToBuffer(buffer, 0, readBuffer as GPUBuffer, 0, buffer.size);
+    this.device?.queue.submit([commandEncoder?.finish() ?? new GPUCommandBuffer()]);
 
-    await readBuffer.mapAsync(GPUMapMode.READ);
-    const data = readBuffer.getMappedRange().slice(0);
-    readBuffer.unmap();
-    readBuffer.destroy();
+    await (readBuffer as GPUBuffer).mapAsync(GPUMapMode.READ);
+    const data = readBuffer?.getMappedRange()?.slice(0) ?? new ArrayBuffer(0);
+    readBuffer?.unmap();
+    readBuffer?.destroy();
 
     return data;
   }
@@ -330,8 +334,8 @@ export class AdvancedGPUMiner extends GPUMiner {
 
   public async dispose(): Promise<void> {
     this.shaderCache.clear();
-    this.blockBuffer.destroy();
-    this.resultBuffer.destroy();
+    this.blockBuffer?.destroy();
+    this.resultBuffer?.destroy();
     this.device?.destroy();
   }
 }

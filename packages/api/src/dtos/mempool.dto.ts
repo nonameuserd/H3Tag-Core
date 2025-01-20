@@ -1,158 +1,166 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { TransactionType } from "@h3tag-blockchain/core";
+import { ApiProperty } from '@nestjs/swagger';
+import { TransactionType } from '@h3tag-blockchain/core';
 
 export class MempoolInfoDto {
   @ApiProperty()
-  size: number;
+  size: number | undefined;
 
   @ApiProperty()
-  bytes: number;
+  bytes: number | undefined;
 
   @ApiProperty()
-  usage: number;
+  usage: number | undefined;
 
   @ApiProperty()
-  maxSize: number;
+  maxSize: number | undefined;
 
   @ApiProperty()
-  maxMemoryUsage: number;
+  maxMemoryUsage: number | undefined;
 
   @ApiProperty()
-  currentMemoryUsage: number;
+  currentMemoryUsage: number | undefined;
 
   @ApiProperty()
-  loadFactor: number;
+  loadFactor: number | undefined;
 
   @ApiProperty()
-  fees: {
-    base: number;
-    current: number;
-    mean: number;
-    median: number;
-    min: number;
-    max: number;
-  };
+  fees:
+    | {
+        base: number | undefined;
+        current: number | undefined;
+        mean: number | undefined;
+        median: number | undefined;
+        min: number | undefined;
+        max: number | undefined;
+      }
+    | undefined;
 
   @ApiProperty()
-  transactions: {
-    total: number;
-    pending: number;
-    distribution: Record<TransactionType, number>;
-  };
+  transactions:
+    | {
+        total: number | undefined;
+        pending: number | undefined;
+        distribution: Record<TransactionType, number> | undefined;
+      }
+    | undefined;
 
   @ApiProperty()
-  age: {
-    oldest: number;
-    youngest: number;
-  };
+  age:
+    | {
+        oldest: number | undefined;
+        youngest: number | undefined;
+      }
+    | undefined;
 
   @ApiProperty()
-  health: {
-    status: "healthy" | "degraded" | "critical";
-    lastUpdate: number;
-    isAcceptingTransactions: boolean;
-  };
+  health:
+    | {
+        status: 'healthy' | 'degraded' | 'critical' | undefined;
+        lastUpdate: number | undefined;
+        isAcceptingTransactions: boolean | undefined;
+      }
+    | undefined;
 }
 
 export class RawMempoolEntryDto {
   @ApiProperty()
-  txid: string;
+  txid: string | undefined;
 
   @ApiProperty()
-  fee: number;
+  fee: number | undefined;
 
   @ApiProperty()
-  vsize: number;
+  vsize: number | undefined;
 
   @ApiProperty()
-  weight: number;
+  weight: number | undefined;
 
   @ApiProperty()
-  time: number;
+  time: number | undefined;
 
   @ApiProperty()
-  height: number;
+  height: number | undefined;
 
   @ApiProperty()
-  descendantcount: number;
+  descendantcount: number | undefined;
 
   @ApiProperty()
-  descendantsize: number;
+  descendantsize: number | undefined;
 
   @ApiProperty()
-  ancestorcount: number;
+  ancestorcount: number | undefined;
 
   @ApiProperty()
-  ancestorsize: number;
+  ancestorsize: number | undefined;
 
   @ApiProperty({ type: [String] })
-  depends: string[];
+  depends: string[] | undefined;
 }
 
 export class MempoolEntryDto {
   @ApiProperty({
-    description: "Transaction ID",
-    example: "1234abcd...",
+    description: 'Transaction ID',
+    example: '1234abcd...',
   })
-  txid: string;
+  txid: string | undefined;
 
   @ApiProperty({
-    description: "Transaction fee",
+    description: 'Transaction fee',
     example: 0.0001,
   })
-  fee: number;
+  fee: number | undefined;
 
   @ApiProperty({
-    description: "Virtual transaction size",
+    description: 'Virtual transaction size',
     example: 140,
   })
-  vsize: number;
+  vsize: number | undefined;
 
   @ApiProperty({
-    description: "Transaction weight",
+    description: 'Transaction weight',
     example: 560,
   })
-  weight: number;
+  weight: number | undefined;
 
   @ApiProperty({
-    description: "Time transaction entered mempool",
+    description: 'Time transaction entered mempool',
     example: 1625097600,
   })
-  time: number;
+  time: number | undefined;
 
   @ApiProperty({
-    description: "Block height when transaction entered mempool",
+    description: 'Block height when transaction entered mempool',
     example: 680000,
   })
-  height: number;
+  height: number | undefined;
 
   @ApiProperty({
-    description: "Number of descendant transactions",
+    description: 'Number of descendant transactions',
     example: 2,
   })
-  descendantcount: number;
+  descendantcount: number | undefined;
 
   @ApiProperty({
-    description: "Total size of descendant transactions",
+    description: 'Total size of descendant transactions',
     example: 280,
   })
-  descendantsize: number;
+  descendantsize: number | undefined;
 
   @ApiProperty({
-    description: "Number of ancestor transactions",
+    description: 'Number of ancestor transactions',
     example: 1,
   })
-  ancestorcount: number;
+  ancestorcount: number | undefined;
 
   @ApiProperty({
-    description: "Total size of ancestor transactions",
+    description: 'Total size of ancestor transactions',
     example: 140,
   })
-  ancestorsize: number;
+  ancestorsize: number | undefined;
 
   @ApiProperty({
-    description: "Transaction IDs this transaction depends on",
+    description: 'Transaction IDs this transaction depends on',
     type: [String],
   })
-  depends: string[];
+  depends: string[] | undefined;
 }

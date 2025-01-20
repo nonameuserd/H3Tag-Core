@@ -1,7 +1,6 @@
-import { BlockchainStats } from "../blockchain/blockchain-stats";
-import { NetworkStats } from "../network/network-stats";
-import { Blockchain } from "../blockchain/blockchain";
-import { Logger } from "@h3tag-blockchain/shared";
+import { BlockchainStats, IBlockchainData } from '../blockchain/blockchain-stats';
+import { NetworkStats } from '../network/network-stats';
+import { Logger } from '@h3tag-blockchain/shared';
 
 /**
  * @fileoverview DifficultyAdjuster implements hybrid difficulty adjustment for H3Tag mining.
@@ -121,8 +120,8 @@ export class DifficultyAdjuster {
   private lastOrphanRate: number = 0;
 
   constructor(
-    blockchain: Blockchain,
-    networkStats: NetworkStats = new NetworkStats()
+    blockchain: IBlockchainData,
+    networkStats: NetworkStats = new NetworkStats(),
   ) {
     this.blockchainStats = new BlockchainStats(blockchain);
     this.networkStats = networkStats;
@@ -135,7 +134,7 @@ export class DifficultyAdjuster {
     voteData: {
       participation: number;
       approvalRate: number;
-    }
+    },
   ): Promise<number> {
     let adjustment = this.calculatePOWAdjustment(blockTimes, hashRate);
 
@@ -143,7 +142,7 @@ export class DifficultyAdjuster {
     if (voteData.participation >= this.MIN_VOTES_WEIGHT) {
       const voteAdjustment = this.calculateVoteAdjustment(
         voteData.participation,
-        voteData.approvalRate
+        voteData.approvalRate,
       );
 
       adjustment =
@@ -155,14 +154,14 @@ export class DifficultyAdjuster {
       currentDifficulty *
         Math.max(
           1 - this.ADJUSTMENT_FACTOR,
-          Math.min(adjustment, 1 + this.ADJUSTMENT_FACTOR)
-        )
+          Math.min(adjustment, 1 + this.ADJUSTMENT_FACTOR),
+        ),
     );
   }
 
   private calculateVoteAdjustment(
     participation: number,
-    approvalRate: number
+    approvalRate: number,
   ): number {
     const cappedParticipation = Math.min(participation, this.VOTE_POWER_CAP);
 
@@ -185,7 +184,7 @@ export class DifficultyAdjuster {
 
     const shortTermEMA = this.calculateEMA(
       this.hashRateHistory.slice(-6).map(Number),
-      2
+      2,
     );
     const longTermEMA = this.calculateEMA(this.hashRateHistory.map(Number), 12);
 
@@ -200,8 +199,8 @@ export class DifficultyAdjuster {
       1 - this.MAX_HASH_RATE_ADJUSTMENT,
       Math.min(
         Number(adjustment) * Number(networkFactor),
-        1 + this.MAX_HASH_RATE_ADJUSTMENT
-      )
+        1 + this.MAX_HASH_RATE_ADJUSTMENT,
+      ),
     );
   }
 
@@ -212,7 +211,7 @@ export class DifficultyAdjuster {
 
     for (let i = 1; i < values.length; i++) {
       const value = values[i];
-      if (typeof value !== "number" || isNaN(value) || !isFinite(value))
+      if (typeof value !== 'number' || isNaN(value) || !isFinite(value))
         continue;
       ema = value * alpha + ema * (1 - alpha);
     }
@@ -236,7 +235,7 @@ export class DifficultyAdjuster {
       orphanRate: Math.min(Number(metrics.orphanRate || 0) / 0.05, 1),
       propagationTime: Math.min(
         Number(metrics.propagationTime || 0) / 30000,
-        1
+        1,
       ),
       peerCount: Math.max(0, Math.min(((metrics.peerCount || 0) - 8) / 50, 1)),
       networkLatency: Math.min(Number(metrics.networkLatency || 0) / 1000, 1),
@@ -251,7 +250,7 @@ export class DifficultyAdjuster {
 
     // Calculate weighted average
     const healthScore = Object.keys(weights).reduce((score, metric) => {
-      return score + normalizedMetrics[metric] * weights[metric];
+      return score + normalizedMetrics[metric as keyof typeof normalizedMetrics] * weights[metric as keyof typeof weights];
     }, 0);
 
     // Convert to adjustment factor (0.9 - 1.1 range)
@@ -263,7 +262,7 @@ export class DifficultyAdjuster {
       const orphanRate = await this.blockchainStats.getOrphanRate();
 
       if (isNaN(orphanRate) || orphanRate < 0) {
-        Logger.warn("Invalid orphan rate detected, using default", {
+        Logger.warn('Invalid orphan rate detected, using default', {
           orphanRate,
         });
         return 0;
@@ -273,7 +272,7 @@ export class DifficultyAdjuster {
 
       return orphanRate;
     } catch (error) {
-      Logger.error("Error calculating orphan rate:", error);
+      Logger.error('Error calculating orphan rate:', error);
       return this.lastOrphanRate || 0;
     }
   }
@@ -297,11 +296,11 @@ export class DifficultyAdjuster {
     const mean = recentTimes.reduce((a, b) => a + b, 0) / recentTimes.length;
     const stdDev = Math.sqrt(
       recentTimes.reduce((a, b) => a + Math.pow(b - mean, 2), 0) /
-        recentTimes.length
+        recentTimes.length,
     );
 
     const filteredTimes = recentTimes.filter(
-      (time) => Math.abs(time - mean) <= 2 * stdDev
+      (time) => Math.abs(time - mean) <= 2 * stdDev,
     );
 
     return filteredTimes.reduce((a, b) => a + b, 0) / filteredTimes.length;
@@ -309,14 +308,14 @@ export class DifficultyAdjuster {
 
   private calculatePOWAdjustment(
     blockTimes: number[],
-    hashRate: number
+    hashRate: number,
   ): number {
     try {
       if (
         !Array.isArray(blockTimes) ||
         !blockTimes?.length ||
         blockTimes.length < 3 ||
-        typeof hashRate !== "number" ||
+        typeof hashRate !== 'number' ||
         !isFinite(hashRate) ||
         hashRate <= 0
       ) {
@@ -339,10 +338,10 @@ export class DifficultyAdjuster {
 
       return Math.max(
         1 - this.ADJUSTMENT_FACTOR,
-        Math.min(adjustment, 1 + this.ADJUSTMENT_FACTOR)
+        Math.min(adjustment, 1 + this.ADJUSTMENT_FACTOR),
       );
     } catch (error) {
-      Logger.error("Error in POW adjustment calculation:", error);
+      Logger.error('Error in POW adjustment calculation:', error);
       return 1.0;
     }
   }

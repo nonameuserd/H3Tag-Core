@@ -18,7 +18,7 @@ export interface LevelDBOptions {
 
 export interface DatabaseConfig {
   // Base configuration
-  type: "leveldb";
+  type: 'leveldb';
   defaultRegion: string;
 
   // Multi-region support
@@ -57,12 +57,12 @@ export interface DatabaseConfig {
 }
 
 export const databaseConfig: DatabaseConfig = {
-  type: "leveldb",
-  defaultRegion: "primary",
+  type: 'leveldb',
+  defaultRegion: 'primary',
 
   regions: [
     {
-      name: "primary",
+      name: 'primary',
       isActive: true,
       priority: 1,
     },
@@ -71,28 +71,28 @@ export const databaseConfig: DatabaseConfig = {
   // Database structure configuration
   databases: {
     utxo: {
-      path: "./utxo-schema",
+      path: './utxo-schema',
       options: {
         cacheSize: 512 * 1024 * 1024, // 512MB cache for UTXO set
       },
     },
     blockchain: {
-      path: "./blockchain-schema",
+      path: './blockchain-schema',
     },
     mining: {
-      path: "./mining-schema",
+      path: './mining-schema',
     },
     voting: {
-      path: "./voting-schema",
+      path: './voting-schema',
     },
     votingShard: {
-      path: "./voting-shard-schema",
+      path: './voting-shard-schema',
     },
     wallet: {
-      path: "./wallet-schema",
+      path: './wallet-schema',
     },
     keystore: {
-      path: "./keystore-schema",
+      path: './keystore-schema',
     },
   },
 

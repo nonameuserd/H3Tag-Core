@@ -1,6 +1,6 @@
-import { Router } from "express";
-import { WalletController } from "../controllers/wallet.controller";
-import { WalletService } from "../services/wallet.service";
+import { Router } from 'express';
+import { WalletController } from '../controllers/wallet.controller';
+import { WalletService } from '../services/wallet.service';
 
 const router = Router();
 const walletService = new WalletService();
@@ -26,7 +26,14 @@ const walletController = new WalletController(walletService);
  *             schema:
  *               $ref: '#/components/schemas/WalletResponseDto'
  */
-router.post("/", walletController.createWallet.bind(walletController));
+router.post(
+  '/',
+  (req, res, next) => {
+    walletController.createWallet(req.body)
+      .then((result) => res.json(result))
+      .catch(next);
+  },
+);
 
 /**
  * @swagger
@@ -48,7 +55,14 @@ router.post("/", walletController.createWallet.bind(walletController));
  *             schema:
  *               $ref: '#/components/schemas/WalletResponseDto'
  */
-router.get("/:address", walletController.getWallet.bind(walletController));
+router.get(
+  '/:address',
+  (req, res, next) => {
+    walletController.getWallet(req.params.address)
+      .then((result) => res.json(result))
+      .catch(next);
+  },
+);
 
 /**
  * @swagger
@@ -79,10 +93,11 @@ router.get("/:address", walletController.getWallet.bind(walletController));
  *                 signature:
  *                   type: string
  */
-router.post(
-  "/:address/sign",
-  walletController.signTransaction.bind(walletController)
-);
+router.post('/:address/sign', (req, res, next) => {
+  walletController.signTransaction(req.params.address, req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
 
 /**
  * @swagger
@@ -105,8 +120,12 @@ router.post(
  *               $ref: '#/components/schemas/WalletBalanceDto'
  */
 router.get(
-  "/:address/balance",
-  walletController.getBalance.bind(walletController)
+  '/:address/balance',
+  (req, res, next) => {
+    walletController.getBalance(req.params.address)
+      .then((result) => res.json(result))
+      .catch(next);
+  },
 );
 
 /**
@@ -130,8 +149,12 @@ router.get(
  *               $ref: '#/components/schemas/NewAddressResponseDto'
  */
 router.post(
-  "/:address/addresses",
-  walletController.getNewAddress.bind(walletController)
+  '/:address/addresses',
+  (req, res, next) => {
+    walletController.getNewAddress(req.params.address)
+      .then((result) => res.json(result))
+      .catch(next);
+  },
 );
 
 /**
@@ -166,8 +189,12 @@ router.post(
  *         description: Invalid password or wallet not found
  */
 router.post(
-  "/:address/export",
-  walletController.exportPrivateKey.bind(walletController)
+  '/:address/export',
+  (req, res, next) => {
+    walletController.exportPrivateKey(req.params.address, req.body)
+      .then((result) => res.json(result))
+      .catch(next);
+  },
 );
 
 /**
@@ -193,8 +220,12 @@ router.post(
  *         description: Invalid private key or password
  */
 router.post(
-  "/import",
-  walletController.importPrivateKey.bind(walletController)
+  '/import',
+  (req, res, next) => {
+    walletController.importPrivateKey(req.body)
+      .then((result) => res.json(result))
+      .catch(next);
+  },
 );
 
 /**
@@ -223,8 +254,12 @@ router.post(
  *         description: Wallet not found
  */
 router.get(
-  "/:address/unspent",
-  walletController.listUnspent.bind(walletController)
+  '/:address/unspent',
+  (req, res, next) => {
+    walletController.listUnspent(req.params.address)
+      .then((result) => res.json(result))
+      .catch(next);
+  },
 );
 
 /**
@@ -256,6 +291,13 @@ router.get(
  *       404:
  *         description: Transaction output not found
  */
-router.get("/txout/:txid/:n", walletController.getTxOut.bind(walletController));
+router.get(
+  '/txout/:txid/:n',
+  (req, res, next) => {
+    walletController.getTxOut(req.params.txid, parseInt(req.params.n))
+      .then((result) => res.json(result))
+      .catch(next);
+  },
+);
 
 export default router;
