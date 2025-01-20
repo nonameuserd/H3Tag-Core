@@ -74,13 +74,21 @@ export class DirectVotingUtil {
     const startVotingHeight = await this.db.getVotingStartHeight();
     const endVotingHeight = await this.db.getVotingEndHeight();
 
-    if (
-      currentHeight - forkHeight >
-      BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH
-    ) {
-      const errorMessage = 'Fork depth exceeds maximum allowed';
-      Logger.error(errorMessage);
-      throw new Error(errorMessage);
+    const forkDepth = currentHeight - forkHeight;
+
+    if (forkDepth > BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH) {
+      const metadata = {
+        currentHeight,
+        forkHeight,
+        forkDepth,
+        maxAllowed: BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
+      };
+      Logger.error('Fork depth exceeds maximum allowed', metadata);
+      const error = new Error(
+        `Fork depth exceeds maximum allowed: current depth ${forkDepth} exceeds max allowed ${BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH}`
+      );
+      (error as ForkDepthError).cause = metadata;
+      throw error;
     }
 
     return {
@@ -300,13 +308,37 @@ export class DirectVotingUtil {
    * Disposes of the DirectVotingUtil
    * @returns Promise<void>
    */
-  async dispose(): Promise<void> {
+  public async dispose(): Promise<void> {
     try {
       this.eventEmitter.removeAllListeners();
       await this.backupManager.cleanup();
+      
+      // Clean up metrics collector
+      if (this.metrics) {
+        this.metrics.dispose();
+      }
+      
+      // Clean up circuit breaker
+      if (this.circuitBreaker) {
+        this.circuitBreaker.dispose();
+      }
+      
+      // Clean up DDoS protection
+      if (this.ddosProtection) {
+        await this.ddosProtection.dispose();
+      }
     } catch (error) {
       Logger.error('Disposal failed:', error);
       throw error;
     }
+  }
+}
+class ForkDepthError extends Error {
+  cause: object;
+
+  constructor(message: string, cause: object) {
+    super(message);
+    this.cause = cause;
+    this.name = 'ForkDepthError';
   }
 }

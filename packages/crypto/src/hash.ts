@@ -2,6 +2,7 @@ import CryptoJS from 'crypto-js';
 import { createHash } from 'crypto';
 import { Dilithium } from './quantum/dilithium';
 import { Kyber } from './quantum/kyber';
+import bs58 from 'bs58';
 
 export class HashUtils {
   /**
@@ -83,7 +84,7 @@ export class HashUtils {
   /**
    * Calculate hybrid quantum-safe hash
    */
-  public static async calculateHash(data: any): Promise<string> {
+  public static async calculateHash(data: Buffer): Promise<string> {
     try {
       // Serialize input data
       const content = JSON.stringify(data);
@@ -165,7 +166,6 @@ export class HashUtils {
    */
   public static toBase58(data: Buffer): string {
     try {
-      const bs58 = require('bs58');
       return bs58.encode(data);
     } catch (error) {
       throw new Error(
@@ -181,9 +181,8 @@ export class HashUtils {
    */
   public static fromBase58(str: string): Buffer {
     try {
-      const bs58 = require('bs58');
       return Buffer.from(bs58.decode(str));
-    } catch (error) {
+    } catch (error: unknown) {
       throw new Error(
         `Base58 decoding failed: ${
           error instanceof Error ? error.message : 'Unknown error'

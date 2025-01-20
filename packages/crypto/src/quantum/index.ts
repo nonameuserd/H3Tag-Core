@@ -188,6 +188,10 @@ export class QuantumCrypto {
     data: Buffer,
   ): Promise<{ ciphertext: Buffer; sharedSecret: Buffer }> {
     try {
+      if (!Buffer.isBuffer(data)) {
+        throw new QuantumError('Invalid input: data must be a Buffer');
+      }
+
       const keyPair = await Kyber.generateKeyPair();
       const result = await Kyber.encapsulate(keyPair.publicKey);
       return {

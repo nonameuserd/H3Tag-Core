@@ -9,6 +9,8 @@
     "rootDir": "./src",
     "declaration": true,
     "moduleResolution": "node",
+    "skipLibCheck": true,
+    "allowJs": true,
     "baseUrl": ".",
     "paths": {
       "@h3tag-blockchain/crypto": ["src/*"]

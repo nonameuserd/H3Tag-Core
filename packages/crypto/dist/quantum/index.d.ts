@@ -11,6 +11,8 @@ export declare class QuantumCrypto {
         native: import("../native/types").NativeQuantum;
         healthCheckInterval: NodeJS.Timeout | undefined;
         isInitialized: boolean;
+        HEALTH_CHECK_INTERVAL: number;
+        clearHealthChecks(): void;
         initializeHealthChecks(): void;
         performHealthCheck(): Promise<void>;
         shutdown(): Promise<void>;

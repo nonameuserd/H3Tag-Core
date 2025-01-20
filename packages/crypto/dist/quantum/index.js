@@ -149,6 +149,9 @@ class QuantumCrypto {
     }
     static async kyberEncapsulate(data) {
         try {
+            if (!Buffer.isBuffer(data)) {
+                throw new QuantumError('Invalid input: data must be a Buffer');
+            }
             const keyPair = await kyber_1.Kyber.generateKeyPair();
             const result = await kyber_1.Kyber.encapsulate(keyPair.publicKey);
             return {

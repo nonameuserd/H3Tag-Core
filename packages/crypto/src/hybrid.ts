@@ -6,6 +6,7 @@ import CryptoJS from 'crypto-js';
 import { KeyManager } from './keys';
 import { HybridKeyPair } from './keys';
 import { QuantumWrapper } from './quantum-wrapper';
+import { ec as EC } from 'elliptic';
 
 export class HybridError extends Error {
   constructor(message: string) {
@@ -23,7 +24,7 @@ interface HybridMetrics {
 
 export class HybridCrypto {
   private static readonly KEY_SIZE = 256;
-  static readonly TRADITIONAL_CURVE = require('elliptic').ec('secp256k1');
+  static readonly TRADITIONAL_CURVE = new EC('secp256k1');
   private static metrics: HybridMetrics = {
     totalHashes: 0,
     averageTime: 0,
@@ -281,9 +282,10 @@ export class HybridCrypto {
       switch (algorithm) {
         case 'dilithium':
           return await Dilithium.verify(data, signature, publicKey);
-        case 'kyber':
+        case 'kyber': {
           const { ciphertext } = await Kyber.encapsulate(publicKey);
           return ciphertext === signature;
+        }
         default:
           return await Dilithium.verify(data, signature, publicKey); // Default to Dilithium
       }
@@ -372,7 +374,7 @@ export class HybridCrypto {
     }
   }
 
-  public static async calculateHybridHash(data: any): Promise<string> {
+  public static async calculateHybridHash(data: Buffer): Promise<string> {
     try {
       const keyPair = await this.generateKeyPair();
       const privateKey =

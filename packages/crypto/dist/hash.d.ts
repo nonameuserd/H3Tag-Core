@@ -24,7 +24,7 @@ export declare class HashUtils {
     /**
      * Calculate hybrid quantum-safe hash
      */
-    static calculateHash(data: any): Promise<string>;
+    static calculateHash(data: Buffer): Promise<string>;
     /**
      * Generate double SHA-256 hash
      */

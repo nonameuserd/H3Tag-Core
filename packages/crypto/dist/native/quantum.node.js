@@ -16,8 +16,9 @@ class QuantumError extends Error {
 class QuantumNative {
     constructor() {
         this.isInitialized = false;
+        this.HEALTH_CHECK_INTERVAL = 60000; // 1 minute in ms
         try {
-            this.native = (0, bindings_1.default)('quantum');
+            this.native = (0, bindings_1.default)('../../src/native/quantum.node');
             this.initializeHealthChecks();
             this.isInitialized = true;
             shared_1.Logger.info('Quantum native module initialized');
@@ -27,6 +28,12 @@ class QuantumNative {
             throw new QuantumError('Native module initialization failed');
         }
     }
+    clearHealthChecks() {
+        if (this.healthCheckInterval) {
+            clearInterval(this.healthCheckInterval);
+            this.healthCheckInterval = undefined;
+        }
+    }
     static getInstance() {
         if (!QuantumNative.instance) {
             QuantumNative.instance = new QuantumNative();
@@ -34,17 +41,34 @@ class QuantumNative {
         return QuantumNative.instance;
     }
     initializeHealthChecks() {
-        this.healthCheckInterval = setInterval(() => {
-            this.performHealthCheck().catch((error) => {
-                shared_1.Logger.error('Health check failed:', error);
-            });
-        }, 60000); // Check every minute
+        try {
+            // Clear any existing interval
+            if (this.healthCheckInterval) {
+                clearInterval(this.healthCheckInterval);
+            }
+            // Set new interval
+            this.healthCheckInterval = setInterval(async () => {
+                try {
+                    await this.performHealthCheck();
+                }
+                catch (error) {
+                    shared_1.Logger.error('Health check failed:', error);
+                    // Clear interval on critical failures
+                    this.shutdown().catch((err) => shared_1.Logger.error('Failed to shutdown after health check error:', err));
+                }
+            }, this.HEALTH_CHECK_INTERVAL);
+            shared_1.Logger.debug('Health checks initialized');
+        }
+        catch (error) {
+            shared_1.Logger.error('Failed to initialize health checks:', error);
+            throw new QuantumError('Health check initialization failed');
+        }
     }
     async performHealthCheck() {
         const start = perf_hooks_1.performance.now();
         try {
-            // Test key generation and signing
             const keyPair = await this.generateDilithiumKeyPair();
+            console.log(keyPair);
             const testMessage = Buffer.from('health_check');
             const signature = await this.dilithiumSign(testMessage, keyPair.privateKey);
             const isValid = await this.dilithiumVerify(testMessage, signature, keyPair.publicKey);
@@ -60,9 +84,7 @@ class QuantumNative {
         }
     }
     async shutdown() {
-        if (this.healthCheckInterval) {
-            clearInterval(this.healthCheckInterval);
-        }
+        this.clearHealthChecks();
         this.isInitialized = false;
         shared_1.Logger.info('Quantum native module shut down');
     }
@@ -76,16 +98,31 @@ class QuantumNative {
         this.checkInitialization();
         const start = perf_hooks_1.performance.now();
         try {
-            const result = await this.native.generateDilithiumKeyPair(entropy);
-            if (!result?.publicKey || !result?.privateKey) {
+            // Validate entropy if provided
+            if (entropy && !(entropy instanceof Buffer)) {
+                throw new QuantumError('Entropy must be a Buffer');
+            }
+            // Call native implementation with entropy if provided
+            const result = entropy
+                ? await this.native.generateDilithiumPair(entropy)
+                : await this.native.generateDilithiumPair();
+            // Validate response
+            if (!Buffer.isBuffer(result?.publicKey) ||
+                !Buffer.isBuffer(result?.privateKey)) {
                 throw new QuantumError('Invalid key pair generated');
             }
-            shared_1.Logger.debug(`Key pair generated in ${perf_hooks_1.performance.now() - start}ms`);
-            return result;
+            const keyPair = {
+                publicKey: result.publicKey,
+                privateKey: result.privateKey,
+            };
+            shared_1.Logger.debug(`Dilithium key pair generated in ${perf_hooks_1.performance.now() - start}ms`);
+            return keyPair;
         }
         catch (error) {
             shared_1.Logger.error('Failed to generate Dilithium key pair:', error);
-            throw new QuantumError(error instanceof Error ? error.message : 'Key generation failed');
+            throw new QuantumError(error instanceof Error
+                ? error.message
+                : 'Dilithium key generation failed');
         }
     }
     async kyberGenerateKeyPair() {
