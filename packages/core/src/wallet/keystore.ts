@@ -203,8 +203,11 @@ export class Keystore {
           mac,
         },
       };
-    } catch (error) {
-      Logger.error(`Encryption failed:`, error);
+    } catch (error: unknown) {
+      Logger.error(
+        'Encryption failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw new KeystoreError(
         'Encryption failed',
         error instanceof KeystoreError ? error.code : 'ENCRYPTION_ERROR',
@@ -243,8 +246,11 @@ export class Keystore {
       const actualData = decrypted.slice(0, -iv.length);
 
       return await this.secureDeserialize(actualData);
-    } catch (error) {
-      Logger.error(`Decryption failed:`, error);
+    } catch (error: unknown) {
+      Logger.error(
+        'Decryption failed:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw new KeystoreError(
         'Decryption failed',
         error instanceof KeystoreError ? error.code : 'DECRYPTION_ERROR',
@@ -301,7 +307,7 @@ export class Keystore {
     params: typeof Keystore.KDF_PARAMS,
   ): Promise<string> {
     try {
-      const derivedKey = await scrypt(password, salt, params.dklen);
+      const derivedKey = (await scrypt(password, salt, params.dklen)) as Buffer;
 
       return derivedKey.toString();
     } catch (error: unknown) {
@@ -311,6 +317,10 @@ export class Keystore {
           KeystoreErrorCode.KDF_ERROR,
         );
       }
+      throw new KeystoreError(
+        'Unknown key derivation error',
+        KeystoreErrorCode.KDF_ERROR,
+      );
     }
   }
 
@@ -395,6 +405,10 @@ export class Keystore {
       if (error instanceof Error) {
         throw new KeystoreError('Serialization failed', 'SERIALIZATION_ERROR');
       }
+      throw new KeystoreError(
+        'Unknown serialization error',
+        'SERIALIZATION_ERROR',
+      );
     }
   }
 
@@ -408,6 +422,10 @@ export class Keystore {
           'DESERIALIZATION_ERROR',
         );
       }
+      throw new KeystoreError(
+        'Unknown deserialization error',
+        'DESERIALIZATION_ERROR',
+      );
     }
   }
 
@@ -516,7 +534,10 @@ export class Keystore {
     };
 
     for (const [key, expectedValue] of Object.entries(requiredParams)) {
-      if (typeof params[key] !== 'number' || params[key] !== expectedValue) {
+      if (
+        typeof params[key as keyof typeof params] !== 'number' ||
+        params[key as keyof typeof params] !== expectedValue
+      ) {
         throw new KeystoreError(
           `Invalid KDF parameter: ${key} for address ${keystore.address}`,
           'INVALID_KDF_PARAM_VALUE',
@@ -553,9 +574,12 @@ export class Keystore {
       const buf = Buffer.from(sensitiveData);
       buf.fill(0);
     } else if (sensitiveData instanceof Object) {
-      Object.keys(sensitiveData).forEach((key) => {
-        sensitiveData[key] = null;
-      });
+      if ('publicKey' in sensitiveData) {
+        sensitiveData.publicKey = '';
+      }
+      if ('privateKey' in sensitiveData) {
+        sensitiveData.privateKey = '';
+      }
     }
   }
 

@@ -34,7 +34,7 @@ export class FileAuditStorage implements IAuditStorage {
   private writeQueue: Promise<void> = Promise.resolve();
   private activeWrites = 0;
   private readonly lockTimeout = 30000; // 30 seconds
-  private lockCleanupInterval: NodeJS.Timeout;
+  private lockCleanupInterval: NodeJS.Timeout | undefined;
 
   private static readonly DEFAULT_CONFIG: StorageConfig = {
     baseDir: 'audit_logs',
@@ -57,8 +57,10 @@ export class FileAuditStorage implements IAuditStorage {
       Logger.info(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} audit storage initialized`,
       );
-    } catch (error) {
-      const msg = `Failed to initialize ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit storage: ${error.message}`;
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const msg = `Failed to initialize ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit storage: ${errorMessage}`;
       Logger.error(msg);
       throw new FileAuditStorageError(msg, 'INIT_FAILED');
     }
@@ -100,8 +102,8 @@ export class FileAuditStorage implements IAuditStorage {
 
             await fs.writeFile(filePath, compressedData);
             return;
-          } catch (error) {
-            lastError = error;
+          } catch (error: unknown) {
+            lastError = error as Error;
             attempt++;
             if (attempt < this.config.maxRetries) {
               await this.delay(this.config.retryDelay * attempt); // Exponential backoff
@@ -123,9 +125,11 @@ export class FileAuditStorage implements IAuditStorage {
       return this.config.compression
         ? (await gunzip(data)).toString()
         : data.toString();
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       throw new FileAuditStorageError(
-        `Failed to read ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit log: ${error.message}`,
+        `Failed to read ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit log: ${errorMessage}`,
         'READ_FAILED',
       );
     }
@@ -134,9 +138,11 @@ export class FileAuditStorage implements IAuditStorage {
   public async listAuditLogs(): Promise<string[]> {
     try {
       return await fs.readdir(this.config.baseDir);
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       throw new FileAuditStorageError(
-        `Failed to list ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit logs: ${error.message}`,
+        `Failed to list ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit logs: ${errorMessage}`,
         'LIST_FAILED',
       );
     }
@@ -173,9 +179,11 @@ export class FileAuditStorage implements IAuditStorage {
   private async compressData(data: string): Promise<Buffer> {
     try {
       return await gzip(Buffer.from(data));
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       throw new FileAuditStorageError(
-        `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} compression failed: ${error.message}`,
+        `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} compression failed: ${errorMessage}`,
         'COMPRESSION_FAILED',
       );
     }

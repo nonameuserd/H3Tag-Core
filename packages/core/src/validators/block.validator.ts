@@ -411,7 +411,7 @@ export class BlockValidator {
 
   private static getCurrentHeight(): number {
     try {
-      return this.blockchain.getCurrentHeight() ?? 0;
+      return this.blockchain?.getCurrentHeight() ?? 0;
     } catch (error) {
       Logger.error('Failed to get current height:', error);
       return 0;
@@ -451,16 +451,13 @@ export class BlockValidator {
   }
 
   private static calculateDifficultyTarget(difficulty: number): bigint {
-    const maxTarget = BigInt(
-      '0x00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
-    );
-    return maxTarget / BigInt(Math.floor(difficulty));
+    return BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET / BigInt(Math.floor(difficulty));
   }
 
   public static async calculateDynamicBlockSize(block: Block): Promise<number> {
     try {
       // Get network metrics
-      const mempool = this.blockchain.getMempool();
+      const mempool = this.blockchain?.getMempool();
       const stats = this.blockchain?.getBlockchainStats();
 
       if (!mempool || !stats) {
@@ -532,7 +529,7 @@ export class BlockValidator {
       }
 
       // Get latest block and calculate size
-      const previousBlock = this.blockchain.getLatestBlock();
+      const previousBlock = this.blockchain?.getLatestBlock();
       if (!previousBlock) {
         Logger.warn('No previous block found, using minimum size');
         return this.BLOCK_CONSTANTS.MIN_BLOCK_SIZE;
@@ -635,8 +632,8 @@ export class BlockValidator {
       const [classicSig] = await Promise.all([
         HybridCrypto.verify(
           validator.validationData,
-          validator.signature,
-          validator.publicKey,
+          validator.signature ?? '',
+          validator.publicKey ?? '',
         ),
       ]);
 

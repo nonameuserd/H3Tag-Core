@@ -47,9 +47,6 @@ export class UTXODatabase {
 
     this.db = new Level(`${dbPath}/utxo`, {
       valueEncoding: 'json',
-      createIfMissing: true,
-      cacheSize: 512 * 1024 * 1024, // 512MB cache
-      compression: true,
       ...databaseConfig.options,
     });
 
@@ -173,9 +170,9 @@ export class UTXODatabase {
 
       this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
       return utxo;
-    } catch (error) {
-      if (error.notFound) return null;
-      Logger.error('Failed to get UTXO:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
+      Logger.error('Failed to get UTXO:', error instanceof Error ? error.message : 'Unknown error');
       throw new Error('Failed to get UTXO');
     }
   }

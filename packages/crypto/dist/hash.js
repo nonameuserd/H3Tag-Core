@@ -17,7 +17,7 @@ class HashUtils {
             return crypto_js_1.default.SHA3(data, { outputLength: 512 }).toString();
         }
         catch (error) {
-            throw new Error(`SHA3 hashing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`SHA3 hashing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -28,7 +28,7 @@ class HashUtils {
             return crypto_js_1.default.SHA256(data).toString();
         }
         catch (error) {
-            throw new Error(`SHA256 hashing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`SHA256 hashing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -39,7 +39,7 @@ class HashUtils {
             return crypto_js_1.default.HmacSHA512(data, key).toString();
         }
         catch (error) {
-            throw new Error(`HMAC generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`HMAC generation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -50,7 +50,7 @@ class HashUtils {
             return crypto_js_1.default.RIPEMD160(data).toString();
         }
         catch (error) {
-            throw new Error(`RIPEMD160 hashing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`RIPEMD160 hashing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -59,10 +59,10 @@ class HashUtils {
     static sha3Buffer(data) {
         try {
             const hash = this.sha3(data.toString());
-            return Buffer.from(hash, 'hex');
+            return Buffer.from(hash, "hex");
         }
         catch (error) {
-            throw new Error(`SHA3 buffer hashing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`SHA3 buffer hashing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -74,7 +74,7 @@ class HashUtils {
             const content = JSON.stringify(data);
             const contentBuffer = Buffer.from(new TextEncoder().encode(content));
             // Generate classical hash
-            const classicHash = (0, crypto_1.createHash)('sha256').update(content).digest('hex');
+            const classicHash = (0, crypto_1.createHash)("sha256").update(content).digest("hex");
             // Generate quantum-resistant hashes
             const [dilithiumHash, kyberHash] = await Promise.all([
                 dilithium_1.Dilithium.hash(contentBuffer),
@@ -84,7 +84,7 @@ class HashUtils {
             return this.sha3(classicHash + dilithiumHash + kyberHash);
         }
         catch (error) {
-            throw new Error(`Hybrid hash calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Hybrid hash calculation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -95,7 +95,7 @@ class HashUtils {
             return this.sha256(this.sha256(data));
         }
         catch (error) {
-            throw new Error(`Double SHA256 hashing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Double SHA256 hashing failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -107,7 +107,7 @@ class HashUtils {
             return this.ripemd160(sha256Hash);
         }
         catch (error) {
-            throw new Error(`Hash160 calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Hash160 calculation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -116,13 +116,13 @@ class HashUtils {
     static hybridHash(data) {
         try {
             const dataBuffer = Buffer.from(data);
-            const hash = this.doubleSha256(dataBuffer.toString('hex')) +
+            const hash = this.doubleSha256(dataBuffer.toString("hex")) +
                 dilithium_1.Dilithium.hash(dataBuffer) +
                 kyber_1.Kyber.hash(dataBuffer);
             return this.ripemd160(hash);
         }
         catch (error) {
-            throw new Error(`Hybrid hash calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Hybrid hash calculation failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -130,11 +130,11 @@ class HashUtils {
      */
     static toBase58(data) {
         try {
-            const bs58 = require('bs58');
+            const bs58 = require("bs58");
             return bs58.encode(data);
         }
         catch (error) {
-            throw new Error(`Base58 encoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Base58 encoding failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
     /**
@@ -142,11 +142,11 @@ class HashUtils {
      */
     static fromBase58(str) {
         try {
-            const bs58 = require('bs58');
+            const bs58 = require("bs58");
             return Buffer.from(bs58.decode(str));
         }
         catch (error) {
-            throw new Error(`Base58 decoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Base58 decoding failed: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
     }
 }

@@ -14,7 +14,7 @@ const quantum_wrapper_1 = require("./quantum-wrapper");
 class KeyError extends Error {
     constructor(message) {
         super(message);
-        this.name = 'KeyError';
+        this.name = "KeyError";
     }
 }
 exports.KeyError = KeyError;
@@ -31,7 +31,7 @@ class KeyManager {
     static async generateHybridKeyPair(entropy) {
         try {
             if (entropy && entropy.length < this.MIN_ENTROPY_LENGTH) {
-                throw new KeyError('Insufficient entropy length');
+                throw new KeyError("Insufficient entropy length");
             }
             // Generate quantum-resistant keys in parallel
             const [dilithiumKeys, kyberKeys] = await Promise.all([
@@ -39,24 +39,24 @@ class KeyManager {
                 kyber_1.Kyber.generateKeyPair(),
             ]);
             if (!dilithiumKeys || !kyberKeys) {
-                throw new KeyError('Failed to generate quantum keys');
+                throw new KeyError("Failed to generate quantum keys");
             }
             // Generate or use provided entropy
             const traditionalEntropy = entropy ||
                 crypto_js_1.default.lib.WordArray.random(this.DEFAULT_ENTROPY_LENGTH).toString();
             const keyPair = {
-                address: '',
+                address: "",
                 publicKey: traditionalEntropy,
                 privateKey: traditionalEntropy,
             };
             if (!this.validateKeyPair(keyPair)) {
-                throw new KeyError('Generated invalid key pair');
+                throw new KeyError("Generated invalid key pair");
             }
             return keyPair;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to generate hybrid key pair:', error);
-            throw new KeyError(error instanceof Error ? error.message : 'Key generation failed');
+            shared_1.Logger.error("Failed to generate hybrid key pair:", error);
+            throw new KeyError(error instanceof Error ? error.message : "Key generation failed");
         }
     }
     /**
@@ -68,7 +68,7 @@ class KeyManager {
                 (await this.validateKey(keyPair.privateKey)));
         }
         catch (error) {
-            shared_1.Logger.error('Key pair validation failed:', error);
+            shared_1.Logger.error("Key pair validation failed:", error);
             return false;
         }
     }
@@ -76,8 +76,8 @@ class KeyManager {
      * Validate an individual key
      */
     static async validateKey(key) {
-        const keyString = typeof key === 'function' ? await key() : key;
-        return (typeof keyString === 'string' &&
+        const keyString = typeof key === "function" ? await key() : key;
+        return (typeof keyString === "string" &&
             keyString.length >= this.MIN_ENTROPY_LENGTH);
     }
     /**
@@ -86,13 +86,13 @@ class KeyManager {
     static serializeKeyPair(keyPair) {
         try {
             if (!this.validateKeyPair(keyPair)) {
-                throw new KeyError('Invalid key pair');
+                throw new KeyError("Invalid key pair");
             }
             return JSON.stringify(keyPair);
         }
         catch (error) {
-            shared_1.Logger.error('Key pair serialization failed:', error);
-            throw new KeyError(error instanceof Error ? error.message : 'Serialization failed');
+            shared_1.Logger.error("Key pair serialization failed:", error);
+            throw new KeyError(error instanceof Error ? error.message : "Serialization failed");
         }
     }
     /**
@@ -102,13 +102,13 @@ class KeyManager {
         try {
             const keyPair = JSON.parse(serialized);
             if (!this.validateKeyPair(keyPair)) {
-                throw new KeyError('Invalid key pair format');
+                throw new KeyError("Invalid key pair format");
             }
             return keyPair;
         }
         catch (error) {
-            shared_1.Logger.error('Key pair deserialization failed:', error);
-            throw new KeyError(error instanceof Error ? error.message : 'Deserialization failed');
+            shared_1.Logger.error("Key pair deserialization failed:", error);
+            throw new KeyError(error instanceof Error ? error.message : "Deserialization failed");
         }
     }
     static async generateKeyPair(entropy) {
@@ -126,30 +126,30 @@ class KeyManager {
     }
     static async deriveAddress(publicKey) {
         try {
-            const pubKey = typeof publicKey === 'function' ? await publicKey() : publicKey;
+            const pubKey = typeof publicKey === "function" ? await publicKey() : publicKey;
             const quantumKeys = await quantum_wrapper_1.QuantumWrapper.generateKeyPair();
             const combined = await hybrid_1.HybridCrypto.deriveAddress({
                 address: pubKey + quantumKeys.publicKey.address,
             });
             const hash = await quantum_wrapper_1.QuantumWrapper.hashData(Buffer.from(combined));
-            const ripemd160Hash = hash_1.HashUtils.ripemd160(hash_1.HashUtils.sha256(hash.toString('hex')));
+            const ripemd160Hash = hash_1.HashUtils.ripemd160(hash_1.HashUtils.sha256(hash.toString("hex")));
             // Determine address type (TAG1, TAG3, or TAG)
             const addressType = this.determineAddressType(pubKey);
             const versionByte = this.getVersionByte(addressType);
             const versionedHash = Buffer.concat([
                 Buffer.from([versionByte]),
-                Buffer.from(ripemd160Hash, 'hex'),
+                Buffer.from(ripemd160Hash, "hex"),
             ]);
-            const checksum = hash_1.HashUtils.sha256(hash_1.HashUtils.sha256(versionedHash.toString('hex'))).slice(0, 8);
+            const checksum = hash_1.HashUtils.sha256(hash_1.HashUtils.sha256(versionedHash.toString("hex"))).slice(0, 8);
             const finalBinary = Buffer.concat([
                 versionedHash,
-                Buffer.from(checksum, 'hex'),
+                Buffer.from(checksum, "hex"),
             ]);
             return addressType + hash_1.HashUtils.toBase58(finalBinary);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to derive quantum-safe address', { error });
-            throw new KeyError('Address derivation failed');
+            shared_1.Logger.error("Failed to derive quantum-safe address", { error });
+            throw new KeyError("Address derivation failed");
         }
     }
     static determineAddressType(publicKey) {
@@ -158,43 +158,39 @@ class KeyManager {
             const keyLength = publicKey.length;
             const keyType = publicKey.substring(0, 2); // First two characters often indicate key type
             // Determine address type based on key characteristics
-            if (keyType === '02' || keyType === '03') {
+            if (keyType === "02" || keyType === "03") {
                 // Compressed public key format - use native SegWit equivalent
-                return 'TAG1';
+                return "TAG1";
             }
-            else if (keyType === '04') {
+            else if (keyType === "04") {
                 // Uncompressed public key format - use legacy format
-                return 'TAG';
+                return "TAG";
             }
             else if (keyLength > 66) {
                 // Complex/multisig script - use P2SH equivalent
-                return 'TAG3';
+                return "TAG3";
             }
             // Default to most modern format if we can't determine
-            shared_1.Logger.debug('Using default address type TAG1 for public key', {
+            shared_1.Logger.debug("Using default address type TAG1 for public key", {
                 keyType,
-                keyLength,
+                keyLength
             });
-            return 'TAG1';
+            return "TAG1";
         }
         catch (error) {
-            shared_1.Logger.warn('Error determining address type, using default TAG1', {
+            shared_1.Logger.warn("Error determining address type, using default TAG1", {
                 error,
-                publicKey: publicKey.substring(0, 10) + '...',
+                publicKey: publicKey.substring(0, 10) + "..."
             });
-            return 'TAG1';
+            return "TAG1";
         }
     }
     static getVersionByte(addressType) {
         switch (addressType) {
-            case 'TAG1':
-                return 0x00; // Native SegWit equivalent
-            case 'TAG3':
-                return 0x05; // P2SH equivalent
-            case 'TAG':
-                return 0x00; // Legacy equivalent
-            default:
-                throw new KeyError('Invalid address type');
+            case "TAG1": return 0x00; // Native SegWit equivalent
+            case "TAG3": return 0x05; // P2SH equivalent
+            case "TAG": return 0x00; // Legacy equivalent
+            default: throw new KeyError("Invalid address type");
         }
     }
     static async shutdown() {
@@ -210,11 +206,11 @@ class KeyManager {
             const decoded = hash_1.HashUtils.fromBase58(address);
             // Extract the public key hash (remove version byte and checksum)
             const pubKeyHash = decoded.slice(1, -4);
-            return pubKeyHash.toString('hex');
+            return pubKeyHash.toString("hex");
         }
         catch (error) {
-            shared_1.Logger.error('Failed to convert address to hash:', error);
-            throw new KeyError('Invalid address format');
+            shared_1.Logger.error("Failed to convert address to hash:", error);
+            throw new KeyError("Invalid address format");
         }
     }
     /**
@@ -226,8 +222,8 @@ class KeyManager {
             return hash;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to get public key hash:', error);
-            throw new KeyError('Invalid public key');
+            shared_1.Logger.error("Failed to get public key hash:", error);
+            throw new KeyError("Invalid public key");
         }
     }
 }

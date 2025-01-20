@@ -1,5 +1,7 @@
 {
   "extends": "../../tsconfig.json",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",

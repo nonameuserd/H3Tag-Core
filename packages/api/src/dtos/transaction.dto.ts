@@ -48,7 +48,7 @@ export class TransactionResponseDto {
     description: 'Transaction amount',
     example: '100',
   })
-  amount: string | undefined;
+  amount: bigint | undefined;
 
   @ApiProperty({
     description: 'Transaction timestamp',

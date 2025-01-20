@@ -25,6 +25,7 @@ import { DDoSProtection } from '../../security/ddos';
 import { BLOCKCHAIN_CONSTANTS } from '../utils/constants';
 import { Performance } from '../../monitoring/performance';
 import { Transaction } from '../../models/transaction.model';
+import { IVotingSchema } from '../../database/voting-schema';
 
 interface CacheMetrics {
   hitRate: number;
@@ -261,7 +262,7 @@ export class HybridDirectConsensus {
     // Initialize after dependencies
     this.directVoting = new DirectVoting(
       this.db,
-      this.db.getVotingSchema(),
+      this.db.getVotingSchema() as IVotingSchema,
       this.auditManager,
       new DirectVotingUtil(this.db, this.auditManager),
       this.blockchain.getNode(),

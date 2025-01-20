@@ -272,7 +272,7 @@ export class MetricsCollector {
         (size, output) => size + this.calculateOutputSize(output),
         0,
       ) +
-      this.calculateVarIntSize(tx.lockTime)
+      this.calculateVarIntSize(tx.lockTime || 0)
     );
   }
 

@@ -22,6 +22,7 @@ import {
   BlockchainInfoDto,
 } from '../dtos/blockchain.dto';
 import { Logger } from '@h3tag-blockchain/shared';
+import { TransactionDto } from '../dtos/transaction.dto';
 
 @ApiTags('Blockchain')
 @Controller('blockchain')
@@ -106,15 +107,15 @@ export class BlockchainController {
         hash: block.hash,
         previousHash: block.previousHash,
         merkleRoot: block.merkleRoot,
-        transactions: block.transactions.map((tx) => ({
+        transactions: block.transactions.map((tx: TransactionDto) => ({
           hash: tx.hash,
-          amount: Number(tx.outputs[0]?.amount) || 0,
+          amount: tx.amount ? Number(tx.amount.toString()) : 0,
           confirmations: currentHeight - block.height + 1,
           timestamp: tx.timestamp,
           type: tx.type,
           status: tx.status,
-          fromAddress: tx.inputs[0]?.address || '',
-          toAddress: tx.outputs[0]?.address || '',
+          fromAddress: tx.inputs?.[0]?.address || '',
+          toAddress: tx.outputs?.[0]?.address || '',
         })),
       };
     } catch (error: unknown) {

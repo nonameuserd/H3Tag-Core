@@ -34,7 +34,7 @@ export class ZeroCopyCompression {
       'gpu' in navigator &&
       typeof GPUBuffer !== 'undefined';
 
-    this.device = device || null;
+    this.device = device || new GPUDevice();
     this.sharedBuffers = new Map();
 
     // Add proper environment check
@@ -65,7 +65,7 @@ export class ZeroCopyCompression {
         });
 
       // Copy data from mapped buffer to shared array
-      view.set(new Uint8Array(mapped));
+      view.set(new Uint8Array(mapped || new Uint8Array()));
 
       // Create command encoder with proper error handling
       const commandEncoder = this.device.createCommandEncoder();
@@ -82,7 +82,10 @@ export class ZeroCopyCompression {
       buffer.unmap();
     } catch (error) {
       buffer?.unmap();
-      throw new Error(`Compression failed: ${error.message}`);
+      if (error instanceof Error) {
+        throw new Error(`Compression failed: ${error.message}`);
+      }
+      throw new Error('Compression failed: Unknown error');
     }
   }
 
@@ -361,8 +364,11 @@ export class ZeroCopyCompression {
 
       computePass.end();
       this.device.queue.submit([commandEncoder.finish()]);
-    } catch (error) {
-      throw new Error(`Shared memory compression failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Shared memory compression failed: ${error.message}`);
+      }
+      throw new Error('Shared memory compression failed: Unknown error');
     }
   }
 

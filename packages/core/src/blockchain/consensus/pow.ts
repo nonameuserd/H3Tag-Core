@@ -31,6 +31,7 @@ import { WorkerPool } from '../../network/worker-pool';
 import { UTXOSet } from '../../models/utxo.model';
 import { RetryStrategy } from '../../utils/retry';
 import { Mutex } from 'async-mutex';
+import { IBlockchainData } from '../blockchain-stats';
 
 interface MiningResult {
   found: boolean;
@@ -474,7 +475,7 @@ export class ProofOfWork {
       }
 
       this.metrics = MiningMetrics.getInstance();
-      this.difficultyAdjuster = new DifficultyAdjuster(this.blockchain);
+      this.difficultyAdjuster = new DifficultyAdjuster(this.blockchain as IBlockchainData);
 
       // Initialize block validation
       const validateBlock = async (block: Block): Promise<boolean> => {
@@ -1982,7 +1983,7 @@ export class ProofOfWork {
     tx.id = tx.hash;
 
     // Sign the transaction
-    tx.signature = await HybridCrypto.sign(tx.hash, this.minerKeyPair?.privateKey as string);
+    tx.signature = await HybridCrypto.sign(tx.hash, this.minerKeyPair as HybridKeyPair);
 
     return tx;
   }

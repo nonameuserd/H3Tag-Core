@@ -129,11 +129,15 @@ export class HealthMonitor {
         throw new Error('Invalid health check thresholds');
       }
 
-      health.isHealthy =
-        health.powNodeCount >= this.config.thresholds.minPowNodes &&
-        health.networkHashrate >= this.config.thresholds.minPowHashrate &&
-        health.tagHolderCount >= this.config.thresholds.minTagDistribution &&
-        health.tagDistribution <= this.config.thresholds.maxTagConcentration;
+      const thresholds = this.config.thresholds;
+      const isHealthy =
+        thresholds &&
+        (health.powNodeCount || 0) >= (thresholds.minPowNodes || 0) &&
+        (health.networkHashrate || 0) >= (thresholds.minPowHashrate || 0) &&
+        (health.tagHolderCount || 0) >= (thresholds.minTagDistribution || 0) &&
+        (health.tagDistribution || 0) <= (thresholds.maxTagConcentration || 1);
+
+      health.isHealthy = isHealthy;
 
       return health;
     } catch (error) {

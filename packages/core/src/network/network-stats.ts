@@ -43,8 +43,8 @@ export class NetworkStats {
   ]);
   private static readonly DEFAULT_PROPAGATION_TIME = 0;
   private static readonly OUTLIER_THRESHOLD = 3; // Standard deviations
-  private readonly blockchain: Blockchain;
-  private readonly configService: ConfigService;
+  private readonly blockchain: Blockchain | undefined;
+  private readonly configService: ConfigService | undefined;
 
   private discoveryTimer: NodeJS.Timeout | null = null;
   private readonly peerScores: Map<string, number> = new Map();
@@ -351,9 +351,11 @@ export class NetworkStats {
               return latency;
             }
             return 0;
-          } catch (error) {
+          } catch (error: unknown) {
             Logger.warn(
-              `Failed to get latency for peer, error: ${error.message}`,
+              `Failed to get latency for peer, error: ${
+                error instanceof Error ? error.message : 'Unknown error'
+              }`,
               error,
             );
             return 0;
@@ -708,8 +710,8 @@ export class NetworkStats {
           0,
         ),
         timeConnected: Math.floor(Date.now() / 1000) - this.startTime,
-        blockHeight: this.blockchain.getHeight(),
-        difficulty: this.blockchain.getCurrentDifficulty(),
+        blockHeight: this.blockchain?.getHeight() || 0,
+        difficulty: this.blockchain?.getCurrentDifficulty() || 0,
         hashRate: this.globalHashRate,
         mempool: this.getMempoolInfo(),
       };
@@ -733,14 +735,14 @@ export class NetworkStats {
             name: 'ipv4',
             limited: false,
             reachable: true,
-            proxy: this.configService.get('PROXY_IPV4') || 'none',
+            proxy: this.configService?.get('PROXY_IPV4') || 'none',
             proxy_randomize_credentials: true,
           },
           {
             name: 'ipv6',
             limited: false,
             reachable: true,
-            proxy: this.configService.get('PROXY_IPV6') || 'none',
+            proxy: this.configService?.get('PROXY_IPV6') || 'none',
             proxy_randomize_credentials: true,
           },
           {
@@ -767,11 +769,11 @@ export class NetworkStats {
 
   private getMempoolInfo() {
     try {
-      const mempool = this.blockchain.getMempool();
+      const mempool = this.blockchain?.getMempool();
       return {
-        size: mempool.size,
-        bytes: mempool.bytes,
-        usage: mempool.usage,
+        size: mempool?.size || 0,
+        bytes: mempool?.bytes || 0,
+        usage: mempool?.usage || 0,
         maxmempool: BLOCKCHAIN_CONSTANTS.MAX_MEMPOOL_SIZE,
         mempoolminfee: BLOCKCHAIN_CONSTANTS.MIN_RELAY_TX_FEE,
       };
@@ -789,11 +791,12 @@ export class NetworkStats {
 
   private getLocalServices(): string[] {
     const services = [];
-    if (this.configService.get('NETWORK_NODE')) services.push('NODE_NETWORK');
-    if (this.configService.get('NETWORK_BLOOM')) services.push('NODE_BLOOM');
-    if (this.configService.get('NETWORK_WITNESS'))
+    if (this.configService?.get('NETWORK_NODE'))
+      services.push('NODE_NETWORK');
+    if (this.configService?.get('NETWORK_BLOOM')) services.push('NODE_BLOOM');
+    if (this.configService?.get('NETWORK_WITNESS'))
       services.push('NODE_WITNESS');
-    if (this.configService.get('NETWORK_COMPACT'))
+    if (this.configService?.get('NETWORK_COMPACT'))
       services.push('NODE_COMPACT_FILTERS');
     return services;
   }
@@ -801,7 +804,7 @@ export class NetworkStats {
   private getLocalAddresses(): string[] {
     try {
       return (
-        (this.configService.get('LOCAL_ADDRESSES') as string)?.split(',') || []
+        (this.configService?.get('LOCAL_ADDRESSES') as string)?.split(',') || []
       );
     } catch (error) {
       Logger.warn('Failed to get local addresses:', error);
@@ -838,7 +841,7 @@ export class NetworkStats {
         BLOCKCHAIN_CONSTANTS.VERSION.toString(),
       );
       const latestVersion = parseFloat(
-        this.configService.get('LATEST_VERSION') as string,
+        this.configService?.get('LATEST_VERSION') as string,
       );
       return currentVersion < latestVersion;
     } catch (error) {
@@ -850,11 +853,11 @@ export class NetworkStats {
   private async isSynced(): Promise<boolean> {
     try {
       return (
-        !this.blockchain.isInitialBlockDownload() &&
-        (await this.blockchain.getVerificationProgress()) >= 0.99
+        !this.blockchain?.isInitialBlockDownload() &&
+        (await this.blockchain?.getVerificationProgress() || 0) >= 0.99
       );
-    } catch (error) {
-      Logger.warn('Failed to check sync status:', error);
+    } catch (error: unknown) {
+      Logger.warn('Failed to check sync status:', error as Error);
       return false;
     }
   }

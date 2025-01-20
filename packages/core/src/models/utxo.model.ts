@@ -215,7 +215,7 @@ export class UTXOSet {
   private merkleRoot: string = '';
   private readonly db: UTXODatabase;
   private cache: Map<string, UTXO[]> = new Map();
-  private blockchainSchema: BlockchainSchema;
+  private blockchainSchema: BlockchainSchema | null = null;
   private readonly CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
   private cacheTimestamps: Map<string, number> = new Map();
   private readonly VERIFICATION_CACHE_MAX_SIZE = 10000;
@@ -901,8 +901,8 @@ export class UTXOSet {
       // Run verification
       const isValidSignature = await HybridCrypto.verify(
         data.toString(),
-        JSON.parse(utxo.signature),
-        JSON.parse(utxo.publicKey),
+        JSON.parse(utxo.signature || ''),
+        JSON.parse(utxo.publicKey || ''),
       );
 
       // Cache and return result
@@ -983,7 +983,7 @@ export class UTXOSet {
             symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
             decimals: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
           },
-          publicKey: tx.outputs[i].publicKey,
+          publicKey: tx.outputs[i].publicKey || '',
           confirmations: 0,
         };
         changes.push({ type: 'remove', utxo });
@@ -1108,7 +1108,7 @@ export class UTXOSet {
             symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
             decimals: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
           },
-          publicKey: output.publicKey,
+          publicKey: output.publicKey || '',
           confirmations: 0,
         });
       }
@@ -1441,7 +1441,7 @@ export class UTXOSet {
       }
 
       // Get the block information
-      const blockInfo = await this.blockchainSchema.getBlockByHeight(
+      const blockInfo = await this.blockchainSchema?.getBlockByHeight(
         utxo.blockHeight || 0,
       );
 
@@ -1596,14 +1596,14 @@ export class UTXOSet {
   private async isCoinbaseTransaction(txId: string): Promise<boolean> {
     try {
       // Get the transaction from the blockchain
-      const transaction = await this.blockchainSchema.getTransaction(txId);
+      const transaction = await this.blockchainSchema?.getTransaction(txId);
       if (!transaction) {
         return false;
       }
 
       // Check if it's the first transaction in its block
-      const block = await this.blockchainSchema.getBlockByHeight(
-        transaction.blockHeight,
+      const block = await this.blockchainSchema?.getBlockByHeight(
+        transaction.blockHeight || 0,
       );
       if (!block || block.transactions[0].id !== txId) {
         return false;
@@ -1646,13 +1646,13 @@ export class UTXOSet {
    */
   private async isCoinbaseMature(txId: string): Promise<boolean> {
     try {
-      const transaction = await this.blockchainSchema.getTransaction(txId);
+      const transaction = await this.blockchainSchema?.getTransaction(txId);
       if (!transaction || !transaction.blockHeight) {
         return false;
       }
 
-      const currentHeight = await this.blockchainSchema.getCurrentHeight();
-      const confirmations = currentHeight - transaction.blockHeight + 1;
+      const currentHeight = await this.blockchainSchema?.getCurrentHeight();
+      const confirmations = (currentHeight || 0) - transaction.blockHeight + 1;
 
       return confirmations >= BLOCKCHAIN_CONSTANTS.COINBASE_MATURITY;
     } catch (error) {

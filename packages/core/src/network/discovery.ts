@@ -55,20 +55,20 @@ export class PeerDiscovery {
   private readonly miners: Set<string>;
   private readonly bannedPeers: Map<string, number>;
   private readonly config: ConfigService;
-  private readonly database: BlockchainSchema;
+  private readonly database: BlockchainSchema | undefined;
   private readonly rateLimit: RateLimit;
   private readonly peerCache: Cache<PeerInfo>;
   private readonly utxoSet: UTXOSet;
   private readonly mempool: Mempool;
   private state: DiscoveryState;
-  private discoveryInterval: NodeJS.Timeout;
-  private cleanupInterval: NodeJS.Timeout;
+  private discoveryInterval: NodeJS.Timeout | undefined;
+  private cleanupInterval: NodeJS.Timeout | undefined;
   private peerScores: Map<string, number>;
   private statePromise: Promise<void> = Promise.resolve();
   private readonly peerAddresses: Map<string, PeerAddress>;
   private readonly dnsSeeds: string[];
   private readonly banThreshold = 100;
-  private feelerInterval: NodeJS.Timeout;
+  private feelerInterval: NodeJS.Timeout | undefined;
 
   private static readonly DISCOVERY_INTERVAL = 30000;
   private static readonly CLEANUP_INTERVAL = 300000;
@@ -186,7 +186,7 @@ export class PeerDiscovery {
 
     // Remove excess connections
     while (this.peers.size > targetConnections) {
-      const [oldestPeer] = this.peers.entries().next().value;
+      const [oldestPeer] = Array.from(this.peers.entries())[0];
       await this.removePeer(oldestPeer);
     }
 
@@ -419,7 +419,7 @@ export class PeerDiscovery {
     }
   }
 
-  private isValidPeer(peerInfo: PeerInfo): boolean {
+  private isValidPeer(peerInfo: PeerInfo): string | boolean {
     const now = Date.now();
     return (
       peerInfo.url &&
@@ -446,7 +446,7 @@ export class PeerDiscovery {
         port,
         {}, // config
         this.config, // configService
-        this.database,
+        this.database || new BlockchainSchema(),
       );
       await peer.connect();
 
@@ -537,7 +537,7 @@ export class PeerDiscovery {
   private async resolveDnsSeed(seed: string): Promise<string[]> {
     try {
       const addresses = await new Promise<string[]>((resolve, reject) => {
-        dns.resolve(seed, (err: Error, addresses: string[]) => {
+        dns.resolve(seed, (err: Error | null, addresses: string[]) => {
           if (err) reject(err);
           else resolve(addresses);
         });
@@ -621,7 +621,7 @@ export class PeerDiscovery {
           break;
         case PeerMessageType.ADDR:
           await this.handleAddr({
-            addresses: message.payload.addresses,
+            addresses: message.payload.addresses || [],
           });
           break;
         case PeerMessageType.INV:
@@ -665,7 +665,7 @@ export class PeerDiscovery {
         await peer.updateInfo({
           version: Number(version),
           services,
-          startHeight,
+          startHeight: startHeight || 0,
           userAgent,
           lastSeen: timestamp || Date.now(),
         });

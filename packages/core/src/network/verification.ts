@@ -51,8 +51,10 @@ export class NodeVerifier {
         this.verifyNodeWithTimeout(nodeInfo),
         timeoutPromise,
       ]);
-    } catch (error) {
-      Logger.error(`Node verification failed:`, error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error('Node verification failed:', errorMessage);
       return false;
     }
   }
@@ -104,9 +106,11 @@ export class NodeVerifier {
       if (!isValid) {
         throw new VerificationError('Invalid node signature');
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       throw new VerificationError(
-        `Signature verification failed: ${error.message}`,
+        `Signature verification failed: ${errorMessage}`,
       );
     }
   }
@@ -144,7 +148,7 @@ export class NodeVerifier {
 
     if (drift > maxDrift || timestamp > now + maxDrift) {
       throw new VerificationError(
-        `Node timestamp is too far from current time`,
+        `Node timestamp is too far from current time: ${drift}ms`,
       );
     }
   }
@@ -167,7 +171,7 @@ export class NodeVerifier {
 
       if (!isHttpAddress && !isP2PAddress) {
         throw new VerificationError(
-          `Node address must start with http://, https://, or p2p://`,
+          'Node address must start with http://, https://, or p2p://',
         );
       }
 
@@ -199,7 +203,9 @@ export class NodeVerifier {
         );
 
         if (!urlRegex.test(address)) {
-          throw new VerificationError(`Invalid HTTP/HTTPS node address format`);
+          throw new VerificationError(
+            'Invalid HTTP/HTTPS node address format',
+          );
         }
       } else {
         // P2P specific validations
@@ -245,8 +251,10 @@ export class NodeVerifier {
       if (error instanceof VerificationError) {
         throw error;
       }
-      Logger.error('Node address validation failed:', error);
-      throw new VerificationError(`Invalid node address: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error('Node address validation failed:', errorMessage);
+      throw new VerificationError(`Invalid node address: ${errorMessage}`);
     }
   }
 }

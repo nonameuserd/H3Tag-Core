@@ -56,7 +56,7 @@ interface CacheItem<T> {
 export class Cache<T> {
   private items: Map<string, CacheItem<T>>;
   private stats: CacheStats;
-  private cleanupInterval: NodeJS.Timeout;
+  private cleanupInterval: NodeJS.Timeout | undefined;
   readonly options: Required<CacheOptions<T>>;
   private memoryUsage: number = 0;
   private memoryThreshold = 0.9; // 90% memory threshold
@@ -183,8 +183,10 @@ export class Cache<T> {
         currency: this.options.currency,
       });
     } catch (error) {
-      Logger.error(`Cache error setting key "${key}":`, error);
-      throw new CacheError(`Failed to set cache key: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(`Cache error setting key "${key}":`, errorMessage);
+      throw new CacheError(`Failed to set cache key: ${errorMessage}`);
     }
   }
 

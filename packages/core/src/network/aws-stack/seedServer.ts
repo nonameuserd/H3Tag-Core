@@ -52,14 +52,14 @@ export class SeedServer {
   private knownNodes: Map<string, NodeInfo> = new Map();
   private readonly port: number;
   private readonly regions: string[];
-  private healthCheckInterval: NodeJS.Timeout;
+  private healthCheckInterval: NodeJS.Timeout | undefined;
   private cloudWatch: CloudWatch;
   private route53: Route53;
   private readonly merkleTree: MerkleTree;
 
   constructor(port: number = 8333) {
     this.port = port;
-    this.regions = [process.env.AWS_REGION];
+    this.regions = [process.env.AWS_REGION || 'us-east-1'];
 
     // Initialize AWS Services
     const config = {

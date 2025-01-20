@@ -213,10 +213,10 @@ export class BlockchainSync {
       Logger.info(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} blockchain synchronization completed`,
       );
-    } catch (error) {
+    } catch (error: unknown) {
       this.syncStats.failedAttempts++;
       this.syncStats.endTime = Date.now();
-      this.handleSyncError(error);
+      this.handleSyncError(error as Error);
     }
   }
 
@@ -334,7 +334,9 @@ export class BlockchainSync {
       await this.verifyChain();
     } catch (error) {
       Logger.error('Synchronization failed:', error);
-      throw new SyncError(`Sync failed: ${error.message}`);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new SyncError(`Sync failed: ${errorMessage}`);
     } finally {
       if (syncTimeout) clearTimeout(syncTimeout);
     }
@@ -396,7 +398,7 @@ export class BlockchainSync {
             `Header sync failed at height ${this.headerSync.currentHeight}:`,
             error,
           );
-          await this.handleSyncError(error);
+          await this.handleSyncError(error as Error);
         }
       }
     } finally {
@@ -497,9 +499,14 @@ export class BlockchainSync {
       }
     } catch (error) {
       this.syncStats.failedAttempts++;
-      Logger.error(`Error processing block ${block.header.height}:`, error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(
+        `Error processing block ${block.header.height}:`,
+        errorMessage,
+      );
       throw new SyncError(
-        `Failed to process block ${block.header.height}: ${error.message}`,
+        `Failed to process block ${block.header.height}: ${errorMessage}`,
       );
     }
   }
@@ -557,13 +564,15 @@ export class BlockchainSync {
 
       // Broadcast to other peers
       this.broadcastToPeers(PeerMessageType.NEW_BLOCK, block, peer);
-    } catch (error) {
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       Logger.error(
         `Error handling new ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block:`,
-        error,
+        errorMessage,
       );
       throw new SyncError(
-        `Failed to handle new ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block: ${error.message}`,
+        `Failed to handle new ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block: ${errorMessage}`,
       );
     }
   }
@@ -578,8 +587,10 @@ export class BlockchainSync {
 
       // Broadcast to other peers
       this.broadcastToPeers(PeerMessageType.NEW_TRANSACTION, transaction, peer);
-    } catch (error) {
-      Logger.error(`Error handling new transaction:`, error);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error('Error handling new transaction:', errorMessage);
     }
   }
 
@@ -693,10 +704,12 @@ export class BlockchainSync {
             ),
           ),
         ]);
-        return response.blocks;
-      } catch (error) {
+        return response.blocks as Block[];
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
         if (attempt === BlockchainSync.MAX_RETRIES.BLOCK_REQUEST - 1)
-          throw error;
+          throw new Error(errorMessage);
         await new Promise((resolve) =>
           setTimeout(resolve, 1000 * (attempt + 1)),
         );
@@ -795,7 +808,7 @@ export class BlockchainSync {
     if (this.state !== SyncState.SYNCING) return 1;
     const currentHeight = this.blockchain.getCurrentHeight();
     const targetHeight =
-      (await this.syncingPeer.getInfo()).height || currentHeight;
+      (await this.syncingPeer?.getInfo())?.height || currentHeight;
     return targetHeight ? currentHeight / targetHeight : 1;
   }
 

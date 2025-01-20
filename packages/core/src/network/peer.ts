@@ -20,7 +20,6 @@ import { BlockchainSync } from './sync';
 import { Metric } from '../monitoring/performance-metrics';
 import { Vote } from '../models/vote.model';
 import { VotingDatabase } from '../database/voting-schema';
-import { BlockchainConfig } from '@h3tag-blockchain/shared';
 import { ConfigService } from '@h3tag-blockchain/shared';
 
 export enum PeerState {
@@ -140,9 +139,18 @@ export class Peer {
   private lastMessageTime: number = 0;
   private version?: number;
   private services?: PeerServices[];
+  private count: number = 0;
+  private durations: number[] = [];
+  private timestamps: number[] = [];
+  private totalDuration: number = 0;
+  private maxDuration: number = 0;
+  private minDuration: number = 0;
+  private last24Hours: number[] = [];
+  private lastUpdated: number = 0;
+  private average: number = 0;
   private startHeight?: number;
   private userAgent?: string;
-  private blockchainSync: BlockchainSync;
+  private blockchainSync: BlockchainSync | undefined;
   public readonly eventEmitter = new EventEmitter();
   private readonly circuitBreaker: CircuitBreaker;
   private readonly peerId: string = crypto.randomUUID();
@@ -158,7 +166,7 @@ export class Peer {
   private peerState: { banScore: number } = { banScore: 0 };
 
   private database: BlockchainSchema;
-  private votingDatabase: VotingDatabase;
+  private votingDatabase: VotingDatabase | undefined;
 
   private inbound: boolean = false;
 
@@ -266,8 +274,8 @@ export class Peer {
       this.startPingInterval();
       this.state = PeerState.READY;
       this.eventEmitter.emit('ready');
-    } catch (error) {
-      this.handleConnectionError(error);
+    } catch (error: unknown) {
+      this.handleConnectionError(error as Error);
       throw error;
     } finally {
       release();
@@ -336,8 +344,8 @@ export class Peer {
     switch (message.type) {
       case PeerMessageType.VERSION:
         await this.handleVersion({
-          version: message.payload.version,
-          timestamp: message.payload.timestamp,
+          version: message.payload.version || 0,
+          timestamp: message.payload.timestamp || 0,
         });
         break;
       case PeerMessageType.VERACK:
@@ -347,28 +355,36 @@ export class Peer {
         await this.handlePing(message.payload);
         break;
       case PeerMessageType.INV:
-        await this.handleInventory(message.payload.inventory);
+        await this.handleInventory(message.payload.inventory || []);
         break;
       case PeerMessageType.TX:
-        await this.handleTransactionMessage(message.payload.transaction);
+        if (message.payload.transaction) {
+          await this.handleTransactionMessage(message.payload.transaction);
+        }
         break;
       case PeerMessageType.BLOCK:
-        await this.handleBlockMessage(message.payload.block);
+        if (message.payload.block) {
+          await this.handleBlockMessage(message.payload.block);
+        }
         break;
       case PeerMessageType.GET_VOTES:
         await this.handleGetVotes();
         break;
       case PeerMessageType.GET_HEADERS:
-        await this.handleGetHeaders({
-          locator: message.payload.headers[0].locator,
-          hashStop: message.payload.headers[0].hashStop,
-        });
+        if (message.payload.headers) {
+          await this.handleGetHeaders({
+            locator: message.payload.headers[0].locator,
+            hashStop: message.payload.headers[0].hashStop,
+          });
+        }
         break;
       case PeerMessageType.GET_BLOCKS:
-        await this.handleGetBlocks({
-          locator: message.payload.blocks[0].header.locator,
-          hash: message.payload.blocks[0].header.hashStop,
-        });
+        if (message.payload.blocks) {
+          await this.handleGetBlocks({
+            locator: message.payload.blocks[0].header.locator,
+            hash: message.payload.blocks[0].header.hashStop,
+          });
+        }
         break;
       case PeerMessageType.GET_NODE_INFO:
         await this.handleGetNodeInfo();
@@ -537,6 +553,15 @@ export class Peer {
       state: this.state,
       version: this.version,
       services: this.services,
+      count: this.count,
+      durations: this.durations,
+      timestamps: this.timestamps,
+      totalDuration: this.totalDuration,
+      maxDuration: this.maxDuration,
+      minDuration: this.minDuration,
+      last24Hours: this.last24Hours || [],
+      lastUpdated: this.lastUpdated || 0,
+      average: this.average || 0,
     };
   }
 
@@ -558,7 +583,7 @@ export class Peer {
       signature: response.signature || '',
       tagInfo: {
         ...response.tagInfo,
-        lastVoteHeight: response.tagInfo.lastVoteHeight || 0,
+        lastVoteHeight: response.tagInfo?.lastVoteHeight || 0,
         minedBlocks: await this.getMinedBlocks(),
         voteParticipation: await this.getVoteParticipation(),
         votingPower: await this.getVotingPower(),
@@ -857,7 +882,7 @@ export class Peer {
       const response = await this.request(PeerMessageType.GET_NODE_INFO, {
         metric: 'blockHeight',
       });
-      const height = response?.headers[0].height || this.startHeight || 0;
+      const height = response?.headers?.[0]?.height || this.startHeight || 0;
 
       // Update peer state in database
       await this.database.put(`peer:${this.id}:height`, height.toString());
@@ -907,8 +932,8 @@ export class Peer {
 
       let voteCount = 0;
       for await (const [value] of recentVotes) {
-        const vote = this.votingDatabase.getSafeParse<Vote>(value);
-        if (vote && this.votingDatabase.getValidateVote(vote)) {
+        const vote = this.votingDatabase?.getSafeParse<Vote>(value);
+        if (vote && this.votingDatabase?.getValidateVote(vote)) {
           voteCount++;
         }
       }
@@ -998,10 +1023,10 @@ export class Peer {
         peerId: this.getId(),
         txId: tx.id,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to send transaction to peer:', {
         peerId: this.getId(),
-        error: error.message,
+        error: (error as Error).message,
       });
 
       // Increase ban score for failed transactions
@@ -1034,10 +1059,10 @@ export class Peer {
 
       // Update metrics
       this.metrics.increment('transactions_received');
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Transaction message handling failed:', {
         peerId: this.getId(),
-        error: error.message,
+        error: (error as Error).message,
       });
       this.adjustPeerScore(1);
     }
@@ -1134,7 +1159,7 @@ export class Peer {
       return true;
     } catch (error) {
       // If no ban record exists, peer is not banned
-      if (error.type === 'NotFoundError') {
+      if ((error as Error).name === 'NotFoundError') {
         return false;
       }
       Logger.error('Failed to check ban status:', error);
@@ -1162,8 +1187,8 @@ export class Peer {
       }
 
       return JSON.parse(banData);
-    } catch (error) {
-      if (error.type === 'NotFoundError') {
+    } catch (error: unknown) {
+      if ((error as Error).name === 'NotFoundError') {
         return null;
       }
       Logger.error('Failed to get ban info:', error);
@@ -1243,8 +1268,8 @@ export class Peer {
       this.eventEmitter.emit('unbanned', { address });
 
       return true;
-    } catch (error) {
-      if (error.type === 'NotFoundError') {
+    } catch (error: unknown) {
+      if ((error as Error).name === 'NotFoundError') {
         return false;
       }
       Logger.error('Failed to remove ban:', error);
@@ -1325,7 +1350,7 @@ export class Peer {
       inbound: this.inbound,
       startingHeight: this.startHeight || 0,
       banScore: this.peerState.banScore,
-      syncedHeaders: this.blockchainSync.headerSync.currentHeight,
+      syncedHeaders: this.blockchainSync?.headerSync?.currentHeight || 0,
       syncedBlocks: this.syncedBlocks,
       inflight: this.getInflightBlocks().map((block) => block.height),
       whitelisted: this.isWhitelisted,
@@ -1476,10 +1501,10 @@ export class Peer {
 
   private async handleGetVotes(): Promise<void> {
     try {
-      const votes = await this.votingDatabase.getVotes();
+      const votes = await this.votingDatabase?.getVotes();
       await this.send(PeerMessageType.GET_VOTES, { votes });
-    } catch (error) {
-      Logger.error('Get votes handling failed:', error);
+    } catch (error: unknown) {
+      Logger.error('Get votes handling failed:', (error as Error).message);
     }
   }
 

@@ -19,7 +19,7 @@ interface RateLimitRequest extends Request {
   consensusType?: 'pow' | 'quadraticVote' | 'default';
   headers: {
     'x-forwarded-for'?: string;
-  };
+  } & Request['headers'];
 }
 
 interface RateLimitResponse extends Response {
@@ -72,7 +72,7 @@ export class RateLimit {
   private limiter: Cache<RateLimitInfo>;
   private readonly config: RateLimitConfig;
   private readonly auditManager: AuditManager;
-  private metrics: RateLimitMetrics;
+  private metrics: RateLimitMetrics | undefined;
   private limits = new Map<string, { count: number; timestamp: number }>();
   private readonly MAX_REQUESTS = 100;
   private readonly WINDOW_MS = 60000; // 1 minute
@@ -156,12 +156,12 @@ export class RateLimit {
       res: RateLimitResponse,
       next: NextFunction,
     ) => {
-      if (this.config.skip(req)) {
+      if (this.config.skip?.(req) ?? false) {
         return next();
       }
 
       try {
-        const key = this.config.keyGenerator(req);
+        const key = this.config.keyGenerator?.(req) ?? '';
         const info = await this.checkRateLimit(
           key,
           req.consensusType || 'default',
@@ -172,11 +172,15 @@ export class RateLimit {
         }
 
         if (info.blocked) {
-          this.metrics.blockedRequests++;
-          return this.config.handler(req, res, next);
+          if (this.metrics) {
+            this.metrics.blockedRequests++;
+          }
+          return this.config.handler?.(req, res, next);
         }
 
-        this.metrics.totalRequests++;
+        if (this.metrics) {
+          this.metrics.totalRequests++;
+        }
 
         if (this.config.skipFailedRequests) {
           res.on('finish', () => {
@@ -205,9 +209,9 @@ export class RateLimit {
 
     if (!info || now > info.resetTime) {
       info = {
-        limit: this.config.maxRequests[type],
+        limit: this.config.maxRequests[type as keyof typeof this.config.maxRequests],
         current: 0,
-        remaining: this.config.maxRequests[type],
+        remaining: this.config.maxRequests[type as keyof typeof this.config.maxRequests],
         resetTime: now + this.config.windowMs,
         blocked: false,
         lastRequest: now,
@@ -217,7 +221,7 @@ export class RateLimit {
 
     if (info.current >= info.limit) {
       info.blocked = true;
-      info.resetTime = now + this.config.blockDuration;
+      info.resetTime = now + (this.config.blockDuration ?? 0);
       await this.auditManager.logEvent({
         type: AuditEventType.SECURITY,
         severity: AuditSeverity.WARNING,
@@ -227,7 +231,7 @@ export class RateLimit {
     }
 
     this.limiter.set(key, info, {
-      priority: this.config.priorityLevels[type],
+      priority: this.config.priorityLevels?.[type as keyof typeof this.config.priorityLevels] ?? 0,
     });
 
     return info;
@@ -242,7 +246,7 @@ export class RateLimit {
 
       if (info.remaining === 0) {
         info.blocked = true;
-        info.resetTime = Date.now() + this.config.blockDuration;
+        info.resetTime = Date.now() + (this.config.blockDuration ?? 0);
         this.eventEmitter.emit('blocked', { key });
         await this.auditManager.logEvent({
           type: AuditEventType.SECURITY,
@@ -281,7 +285,7 @@ export class RateLimit {
     res.status(429).json({
       error: 'Too Many Requests',
       message: `Rate limit exceeded for ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL}`,
-      retryAfter: Math.ceil(this.config.blockDuration / 1000),
+      retryAfter: Math.ceil((this.config.blockDuration ?? 0) / 1000),
       currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
     });
   }
@@ -302,12 +306,14 @@ export class RateLimit {
     return {
       ...this.metrics,
       currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-    };
+    } as RateLimitMetrics;
   }
 
   public resetLimit(key: string): void {
     if (this.limiter.delete(key)) {
-      this.metrics.activeKeys = Math.max(0, this.metrics.activeKeys - 1);
+      if (this.metrics) {
+        this.metrics.activeKeys = Math.max(0, this.metrics.activeKeys - 1);
+      }
     }
   }
 

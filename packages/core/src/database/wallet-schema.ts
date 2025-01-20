@@ -46,8 +46,6 @@ export class WalletDatabase {
 
     this.db = new Level(`${dbPath}/wallet`, {
       valueEncoding: 'json',
-      createIfMissing: true,
-      compression: true,
       ...databaseConfig.options,
     });
 
@@ -146,8 +144,8 @@ export class WalletDatabase {
 
       this.cache.set(key, keystore, { ttl: this.CACHE_TTL });
       return keystore;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve keystore:', { error, address });
       throw new Error('Failed to retrieve keystore');
     }
@@ -272,9 +270,9 @@ export class WalletDatabase {
       const key = `addressIndex:${address}`;
       const data = await this.db.get(key);
       return parseInt(data) || 0;
-    } catch (error) {
-      if (error.notFound) return 0;
-      Logger.error('Failed to get address index:', error);
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return 0;
+      Logger.error('Failed to get address index:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }

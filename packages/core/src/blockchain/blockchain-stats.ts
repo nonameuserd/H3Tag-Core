@@ -165,10 +165,10 @@ import { retry } from '../utils/retry';
 import { performance } from 'perf_hooks';
 import { Transaction } from '../models/transaction.model';
 import { BlockchainStatsError } from './utils/blockchain-stats-error';
-import { UTXO } from '@h3tag-blockchain/core';
+import { UTXO } from '../models/utxo.model';
 
 // Create interface for what BlockchainStats needs
-interface IBlockchainData {
+export interface IBlockchainData {
   getHeight(): number;
   getCurrentHeight(): number;
   getLatestBlock(): Block | null;

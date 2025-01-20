@@ -25,7 +25,7 @@ const kyber_1 = require("./kyber");
 class QuantumError extends Error {
     constructor(message) {
         super(message);
-        this.name = 'QuantumError';
+        this.name = "QuantumError";
     }
 }
 exports.QuantumError = QuantumError;
@@ -36,16 +36,16 @@ class QuantumCrypto {
                 return;
             this.isModuleInitialized = true;
             this.initializeHealthChecks();
-            shared_1.Logger.info('Quantum cryptography module initialized');
+            shared_1.Logger.info("Quantum cryptography module initialized");
         }
         catch (error) {
-            shared_1.Logger.error('Failed to initialize quantum module:', error);
-            throw new QuantumError('Quantum cryptography module initialization failed');
+            shared_1.Logger.error("Failed to initialize quantum module:", error);
+            throw new QuantumError("Quantum cryptography module initialization failed");
         }
     }
     static checkInitialization() {
         if (!this.isInitialized()) {
-            throw new QuantumError('Quantum cryptography module not initialized');
+            throw new QuantumError("Quantum cryptography module not initialized");
         }
     }
     static initializeHealthChecks() {
@@ -56,19 +56,19 @@ class QuantumCrypto {
             const start = perf_hooks_1.performance.now();
             // Test key generation
             const testKeyPair = await this.generateKeyPair();
-            const testMessage = Buffer.from('health_check');
+            const testMessage = Buffer.from("health_check");
             const testSignature = await this.sign(testMessage, testKeyPair.privateKey);
             const verifyResult = await this.verify(testMessage, testSignature, testKeyPair.publicKey);
             const duration = perf_hooks_1.performance.now() - start;
             shared_1.Logger.debug(`Quantum health check completed in ${duration}ms`);
             if (!verifyResult) {
-                shared_1.Logger.error('Quantum health check failed: signature verification failed');
-                throw new QuantumError('Health check failed');
+                shared_1.Logger.error("Quantum health check failed: signature verification failed");
+                throw new QuantumError("Health check failed");
             }
-            shared_1.Logger.info('Quantum health check passed');
+            shared_1.Logger.info("Quantum health check passed");
         }
         catch (error) {
-            shared_1.Logger.error('Quantum health check failed:', error);
+            shared_1.Logger.error("Quantum health check failed:", error);
         }
     }
     static async shutdown() {
@@ -76,7 +76,7 @@ class QuantumCrypto {
             clearInterval(this.healthCheckInterval);
         }
         this.isModuleInitialized = false;
-        shared_1.Logger.info('Quantum cryptography module shut down');
+        shared_1.Logger.info("Quantum cryptography module shut down");
     }
     static isInitialized() {
         return this.isModuleInitialized;
@@ -86,30 +86,30 @@ class QuantumCrypto {
             this.checkInitialization();
             const keyPair = await this.nativeQuantum.generateDilithiumKeyPair(entropy);
             if (!keyPair?.publicKey || !keyPair?.privateKey) {
-                throw new QuantumError('Invalid key pair generated');
+                throw new QuantumError("Invalid key pair generated");
             }
             return keyPair;
         }
         catch (error) {
-            shared_1.Logger.error('Failed to generate key pair:', error);
-            throw new QuantumError(error instanceof Error ? error.message : 'Key generation failed');
+            shared_1.Logger.error("Failed to generate key pair:", error);
+            throw new QuantumError(error instanceof Error ? error.message : "Key generation failed");
         }
     }
     static async sign(message, privateKey) {
         try {
             this.checkInitialization();
             if (!Buffer.isBuffer(message) || !Buffer.isBuffer(privateKey)) {
-                throw new QuantumError('Invalid input parameters');
+                throw new QuantumError("Invalid input parameters");
             }
             const signature = await this.nativeQuantum.dilithiumSign(message, privateKey);
             if (!Buffer.isBuffer(signature)) {
-                throw new QuantumError('Invalid signature generated');
+                throw new QuantumError("Invalid signature generated");
             }
             return signature;
         }
         catch (error) {
-            shared_1.Logger.error('Quantum signing failed:', error);
-            throw new QuantumError(error instanceof Error ? error.message : 'Signing failed');
+            shared_1.Logger.error("Quantum signing failed:", error);
+            throw new QuantumError(error instanceof Error ? error.message : "Signing failed");
         }
     }
     static async verify(message, signature, publicKey) {
@@ -118,24 +118,24 @@ class QuantumCrypto {
             if (!Buffer.isBuffer(message) ||
                 !Buffer.isBuffer(signature) ||
                 !Buffer.isBuffer(publicKey)) {
-                throw new QuantumError('Invalid input parameters');
+                throw new QuantumError("Invalid input parameters");
             }
             return await this.nativeQuantum.dilithiumVerify(message, signature, publicKey);
         }
         catch (error) {
-            shared_1.Logger.error('Quantum verification failed:', error);
-            throw new QuantumError(error instanceof Error ? error.message : 'Verification failed');
+            shared_1.Logger.error("Quantum verification failed:", error);
+            throw new QuantumError(error instanceof Error ? error.message : "Verification failed");
         }
     }
     static async setSecurityLevel(level) {
         try {
             this.checkInitialization();
             await this.nativeQuantum.setSecurityLevel(level);
-            shared_1.Logger.info('Security level set to:', level);
+            shared_1.Logger.info("Security level set to:", level);
         }
         catch (error) {
-            shared_1.Logger.error('Failed to set security level:', error);
-            throw new QuantumError('Failed to set security level');
+            shared_1.Logger.error("Failed to set security level:", error);
+            throw new QuantumError("Failed to set security level");
         }
     }
     static async dilithiumHash(data) {
@@ -143,8 +143,8 @@ class QuantumCrypto {
             return await this.nativeQuantum.dilithiumHash(data);
         }
         catch (error) {
-            shared_1.Logger.error('Dilithium hashing failed:', error);
-            throw new Error(error instanceof Error ? error.message : 'Hashing failed');
+            shared_1.Logger.error("Dilithium hashing failed:", error);
+            throw new Error(error instanceof Error ? error.message : "Hashing failed");
         }
     }
     static async kyberEncapsulate(data) {
@@ -152,13 +152,13 @@ class QuantumCrypto {
             const keyPair = await kyber_1.Kyber.generateKeyPair();
             const result = await kyber_1.Kyber.encapsulate(keyPair.publicKey);
             return {
-                ciphertext: Buffer.from(result.ciphertext, 'base64'),
-                sharedSecret: Buffer.from(result.sharedSecret, 'base64'),
+                ciphertext: Buffer.from(result.ciphertext, "base64"),
+                sharedSecret: Buffer.from(result.sharedSecret, "base64"),
             };
         }
         catch (error) {
-            shared_1.Logger.error('Kyber encapsulation failed:', error);
-            throw new Error(error instanceof Error ? error.message : 'Encapsulation failed');
+            shared_1.Logger.error("Kyber encapsulation failed:", error);
+            throw new Error(error instanceof Error ? error.message : "Encapsulation failed");
         }
     }
     static async kyberHash(data) {
@@ -166,15 +166,15 @@ class QuantumCrypto {
             return await kyber_1.Kyber.hash(data);
         }
         catch (error) {
-            shared_1.Logger.error('Kyber hashing failed:', error);
-            throw new Error(error instanceof Error ? error.message : 'Hashing failed');
+            shared_1.Logger.error("Kyber hashing failed:", error);
+            throw new Error(error instanceof Error ? error.message : "Hashing failed");
         }
     }
     static async nativeHash(data) {
         try {
             // Input validation
             if (!Buffer.isBuffer(data)) {
-                throw new QuantumError('Invalid input: data must be a Buffer');
+                throw new QuantumError("Invalid input: data must be a Buffer");
             }
             // Check initialization
             this.checkInitialization();
@@ -189,13 +189,13 @@ class QuantumCrypto {
             ]);
             // Validate hash outputs
             if (!Buffer.isBuffer(dilithiumHash) || !Buffer.isBuffer(kyberHash)) {
-                throw new QuantumError('Invalid hash output from native module');
+                throw new QuantumError("Invalid hash output from native module");
             }
             return Buffer.concat([dilithiumHash, kyberHash]);
         }
         catch (error) {
-            shared_1.Logger.error('Native hashing failed:', error);
-            throw new QuantumError(error instanceof Error ? error.message : 'Hashing failed');
+            shared_1.Logger.error("Native hashing failed:", error);
+            throw new QuantumError(error instanceof Error ? error.message : "Hashing failed");
         }
     }
 }

@@ -1,6 +1,6 @@
 /// <reference types="node" />
 /// <reference types="node" />
-import { SecurityLevel } from '../native/types';
+import { SecurityLevel } from "../native/types";
 export declare class KyberError extends Error {
     constructor(message: string);
 }

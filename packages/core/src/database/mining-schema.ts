@@ -402,8 +402,8 @@ export class MiningDatabase {
       // Cache with TTL
       this.cache.set(key, parsed, { ttl: this.CACHE_TTL });
       return parsed;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve PoW solution:', error);
       throw new Error('Failed to retrieve PoW solution');
     }
@@ -418,8 +418,8 @@ export class MiningDatabase {
       const metrics = await this.db.get(key);
       this.cache.set(key, JSON.parse(metrics));
       return JSON.parse(metrics);
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve mining metrics:', error);
       throw error;
     }
@@ -437,8 +437,8 @@ export class MiningDatabase {
       const vote = await this.db.get(key);
       this.cache.set(key, JSON.parse(vote));
       return JSON.parse(vote);
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve consensus vote:', error);
       throw error;
     }
@@ -455,8 +455,8 @@ export class MiningDatabase {
       const period = await this.db.get(key);
       this.cache.set(key, JSON.parse(period));
       return JSON.parse(period);
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve consensus period:', error);
       throw error;
     }
@@ -477,8 +477,8 @@ export class MiningDatabase {
         solutions.push(JSON.parse(value));
       }
       return solutions;
-    } catch (error) {
-      Logger.error('Failed to retrieve miner solutions:', error);
+    } catch (error: unknown) {
+      Logger.error('Failed to retrieve miner solutions:', error instanceof Error ? error.message : 'Unknown error');
       throw error;
     }
   }

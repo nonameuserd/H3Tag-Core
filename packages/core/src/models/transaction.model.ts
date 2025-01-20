@@ -240,6 +240,31 @@ export interface Transaction {
   getSize(): number;
 }
 
+
+interface RawTransaction {
+  id: string;
+  status: TransactionStatus;
+  version: number;
+  type: TransactionType;
+  inputs: TxInput[];
+  outputs: TxOutput[];
+  timestamp: number;
+  fee: string;
+  signature: string;
+  sender: string;
+  recipient: string;
+  hash: string;
+  currency: { name: string; symbol: string; decimals: number; };
+  memo?: string;
+  lockTime?: number;
+  powData?: { nonce: string; difficulty: number; timestamp: number; };
+  nonce?: number;
+  voteData?: { proposal: string; vote: boolean; weight: number; };
+  blockHeight?: number;
+  hasWitness?: boolean;
+  witness?: { stack: string[]; };
+}
+
 /**
  * @class TransactionBuilder
  * @description Builder pattern implementation for creating new transactions
@@ -258,7 +283,7 @@ export class TransactionBuilder {
 
   public type: TransactionType;
   private timestamp: number;
-  private fee: bigint;
+  private fee: bigint = BigInt(0);
   private static readonly MAX_INPUTS = 1500; // Bitcoin-like limit
   private static readonly MAX_OUTPUTS = 1500;
   private inputs: TxInput[] = [];
@@ -691,22 +716,18 @@ export class TransactionBuilder {
       ]);
 
       return merkleRoot;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Transaction hash calculation failed:', {
-        error,
+        error: error instanceof Error ? error.message : 'Unknown error',
         inputCount: this.inputs.length,
         outputCount: this.outputs.length,
       });
 
       if (error instanceof Error) {
         throw new TransactionError(`Merkle tree error: ${error.message}`);
-      } else if (error instanceof Error) {
-        throw new TransactionError(
-          `JSON serialization error: ${error.message}`,
-        );
       } else {
         throw new TransactionError(
-          `Failed to calculate transaction hash: ${error.message}`,
+          `Failed to calculate transaction hash: ${(error as Error).message || 'Unknown error'}`,
         );
       }
     }
@@ -810,7 +831,7 @@ export class TransactionBuilder {
     };
 
     const prefix = address.substring(0, 3);
-    return networkPrefixes[prefix] || null;
+    return networkPrefixes[prefix as keyof typeof networkPrefixes] || null;
   }
 
   private async hashAddress(address: string): Promise<string> {
@@ -855,7 +876,7 @@ export class TransactionBuilder {
 
       if (tx.type === TransactionType.POW_REWARD) {
         if (
-          !(await TransactionBuilder.pow.validateReward(tx, tx.blockHeight))
+          !(await TransactionBuilder.pow.validateReward(tx, tx.blockHeight || 0))
         ) {
           Logger.warn('Invalid PoW', { txId: tx.hash });
           return false;
@@ -866,7 +887,7 @@ export class TransactionBuilder {
         if (
           !(await TransactionBuilder.hybridDirect.validateParticipationReward(
             tx,
-            tx.blockHeight,
+            tx.blockHeight || 0,
           ))
         ) {
           Logger.warn('Invalid participation reward', { txId: tx.hash });
@@ -920,7 +941,7 @@ export class TransactionBuilder {
           input.outputIndex,
         );
         if (!utxo || utxo.spent) {
-          Logger.warn("UTXO already spent or doesn't exist", { txId: tx.hash });
+          Logger.warn('UTXO already spent or does not exist', { txId: tx.hash });
           return false;
         }
       }
@@ -942,7 +963,7 @@ export class TransactionBuilder {
    * @returns {any} Parsed object
    * @throws {TransactionError} If parsing fails
    */
-  static safeJsonParse(str: string): any {
+  static safeJsonParse(str: string) {
     try {
       // Add input validation
       if (typeof str !== 'string') {
@@ -980,8 +1001,8 @@ export class TransactionBuilder {
           throw new TransactionError('Input amount overflow');
         }
         return newSum;
-      } catch (error) {
-        throw new TransactionError(`Invalid amount format: ${error.message}`);
+      } catch (error: unknown) {
+        throw new TransactionError(`Invalid amount format: ${(error as Error).message}`);
       }
     }, BigInt(0));
   }
@@ -1244,7 +1265,7 @@ export class TransactionBuilder {
       if (tx.blockHeight) {
         tx.inputs = tx.inputs.map((input) => ({
           ...input,
-          confirmations: currentHeight - tx.blockHeight + 1,
+          confirmations: currentHeight - (tx.blockHeight || 0) + 1,
         }));
       }
 
@@ -1255,12 +1276,12 @@ export class TransactionBuilder {
       });
 
       return tx;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to get transaction:', {
         error,
         txId,
       });
-      throw new TransactionError(`Failed to get transaction: ${error.message}`);
+      throw new TransactionError(`Failed to get transaction: ${(error as Error).message}`);
     } finally {
       release();
     }
@@ -1295,7 +1316,7 @@ export class TransactionBuilder {
       this.emitter.emit('transaction:broadcast', tx);
 
       return tx.id;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to send raw transaction:', error);
       throw new TransactionError(
         error instanceof TransactionError
@@ -1321,11 +1342,24 @@ export class TransactionBuilder {
         status: TransactionStatus.PENDING,
         timestamp: Date.now(),
         verify: async () => await TransactionBuilder.verify(tx),
+        transaction: {
+          hash: '',
+          timestamp: Date.now(),
+          fee: BigInt(0),
+          signature: '',
+        },
+        toHex: () => JSON.stringify(tx),
+        getSize: () => TransactionBuilder.getSize(tx),
+        currency: {
+          name: 'H3TAG',
+          symbol: 'TAG',
+          decimals: 8,
+        },
       };
 
       return tx;
-    } catch (error) {
-      throw new TransactionError('Invalid transaction format');
+    } catch (error: unknown) {
+      throw new TransactionError('Invalid transaction format' + (error as Error).message);
     }
   }
 
@@ -1350,7 +1384,9 @@ export class TransactionBuilder {
       }
 
       // Prepare transaction data for serialization
-      const rawTx = {
+      const rawTx: RawTransaction = {
+        id: tx.id,
+        status: tx.status,
         version: tx.version,
         type: tx.type,
         inputs: tx.inputs.map((input) => ({
@@ -1358,16 +1394,23 @@ export class TransactionBuilder {
           outputIndex: input.outputIndex,
           signature: input.signature,
           publicKey: input.publicKey,
-          amount: input.amount.toString(), // Convert BigInt to string
+          amount: input.amount, // Convert BigInt to string
           script: input.script,
           address: input.address,
+          currency: input.currency,
+          confirmations: input.confirmations,
+          sequence: input.sequence,
+          votingData: input.votingData,
         })),
         outputs: tx.outputs.map((output) => ({
           address: output.address,
-          amount: output.amount.toString(), // Convert BigInt to string
+          amount: BigInt(output.amount),
           script: output.script,
           index: output.index,
           currency: output.currency,
+          confirmations: output.confirmations,
+          votingData: output.votingData,
+          publicKey: output.publicKey,
         })),
         timestamp: tx.timestamp,
         fee: tx.fee.toString(), // Convert BigInt to string
@@ -1376,15 +1419,17 @@ export class TransactionBuilder {
         recipient: tx.recipient,
         hash: tx.hash,
         currency: tx.currency,
+        nonce: tx.nonce,
       };
 
-      // Add optional fields if they exist
       if (tx.memo) rawTx['memo'] = tx.memo;
       if (tx.lockTime) rawTx['lockTime'] = tx.lockTime;
       if (tx.powData) rawTx['powData'] = tx.powData;
       if (tx.voteData) rawTx['voteData'] = tx.voteData;
       if (tx.blockHeight) rawTx['blockHeight'] = tx.blockHeight;
       if (tx.nonce) rawTx['nonce'] = tx.nonce;
+      if (tx.hasWitness) rawTx['hasWitness'] = tx.hasWitness;
+      if (tx.witness) rawTx['witness'] = tx.witness;
 
       // Serialize with proper formatting
       const serialized = JSON.stringify(rawTx, null, 2);
@@ -1403,13 +1448,13 @@ export class TransactionBuilder {
       });
 
       return serialized;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to get raw transaction:', {
         error,
         txId,
       });
       throw new TransactionError(
-        `Failed to get raw transaction: ${error.message}`,
+        `Failed to get raw transaction: ${(error as Error).message}`,
       );
     } finally {
       release();
@@ -1432,15 +1477,15 @@ export class TransactionBuilder {
       }
 
       // Parse the JSON string
-      let txData: any;
+      let txData: RawTransaction;
       try {
         txData = JSON.parse(rawTx);
-      } catch (error) {
-        throw new TransactionError('Invalid transaction JSON format');
+      } catch (error: unknown) {
+        throw new TransactionError('Invalid transaction JSON format' + (error as Error).message);
       }
 
       // Validate required fields
-      const requiredFields = [
+      const requiredFields: (keyof RawTransaction)[] = [
         'version',
         'type',
         'inputs',
@@ -1448,31 +1493,52 @@ export class TransactionBuilder {
         'timestamp',
       ];
       for (const field of requiredFields) {
-        if (!txData[field]) {
+        if (!(field in txData)) {
           throw new TransactionError(`Missing required field: ${field}`);
         }
       }
 
       // Convert amounts back to BigInt
-      txData.inputs = txData.inputs.map((input: any) => ({
+      txData.inputs = txData.inputs.map((input: TxInput) => ({
         ...input,
         amount: BigInt(input.amount),
       }));
 
-      txData.outputs = txData.outputs.map((output: any) => ({
+      txData.outputs = txData.outputs.map((output: TxOutput) => ({
         ...output,
         amount: BigInt(output.amount),
       }));
 
       if (txData.fee) {
-        txData.fee = BigInt(txData.fee);
+        txData.fee = txData.fee.toString();
       }
 
       // Create Transaction object
       const tx: Transaction = {
         ...txData,
+        transaction: {
+          hash: '',
+          timestamp: Date.now(),
+          fee: BigInt(0),
+          signature: '',
+        },
         verify: async () => await TransactionBuilder.verify(tx),
         toHex: () => rawTx,
+        getSize: () => TransactionBuilder.getSize(tx),
+        currency: {
+          name: 'H3TAG',
+          symbol: 'TAG',
+          decimals: 8,
+        },
+        id: txData.id || '',
+        timestamp: txData.timestamp,
+        fee: BigInt(txData.fee),
+        signature: txData.signature,
+        sender: txData.sender,
+        recipient: txData.recipient,
+        hash: txData.hash,
+        nonce: txData.nonce,
+        status: txData.status || TransactionStatus.PENDING,
       };
 
       // Validate transaction structure
@@ -1789,6 +1855,45 @@ export class TransactionBuilder {
       return BigInt(await TransactionBuilder.mempool.getMaxFeeRate());
     }
   }
+
+  /**
+   * Calculate transaction size in bytes
+   * @returns {number} Size of transaction in bytes
+   */
+  static getSize(tx: Transaction): number {
+    try {
+      // Calculate size of inputs
+      const inputSize = tx.inputs.reduce((sum, input) => {
+        return sum + 
+          Buffer.from(input.txId).length +
+          4 + // outputIndex (uint32)
+          Buffer.from(input.signature).length +
+          Buffer.from(input.publicKey).length +
+          Buffer.from(input.script).length;
+      }, 0);
+
+      // Calculate size of outputs
+      const outputSize = tx.outputs.reduce((sum, output) => {
+        return sum + 
+          Buffer.from(output.address).length +
+          8 + // amount (uint64)
+          Buffer.from(output.script).length;
+      }, 0);
+
+      // Base transaction size
+      const baseSize = 
+        4 + // version
+        4 + // timestamp
+        8 + // fee
+        Buffer.from(tx.signature).length +
+        Buffer.from(tx.hash).length;
+
+      return inputSize + outputSize + baseSize;
+    } catch (error) {
+      Logger.error('Failed to calculate transaction size:', error);
+      return 0;
+    }
+  }
 }
 
 /**
@@ -1850,7 +1955,7 @@ export async function estimateFee(targetBlocks: number = 6): Promise<bigint> {
  */
 async function getNetworkConditionsMultiplier(): Promise<number> {
   try {
-    const mempoolInfo = await this.mempool.getMempoolInfo();
+    const mempoolInfo = await TransactionBuilder.mempool.getMempoolInfo();
     const loadFactor = mempoolInfo.loadFactor;
 
     // Progressive scaling based on mempool load

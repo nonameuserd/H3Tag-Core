@@ -1,7 +1,7 @@
-import CryptoJS from 'crypto-js';
-import { createHash } from 'crypto';
-import { Dilithium } from './quantum/dilithium';
-import { Kyber } from './quantum/kyber';
+import CryptoJS from "crypto-js";
+import { createHash } from "crypto";
+import { Dilithium } from "./quantum/dilithium";
+import { Kyber } from "./quantum/kyber";
 
 export class HashUtils {
   /**
@@ -13,8 +13,8 @@ export class HashUtils {
     } catch (error) {
       throw new Error(
         `SHA3 hashing failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -28,8 +28,8 @@ export class HashUtils {
     } catch (error) {
       throw new Error(
         `SHA256 hashing failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -43,8 +43,8 @@ export class HashUtils {
     } catch (error) {
       throw new Error(
         `HMAC generation failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -58,8 +58,8 @@ export class HashUtils {
     } catch (error) {
       throw new Error(
         `RIPEMD160 hashing failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -70,12 +70,12 @@ export class HashUtils {
   public static sha3Buffer(data: Buffer | string): Buffer {
     try {
       const hash = this.sha3(data.toString());
-      return Buffer.from(hash, 'hex');
+      return Buffer.from(hash, "hex");
     } catch (error) {
       throw new Error(
         `SHA3 buffer hashing failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -90,7 +90,7 @@ export class HashUtils {
       const contentBuffer = Buffer.from(new TextEncoder().encode(content));
 
       // Generate classical hash
-      const classicHash = createHash('sha256').update(content).digest('hex');
+      const classicHash = createHash("sha256").update(content).digest("hex");
 
       // Generate quantum-resistant hashes
       const [dilithiumHash, kyberHash] = await Promise.all([
@@ -103,8 +103,8 @@ export class HashUtils {
     } catch (error) {
       throw new Error(
         `Hybrid hash calculation failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -118,8 +118,8 @@ export class HashUtils {
     } catch (error) {
       throw new Error(
         `Double SHA256 hashing failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -134,8 +134,8 @@ export class HashUtils {
     } catch (error) {
       throw new Error(
         `Hash160 calculation failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -147,15 +147,15 @@ export class HashUtils {
     try {
       const dataBuffer = Buffer.from(data);
       const hash =
-        this.doubleSha256(dataBuffer.toString('hex')) +
+        this.doubleSha256(dataBuffer.toString("hex")) +
         Dilithium.hash(dataBuffer) +
         Kyber.hash(dataBuffer);
       return this.ripemd160(hash);
     } catch (error) {
       throw new Error(
         `Hybrid hash calculation failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -165,13 +165,13 @@ export class HashUtils {
    */
   public static toBase58(data: Buffer): string {
     try {
-      const bs58 = require('bs58');
+      const bs58 = require("bs58");
       return bs58.encode(data);
     } catch (error) {
       throw new Error(
         `Base58 encoding failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }
@@ -181,13 +181,13 @@ export class HashUtils {
    */
   public static fromBase58(str: string): Buffer {
     try {
-      const bs58 = require('bs58');
+      const bs58 = require("bs58");
       return Buffer.from(bs58.decode(str));
     } catch (error) {
       throw new Error(
         `Base58 decoding failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+          error instanceof Error ? error.message : "Unknown error"
+        }`
       );
     }
   }

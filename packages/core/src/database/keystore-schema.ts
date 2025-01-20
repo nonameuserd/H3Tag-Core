@@ -99,8 +99,8 @@ export class KeystoreDatabase {
     try {
       await this.db.get('__health_check__');
       return true;
-    } catch (error) {
-      if (error && 'notFound' in error) return true; // DB is accessible but key not found
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return true; // DB is accessible but key not found
       return false;
     }
   }
@@ -118,8 +118,8 @@ export class KeystoreDatabase {
     try {
       const value = await this.db.get(`keystore:${address}`);
       return JSON.parse(value) as EncryptedKeystore;
-    } catch (error) {
-      if (error && 'notFound' in error) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       throw error;
     }
   }

@@ -23,5 +23,6 @@ __exportStar(require("./hash"), exports);
 __exportStar(require("./quantum"), exports);
 __exportStar(require("./simd"), exports);
 __exportStar(require("./wasm-loader"), exports);
+__exportStar(require("./x509"), exports);
 __exportStar(require("./sha3"), exports);
 __exportStar(require("./hybrid"), exports);

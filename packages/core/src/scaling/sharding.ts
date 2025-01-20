@@ -35,7 +35,7 @@ export class ShardManager {
   private readonly cache: Cache<Transaction>;
   private readonly performanceMonitor: PerformanceMonitor;
   private readonly auditManager: AuditManager;
-  private readonly metricsCollector: MetricsCollector;
+  private readonly metricsCollector: MetricsCollector | undefined;
   private syncTimer?: NodeJS.Timeout;
   private readonly circuitBreaker = {
     failures: 0,
@@ -260,7 +260,7 @@ export class ShardManager {
       // Check cache first
       const cachedTx = await this.cache.get(`tx:${hash}`);
       if (cachedTx) {
-        this.metricsCollector.increment('tx_cache_hit');
+        this.metricsCollector?.increment('tx_cache_hit');
         return cachedTx;
       }
 
@@ -271,7 +271,7 @@ export class ShardManager {
       const shard = this.shards.get(targetShardId);
 
       if (!shard?.has(hash)) {
-        this.metricsCollector.increment('tx_not_found');
+        this.metricsCollector?.increment('tx_not_found');
         return undefined;
       }
 
@@ -280,20 +280,22 @@ export class ShardManager {
       if (tx) {
         // Cache the result
         await this.cache.set(`tx:${hash}`, tx, { ttl: 300000 }); // 5 minutes
-        this.metricsCollector.increment('tx_found');
+        this.metricsCollector?.increment('tx_found');
 
         // Update shard metrics
         await this.updateShardMetrics(targetShardId);
       }
 
       return tx;
-    } catch (error) {
-      this.metricsCollector.increment('tx_lookup_error');
-      Logger.error(`Transaction lookup failed for hash ${hash}:`, error);
+    } catch (error: unknown) {
+      this.metricsCollector?.increment('tx_lookup_error');
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(`Transaction lookup failed for hash ${hash}:`, errorMessage);
 
       await this.auditManager.log(AuditEventType.SHARD_TX_LOOKUP_FAILED, {
         hash,
-        error: error.message,
+        error: errorMessage,
         timestamp: Date.now(),
       });
 

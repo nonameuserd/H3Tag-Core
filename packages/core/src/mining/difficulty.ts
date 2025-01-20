@@ -1,6 +1,5 @@
-import { BlockchainStats } from '../blockchain/blockchain-stats';
+import { BlockchainStats, IBlockchainData } from '../blockchain/blockchain-stats';
 import { NetworkStats } from '../network/network-stats';
-import { Blockchain } from '../blockchain/blockchain';
 import { Logger } from '@h3tag-blockchain/shared';
 
 /**
@@ -121,7 +120,7 @@ export class DifficultyAdjuster {
   private lastOrphanRate: number = 0;
 
   constructor(
-    blockchain: Blockchain,
+    blockchain: IBlockchainData,
     networkStats: NetworkStats = new NetworkStats(),
   ) {
     this.blockchainStats = new BlockchainStats(blockchain);
@@ -251,7 +250,7 @@ export class DifficultyAdjuster {
 
     // Calculate weighted average
     const healthScore = Object.keys(weights).reduce((score, metric) => {
-      return score + normalizedMetrics[metric] * weights[metric];
+      return score + normalizedMetrics[metric as keyof typeof normalizedMetrics] * weights[metric as keyof typeof weights];
     }, 0);
 
     // Convert to adjustment factor (0.9 - 1.1 range)

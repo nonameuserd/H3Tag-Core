@@ -601,7 +601,7 @@ export class BlockBuilder {
   public async verifySignature(): Promise<boolean> {
     return HybridCrypto.verify(
       this.header.hash,
-      this.header.signature,
+      this.header.signature || '',
       this.header.publicKey,
     );
   }

@@ -202,8 +202,8 @@ export class DNSSeeder extends EventEmitter {
 
             this.updateSeedMetrics(seed, addresses.length, latency);
             addresses.forEach((addr) => uniquePeers.add(addr));
-          } catch (error) {
-            this.handleSeedFailure(seed, error);
+          } catch (error: unknown) {
+            this.handleSeedFailure(seed, error as Error);
           } finally {
             this.activeSeeds.delete(seed);
             release();

@@ -131,12 +131,32 @@ export class MiningMetrics {
     );
 
     if (startIdx > 0) {
-      // Cleanup all metric arrays at once
-      Object.keys(this.metrics).forEach((key) => {
-        if (Array.isArray(this.metrics[key])) {
-          this.metrics[key] = this.metrics[key].slice(startIdx);
-        }
-      });
+      this.metrics.timestamp = this.metrics.timestamp.slice(startIdx);
+
+      // Handle number arrays
+      // Handle numeric arrays
+      ['hashRate', 'difficulty', 'blockTimes', 'tagVolume', 'tagFees'].forEach(
+        (key) => {
+          if (key in this.metrics) {
+            (this.metrics[
+              key as
+                | 'hashRate'
+                | 'difficulty'
+                | 'blockTimes'
+                | 'tagVolume'
+                | 'tagFees'
+            ] as number[]) =
+              this.metrics[
+                key as
+                  | 'hashRate'
+                  | 'difficulty'
+                  | 'blockTimes'
+                  | 'tagVolume'
+                  | 'tagFees'
+              ].slice(startIdx);
+          }
+        },
+      );
     }
   }
 

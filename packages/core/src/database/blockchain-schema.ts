@@ -7,7 +7,7 @@ import { Mutex } from 'async-mutex';
 import { Block, BlockHeader } from '../models/block.model';
 import { Cache } from '../scaling/cache';
 import { databaseConfig } from './config.database';
-import { IVotingSchema } from './voting-schema';
+import { IVotingSchema, VotingDatabase } from './voting-schema';
 import { EventEmitter } from 'events';
 import { Validator } from '../models/validator';
 import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
@@ -225,6 +225,7 @@ export class BlockchainSchema {
   private readonly auditManager: AuditManager | null = null;
   private readonly eventEmitter: EventEmitter | null = null;
   private readonly metricsCollector: MetricsCollector | null = null;
+  private readonly votingSchema: VotingDatabase | null = null;
   readonly cache: Cache<
     Block | { signature: string } | { balance: bigint; holdingPeriod: number }
   >;
@@ -1114,11 +1115,11 @@ export class BlockchainSchema {
       // Cache the result
       this.transactionCache.set(key, transaction);
       return transaction;
-    } catch (error) {
-      if (error.notFound) return undefined;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return undefined;
       Logger.error(`Failed to get transaction ${hash}:`, error);
       throw new Error(
-        `Database error: Failed to get transaction - ${error.message}`,
+        `Database error: Failed to get transaction - ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -1146,10 +1147,10 @@ export class BlockchainSchema {
 
       await batch.write();
       this.transactionCache.set(key, transaction);
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error(`Failed to save transaction ${transaction.hash}:`, error);
       throw new Error(
-        `Database error: Failed to save transaction - ${error.message}`,
+        `Database error: Failed to save transaction - ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -1181,10 +1182,10 @@ export class BlockchainSchema {
         await batch.write();
         this.cache.delete(key);
       }
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error(`Failed to delete transaction ${hash}:`, error);
       throw new Error(
-        `Database error: Failed to delete transaction - ${error.message}`,
+        `Database error: Failed to delete transaction - ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -1209,10 +1210,10 @@ export class BlockchainSchema {
       }
 
       return transactions;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to get transactions:', error);
       throw new Error(
-        `Database error: Failed to get transactions - ${error.message}`,
+        `Database error: Failed to get transactions - ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -1227,7 +1228,7 @@ export class BlockchainSchema {
       let balance = BigInt(0);
 
       // Sum all unspent UTXOs for the address
-      for await (const [key, rawValue] of this.db.iterator({
+      for await (const [, rawValue] of this.db.iterator({
         gte: `utxo:${address}:`,
         lte: `utxo:${address}:\xFF`,
       })) {
@@ -1238,10 +1239,10 @@ export class BlockchainSchema {
       }
 
       return balance;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error(`Failed to get balance for ${address}:`, error);
       throw new Error(
-        `Database error: Failed to get balance - ${error.message}`,
+        `Database error: Failed to get balance - ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
     }
   }
@@ -1250,8 +1251,8 @@ export class BlockchainSchema {
    * Get the voting schema
    * @returns IVotingSchema Voting schema
    */
-  public getVotingSchema(): IVotingSchema {
-    return this.votingDb;
+  public getVotingSchema(): IVotingSchema | null {
+    return this.votingDb || null;
   }
 
   /**
@@ -1262,14 +1263,14 @@ export class BlockchainSchema {
   async getVotesByPeriod(periodId: number): Promise<Vote[]> {
     const votes: Vote[] = [];
     try {
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `vote:${periodId}:`,
         lte: `vote:${periodId}:\xFF`,
       })) {
         votes.push(JSON.parse(value));
       }
       return votes;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to get votes by period:', error);
       return [];
     }
@@ -1290,8 +1291,8 @@ export class BlockchainSchema {
       const block = JSON.parse(value);
       this.blockCache.set(key, block);
       return block;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to get block by height:', error);
       return null;
     }
@@ -1304,7 +1305,7 @@ export class BlockchainSchema {
   async getTotalEligibleVoters(): Promise<number> {
     try {
       const voters = new Set<string>();
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: 'voter:',
         lte: 'voter:\xFF',
       })) {
@@ -1358,7 +1359,7 @@ export class BlockchainSchema {
    * @param value Metric value
    */
   private emitMetric(name: string, value: number): void {
-    this.eventEmitter.emit('metric', {
+    this.eventEmitter?.emit('metric', {
       name,
       value,
       timestamp: Date.now(),
@@ -1382,8 +1383,8 @@ export class BlockchainSchema {
       const key = `signature:${address}:${message}`;
       const storedSignature = await this.db.get(key);
       return storedSignature === signature;
-    } catch (error) {
-      if (error.notFound) return false;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return false;
       Logger.error('Signature verification failed:', error);
       return false;
     }
@@ -1397,8 +1398,8 @@ export class BlockchainSchema {
     try {
       const state = await this.db.get('chain_state');
       return JSON.parse(state);
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       throw error;
     }
   }
@@ -1429,8 +1430,8 @@ export class BlockchainSchema {
         if (block) blocks.push(block);
       }
       return blocks;
-    } catch (error) {
-      Logger.error('Failed to get blocks from height:', error);
+    } catch (error: unknown) {
+      Logger.error('Failed to get blocks from height:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     }
   }
@@ -1463,8 +1464,8 @@ export class BlockchainSchema {
       const key = `block:hash:${hash}`;
       const value = await this.db.get(key);
       return value ? JSON.parse(value) : null;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to get block by hash:', error);
       return null;
     }
@@ -1478,7 +1479,7 @@ export class BlockchainSchema {
     try {
       const validators: Validator[] = [];
 
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: 'validator:',
         lte: 'validator:\xFF',
       })) {
@@ -1579,7 +1580,7 @@ export class BlockchainSchema {
       let successfulChecks = 0;
 
       // Get heartbeat records for last 30 days
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `validator_heartbeat:${address}:${now - 30 * ONE_DAY}`,
         lte: `validator_heartbeat:${address}:${now}`,
       })) {
@@ -1648,15 +1649,25 @@ export class BlockchainSchema {
 
       // Count blocks produced in last 1000 blocks
       const startHeight = Math.max(0, currentHeight - 1000);
-      for await (const [key, value] of this.db.iterator({
+      const iterator = this.db.iterator({
         gte: `block:miner:${address}:${startHeight}`,
         lte: `block:miner:${address}:${currentHeight}`,
-      })) {
-        producedBlocks++;
+      });
+
+      // Count blocks and validate each entry
+      for await (const [key, rawValue] of iterator) {
+        try {
+          const block = JSON.parse(rawValue);
+          if (block.miner === address) {
+            producedBlocks++;
+          }
+        } catch (parseError) {
+          Logger.error(`Invalid block data for ${key}:`, parseError);
+          continue;
+        }
       }
 
-      const production =
-        expectedBlocks > 0 ? producedBlocks / expectedBlocks : 0;
+      const production = expectedBlocks > 0 ? producedBlocks / expectedBlocks : 0;
       this.validatorMetricsCache.set(cacheKey, production, { ttl: 300000 });
       return production;
     } catch (error) {
@@ -1681,7 +1692,7 @@ export class BlockchainSchema {
       const history: Array<{ timestamp: number; reason: string }> = [];
 
       // Get all slashing events for this validator
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `slash:${address}:`,
         lte: `slash:${address}:\xFF`,
       })) {
@@ -1762,7 +1773,7 @@ export class BlockchainSchema {
   private async getTokenHolderVotes(address: string): Promise<number> {
     // Get direct votes from token holders
     const validatorVotes = await this.getVotesForValidator(address);
-    const totalVotes = await this.getTotalVotes();
+    const totalVotes = await this.votingDb?.getTotalVotes() || 0;
     return validatorVotes / totalVotes;
   }
 
@@ -1797,7 +1808,7 @@ export class BlockchainSchema {
       const now = Date.now();
       const ONE_HOUR = 3600000;
 
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `block:miner:${address}:${now - ONE_HOUR}`,
         lte: `block:miner:${address}:${now}`,
       })) {
@@ -1833,7 +1844,7 @@ export class BlockchainSchema {
       const now = Date.now();
       const ONE_HOUR = 3600000;
 
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `block:timestamp:${now - ONE_HOUR}`,
         lte: `block:timestamp:${now}`,
       })) {
@@ -1871,7 +1882,7 @@ export class BlockchainSchema {
       const ONE_DAY = 24 * 60 * 60 * 1000;
 
       // Count successful blocks and failed attempts
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `block_attempt:${address}:${now - ONE_DAY}`,
         lte: `block_attempt:${address}:${now}`,
       })) {
@@ -1910,7 +1921,7 @@ export class BlockchainSchema {
       const ONE_HOUR = 3600000;
 
       // Calculate average response time from heartbeats
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `validator_heartbeat:${address}:${now - ONE_HOUR}`,
         lte: `validator_heartbeat:${address}:${now}`,
       })) {
@@ -1956,7 +1967,7 @@ export class BlockchainSchema {
       const ONE_DAY = 24 * 60 * 60 * 1000;
 
       // Sum up voting power from token holders
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `vote:validator:${address}:${now - ONE_DAY}`,
         lte: `vote:validator:${address}:${now}`,
       })) {
@@ -1985,7 +1996,7 @@ export class BlockchainSchema {
       if (cached !== undefined) return BigInt(cached);
 
       let total = BigInt(0);
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: 'token_holder:',
         lte: 'token_holder:\xFF',
       })) {
@@ -2008,7 +2019,7 @@ export class BlockchainSchema {
    */
   private async getVotingPeriods(since: number): Promise<VotingPeriod[]> {
     const periods: VotingPeriod[] = [];
-    for await (const [key, value] of this.db.iterator({
+    for await (const [, value] of this.db.iterator({
       gte: `voting_period:${since}`,
       lte: `voting_period:${Date.now()}`,
     })) {
@@ -2030,8 +2041,8 @@ export class BlockchainSchema {
     try {
       const vote = await this.db.get(`vote:${periodId}:${address}`);
       return JSON.parse(vote);
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       throw error;
     }
   }
@@ -2046,8 +2057,8 @@ export class BlockchainSchema {
       const key = `validator:${address}`;
       const data = await this.db.get(key);
       return data ? JSON.parse(data) : null;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error(`Failed to get validator ${address}:`, error);
       return null;
     }
@@ -2060,15 +2071,28 @@ export class BlockchainSchema {
   async getValidatorCount(): Promise<number> {
     try {
       let count = 0;
-      for await (const [key] of this.db.iterator({
+      const iterator = this.db.iterator({
         gte: 'validator:',
         lte: 'validator:\xFF',
-      })) {
-        count++;
+      });
+
+      for await (const [key, value] of iterator) {
+        try {
+          const validator = JSON.parse(value);
+          if (validator && typeof validator === 'object') {
+            count++;
+          }
+        } catch (parseError) {
+          Logger.error(`Invalid validator data for ${key}:`, parseError);
+          continue;
+        }
       }
       return count;
-    } catch (error) {
-      Logger.error('Failed to get validator count:', error);
+    } catch (error: unknown) {
+      Logger.error(
+        'Failed to get validator count:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return 0;
     }
   }
@@ -2080,7 +2104,6 @@ export class BlockchainSchema {
    */
   async getLastNBlocks(n: number): Promise<Block[]> {
     try {
-      const blocks: Block[] = [];
       const currentHeight = await this.getCurrentHeight();
       const startHeight = Math.max(0, currentHeight - n);
 
@@ -2110,8 +2133,8 @@ export class BlockchainSchema {
     try {
       const nonce = await this.db.get(`nonce:${address}`);
       return parseInt(nonce) || 0;
-    } catch (error) {
-      if (error.notFound) return 0;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return 0;
       Logger.error('Failed to get account nonce:', error);
       throw error;
     }
@@ -2126,8 +2149,8 @@ export class BlockchainSchema {
     try {
       const block = await this.db.get(`block:height:${height}`);
       return JSON.parse(block).hash;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to get block hash by height:', error);
       throw error;
     }
@@ -2218,8 +2241,8 @@ export class BlockchainSchema {
     try {
       const head = await this.get('chain:head');
       return head ? JSON.parse(head).height : 0;
-    } catch (error) {
-      if (error.notFound) return 0;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return 0;
       throw error;
     }
   }
@@ -2254,7 +2277,7 @@ export class BlockchainSchema {
       const currentHeight = await this.getCurrentHeight();
       const startHeight = currentHeight - blockCount;
 
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `validator_performance:${address}:${startHeight}`,
         lte: `validator_performance:${address}:${currentHeight}`,
       })) {
@@ -2279,11 +2302,13 @@ export class BlockchainSchema {
     try {
       const value = await this.db.get(`validator_stats:${address}`);
       return JSON.parse(value);
-    } catch (error) {
-      return {
-        currentLoad: 0,
-        maxCapacity: 100,
-      };
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error)
+        return {
+          currentLoad: 0,
+          maxCapacity: 100,
+        };
+      throw error;
     }
   }
 
@@ -2297,8 +2322,8 @@ export class BlockchainSchema {
     try {
       const utxo = await this.get(`utxo:${txId}:${outputIndex}`);
       return utxo ? JSON.parse(utxo) : null;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to get UTXO:', error);
       throw error;
     }
@@ -2324,10 +2349,12 @@ export class BlockchainSchema {
       throw new Error('No transaction in progress');
     }
     try {
-      await this.db.batch(this.abstractTransaction);
+      if (this.abstractTransaction) {
+        await this.db.batch(this.abstractTransaction);
+      }
       this.transaction = null;
-    } catch (error) {
-      Logger.error('Failed to commit transaction:', error);
+    } catch (error: unknown) {
+      Logger.error('Failed to commit transaction:', error instanceof Error ? error.message : 'Unknown error');
       await this.rollback();
       throw error;
     }
@@ -2352,7 +2379,9 @@ export class BlockchainSchema {
     if (!this.transaction) {
       throw new Error('No transaction in progress');
     }
-    this.abstractTransaction.push(operation);
+    if (this.abstractTransaction) {
+      this.abstractTransaction.push(operation);
+    }
   }
 
   /**
@@ -2414,22 +2443,28 @@ export class BlockchainSchema {
       await this.db.put(`shard:${shardId}`, JSON.stringify(shardData));
 
       // Update metrics
-      this.metricsCollector.gauge(`shard_size`, data.length);
-      this.metricsCollector.increment('shard_sync_success');
+      if (this.metricsCollector) {
+        this.metricsCollector.gauge('shard_size', data.length);
+        this.metricsCollector.increment('shard_sync_success');
+      }
 
       Logger.info(`Shard ${shardId} synced successfully`, {
         size: data.length,
         checksum,
       });
-    } catch (error) {
-      this.metricsCollector.increment('shard_sync_failure');
-      Logger.error(`Failed to sync shard ${shardId}:`, error);
+    } catch (error: unknown) {
+      if (this.metricsCollector) {
+        this.metricsCollector.increment('shard_sync_failure');
+      }
+      Logger.error(`Failed to sync shard ${shardId}:`, error instanceof Error ? error.message : 'Unknown error');
 
-      await this.auditManager.log(AuditEventType.SHARD_SYNC_FAILED, {
-        shardId,
-        error: error.message,
-        timestamp: Date.now(),
-      });
+      if (this.auditManager) {
+        this.auditManager.log(AuditEventType.SHARD_SYNC_FAILED, {
+          shardId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now(),
+        });
+      }
 
       throw error;
     } finally {
@@ -2442,8 +2477,8 @@ export class BlockchainSchema {
     try {
       const data = await this.db.get(`shard:${shardId}`);
       return data ? JSON.parse(data) : null;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
       throw error;
     }
   }
@@ -2521,8 +2556,8 @@ export class BlockchainSchema {
     try {
       const data = await this.db.get(`access:${id}`);
       return data ? parseInt(data) : 0;
-    } catch (error) {
-      if (error.notFound) return 0;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return 0;
       throw error;
     }
   }
@@ -2552,10 +2587,11 @@ export class BlockchainSchema {
 
   private startTransactionMonitor(): void {
     const TRANSACTION_TIMEOUT = 30000; // 30 seconds
+
     setTimeout(async () => {
       if (
         this.transaction &&
-        Date.now() - this.transactionStartTime > TRANSACTION_TIMEOUT
+        Date.now() - (this.transactionStartTime ?? 0) > TRANSACTION_TIMEOUT
       ) {
         Logger.warn('Transaction timeout detected, initiating rollback');
         await this.rollbackTransaction();
@@ -2570,21 +2606,27 @@ export class BlockchainSchema {
 
     try {
       await this.mutex.runExclusive(async () => {
-        await this.transaction.write((error) => {
-          if (error) {
-            Logger.error('Transaction write failed:', error);
-            throw new Error(`Transaction write failed: ${error.message}`);
-          }
-        });
+        if (this.transaction) {
+          await this.transaction.write((error) => {
+            if (error) {
+              Logger.error('Transaction write failed:', error);
+              throw new Error(`Transaction write failed: ${error.message}`);
+            }
+          });
+        }
         await this.persistOperations(this.transactionOperations);
 
         // Only clear after successful persistence
         this.transaction = null;
         this.transactionOperations = [];
       });
-    } catch (error) {
+    } catch (error: unknown) {
       await this.rollbackTransaction();
-      throw new Error(`Transaction commit failed: ${error.message}`);
+      throw new Error(
+        `Transaction commit failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
     }
   }
 
@@ -2600,9 +2642,11 @@ export class BlockchainSchema {
           await this.invalidateAffectedCaches();
         });
       }
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Transaction rollback failed:', error);
-      throw new Error(`Rollback failed: ${error.message}`);
+      throw new Error(
+        `Rollback failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
     }
   }
 
@@ -2639,9 +2683,13 @@ export class BlockchainSchema {
         operationCount: operations.length,
         timestamp: Date.now(),
       });
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to persist operations:', error);
-      throw new Error(`Operation persistence failed: ${error.message}`);
+      throw new Error(
+        `Operation persistence failed: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
+      );
     }
   }
 
@@ -2669,7 +2717,7 @@ export class BlockchainSchema {
   > {
     try {
       const seeds = [];
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: 'seed:',
         lte: 'seed:\xFF',
       })) {
@@ -2682,7 +2730,7 @@ export class BlockchainSchema {
     }
   }
 
-  async saveSeeds(seeds: Array<[string, any]>): Promise<void> {
+  async saveSeeds(seeds: Array<[string, unknown]>): Promise<void> {
     try {
       const batch = this.db.batch();
       for (const [address, seed] of seeds) {
@@ -2698,7 +2746,7 @@ export class BlockchainSchema {
   public async getActiveValidators(): Promise<{ address: string }[]> {
     try {
       const validators = [];
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: 'validator:',
         lte: 'validator:\xFF',
       })) {
@@ -2718,7 +2766,7 @@ export class BlockchainSchema {
   public async getTagHolderCount(): Promise<number> {
     try {
       const holders = new Set<string>();
-      for await (const [key, rawValue] of this.db.iterator({
+      for await (const [, rawValue] of this.db.iterator({
         gte: 'utxo:',
         lte: 'utxo:\xFF',
       })) {
@@ -2737,7 +2785,7 @@ export class BlockchainSchema {
   public async getTagDistribution(): Promise<number> {
     try {
       const tagCounts = new Map<string, number>();
-      for await (const [key, rawValue] of this.db.iterator({
+      for await (const [, rawValue] of this.db.iterator({
         gte: 'utxo:',
         lte: 'utxo:\xFF',
       })) {
@@ -2773,8 +2821,8 @@ export class BlockchainSchema {
     try {
       const block = await this.db.get(`block:${hash}`);
       return block ? JSON.parse(block) : null;
-    } catch (error) {
-      if (error.notFound) return null;
+    } catch (error: unknown) {
+        if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to get block by hash:', error);
       throw error;
     }
@@ -2788,7 +2836,7 @@ export class BlockchainSchema {
   async getBlocksByHeight(height: number): Promise<Block[]> {
     try {
       const blocks: Block[] = [];
-      for await (const [key, value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `block:height:${height}`,
         lte: `block:height:${height}\xFF`,
       })) {
@@ -2823,9 +2871,9 @@ export class BlockchainSchema {
       });
 
       return endHeight;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to get voting end height:', error);
-      if (error.notFound) return 0;
+      if (error instanceof Error && 'notFound' in error) return 0;
       throw error;
     }
   }
@@ -2848,9 +2896,9 @@ export class BlockchainSchema {
       });
 
       return startHeight;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Failed to get voting start height:', error);
-      if (error.notFound) return 0;
+      if (error instanceof Error && 'notFound' in error) return 0;
       throw error;
     }
   }
@@ -2931,8 +2979,8 @@ export class BlockchainSchema {
 
       await this.db.get(key);
       return true;
-    } catch (error) {
-      if (error.notFound) return false;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return false;
       throw error;
     }
   }
@@ -2945,8 +2993,8 @@ export class BlockchainSchema {
 
       await this.db.get(key);
       return true;
-    } catch (error) {
-      if (error.notFound) return false;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return false;
       throw error;
     }
   }
@@ -2965,8 +3013,8 @@ export class BlockchainSchema {
         headers.push(JSON.parse(value));
       }
       return headers;
-    } catch (error) {
-      Logger.error('Failed to get headers:', error);
+    } catch (error: unknown) {
+      Logger.error('Failed to get headers:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     }
   }
@@ -2982,8 +3030,8 @@ export class BlockchainSchema {
         blocks.push(JSON.parse(value));
       }
       return blocks;
-    } catch (error) {
-      Logger.error('Failed to get blocks:', error);
+    } catch (error: unknown) {
+      Logger.error('Failed to get blocks:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     }
   }

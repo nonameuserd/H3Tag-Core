@@ -33,9 +33,9 @@ interface MiningResult {
 
 export class GPUMiner {
   protected readonly MAX_NONCE: number = 0xffffffff;
-  protected device: GPUDevice;
-  protected pipeline: GPUComputePipeline;
-  protected bindGroup: GPUBindGroup;
+  protected device: GPUDevice | null | undefined = null;
+  protected pipeline: GPUComputePipeline | null | undefined = null;
+  protected bindGroup: GPUBindGroup | null | undefined = null;
 
   /**
    * Initializes the GPU miner
@@ -112,8 +112,11 @@ export class GPUMiner {
           entryPoint: 'main',
         },
       });
-    } catch (error) {
-      throw new Error(`Failed to create pipeline: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to create pipeline: ${error.message}`);
+      }
+      throw new Error('Failed to create pipeline: Unknown error');
     }
   }
 
@@ -195,8 +198,11 @@ export class GPUMiner {
           8,
         ),
       };
-    } catch (error) {
-      throw new Error(`Mining operation failed: ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        throw new Error(`Mining operation failed: ${error.message}`);
+      }
+      throw new Error('Mining operation failed: Unknown error');
     }
   }
 

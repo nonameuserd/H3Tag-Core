@@ -191,10 +191,13 @@ export class DatabaseTransaction {
       Logger.debug(
         `Transaction committed with ${this.operations.length} operations`,
       );
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Transaction commit failed:', error);
       await this.rollback();
-      throw new Error('Transaction commit failed: ' + error.message);
+      throw new Error(
+        'Transaction commit failed: ' +
+          (error instanceof Error ? error.message : 'Unknown error'),
+      );
     }
   }
 
@@ -229,13 +232,13 @@ export class DatabaseTransaction {
         if (originalValue === null) {
           reverseBatch.del(key);
         } else {
-          reverseBatch.put(key, originalValue);
+          reverseBatch.put(key, originalValue ?? '');
         }
       }
 
       await new Promise<void>((resolve, reject) => {
-        reverseBatch.write((error) => {
-          if (error) reject(error);
+        reverseBatch.write((error: unknown) => {
+          if (error instanceof Error) reject(error);
           else resolve();
         });
       });

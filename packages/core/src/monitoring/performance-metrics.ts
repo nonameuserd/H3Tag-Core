@@ -4,14 +4,14 @@ import { PeerServices } from '../models/peer.model';
 
 export interface Metric {
   average?: number;
-  durations?: number[];
-  timestamps?: number[];
-  count?: number;
-  totalDuration?: number;
-  maxDuration?: number;
-  last24Hours?: number[];
-  minDuration?: number;
-  lastUpdated?: number;
+  durations: number[];
+  timestamps: number[];
+  count: number;
+  totalDuration: number;
+  maxDuration: number;
+  last24Hours: number[];
+  minDuration: number;
+  lastUpdated: number;
   bytesReceived?: number;
   bytesSent?: number;
   messagesReceived?: number;

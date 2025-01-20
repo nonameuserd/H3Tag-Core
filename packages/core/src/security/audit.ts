@@ -141,7 +141,7 @@ export class AuditManager {
   private readonly eventEmitter = new EventEmitter();
   private events: Map<string, AuditEvent>;
   private eventCache: Cache<AuditEvent>;
-  private syncInterval: NodeJS.Timeout;
+  private syncInterval: NodeJS.Timeout | undefined;
   private readonly config: AuditConfig;
   private readonly storage: IAuditStorage;
   private metrics: AuditMetrics = {
@@ -239,14 +239,16 @@ export class AuditManager {
       }
 
       return event.id;
-    } catch (error) {
+    } catch (error: unknown) {
       this.metrics.failedEvents++;
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
       Logger.error(
         `Failed to log ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} audit event:`,
-        error,
+        errorMessage,
       );
       throw new AuditError(
-        `Failed to log ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} event: ${error.message}`,
+        `Failed to log ${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} event: ${errorMessage}`,
         'LOG_FAILED',
       );
     }
@@ -488,8 +490,10 @@ export class AuditManager {
       const key = `auditor_signature:${auditorId}:${voteId}`;
       const data = await this.storage.readAuditLog(key);
       return JSON.parse(data).signature;
-    } catch (error) {
-      Logger.error(`Failed to get auditor signature: ${error.message}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      Logger.error(`Failed to get auditor signature: ${errorMessage}`);
       return '';
     }
   }

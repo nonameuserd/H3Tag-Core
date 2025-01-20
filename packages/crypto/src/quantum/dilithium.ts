@@ -1,11 +1,11 @@
-import { QuantumCrypto } from '.';
-import { Logger } from '@h3tag-blockchain/shared';
-import { SecurityLevel } from '../native/types';
+import { QuantumCrypto } from ".";
+import { Logger } from "@h3tag-blockchain/shared";
+import { SecurityLevel } from "../native/types";
 
 export class DilithiumError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'DilithiumError';
+    this.name = "DilithiumError";
   }
 }
 
@@ -25,16 +25,16 @@ export class Dilithium {
     try {
       await QuantumCrypto.initialize();
       await QuantumCrypto.nativeQuantum.setSecurityLevel(
-        this.DEFAULT_SECURITY_LEVEL,
+        this.DEFAULT_SECURITY_LEVEL
       );
       this.initialized = true;
       Logger.info(
-        'Dilithium initialized with security level:',
-        this.DEFAULT_SECURITY_LEVEL,
+        "Dilithium initialized with security level:",
+        this.DEFAULT_SECURITY_LEVEL
       );
     } catch (error) {
-      Logger.error('Dilithium initialization failed:', error);
-      throw new DilithiumError('Initialization failed');
+      Logger.error("Dilithium initialization failed:", error);
+      throw new DilithiumError("Initialization failed");
     }
   }
 
@@ -44,17 +44,17 @@ export class Dilithium {
     try {
       const keyPair = await QuantumCrypto.generateKeyPair(entropy);
       if (!keyPair?.publicKey || !keyPair?.privateKey) {
-        throw new DilithiumError('Failed to generate key pair');
+        throw new DilithiumError("Failed to generate key pair");
       }
 
       return {
-        publicKey: keyPair.publicKey.toString('base64'),
-        privateKey: keyPair.privateKey.toString('base64'),
+        publicKey: keyPair.publicKey.toString("base64"),
+        privateKey: keyPair.privateKey.toString("base64"),
       };
     } catch (error) {
-      Logger.error('Dilithium key generation failed:', error);
+      Logger.error("Dilithium key generation failed:", error);
       throw new DilithiumError(
-        error instanceof Error ? error.message : 'Key generation failed',
+        error instanceof Error ? error.message : "Key generation failed"
       );
     }
   }
@@ -64,30 +64,30 @@ export class Dilithium {
 
     try {
       if (!message || !privateKey) {
-        throw new DilithiumError('Missing message or private key');
+        throw new DilithiumError("Missing message or private key");
       }
 
-      const privateKeyBuffer = Buffer.from(privateKey, 'base64');
+      const privateKeyBuffer = Buffer.from(privateKey, "base64");
       const messageBuffer = Buffer.from(message);
 
       if (!this.isValidPrivateKey(privateKey)) {
-        throw new DilithiumError('Invalid private key format');
+        throw new DilithiumError("Invalid private key format");
       }
 
       const signature = await QuantumCrypto.nativeQuantum.dilithiumSign(
         messageBuffer,
-        privateKeyBuffer,
+        privateKeyBuffer
       );
 
       if (signature.length !== this.SIGNATURE_SIZE) {
-        throw new DilithiumError('Invalid signature generated');
+        throw new DilithiumError("Invalid signature generated");
       }
 
-      return signature.toString('base64');
+      return signature.toString("base64");
     } catch (error) {
-      Logger.error('Dilithium signing failed:', error);
+      Logger.error("Dilithium signing failed:", error);
       throw new DilithiumError(
-        error instanceof Error ? error.message : 'Signing failed',
+        error instanceof Error ? error.message : "Signing failed"
       );
     }
   }
@@ -95,39 +95,39 @@ export class Dilithium {
   static async verify(
     message: string,
     signature: string,
-    publicKey: string,
+    publicKey: string
   ): Promise<boolean> {
     if (!this.initialized) await this.initialize();
 
     try {
       if (!message || !signature || !publicKey) {
-        throw new DilithiumError('Missing required parameters');
+        throw new DilithiumError("Missing required parameters");
       }
 
       if (!this.isValidPublicKey(publicKey)) {
-        throw new DilithiumError('Invalid public key format');
+        throw new DilithiumError("Invalid public key format");
       }
 
       const messageBuffer = Buffer.from(message);
-      const signatureBuffer = Buffer.from(signature, 'base64');
-      const publicKeyBuffer = Buffer.from(publicKey, 'base64');
+      const signatureBuffer = Buffer.from(signature, "base64");
+      const publicKeyBuffer = Buffer.from(publicKey, "base64");
 
       return await QuantumCrypto.nativeQuantum.dilithiumVerify(
         messageBuffer,
         signatureBuffer,
-        publicKeyBuffer,
+        publicKeyBuffer
       );
     } catch (error) {
-      Logger.error('Dilithium verification failed:', error);
+      Logger.error("Dilithium verification failed:", error);
       throw new DilithiumError(
-        error instanceof Error ? error.message : 'Verification failed',
+        error instanceof Error ? error.message : "Verification failed"
       );
     }
   }
 
   static isValidPublicKey(publicKey: string): boolean {
     try {
-      const buffer = Buffer.from(publicKey, 'base64');
+      const buffer = Buffer.from(publicKey, "base64");
       return buffer.length === this.KEY_SIZE;
     } catch {
       return false;
@@ -136,7 +136,7 @@ export class Dilithium {
 
   static isValidPrivateKey(privateKey: string): boolean {
     try {
-      const buffer = Buffer.from(privateKey, 'base64');
+      const buffer = Buffer.from(privateKey, "base64");
       return buffer.length === this.KEY_SIZE;
     } catch {
       return false;
@@ -149,9 +149,9 @@ export class Dilithium {
     try {
       return await QuantumCrypto.nativeQuantum.dilithiumHash(data);
     } catch (error) {
-      Logger.error('Dilithium hashing failed:', error);
+      Logger.error("Dilithium hashing failed:", error);
       throw new DilithiumError(
-        error instanceof Error ? error.message : 'Hashing failed',
+        error instanceof Error ? error.message : "Hashing failed"
       );
     }
   }
@@ -160,6 +160,6 @@ export class Dilithium {
     if (!this.initialized) return;
     await QuantumCrypto.shutdown();
     this.initialized = false;
-    Logger.info('Dilithium shut down');
+    Logger.info("Dilithium shut down");
   }
 }

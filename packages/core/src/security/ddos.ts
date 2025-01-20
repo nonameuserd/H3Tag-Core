@@ -58,8 +58,8 @@ export class DDoSProtection {
   private blockedIPs: Set<string>;
   private readonly config: DDoSConfig;
   private readonly auditManager: AuditManager;
-  private metrics: DDoSMetrics;
-  private cleanupInterval: NodeJS.Timeout;
+  private metrics: DDoSMetrics | undefined;
+  private cleanupInterval: NodeJS.Timeout | undefined;
   private readonly rateLimitBuckets = new Map<
     string,
     Map<string, RequestRecord>
@@ -214,9 +214,9 @@ export class DDoSProtection {
 
         await this.recordRequest(ip, requestType);
         next();
-      } catch (error) {
+      } catch (error: unknown) {
         this.handleFailure();
-        next(error);
+        next(error as Error | undefined );
       }
     };
   }
@@ -302,7 +302,9 @@ export class DDoSProtection {
 
     if (record.violations >= this.config.banThreshold) {
       this.blockedIPs.add(ip);
-      this.metrics.totalBans++;
+      if (this.metrics) {
+        this.metrics.totalBans++;
+      }
 
       await this.auditManager.logEvent({
         type: AuditEventType.SECURITY,
@@ -348,7 +350,9 @@ export class DDoSProtection {
     if (record) {
       record.blocked = true;
       this.requests.set(ip, record, { ttl: duration / 1000 });
-      this.metrics.activeBlocks++;
+      if (this.metrics) {
+        this.metrics.activeBlocks++;
+      }
     }
 
     this.eventEmitter.emit('ip_blocked', { ip, duration });
@@ -405,6 +409,9 @@ export class DDoSProtection {
   }
 
   public getMetrics(): DDoSMetrics {
+    if (!this.metrics) {
+      throw new Error('Metrics are not initialized');
+    }
     return {
       ...this.metrics,
       memoryUsage: this.requests.getStats().memoryUsage,
@@ -415,7 +422,9 @@ export class DDoSProtection {
   public unblockIP(ip: string): void {
     this.blockedIPs.delete(ip);
     this.requests.delete(ip);
-    this.metrics.activeBlocks = Math.max(0, this.metrics.activeBlocks - 1);
+    if (this.metrics) {
+      this.metrics.activeBlocks = Math.max(0, this.metrics.activeBlocks - 1);
+    }
     this.eventEmitter.emit('ip_unblocked', { ip });
   }
 
@@ -456,7 +465,8 @@ export class DDoSProtection {
 
       // Get rate limit configuration for this type
       const limit =
-        this.config.maxRequests[type] || this.config.maxRequests.default;
+        this.config.maxRequests[type as keyof typeof this.config.maxRequests] ||
+        this.config.maxRequests.default;
       const windowMs = this.config.windowMs;
 
       // Get or initialize request tracking

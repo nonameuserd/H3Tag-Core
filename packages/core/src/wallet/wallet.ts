@@ -41,7 +41,7 @@ export enum WalletErrorCode {
 }
 
 export class Wallet {
-  private static readonly DERIVATION_PATH = "m/44'/60'/0'/0/0";
+  private static readonly DERIVATION_PATH = 'm/44\'/60\'/0\'/0/0';
 
   private readonly keyPair: HybridKeyPair;
   private readonly address: string;
@@ -76,8 +76,8 @@ export class Wallet {
   private secureCleanup(): void {
     if (this.keyPair) {
       // Clear sensitive data
-      this.keyPair.privateKey = null;
-      this.keyPair.publicKey = null;
+      this.keyPair.privateKey = '';
+      this.keyPair.publicKey = '';
     }
   }
 
@@ -221,6 +221,10 @@ export class Wallet {
           WalletErrorCode.KEYSTORE_ERROR,
         );
       }
+      throw new WalletError(
+        'Failed to backup wallet',
+        WalletErrorCode.KEYSTORE_ERROR,
+      );
     }
   }
 
@@ -255,6 +259,10 @@ export class Wallet {
           WalletErrorCode.INITIALIZATION_ERROR,
         );
       }
+      throw new WalletError(
+        'Failed to create wallet with mnemonic',
+        WalletErrorCode.INITIALIZATION_ERROR,
+      );
     }
   }
 
@@ -329,6 +337,7 @@ export class Wallet {
       if (error instanceof Error) {
         return false;
       }
+      return false;
     }
   }
 
@@ -426,6 +435,7 @@ export class Wallet {
       if (error instanceof Error) {
         return false;
       }
+      return false;
     }
   }
 

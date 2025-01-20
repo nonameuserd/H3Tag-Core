@@ -72,11 +72,10 @@ export class Node {
   private isRunning = false;
   private maintenanceTimer?: NodeJS.Timeout;
   private readonly discovery: PeerDiscovery;
-  private readonly eventEmitter: EventEmitter;
+  private readonly eventEmitter: EventEmitter | undefined;
 
   private static readonly DEFAULT_CONFIG: NodeConfig = {
-    networkType:
-      NetworkType[BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.type.MAINNET],
+    networkType: NetworkType.MAINNET,
     port: BLOCKCHAIN_CONSTANTS.CURRENCY.NETWORK.port.MAINNET,
     maxPeers: 100000,
     minPeers: 1,
@@ -133,7 +132,7 @@ export class Node {
         },
         windowMs: 60000, // 1 minute
       },
-      this.audit,
+      this.auditManager,
     );
     this.audit = new AuditManager();
 
@@ -149,15 +148,18 @@ export class Node {
   }
 
   private setupEventHandlers(): void {
-    this.eventEmitter.on('peer:connect', this.handlePeerConnect.bind(this));
-    this.eventEmitter.on(
+    this.eventEmitter?.on('peer:connect', this.handlePeerConnect.bind(this));
+    this.eventEmitter?.on(
       'peer:disconnect',
       this.handlePeerDisconnect.bind(this),
     );
-    this.eventEmitter.on('peer:message', this.handlePeerMessage.bind(this));
-    this.eventEmitter.on('peer:error', this.handlePeerError.bind(this));
-    this.eventEmitter.on('block:received', this.handleBlockReceived.bind(this));
-    this.eventEmitter.on(
+    this.eventEmitter?.on('peer:message', this.handlePeerMessage.bind(this));
+    this.eventEmitter?.on('peer:error', this.handlePeerError.bind(this));
+    this.eventEmitter?.on(
+      'block:received',
+      this.handleBlockReceived.bind(this),
+    );
+    this.eventEmitter?.on(
       'tx:received',
       this.handleTransactionReceived.bind(this),
     );
@@ -318,7 +320,7 @@ export class Node {
       });
 
       breaker.onSuccess();
-      this.eventEmitter.emit('peer:connect', tempPeer);
+      this.eventEmitter?.emit('peer:connect', tempPeer);
 
       Logger.info('Peer connected and verified', {
         address,
@@ -329,7 +331,7 @@ export class Node {
       this.getCircuitBreaker(address).onFailure();
       Logger.error('Failed to connect to peer:', {
         address,
-        error: error.message,
+        error: (error as Error).message,
       });
       this.increasePeerBanScore(address, 1);
     } finally {
@@ -353,20 +355,27 @@ export class Node {
 
       switch (message.type) {
         case 'block':
-          await this.handleBlockMessage(peer, message.data.block);
+          if (message.data.block) {
+            await this.handleBlockMessage(peer, message.data.block);
+          }
           break;
         case 'tx':
-          await this.handleTransactionMessage(peer, message.data.transaction);
+          if (message.data.transaction) {
+            await this.handleTransactionMessage(
+              peer,
+              message.data.transaction,
+            );
+          }
           break;
         case 'inv':
-          await this.handleInventoryMessage(peer, message.data.inventory);
+          await this.handleInventoryMessage(peer, message.data.inventory || []);
           break;
         case 'getdata':
-          await this.handleGetDataMessage(peer, message.data.data);
+          await this.handleGetDataMessage(peer, message.data.data || []);
           break;
         case 'ping':
           await peer.send(PeerMessageType.PONG, {
-            nonce: message.data.headers[0].nonce,
+            nonce: message.data.headers?.[0]?.nonce || 0,
           });
           break;
         default:
@@ -377,7 +386,7 @@ export class Node {
     } catch (error) {
       Logger.error('Error handling peer message:', {
         peerId: peer.getId(),
-        error: error.message,
+        error: (error as Error).message,
       });
       this.increasePeerBanScore(peer.getId(), 1);
     }
@@ -403,11 +412,11 @@ export class Node {
 
       await this.blockchain.addBlock(block);
       this.processOrphanBlocks(block.hash);
-      this.eventEmitter.emit('block:received', block);
-    } catch (error) {
+      this.eventEmitter?.emit('block:received', block);
+    } catch (error: unknown) {
       Logger.error('Error handling block message:', {
         blockHash: block.hash,
-        error: error.message,
+        error: (error as Error).message,
       });
     }
   }
@@ -431,11 +440,11 @@ export class Node {
       }
 
       await this.mempool.addTransaction(tx);
-      this.eventEmitter.emit('tx:received', tx);
-    } catch (error) {
+      this.eventEmitter?.emit('tx:received', tx);
+    } catch (error: unknown) {
       Logger.error('Error handling transaction message:', {
         txId: tx.id,
-        error: error.message,
+        error: (error as Error).message,
       });
     }
   }

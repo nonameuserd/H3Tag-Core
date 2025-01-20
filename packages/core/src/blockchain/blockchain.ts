@@ -1723,7 +1723,8 @@ export class Blockchain {
     privateKey: string,
   ): Promise<void> {
     try {
-      block.header.signature = await HybridCrypto.sign(block.hash, privateKey);
+      const keyPair = await HybridCrypto.generateKeyPair(privateKey);
+      block.header.signature = await HybridCrypto.sign(block.hash, keyPair);
     } catch (error) {
       Logger.error('Error signing block:', error);
       throw error;

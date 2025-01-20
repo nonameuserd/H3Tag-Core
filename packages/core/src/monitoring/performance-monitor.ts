@@ -114,7 +114,7 @@ export class PerformanceMonitor {
 
       // Performance alerts
       if (duration > this.ALERT_THRESHOLD_MS) {
-        Logger.warn(`Performance threshold exceeded`, {
+        Logger.warn('Performance threshold exceeded', {
           context,
           operation,
           duration,
