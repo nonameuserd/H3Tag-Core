@@ -157,7 +157,7 @@ export class MiningService {
       id: tx.id,
       fromAddress: tx.sender,
       toAddress: tx.recipient,
-      amount: tx.outputs[0]?.amount.toString() || '0',
+      amount: tx.outputs[0]?.amount || 0n,
       timestamp: new Date(tx.timestamp).toISOString(),
       fee: tx.fee.toString(),
       type: tx.type,

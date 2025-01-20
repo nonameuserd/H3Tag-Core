@@ -1,16 +1,16 @@
-import { Logger } from "@h3tag-blockchain/shared";
-import { Dilithium } from "./quantum/dilithium";
-import { Kyber } from "./quantum/kyber";
-import { HashUtils } from "./hash";
-import CryptoJS from "crypto-js";
-import { KeyManager } from "./keys";
-import { HybridKeyPair } from "./keys";
-import { QuantumWrapper } from "./quantum-wrapper";
+import { Logger } from '@h3tag-blockchain/shared';
+import { Dilithium } from './quantum/dilithium';
+import { Kyber } from './quantum/kyber';
+import { HashUtils } from './hash';
+import CryptoJS from 'crypto-js';
+import { KeyManager } from './keys';
+import { HybridKeyPair } from './keys';
+import { QuantumWrapper } from './quantum-wrapper';
 
 export class HybridError extends Error {
   constructor(message: string) {
     super(message);
-    this.name = "HybridError";
+    this.name = 'HybridError';
   }
 }
 
@@ -23,7 +23,7 @@ interface HybridMetrics {
 
 export class HybridCrypto {
   private static readonly KEY_SIZE = 256;
-  static readonly TRADITIONAL_CURVE = require("elliptic").ec("secp256k1");
+  static readonly TRADITIONAL_CURVE = require('elliptic').ec('secp256k1');
   private static metrics: HybridMetrics = {
     totalHashes: 0,
     averageTime: 0,
@@ -33,15 +33,15 @@ export class HybridCrypto {
 
   static async sign(
     message: string,
-    privateKey: HybridKeyPair
+    privateKey: HybridKeyPair,
   ): Promise<string> {
     try {
       const privKey =
-        typeof privateKey.privateKey === "function"
+        typeof privateKey.privateKey === 'function'
           ? await privateKey.privateKey()
           : privateKey.privateKey;
 
-      const eccKey = this.TRADITIONAL_CURVE.keyFromPrivate(privKey, "hex");
+      const eccKey = this.TRADITIONAL_CURVE.keyFromPrivate(privKey, 'hex');
       const eccSignature = eccKey.sign(HashUtils.sha256(message));
 
       const [dilithiumHash, kyberSecret] = await Promise.all([
@@ -50,12 +50,12 @@ export class HybridCrypto {
       ]);
 
       return HashUtils.sha3(
-        eccSignature.toDER("hex") + dilithiumHash + kyberSecret
+        eccSignature.toDER('hex') + dilithiumHash + kyberSecret,
       );
     } catch (error) {
-      Logger.error("Hybrid signing failed:", error);
+      Logger.error('Hybrid signing failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Signing failed"
+        error instanceof Error ? error.message : 'Signing failed',
       );
     }
   }
@@ -63,7 +63,7 @@ export class HybridCrypto {
   static async verify(
     message: string,
     signature: string,
-    publicKey: string
+    publicKey: string,
   ): Promise<boolean> {
     try {
       // 1. Verify address matches
@@ -72,7 +72,7 @@ export class HybridCrypto {
       // 2. Verify traditional signature
       const eccValid = this.TRADITIONAL_CURVE.keyFromPublic(
         publicKey,
-        "hex"
+        'hex',
       ).verify(HashUtils.sha256(message), signature);
 
       if (!eccValid) return false;
@@ -81,24 +81,21 @@ export class HybridCrypto {
       const verificationHash = HashUtils.sha3(
         signature +
           (await Dilithium.hash(Buffer.from(message))) +
-          (await Kyber.encapsulate(publicKey)).sharedSecret
+          (await Kyber.encapsulate(publicKey)).sharedSecret,
       );
 
       // 4. Compare against message hash
       return verificationHash === HashUtils.sha3(message);
     } catch (error) {
-      Logger.error("Hybrid verification failed:", error);
+      Logger.error('Hybrid verification failed:', error);
       return false;
     }
   }
 
-  static async encrypt(
-    message: string,
-    publicKey: string
-  ): Promise<string> {
+  static async encrypt(message: string, publicKey: string): Promise<string> {
     try {
       if (!message || !publicKey) {
-        throw new HybridError("Missing required parameters");
+        throw new HybridError('Missing required parameters');
       }
 
       // 1. Generate session keys
@@ -117,7 +114,7 @@ export class HybridCrypto {
         sessionKey.toString() +
           kyberSecret +
           dilithiumHash +
-          quantumKey.toString("hex")
+          quantumKey.toString('hex'),
       );
 
       // 4. Encrypt with combined key
@@ -129,34 +126,34 @@ export class HybridCrypto {
         quantumProof: dilithiumHash,
       });
     } catch (error) {
-      Logger.error("Hybrid encryption failed:", error);
+      Logger.error('Hybrid encryption failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Encryption failed"
+        error instanceof Error ? error.message : 'Encryption failed',
       );
     }
   }
 
   static async decrypt(
     encryptedData: string,
-    privateKey: string
+    privateKey: string,
   ): Promise<string> {
     try {
       if (!encryptedData || !privateKey) {
-        throw new HybridError("Missing required parameters");
+        throw new HybridError('Missing required parameters');
       }
 
       const parsed = JSON.parse(encryptedData);
       if (!parsed?.data || !parsed?.sessionKey || !parsed?.quantumProof) {
-        throw new HybridError("Invalid encrypted data format");
+        throw new HybridError('Invalid encrypted data format');
       }
 
       // 1. Recover shared secrets
       const kyberSecret = await Kyber.decapsulate(
         parsed.sessionKey,
-        privateKey
+        privateKey,
       );
       const quantumKey = await QuantumWrapper.hashData(
-        Buffer.from(parsed.sessionKey)
+        Buffer.from(parsed.sessionKey),
       );
 
       // 2. Reconstruct hybrid key
@@ -164,16 +161,16 @@ export class HybridCrypto {
         parsed.sessionKey +
           kyberSecret +
           parsed.quantumProof +
-          quantumKey.toString("hex")
+          quantumKey.toString('hex'),
       );
 
       // 3. Decrypt with combined key
       const decrypted = CryptoJS.AES.decrypt(parsed.data, hybridKey);
       return decrypted.toString(CryptoJS.enc.Utf8);
     } catch (error) {
-      Logger.error("Hybrid decryption failed:", error);
+      Logger.error('Hybrid decryption failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Decryption failed"
+        error instanceof Error ? error.message : 'Decryption failed',
       );
     }
   }
@@ -181,31 +178,31 @@ export class HybridCrypto {
   static async generateSharedSecret(input: Buffer): Promise<string> {
     try {
       if (!Buffer.isBuffer(input)) {
-        throw new HybridError("Invalid input parameter");
+        throw new HybridError('Invalid input parameter');
       }
 
       // Generate quantum shared secret
       const kyberPair = await Kyber.generateKeyPair();
       const { sharedSecret: quantumSecret } = await Kyber.encapsulate(
-        kyberPair.publicKey
+        kyberPair.publicKey,
       );
 
       // Generate classical shared secret
       const classicalSecret = this.TRADITIONAL_CURVE.genKeyPair().derive(
         this.TRADITIONAL_CURVE.keyFromPublic(
           HashUtils.sha256(input.toString()),
-          "hex"
-        ).getPublic()
+          'hex',
+        ).getPublic(),
       );
 
       // Combine secrets
-      return HashUtils.sha3(quantumSecret + classicalSecret.toString("hex"));
+      return HashUtils.sha3(quantumSecret + classicalSecret.toString('hex'));
     } catch (error) {
-      Logger.error("Shared secret generation failed:", error);
+      Logger.error('Shared secret generation failed:', error);
       throw new HybridError(
         error instanceof Error
           ? error.message
-          : "Shared secret generation failed"
+          : 'Shared secret generation failed',
       );
     }
   }
@@ -225,37 +222,37 @@ export class HybridCrypto {
 
   static async decryptSharedSecret(
     ciphertext: Buffer,
-    privateKey: Buffer
+    privateKey: Buffer,
   ): Promise<string> {
     try {
       if (!Buffer.isBuffer(ciphertext) || !Buffer.isBuffer(privateKey)) {
-        throw new HybridError("Invalid input parameters");
+        throw new HybridError('Invalid input parameters');
       }
 
       const kyberSecret = await Kyber.decapsulate(
-        ciphertext.toString("base64"),
-        privateKey.toString("base64")
+        ciphertext.toString('base64'),
+        privateKey.toString('base64'),
       );
 
-      return HashUtils.sha3(ciphertext.toString("hex") + kyberSecret);
+      return HashUtils.sha3(ciphertext.toString('hex') + kyberSecret);
     } catch (error) {
-      Logger.error("Shared secret decryption failed:", error);
+      Logger.error('Shared secret decryption failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Decryption failed"
+        error instanceof Error ? error.message : 'Decryption failed',
       );
     }
   }
 
   public static async combineHashes(
     classicalHash: string,
-    quantumHash: string
+    quantumHash: string,
   ): Promise<string> {
     try {
       return HashUtils.sha3(classicalHash + quantumHash);
     } catch (error) {
-      Logger.error("Hash combination failed:", error);
+      Logger.error('Hash combination failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Hash combination failed"
+        error instanceof Error ? error.message : 'Hash combination failed',
       );
     }
   }
@@ -263,13 +260,13 @@ export class HybridCrypto {
   public static async verifyClassicalSignature(
     publicKey: string,
     signature: string,
-    data: string
+    data: string,
   ): Promise<boolean> {
     try {
-      const key = this.TRADITIONAL_CURVE.keyFromPublic(publicKey, "hex");
+      const key = this.TRADITIONAL_CURVE.keyFromPublic(publicKey, 'hex');
       return key.verify(HashUtils.sha256(data), signature);
     } catch (error) {
-      Logger.error("Classical signature verification failed:", error);
+      Logger.error('Classical signature verification failed:', error);
       return false;
     }
   }
@@ -278,20 +275,20 @@ export class HybridCrypto {
     publicKey: string,
     signature: string,
     data: string,
-    algorithm?: string
+    algorithm?: string,
   ): Promise<boolean> {
     try {
       switch (algorithm) {
-        case "dilithium":
+        case 'dilithium':
           return await Dilithium.verify(data, signature, publicKey);
-        case "kyber":
+        case 'kyber':
           const { ciphertext } = await Kyber.encapsulate(publicKey);
           return ciphertext === signature;
         default:
           return await Dilithium.verify(data, signature, publicKey); // Default to Dilithium
       }
     } catch (error) {
-      Logger.error("Quantum signature verification failed:", error);
+      Logger.error('Quantum signature verification failed:', error);
       return false;
     }
   }
@@ -299,12 +296,12 @@ export class HybridCrypto {
   public static async generateAddress(): Promise<string> {
     try {
       const keyPair = this.TRADITIONAL_CURVE.genKeyPair();
-      const publicKey = keyPair.getPublic("hex");
+      const publicKey = keyPair.getPublic('hex');
       return HashUtils.sha256(publicKey);
     } catch (error) {
-      Logger.error("Address generation failed:", error);
+      Logger.error('Address generation failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Address generation failed"
+        error instanceof Error ? error.message : 'Address generation failed',
       );
     }
   }
@@ -318,20 +315,20 @@ export class HybridCrypto {
   }): Promise<string> {
     try {
       if (!data?.address) {
-        throw new HybridError("INVALID_KEY_DATA");
+        throw new HybridError('INVALID_KEY_DATA');
       }
 
       const addressStr =
-        typeof data.address === "function"
+        typeof data.address === 'function'
           ? await data.address()
           : data.address;
 
       // 1. Generate quantum-safe hash
       const quantumHash = await QuantumWrapper.hashData(
-        Buffer.from(addressStr)
+        Buffer.from(addressStr),
       );
       const combinedHash = HashUtils.sha3(
-        addressStr + quantumHash.toString("hex")
+        addressStr + quantumHash.toString('hex'),
       );
 
       // 2. Double SHA256 for initial hash
@@ -346,31 +343,31 @@ export class HybridCrypto {
           0x00, // mainnet version
           0x01, // quantum version
         ]),
-        Buffer.from(ripemd160Hash, "hex"),
+        Buffer.from(ripemd160Hash, 'hex'),
       ]);
 
       // 5. Calculate checksum (first 4 bytes of double SHA256)
       const checksum = HashUtils.doubleSha256(
-        versionedHash.toString("hex")
+        versionedHash.toString('hex'),
       ).slice(0, 8);
 
       // 6. Combine and encode to base58
       const finalAddress = Buffer.concat([
         versionedHash,
-        Buffer.from(checksum, "hex"),
+        Buffer.from(checksum, 'hex'),
       ]);
 
       // 7. Validate address format
       const address = HashUtils.toBase58(finalAddress);
       if (!address || address.length < 25 || address.length > 34) {
-        throw new HybridError("INVALID_ADDRESS_FORMAT");
+        throw new HybridError('INVALID_ADDRESS_FORMAT');
       }
 
       return address;
     } catch (error) {
-      Logger.error("Address derivation failed:", error);
+      Logger.error('Address derivation failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "ADDRESS_GENERATION_FAILED"
+        error instanceof Error ? error.message : 'ADDRESS_GENERATION_FAILED',
       );
     }
   }
@@ -379,14 +376,14 @@ export class HybridCrypto {
     try {
       const keyPair = await this.generateKeyPair();
       const privateKey =
-        typeof keyPair.privateKey === "function"
+        typeof keyPair.privateKey === 'function'
           ? await keyPair.privateKey()
           : keyPair.privateKey;
 
       // Generate quantum hash
       const quantumHash = await Dilithium.sign(
         JSON.stringify(data),
-        privateKey
+        privateKey,
       );
 
       // Generate traditional hash
@@ -397,9 +394,9 @@ export class HybridCrypto {
         address: traditionalHash + quantumHash,
       });
     } catch (error) {
-      Logger.error("Hybrid hash calculation failed:", error);
+      Logger.error('Hybrid hash calculation failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Hash calculation failed"
+        error instanceof Error ? error.message : 'Hash calculation failed',
       );
     }
   }
@@ -412,11 +409,11 @@ export class HybridCrypto {
       // Generate keypairs first
       const keyPair = await this.generateKeyPair();
       const privateKey =
-        typeof keyPair.privateKey === "function"
+        typeof keyPair.privateKey === 'function'
           ? await keyPair.privateKey()
           : keyPair.privateKey;
       const publicKey =
-        typeof keyPair.publicKey === "function"
+        typeof keyPair.publicKey === 'function'
           ? await keyPair.publicKey()
           : keyPair.publicKey;
 
@@ -429,9 +426,9 @@ export class HybridCrypto {
       // Combine all hashes
       return HashUtils.sha3(traditionalHash + dilithiumHash + kyberHash);
     } catch (error) {
-      Logger.error("Hash generation failed:", error);
+      Logger.error('Hash generation failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Hash generation failed"
+        error instanceof Error ? error.message : 'Hash generation failed',
       );
     }
   }
@@ -440,12 +437,12 @@ export class HybridCrypto {
     try {
       return Buffer.from(
         CryptoJS.lib.WordArray.random(length).toString(),
-        "hex"
+        'hex',
       );
     } catch (error) {
-      Logger.error("Random bytes generation failed:", error);
+      Logger.error('Random bytes generation failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Random generation failed"
+        error instanceof Error ? error.message : 'Random generation failed',
       );
     }
   }
@@ -457,13 +454,13 @@ export class HybridCrypto {
     try {
       const keyPair = this.TRADITIONAL_CURVE.genKeyPair();
       return {
-        publicKey: Buffer.from(keyPair.getPublic("hex"), "hex"),
-        privateKey: Buffer.from(keyPair.getPrivate("hex"), "hex"),
+        publicKey: Buffer.from(keyPair.getPublic('hex'), 'hex'),
+        privateKey: Buffer.from(keyPair.getPrivate('hex'), 'hex'),
       };
     } catch (error) {
-      Logger.error("Traditional key generation failed:", error);
+      Logger.error('Traditional key generation failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : "Key generation failed"
+        error instanceof Error ? error.message : 'Key generation failed',
       );
     }
   }

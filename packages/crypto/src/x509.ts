@@ -1,8 +1,7 @@
-import { X509Certificate } from "crypto";
-import { asn1 } from "asn1.js";
-import { QuantumCrypto } from "./quantum";
-import { HybridCrypto } from "./hybrid";
-import { Logger } from "@h3tag-blockchain/shared";
+import { X509Certificate } from 'crypto';
+import { BerReader, BerWriter, Ber } from 'asn1';
+import { QuantumCrypto } from './quantum';
+import { Logger } from '@h3tag-blockchain/shared';
 
 export class OCSPRequest {
   private certificate: X509Certificate;
@@ -23,322 +22,178 @@ export class OCSPRequest {
     this.nonce = nonce;
   }
 
-  public encode(): Buffer {
+  public async encode(): Promise<Buffer> {
     try {
-      const tbsRequest = {
-        version: 0,
-        requestorName: null,
-        requestList: [
-          {
-            reqCert: {
-              hashAlgorithm: { algorithm: "2.16.840.1.101.3.4.2.1" }, // SHA-256
-              issuerNameHash: this.hashIssuerName(),
-              issuerKeyHash: this.hashIssuerKey(),
-              serialNumber: this.certificate.serialNumber,
-            },
-          },
-        ],
-        requestExtensions: [
-          {
-            extnID: "1.3.6.1.5.5.7.48.1.2", // OCSP Nonce
-            critical: false,
-            extnValue: this.nonce,
-          },
-        ],
-      };
+      const writer = new BerWriter();
 
-      return OCSPRequest.OCSPRequestTemplate.encode(tbsRequest, "der");
+      // Start TBSRequest sequence
+      writer.startSequence(Ber.Sequence);
+
+      // Version
+      writer.writeInt(0, Ber.Integer);
+
+      // RequestList
+      writer.startSequence();
+      writer.startSequence(); // CertID
+
+      // Hash Algorithm
+      writer.startSequence();
+      writer.writeOID('2.16.840.1.101.3.4.2.1', Ber.OID); // SHA-256
+      writer.writeNull();
+      writer.endSequence();
+
+      // Issuer Name Hash
+      const nameHash = await this.hashIssuerName();
+      writer.writeBuffer(nameHash, Ber.OctetString);
+
+      // Issuer Key Hash
+      const keyHash = await this.hashIssuerKey();
+      writer.writeBuffer(keyHash, Ber.OctetString);
+
+      // Serial Number
+      writer.writeInt(parseInt(this.certificate.serialNumber), Ber.Integer);
+
+      writer.endSequence(); // End CertID
+      writer.endSequence(); // End RequestList
+
+      // Request Extensions
+      writer.startSequence(Ber.Context | Ber.Constructor | 2);
+      writer.startSequence();
+      writer.writeOID('1.3.6.1.5.5.7.48.1.2', Ber.OID); // OCSP Nonce
+      writer.writeBoolean(false);
+      writer.writeBuffer(this.nonce, Ber.OctetString);
+      writer.endSequence();
+      writer.endSequence();
+
+      writer.endSequence(); // End TBSRequest
+
+      return writer.buffer;
     } catch (error) {
-      Logger.error("Failed to encode OCSP request:", error);
+      Logger.error('Failed to encode OCSP request:', error);
       throw error;
     }
   }
 
   private async hashIssuerName(): Promise<Buffer> {
     const dilithiumHash = await QuantumCrypto.dilithiumHash(
-      Buffer.from(this.issuerCert.subject)
+      Buffer.from(this.issuerCert.subject),
     );
     const kyberHash = await QuantumCrypto.kyberHash(
-      Buffer.from(this.issuerCert.subject)
+      Buffer.from(this.issuerCert.subject),
     );
     return Buffer.concat([dilithiumHash, kyberHash]);
   }
 
   private async hashIssuerKey(): Promise<Buffer> {
     const dilithiumHash = await QuantumCrypto.dilithiumHash(
-      Buffer.from(this.issuerCert.publicKey.export())
+      Buffer.from(this.issuerCert.publicKey.export()),
     );
     const kyberHash = await QuantumCrypto.kyberHash(
-      Buffer.from(this.issuerCert.publicKey.export())
+      Buffer.from(this.issuerCert.publicKey.export()),
     );
     return Buffer.concat([dilithiumHash, kyberHash]);
   }
-
-  private static OCSPRequestTemplate = asn1.define("OCSPRequest", function () {
-    this.seq().obj(
-      this.key("tbsRequest")
-        .seq()
-        .obj(
-          this.key("version").explicit(0).int(),
-          this.key("requestorName").optional().explicit(1),
-          this.key("requestList").seqof(
-            this.key("reqCert")
-              .seq()
-              .obj(
-                this.key("hashAlgorithm")
-                  .seq()
-                  .obj(this.key("algorithm").objid()),
-                this.key("issuerNameHash").octstr(),
-                this.key("issuerKeyHash").octstr(),
-                this.key("serialNumber").int()
-              )
-          ),
-          this.key("requestExtensions")
-            .explicit(2)
-            .optional()
-            .seqof(
-              this.seq().obj(
-                this.key("extnID").objid(),
-                this.key("critical").bool(),
-                this.key("extnValue").octstr()
-              )
-            )
-        )
-    );
-  });
 }
 
 export class OCSPResponse {
   private responseData: Buffer;
-  private parsedResponse: any;
   private issuerCert: X509Certificate;
-  private responseStatus: string;
-  private producedAt: Date;
-  private thisUpdate: Date;
-  private nextUpdate: Date;
-  private certStatus: string;
+  private responseStatus: string | undefined;
+  private producedAt: Date | undefined;
+  private thisUpdate: Date | undefined;
+  private nextUpdate: Date | undefined;
+  private certStatus: string | undefined;
   private revocationTime?: Date;
 
   constructor(responseData: ArrayBuffer, issuerCert: X509Certificate) {
     this.responseData = Buffer.from(responseData);
     this.issuerCert = issuerCert;
-    this.parsedResponse = OCSPResponse.OCSPResponseTemplate.decode(
-      this.responseData,
-      "der"
-    );
     this.parse();
   }
 
   private parse(): void {
     try {
-      this.responseStatus = this.getResponseStatus(
-        this.parsedResponse.responseStatus
-      );
+      const reader = new BerReader(this.responseData);
 
-      if (this.responseStatus === "successful") {
-        const responseBytes = this.parsedResponse.responseBytes;
-        const basicResponse = OCSPResponse.BasicOCSPResponseTemplate.decode(
-          responseBytes.response,
-          "der"
-        );
+      reader.readSequence();
+      const status = reader.readEnumeration();
+      this.responseStatus = this.getResponseStatus(status || 0);
 
-        this.producedAt = basicResponse.tbsResponseData.producedAt;
-        this.thisUpdate = basicResponse.tbsResponseData.responses[0].thisUpdate;
-        this.nextUpdate = basicResponse.tbsResponseData.responses[0].nextUpdate;
-        this.certStatus = this.getCertStatus(
-          basicResponse.tbsResponseData.responses[0].certStatus
-        );
+      if (this.responseStatus === 'successful') {
+        reader.readSequence();
+        const responseBytes = reader.readString(Ber.OctetString);
 
-        if (this.certStatus === "revoked") {
-          this.revocationTime =
-            basicResponse.tbsResponseData.responses[0].certStatus.revocationTime;
+        if (responseBytes) {
+          const basicReader = new BerReader(Buffer.from(responseBytes));
+          basicReader.readSequence();
+
+          // Read tbsResponseData
+          const tbsReader = new BerReader(
+            Buffer.from(basicReader.readString(Ber.OctetString) || ''),
+          );
+          tbsReader.readSequence();
+
+          // Skip version
+          tbsReader.readInt();
+
+          // Read dates
+          this.producedAt = new Date(tbsReader.readString() || '');
+
+          // Read single response
+          tbsReader.readSequence();
+          const certStatus = tbsReader.readByte(true);
+
+          if (certStatus === 0) {
+            this.certStatus = 'good';
+          } else if (certStatus === 1) {
+            this.certStatus = 'revoked';
+            this.revocationTime = new Date(tbsReader.readString() || '');
+          } else {
+            this.certStatus = 'unknown';
+          }
+
+          this.thisUpdate = new Date(tbsReader.readString() || '');
+          this.nextUpdate = new Date(tbsReader.readString() || '');
         }
       }
     } catch (error) {
-      Logger.error("Failed to parse OCSP response:", error);
+      Logger.error('Failed to parse OCSP response:', error);
       throw error;
     }
   }
 
-  public async verify(): Promise<boolean> {
-    try {
-      const signatureAlgorithm = this.parsedResponse.signatureAlgorithm;
-      const signature = this.parsedResponse.signature;
-      const tbsResponseData = this.parsedResponse.tbsResponseData;
-
-      const classicalValid = await this.verifyClassicalSignature(
-        tbsResponseData,
-        signature,
-        signatureAlgorithm
-      );
-
-      const quantumValid = await this.verifyQuantumSignature(
-        tbsResponseData,
-        signature,
-        signatureAlgorithm
-      );
-
-      return classicalValid && quantumValid;
-    } catch (error) {
-      Logger.error("Failed to verify OCSP response:", error);
-      return false;
-    }
+  private getResponseStatus(status: number): string {
+    const statusMap: { [key: number]: string } = {
+      0: 'successful',
+      1: 'malformedRequest',
+      2: 'internalError',
+      3: 'tryLater',
+      5: 'sigRequired',
+      6: 'unauthorized',
+    };
+    return statusMap[status] || 'unknown';
   }
 
   public get status(): string {
-    return this.certStatus;
+    return this.certStatus || 'unknown';
   }
 
   public get revocationDate(): Date | undefined {
     return this.revocationTime;
   }
-
-  public getRevocationTime(): Date | null {
-    return this.revocationTime;
-  }
-
-  private getResponseStatus(status: number): string {
-    const statusMap: { [key: number]: string } = {
-      0: "successful",
-      1: "malformedRequest",
-      2: "internalError",
-      3: "tryLater",
-      5: "sigRequired",
-      6: "unauthorized",
-    };
-    return statusMap[status] || "unknown";
-  }
-
-  private getCertStatus(status: any): string {
-    if (status.good !== undefined) return "good";
-    if (status.revoked !== undefined) return "revoked";
-    return "unknown";
-  }
-
-  private static OCSPResponseTemplate = asn1.define(
-    "OCSPResponse",
-    function () {
-      this.seq().obj(
-        this.key("responseStatus").enum({
-          0: "successful",
-          1: "malformedRequest",
-          2: "internalError",
-          3: "tryLater",
-          5: "sigRequired",
-          6: "unauthorized",
-        }),
-        this.key("responseBytes")
-          .optional()
-          .seq()
-          .obj(this.key("responseType").objid(), this.key("response").octstr())
-      );
-    }
-  );
-
-  private static BasicOCSPResponseTemplate = asn1.define(
-    "BasicOCSPResponse",
-    function () {
-      this.seq().obj(
-        this.key("tbsResponseData")
-          .seq()
-          .obj(
-            this.key("version").explicit(0).int(),
-            this.key("responderID").choice({
-              byName: this.explicit(1).seq(),
-              byKey: this.explicit(2).octstr(),
-            }),
-            this.key("producedAt").gentime(),
-            this.key("responses").seqof(
-              this.key("singleResponse")
-                .seq()
-                .obj(
-                  this.key("certID")
-                    .seq()
-                    .obj(
-                      this.key("hashAlgorithm")
-                        .seq()
-                        .obj(
-                          this.key("algorithm").objid(),
-                          this.key("parameters").optional().null_()
-                        ),
-                      this.key("issuerNameHash").octstr(),
-                      this.key("issuerKeyHash").octstr(),
-                      this.key("serialNumber").int()
-                    ),
-                  this.key("certStatus").choice({
-                    good: this.implicit(0).null_(),
-                    revoked: this.implicit(1)
-                      .seq()
-                      .obj(
-                        this.key("revocationTime").gentime(),
-                        this.key("revocationReason")
-                          .explicit(0)
-                          .optional()
-                          .enum()
-                      ),
-                    unknown: this.implicit(2).null_(),
-                  }),
-                  this.key("thisUpdate").gentime(),
-                  this.key("nextUpdate").optional().explicit(0).gentime()
-                )
-            )
-          ),
-        this.key("signatureAlgorithm")
-          .seq()
-          .obj(
-            this.key("algorithm").objid(),
-            this.key("parameters").optional().null_()
-          ),
-        this.key("signature").bitstr(),
-        this.key("certs").optional().explicit(0).seqof(this.key("cert").any())
-      );
-    }
-  );
-
-  private async verifyClassicalSignature(
-    tbsResponseData: Buffer,
-    signature: Buffer,
-    algorithm: string
-  ): Promise<boolean> {
-    try {
-      return await HybridCrypto.verifyClassicalSignature(
-        this.issuerCert.publicKey.export().toString("hex"),
-        signature.toString("hex"),
-        tbsResponseData.toString("hex")
-      );
-    } catch (error) {
-      Logger.error("Classical signature verification failed:", error);
-      return false;
-    }
-  }
-
-  private async verifyQuantumSignature(
-    tbsResponseData: Buffer,
-    signature: Buffer,
-    algorithm: string
-  ): Promise<boolean> {
-    try {
-      return await HybridCrypto.verifyQuantumSignature(
-        this.issuerCert.publicKey.export().toString("hex"),
-        signature.toString("hex"),
-        tbsResponseData.toString("hex")
-      );
-    } catch (error) {
-      Logger.error("Quantum signature verification failed:", error);
-      return false;
-    }
-  }
 }
 
 export class X509CRL {
   private crlData: Buffer;
-  private parsedCRL: any;
-  private issuer: string;
-  private lastUpdate: Date;
-  private nextUpdate: Date;
+  private issuer: string | undefined;
+  private lastUpdate: Date | undefined;
+  private nextUpdate: Date | undefined;
   private revokedCertificates: Map<
     string,
-    { serialNumber: string; revocationDate: Date }
+    {
+      serialNumber: string;
+      revocationDate: Date;
+    }
   >;
 
   constructor(crlData: ArrayBuffer) {
@@ -349,93 +204,47 @@ export class X509CRL {
 
   private parse(): void {
     try {
-      this.parsedCRL = X509CRL.CRLTemplate.decode(this.crlData, "der");
-      this.issuer = this.parsedCRL.tbsCertList.issuer;
-      this.lastUpdate = this.parsedCRL.tbsCertList.thisUpdate;
-      this.nextUpdate = this.parsedCRL.tbsCertList.nextUpdate;
+      const reader = new BerReader(this.crlData);
 
-      // Parse revoked certificates
-      if (this.parsedCRL.tbsCertList.revokedCertificates) {
-        for (const cert of this.parsedCRL.tbsCertList.revokedCertificates) {
-          this.revokedCertificates.set(cert.serialNumber.toString(), {
-            serialNumber: cert.serialNumber.toString(),
-            revocationDate: cert.revocationDate,
-          });
-        }
+      reader.readSequence();
+      reader.readSequence();
+
+      // Skip version
+      reader.readInt();
+
+      // Read issuer
+      this.issuer = reader.readString() || '';
+
+      // Read dates
+      this.lastUpdate = new Date(reader.readString() || '');
+      this.nextUpdate = new Date(reader.readString() || '');
+
+      // Read revoked certificates
+      reader.readSequence();
+      while (reader.remain > 0) {
+        reader.readSequence();
+        const serialNumber = reader.readString() || '';
+        const revocationDate = new Date(reader.readString() || '');
+
+        this.revokedCertificates.set(serialNumber, {
+          serialNumber,
+          revocationDate,
+        });
       }
     } catch (error) {
-      Logger.error("Failed to parse CRL:", error);
+      Logger.error('Failed to parse CRL:', error);
       throw error;
     }
   }
 
-  public async verify(issuerCert: X509Certificate): Promise<boolean> {
-    try {
-      const tbsCertList = this.parsedCRL.tbsCertList;
-      const signature = this.parsedCRL.signature;
-      const signatureAlgorithm = this.parsedCRL.signatureAlgorithm;
-
-      // Verify using hybrid approach (both classical and quantum)
-
-      // Create verification data
-      const verificationData = Buffer.concat([
-        Buffer.from(tbsCertList),
-        Buffer.from(signatureAlgorithm.algorithm),
-      ]);
-
-      // Verify using issuer's public key
-      return await HybridCrypto.verifyClassicalSignature(
-        issuerCert.publicKey.export().toString("hex"),
-        signature.toString("hex"),
-        verificationData.toString("hex")
-      );
-    } catch (error) {
-      Logger.error("Failed to verify CRL:", error);
-      return false;
-    }
-  }
-
-  public getRevokedCertificate(
-    serialNumber: string
-  ): { serialNumber: string; revocationDate: Date } | null {
+  public getRevokedCertificate(serialNumber: string): {
+    serialNumber: string;
+    revocationDate: Date;
+  } | null {
     return this.revokedCertificates.get(serialNumber) || null;
   }
 
-  public get getNextUpdate(): Date {
+  public get getNextUpdate(): Date | undefined {
     return this.nextUpdate;
   }
-
-  private static CRLTemplate = asn1.define("CertificateList", function () {
-    this.seq().obj(
-      this.key("tbsCertList")
-        .seq()
-        .obj(
-          this.key("version").optional().explicit(0).int(),
-          this.key("signature")
-            .seq()
-            .obj(
-              this.key("algorithm").objid(),
-              this.key("parameters").optional().any()
-            ),
-          this.key("issuer").seq(),
-          this.key("thisUpdate").time(),
-          this.key("nextUpdate").optional().time(),
-          this.key("revokedCertificates")
-            .optional()
-            .seq()
-            .obj(
-              this.key("userCertificate").int(),
-              this.key("revocationDate").time(),
-              this.key("crlEntryExtensions").optional().seq()
-            )
-        ),
-      this.key("signatureAlgorithm")
-        .seq()
-        .obj(
-          this.key("algorithm").objid(),
-          this.key("parameters").optional().any()
-        ),
-      this.key("signature").bitstr()
-    );
-  });
 }

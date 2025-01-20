@@ -4,6 +4,7 @@ import {
   Transaction,
   TransactionBuilder,
   BlockchainStats,
+  IBlockchainData,
 } from '@h3tag-blockchain/core';
 import {
   BlockchainStatsDto,
@@ -27,7 +28,7 @@ export class BlockchainService {
 
   constructor(private readonly node: Node) {
     this.blockchain = Blockchain.getInstance();
-    this.stats = new BlockchainStats(this.blockchain);
+    this.stats = new BlockchainStats(this.blockchain as IBlockchainData);
   }
 
   /**

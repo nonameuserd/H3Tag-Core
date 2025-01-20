@@ -57,9 +57,7 @@ export class TransactionService {
       id: tx.id,
       fromAddress: tx.sender,
       toAddress: tx.recipient,
-      amount: tx.outputs
-        .reduce((sum, output) => sum + output.amount, BigInt(0))
-        .toString(),
+      amount: tx.outputs[0]?.amount || 0n,
       timestamp: new Date(tx.timestamp).toISOString(),
       blockHeight: tx.blockHeight,
       confirmations: tx.inputs[0]?.confirmations || 0,

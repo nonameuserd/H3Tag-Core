@@ -22,7 +22,7 @@ import {
   BlockchainInfoDto,
 } from '../dtos/blockchain.dto';
 import { Logger } from '@h3tag-blockchain/shared';
-import { TransactionDto } from '../dtos/transaction.dto';
+import { Transaction, UTXO } from '@h3tag-blockchain/core';
 
 @ApiTags('Blockchain')
 @Controller('blockchain')
@@ -107,11 +107,11 @@ export class BlockchainController {
         hash: block.hash,
         previousHash: block.previousHash,
         merkleRoot: block.merkleRoot,
-        transactions: block.transactions.map((tx: TransactionDto) => ({
+        transactions: block.transactions.map((tx: Transaction) => ({
           hash: tx.hash,
-          amount: tx.amount ? Number(tx.amount.toString()) : 0,
-          confirmations: currentHeight - block.height + 1,
-          timestamp: tx.timestamp,
+          amount: tx.outputs[0]?.amount ? Number(tx.outputs[0]?.amount) : 0,
+          confirmations: currentHeight - (tx.blockHeight ?? 0) + 1,
+          timestamp: tx.timestamp ? Number(tx.timestamp) : 0,
           type: tx.type,
           status: tx.status,
           fromAddress: tx.inputs?.[0]?.address || '',
@@ -212,7 +212,13 @@ export class BlockchainController {
     @Param('address') address: string,
   ): Promise<UtxoDto[] | undefined> {
     try {
-      return await this.blockchainService.getConfirmedUtxos(address);
+      const utxos = await this.blockchainService.getConfirmedUtxos(address);
+      return utxos.map((utxo: UTXO) => ({
+        txid: utxo.txId,
+        vout: utxo.outputIndex,
+        amount: Number(utxo.amount),
+        confirmations: utxo.confirmations,
+      }));
     } catch (error: unknown) {
       if (error instanceof Error) {
         Logger.error('Failed to get UTXOs:', error);

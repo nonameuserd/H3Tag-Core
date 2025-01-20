@@ -7,7 +7,7 @@ const types_1 = require("../native/types");
 class DilithiumError extends Error {
     constructor(message) {
         super(message);
-        this.name = "DilithiumError";
+        this.name = 'DilithiumError';
     }
 }
 exports.DilithiumError = DilithiumError;
@@ -19,11 +19,11 @@ class Dilithium {
             await _1.QuantumCrypto.initialize();
             await _1.QuantumCrypto.nativeQuantum.setSecurityLevel(this.DEFAULT_SECURITY_LEVEL);
             this.initialized = true;
-            shared_1.Logger.info("Dilithium initialized with security level:", this.DEFAULT_SECURITY_LEVEL);
+            shared_1.Logger.info('Dilithium initialized with security level:', this.DEFAULT_SECURITY_LEVEL);
         }
         catch (error) {
-            shared_1.Logger.error("Dilithium initialization failed:", error);
-            throw new DilithiumError("Initialization failed");
+            shared_1.Logger.error('Dilithium initialization failed:', error);
+            throw new DilithiumError('Initialization failed');
         }
     }
     static async generateKeyPair(entropy) {
@@ -32,16 +32,16 @@ class Dilithium {
         try {
             const keyPair = await _1.QuantumCrypto.generateKeyPair(entropy);
             if (!keyPair?.publicKey || !keyPair?.privateKey) {
-                throw new DilithiumError("Failed to generate key pair");
+                throw new DilithiumError('Failed to generate key pair');
             }
             return {
-                publicKey: keyPair.publicKey.toString("base64"),
-                privateKey: keyPair.privateKey.toString("base64"),
+                publicKey: keyPair.publicKey.toString('base64'),
+                privateKey: keyPair.privateKey.toString('base64'),
             };
         }
         catch (error) {
-            shared_1.Logger.error("Dilithium key generation failed:", error);
-            throw new DilithiumError(error instanceof Error ? error.message : "Key generation failed");
+            shared_1.Logger.error('Dilithium key generation failed:', error);
+            throw new DilithiumError(error instanceof Error ? error.message : 'Key generation failed');
         }
     }
     static async sign(message, privateKey) {
@@ -49,22 +49,22 @@ class Dilithium {
             await this.initialize();
         try {
             if (!message || !privateKey) {
-                throw new DilithiumError("Missing message or private key");
+                throw new DilithiumError('Missing message or private key');
             }
-            const privateKeyBuffer = Buffer.from(privateKey, "base64");
+            const privateKeyBuffer = Buffer.from(privateKey, 'base64');
             const messageBuffer = Buffer.from(message);
             if (!this.isValidPrivateKey(privateKey)) {
-                throw new DilithiumError("Invalid private key format");
+                throw new DilithiumError('Invalid private key format');
             }
             const signature = await _1.QuantumCrypto.nativeQuantum.dilithiumSign(messageBuffer, privateKeyBuffer);
             if (signature.length !== this.SIGNATURE_SIZE) {
-                throw new DilithiumError("Invalid signature generated");
+                throw new DilithiumError('Invalid signature generated');
             }
-            return signature.toString("base64");
+            return signature.toString('base64');
         }
         catch (error) {
-            shared_1.Logger.error("Dilithium signing failed:", error);
-            throw new DilithiumError(error instanceof Error ? error.message : "Signing failed");
+            shared_1.Logger.error('Dilithium signing failed:', error);
+            throw new DilithiumError(error instanceof Error ? error.message : 'Signing failed');
         }
     }
     static async verify(message, signature, publicKey) {
@@ -72,24 +72,24 @@ class Dilithium {
             await this.initialize();
         try {
             if (!message || !signature || !publicKey) {
-                throw new DilithiumError("Missing required parameters");
+                throw new DilithiumError('Missing required parameters');
             }
             if (!this.isValidPublicKey(publicKey)) {
-                throw new DilithiumError("Invalid public key format");
+                throw new DilithiumError('Invalid public key format');
             }
             const messageBuffer = Buffer.from(message);
-            const signatureBuffer = Buffer.from(signature, "base64");
-            const publicKeyBuffer = Buffer.from(publicKey, "base64");
+            const signatureBuffer = Buffer.from(signature, 'base64');
+            const publicKeyBuffer = Buffer.from(publicKey, 'base64');
             return await _1.QuantumCrypto.nativeQuantum.dilithiumVerify(messageBuffer, signatureBuffer, publicKeyBuffer);
         }
         catch (error) {
-            shared_1.Logger.error("Dilithium verification failed:", error);
-            throw new DilithiumError(error instanceof Error ? error.message : "Verification failed");
+            shared_1.Logger.error('Dilithium verification failed:', error);
+            throw new DilithiumError(error instanceof Error ? error.message : 'Verification failed');
         }
     }
     static isValidPublicKey(publicKey) {
         try {
-            const buffer = Buffer.from(publicKey, "base64");
+            const buffer = Buffer.from(publicKey, 'base64');
             return buffer.length === this.KEY_SIZE;
         }
         catch {
@@ -98,7 +98,7 @@ class Dilithium {
     }
     static isValidPrivateKey(privateKey) {
         try {
-            const buffer = Buffer.from(privateKey, "base64");
+            const buffer = Buffer.from(privateKey, 'base64');
             return buffer.length === this.KEY_SIZE;
         }
         catch {
@@ -112,8 +112,8 @@ class Dilithium {
             return await _1.QuantumCrypto.nativeQuantum.dilithiumHash(data);
         }
         catch (error) {
-            shared_1.Logger.error("Dilithium hashing failed:", error);
-            throw new DilithiumError(error instanceof Error ? error.message : "Hashing failed");
+            shared_1.Logger.error('Dilithium hashing failed:', error);
+            throw new DilithiumError(error instanceof Error ? error.message : 'Hashing failed');
         }
     }
     static async shutdown() {
@@ -121,7 +121,7 @@ class Dilithium {
             return;
         await _1.QuantumCrypto.shutdown();
         this.initialized = false;
-        shared_1.Logger.info("Dilithium shut down");
+        shared_1.Logger.info('Dilithium shut down');
     }
 }
 exports.Dilithium = Dilithium;

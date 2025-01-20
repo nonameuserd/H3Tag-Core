@@ -266,5 +266,5 @@ export class ValidateAddressResponseDto {
   })
   network?: string | undefined;
 }
-
 export { TransactionResponseDto as TransactionDto };
+

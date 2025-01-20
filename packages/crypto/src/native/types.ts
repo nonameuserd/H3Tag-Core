@@ -27,7 +27,7 @@ export interface NativeQuantum {
   dilithiumVerify(
     message: Buffer,
     signature: Buffer,
-    publicKey: Buffer
+    publicKey: Buffer,
   ): Promise<boolean>;
   kyberEncapsulate(publicKey: Buffer): Promise<KyberEncapsulation>;
   kyberDecapsulate(ciphertext: Buffer, privateKey: Buffer): Promise<Buffer>;
