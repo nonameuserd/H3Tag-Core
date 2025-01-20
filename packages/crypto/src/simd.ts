@@ -20,7 +20,9 @@ export class SIMD {
       throw new Error('SIMD not supported or not initialized');
     }
 
-    const { batch_hash_sha3_256 } = this.wasmSIMD.exports as any;
+    const batch_hash_sha3_256 = this.wasmSIMD.exports.batch_hash_sha3_256 as (
+      input: Uint8Array,
+    ) => string[];
     const input = new TextEncoder().encode(data);
     return batch_hash_sha3_256(input);
   }

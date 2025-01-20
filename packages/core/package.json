@@ -12,6 +12,9 @@
   },
   "scripts": {
     "build": "tsc -b",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "deploy": "AWS_REGIONS=eu-west-1,us-east-1,ap-northeast-1,eu-central-1 DOMAIN_NAME=your-domain.com cdk deploy --all",
     "bootstrap": "AWS_REGIONS=eu-west-1,us-east-1,ap-northeast-1,eu-central-1 ts-node src/network/aws-stack/bootstrap-regions.ts",
     "deploy:all": "yarn bootstrap || exit 1 && yarn deploy",

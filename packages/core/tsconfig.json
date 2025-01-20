@@ -4,14 +4,26 @@
     "target": "ES2020",
     "module": "commonjs",
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": "./",
     "declaration": true,
     "moduleResolution": "node",
     "baseUrl": ".",
     "paths": {
       "@h3tag-blockchain/core": ["src/*"]
-    }
+    },
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "allowJs": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.js",
+    "jest.config.ts",
+    "src/__tests__/**/*.ts",
+    "src/**/*.test.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+  ]
 }

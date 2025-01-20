@@ -14,8 +14,8 @@ export class WasmSHA3 {
   }
 
   static hash(data: Uint8Array): Uint8Array {
-    const { hash_sha3_256, memory } = this.wasmInstance.exports as any;
-    const ptr = hash_sha3_256(data);
+    const { hash_sha3_256, memory } = this.wasmInstance.exports;
+    const ptr = (hash_sha3_256 as (data: Uint8Array) => number)(data);
     return new Uint8Array((memory as WebAssembly.Memory).buffer, ptr, 32);
   }
 }

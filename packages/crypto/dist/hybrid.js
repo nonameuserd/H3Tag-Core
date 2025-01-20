@@ -11,6 +11,7 @@ const hash_1 = require("./hash");
 const crypto_js_1 = __importDefault(require("crypto-js"));
 const keys_1 = require("./keys");
 const quantum_wrapper_1 = require("./quantum-wrapper");
+const elliptic_1 = require("elliptic");
 class HybridError extends Error {
     constructor(message) {
         super(message);
@@ -183,9 +184,10 @@ class HybridCrypto {
             switch (algorithm) {
                 case 'dilithium':
                     return await dilithium_1.Dilithium.verify(data, signature, publicKey);
-                case 'kyber':
+                case 'kyber': {
                     const { ciphertext } = await kyber_1.Kyber.encapsulate(publicKey);
                     return ciphertext === signature;
+                }
                 default:
                     return await dilithium_1.Dilithium.verify(data, signature, publicKey); // Default to Dilithium
             }
@@ -321,7 +323,7 @@ class HybridCrypto {
 }
 exports.HybridCrypto = HybridCrypto;
 HybridCrypto.KEY_SIZE = 256;
-HybridCrypto.TRADITIONAL_CURVE = require('elliptic').ec('secp256k1');
+HybridCrypto.TRADITIONAL_CURVE = new elliptic_1.ec('secp256k1');
 HybridCrypto.metrics = {
     totalHashes: 0,
     averageTime: 0,

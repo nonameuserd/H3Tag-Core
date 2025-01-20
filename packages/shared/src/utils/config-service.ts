@@ -13,7 +13,7 @@ export class ConfigurationError extends Error {
 
 export class ConfigService {
   private readonly config!: BlockchainConfig;
-  private readonly cache: Map<string, any> = new Map();
+  private readonly cache: Map<string, unknown> = new Map();
   private static instance: ConfigService;
 
   constructor(customConfig?: Partial<BlockchainConfig>) {
@@ -52,10 +52,10 @@ export class ConfigService {
 
       // Handle nested keys like "network.host"
       const keys = key.split('.');
-      let value: any = this.config;
+      let value: unknown = this.config;
 
       for (const k of keys) {
-        value = value?.[k];
+        value = (value as Record<string, unknown>)?.[k];
         if (value === undefined) {
           // Check environment variables
           const envValue = process.env[this.toEnvKey(key)];
@@ -139,6 +139,6 @@ export class ConfigService {
 
   // Utility method for testing
   public static resetInstance(): void {
-    ConfigService.instance = undefined as any;
+    ConfigService.instance = undefined as unknown as ConfigService;
   }
 }

@@ -2,6 +2,7 @@ import winston from 'winston';
 import DailyRotateFile from 'winston-daily-rotate-file';
 import { format } from 'winston';
 import { existsSync, mkdirSync } from 'fs';
+import { Request, Response, NextFunction } from 'express';
 
 // Ensure logs directory exists
 const LOG_DIR = 'logs';
@@ -102,7 +103,7 @@ export const Logger = winston.createLogger({
 });
 
 // Add request logging middleware for Express
-export const requestLogger = (req: any, res: any, next: any) => {
+export const requestLogger = (req: Request, res: Response, next: NextFunction) => {
   Logger.http(`${req.method} ${req.url}`, {
     ip: req.ip,
     userAgent: req.get('user-agent'),
@@ -125,11 +126,11 @@ export const performance = {
 
 // Export a simplified interface
 export default {
-  error: (message: string, meta?: any) => Logger.error(message, meta),
-  warn: (message: string, meta?: any) => Logger.warn(message, meta),
-  info: (message: string, meta?: any) => Logger.info(message, meta),
-  http: (message: string, meta?: any) => Logger.http(message, meta),
-  debug: (message: string, meta?: any) => Logger.debug(message, meta),
+  error: (message: string, meta?: unknown) => Logger.error(message, meta),
+  warn: (message: string, meta?: unknown) => Logger.warn(message, meta),
+  info: (message: string, meta?: unknown) => Logger.info(message, meta),
+  http: (message: string, meta?: unknown) => Logger.http(message, meta),
+  debug: (message: string, meta?: unknown) => Logger.debug(message, meta),
   performance,
   requestLogger,
 };

@@ -8,6 +8,7 @@ const crypto_js_1 = __importDefault(require("crypto-js"));
 const crypto_1 = require("crypto");
 const dilithium_1 = require("./quantum/dilithium");
 const kyber_1 = require("./quantum/kyber");
+const bs58_1 = __importDefault(require("bs58"));
 class HashUtils {
     /**
      * Generate SHA3-512 hash
@@ -130,8 +131,7 @@ class HashUtils {
      */
     static toBase58(data) {
         try {
-            const bs58 = require('bs58');
-            return bs58.encode(data);
+            return bs58_1.default.encode(data);
         }
         catch (error) {
             throw new Error(`Base58 encoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -142,8 +142,7 @@ class HashUtils {
      */
     static fromBase58(str) {
         try {
-            const bs58 = require('bs58');
-            return Buffer.from(bs58.decode(str));
+            return Buffer.from(bs58_1.default.decode(str));
         }
         catch (error) {
             throw new Error(`Base58 decoding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);

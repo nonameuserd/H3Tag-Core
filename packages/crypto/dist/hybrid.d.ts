@@ -1,6 +1,7 @@
 /// <reference types="node" />
 /// <reference types="node" />
 import { HybridKeyPair } from './keys';
+import { ec as EC } from 'elliptic';
 export declare class HybridError extends Error {
     constructor(message: string);
 }
@@ -12,7 +13,7 @@ interface HybridMetrics {
 }
 export declare class HybridCrypto {
     private static readonly KEY_SIZE;
-    static readonly TRADITIONAL_CURVE: any;
+    static readonly TRADITIONAL_CURVE: EC;
     private static metrics;
     static sign(message: string, privateKey: HybridKeyPair): Promise<string>;
     static verify(message: string, signature: string, publicKey: string): Promise<boolean>;
@@ -30,7 +31,7 @@ export declare class HybridCrypto {
     static deriveAddress(data: {
         address: string | (() => Promise<string>);
     }): Promise<string>;
-    static calculateHybridHash(data: any): Promise<string>;
+    static calculateHybridHash(data: Buffer): Promise<string>;
     static hash(data: string): Promise<string>;
     static generateRandomBytes(length: number): Promise<Buffer>;
     static generateTraditionalKeys(): Promise<{
