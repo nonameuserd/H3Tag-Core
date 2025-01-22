@@ -203,30 +203,38 @@ interface CacheMetrics {
  */
 
 export class HybridDirectConsensus {
+  public static async create(
+    blockchain: Blockchain,
+  ): Promise<HybridDirectConsensus> {
+    const instance = new HybridDirectConsensus(blockchain);
+    await instance.initialize();
+    return instance;
+  }
+
   readonly pow: ProofOfWork;
-  readonly directVoting: DirectVoting;
+  private directVoting: DirectVoting | undefined;
   private readonly db: BlockchainSchema;
   private readonly auditManager: AuditManager;
-  private readonly blockCache: Cache<boolean>;
-  private readonly shardManager: ShardManager;
-  private readonly mempool: Mempool | undefined;
+  private blockCache: Cache<boolean> | undefined;
+  private shardManager: ShardManager | undefined;
+  private mempool: Mempool | undefined;
   private readonly blockchain: Blockchain;
   private readonly merkleTree: MerkleTree;
   private readonly eventEmitter = new EventEmitter();
   private readonly performance: Performance | undefined;
-  private readonly retryStrategy: RetryStrategy;
-  private readonly peers: Map<string, Peer> | undefined;
+  private retryStrategy: RetryStrategy | undefined;
+  private peers: Map<string, Peer> | undefined;
   private isDisposed = false;
   private readonly forkLock = new Mutex();
   private cleanupHandler?: () => Promise<void>;
-  private readonly blockchainSync: BlockchainSync;
+  private blockchainSync: BlockchainSync | undefined;
   private readonly circuitBreaker = {
     failures: 0,
     lastFailure: 0,
     threshold: 5,
     resetTimeout: 60000, // 1 minute
   };
-  private ddosProtection: DDoSProtection;
+  private ddosProtection: DDoSProtection | undefined;
   private readonly cacheLock = new Mutex();
   private readonly consensusPublicKey: string;
   private isInitialized = false;
@@ -234,15 +242,7 @@ export class HybridDirectConsensus {
 
   /**
    * Creates a new instance of HybridDirectConsensus
-   * @param db Database instance
-   * @param pow Proof of Work instance
-   * @param directVoting Direct voting instance
-   * @param merkleTree Merkle tree instance
-   * @param auditManager Audit manager instance
-   * @param blockCache Block cache instance
-   * @param shardManager Shard manager instance
-   * @param performance Performance monitor instance
-   * @param retryStrategy Retry strategy instance
+   * @param blockchain Blockchain instance
    */
   constructor(blockchain: Blockchain) {
     this.blockchain = blockchain;
@@ -251,33 +251,13 @@ export class HybridDirectConsensus {
     this.merkleTree = new MerkleTree();
     this.auditManager = new AuditManager();
     this.pow = new ProofOfWork(this.blockchain);
-    this.blockchainSync = new BlockchainSync(
-      this.blockchain,
-      this.mempool || new Mempool(this.blockchain),
-      this.peers || new Map(),
-      { publicKey: this.consensusPublicKey },
-      this.db,
-    );
 
-    // Initialize after dependencies
-    this.directVoting = new DirectVoting(
-      this.db,
-      this.db.getVotingSchema() as IVotingSchema,
-      this.auditManager,
-      new DirectVotingUtil(this.db, this.auditManager),
-      this.blockchain.getNode(),
-      this.blockchainSync,
-    );
+    // Initialize core dependencies
+    this.initializeCoreDependencies();
+  }
 
-    // Add async initialization method
-    this.initialize().catch((error) =>
-      Logger.error('Failed to initialize HybridDirectConsensus:', error),
-    );
-
-    // Add cleanup handler
-    this.registerCleanupHandler();
-
-    // Initialize caches and sharding
+  private initializeCoreDependencies(): void {
+    // Initialize dependencies that don't require mempool
     this.blockCache = new Cache<boolean>({
       ttl: BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL_HOURS * 3600,
       maxSize: 10000,
@@ -303,46 +283,63 @@ export class HybridDirectConsensus {
       this.db,
     );
 
+    this.blockchainSync = new BlockchainSync(
+      this.blockchain,
+      new Map(),
+      { publicKey: this.consensusPublicKey },
+      this.db,
+      undefined
+    );
+
+    this.ddosProtection = new DDoSProtection(
+      {
+        maxRequests: { default: 200, pow: 100, qudraticVote: 100 },
+        windowMs: 60000,
+        blockDuration: 600000,
+      },
+      this.auditManager,
+    );
+
     this.retryStrategy = new RetryStrategy({
       maxAttempts: BLOCKCHAIN_CONSTANTS.UTIL.RETRY_ATTEMPTS,
       delay: BLOCKCHAIN_CONSTANTS.UTIL.RETRY_DELAY_MS,
     });
-
-    this.ddosProtection = new DDoSProtection(
-      {
-        maxRequests: {
-          default: 200,
-          pow: 100,
-          qudraticVote: 100,
-        },
-        windowMs: 60000,
-        blockDuration: 600000, // 10 minutes
-      },
-      this.auditManager,
-    );
   }
 
-  public static async create(
-    blockchain: Blockchain,
-  ): Promise<HybridDirectConsensus> {
-    const instance = new HybridDirectConsensus(blockchain);
-    await instance.initialize();
-    return instance;
-  }
-
-  private async initialize(): Promise<void> {
+  /**
+   * Initialize the consensus system
+   */
+  async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
-    try {
-      await this.cleanupCircuitBreaker();
-      await this.warmupCache();
-      await this.directVoting.initialize();
-      await this.pow.initialize();
-      this.isInitialized = true;
-    } catch (error) {
-      Logger.error('Failed to initialize HybridDirectConsensus:', error);
-      await this.dispose();
-      throw error;
+    // Initialize direct voting after other dependencies
+    this.directVoting = new DirectVoting(
+      this.db,
+      this.db.getVotingSchema() as IVotingSchema,
+      this.auditManager,
+      new DirectVotingUtil(this.db, this.auditManager),
+      this.blockchain.getNode(),
+      this.blockchainSync as BlockchainSync,
+    );
+
+    this.isInitialized = true;
+  }
+
+  /**
+   * Updates mempool and peers after initialization
+   * @param mempool Mempool instance
+   * @param peers Peer map
+   */
+  public updateDependencies(
+    mempool?: Mempool,
+    peers?: Map<string, Peer>,
+  ): void {
+    this.mempool = mempool;
+    this.peers = peers;
+
+    // Update blockchain sync with new dependencies
+    if (this.blockchainSync) {
+      this.blockchainSync.updateDependencies(mempool, peers);
     }
   }
 
@@ -394,7 +391,7 @@ export class HybridDirectConsensus {
       try {
         let cached: boolean | undefined;
         try {
-          cached = this.blockCache.get(block.hash);
+          cached = this.blockCache?.get(block.hash);
           if (cached !== undefined) return cached;
         } catch (error) {
           Logger.warn('Cache read error:', error);
@@ -423,9 +420,9 @@ export class HybridDirectConsensus {
         // 3. Check if this is a fork point requiring voting
         if (await this.isForkPoint(block)) {
           // Check if we're in a voting period
-          const votingSchedule = await this.directVoting.getVotingSchedule();
+          const votingSchedule = await this.directVoting?.getVotingSchedule();
 
-          if (votingSchedule.currentPeriod?.status === 'active') {
+          if (votingSchedule?.currentPeriod?.status === 'active') {
             // Handle through voting
             const chainDecision = await this.handleChainFork(block);
             if (!chainDecision) {
@@ -455,7 +452,7 @@ export class HybridDirectConsensus {
         const result = true;
 
         try {
-          this.blockCache.set(block.hash, result);
+          this.blockCache?.set(block.hash, result);
         } catch (error) {
           Logger.warn('Cache write error:', error);
         }
@@ -488,7 +485,7 @@ export class HybridDirectConsensus {
     return this.forkResolutionLock.runExclusive(async () => {
       // First check DDoS protection within the lock
       if (
-        !this.ddosProtection.checkRequest('fork_resolution', block.header.miner)
+        !this.ddosProtection?.checkRequest('fork_resolution', block.header.miner)
       ) {
         throw new ConsensusError('Rate limit exceeded for fork resolution');
       }
@@ -547,12 +544,12 @@ export class HybridDirectConsensus {
 
         // DirectVoting handles vote calculation
         const winningHash = await Promise.race<string>([
-          this.directVoting.handleChainFork(
+          this.directVoting?.handleChainFork(
             existingBlock.hash,
             block.hash,
             block.header.height,
             block.validators,
-          ),
+          ) || Promise.reject(new Error('DirectVoting not initialized')),
           new Promise<string>((_, reject) =>
             setTimeout(
               () => reject(new Error('Fork resolution deadlock')),
@@ -743,16 +740,16 @@ export class HybridDirectConsensus {
   public getMetrics() {
     return {
       pow: this.pow.getMetrics(),
-      voting: this.directVoting.getVotingMetrics(),
+      voting: this.directVoting?.getVotingMetrics(),
       votingPeriod: BLOCKCHAIN_CONSTANTS.CONSENSUS.VOTING_PERIOD,
       minimumParticipation: BLOCKCHAIN_CONSTANTS.CONSENSUS.MIN_PARTICIPATION,
       performance: Performance.getInstance().getMetrics(),
       cache: {
-        size: this.blockCache.size(),
-        hitRate: this.blockCache.getHitRate(),
-        evictionCount: this.blockCache.getEvictionCount(),
+        size: this.blockCache?.size() || 0,
+        hitRate: this.blockCache?.getHitRate() || 0,
+        evictionCount: this.blockCache?.getEvictionCount() || 0,
       },
-      retryStats: this.retryStrategy.getStats(),
+      retryStats: this.retryStrategy?.getStats(),
     };
   }
 
@@ -767,7 +764,7 @@ export class HybridDirectConsensus {
       const [powHealth, votingHealth, dbHealth, cacheMetrics] =
         await Promise.all([
           this.pow.healthCheck(),
-          this.directVoting.healthCheck(),
+          this.directVoting?.healthCheck() || Promise.resolve(false),
           this.db.ping(),
           this.validateCacheIntegrity(),
           this.getCacheMetrics(),
@@ -776,7 +773,7 @@ export class HybridDirectConsensus {
       // Check cache health
       const isCacheHealthy =
         cacheMetrics.hitRate > 0.5 &&
-        cacheMetrics.size < this.blockCache.maxSize &&
+        cacheMetrics.size < (this.blockCache?.maxSize || 0) &&
         cacheMetrics.memoryUsage <
           Number(process.env.MAX_MEMORY_USAGE || Infinity);
 
@@ -800,10 +797,10 @@ export class HybridDirectConsensus {
 
   private async validateCacheIntegrity(): Promise<CacheMetrics> {
     return {
-      hitRate: this.blockCache.getHitRate(),
-      size: this.blockCache.size(),
+      hitRate: this.blockCache?.getHitRate() || 0,
+      size: this.blockCache?.size() || 0,
       memoryUsage: process.memoryUsage().heapUsed,
-      evictionCount: this.blockCache.getEvictionCount(),
+      evictionCount: this.blockCache?.getEvictionCount() || 0,
     };
   }
 
@@ -818,8 +815,8 @@ export class HybridDirectConsensus {
     process.off('SIGINT', this.cleanupHandler || (() => {}));
     process.off('SIGTERM', this.cleanupHandler || (() => {}));
 
-    this.blockCache.clear();
-    await this.directVoting.close();
+    this.blockCache?.clear();
+    await this.directVoting?.close();
     await this.pow.dispose();
     this.isDisposed = true;
   }
@@ -857,8 +854,8 @@ export class HybridDirectConsensus {
   private handleCacheEviction(key: string) {
     try {
       // Add proper cleanup
-      if (this.blockCache.has(key)) {
-        this.blockCache.delete(key);
+      if (this.blockCache?.has(key)) {
+        this.blockCache?.delete(key);
       }
       Logger.debug(`Cache entry evicted: ${key}`);
     } catch (error) {
@@ -923,7 +920,7 @@ export class HybridDirectConsensus {
 
             blocks.forEach((block) => {
               if (block) {
-                this.blockCache.set(block.hash, true, {
+                this.blockCache?.set(block.hash, true, {
                   priority: 3,
                   ttl: BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL_HOURS * 3600,
                 });
@@ -980,7 +977,7 @@ export class HybridDirectConsensus {
       if (!hasValidPoW) return false;
 
       // Verify voting participation
-      const hasVoted = await this.directVoting.hasParticipated(
+      const hasVoted = await this.directVoting?.hasParticipated(
         transaction.sender,
       );
       if (!hasVoted) return false;
@@ -1001,9 +998,9 @@ export class HybridDirectConsensus {
       let reward = BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_REWARD;
 
       // Adjust based on hybrid participation
-      const votingRate = await this.directVoting.getParticipationRate();
+      const votingRate = await this.directVoting?.getParticipationRate();
       const powRate = await this.pow.getParticipationRate();
-      const hybridRate = (votingRate + powRate) / 2;
+      const hybridRate = (votingRate || 0 + powRate || 0) / 2;
 
       // Safely perform BigInt operations with bounds checking
       const safeMultiply = (a: bigint, b: bigint): bigint => {
@@ -1121,9 +1118,9 @@ export class HybridDirectConsensus {
 
   public getCacheMetrics(): CacheMetrics {
     return {
-      size: this.blockCache.size(),
-      hitRate: this.blockCache.getHitRate(),
-      evictionCount: this.blockCache.getEvictionCount(),
+      size: this.blockCache?.size() || 0,
+      hitRate: this.blockCache?.getHitRate() || 0,
+      evictionCount: this.blockCache?.getEvictionCount() || 0,
       memoryUsage: process.memoryUsage().heapUsed,
     };
   }
@@ -1135,7 +1132,7 @@ export class HybridDirectConsensus {
   public async updateState(block: Block): Promise<void> {
     try {
       // Update voting state
-      await this.directVoting.updateVotingState(async (currentState) => {
+      await this.directVoting?.updateVotingState(async (currentState) => {
         // Process block and return updated voting state
         return {
           ...currentState,
@@ -1149,7 +1146,7 @@ export class HybridDirectConsensus {
       await this.pow.updateDifficulty(block);
 
       // Update cache
-      this.blockCache.set(block.hash, true);
+      this.blockCache?.set(block.hash, true);
     } catch (error) {
       Logger.error('Failed to update consensus state:', error);
       throw error;

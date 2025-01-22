@@ -301,6 +301,7 @@ interface BlockSizeComponents {
 export class ProofOfWork {
   private readonly eventEmitter = new EventEmitter();
   private isInterrupted = false;
+  public isMining = false;  // Add this line
   private readonly MAX_NONCE = Number.MAX_SAFE_INTEGER;
   private readonly db: BlockchainSchema;
   private readonly miningDb: MiningDatabase;

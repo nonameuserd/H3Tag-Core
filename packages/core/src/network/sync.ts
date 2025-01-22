@@ -26,8 +26,8 @@ export class SyncError extends Error {
 
 export class BlockchainSync {
   private readonly blockchain: Blockchain;
-  private readonly mempool: Mempool;
-  private readonly peers: Map<string, Peer>;
+  private mempool: Mempool;
+  private peers: Map<string, Peer>;
   private state: SyncState;
   private syncingPeer?: Peer;
   private lastSyncHeight: number;
@@ -90,23 +90,24 @@ export class BlockchainSync {
   };
 
   private readonly mutex = new Mutex();
+  private readonly consensusPublicKey: { publicKey: string };
+  private readonly db: BlockchainSchema;
 
   constructor(
     blockchain: Blockchain,
-    mempool: Mempool,
     peers: Map<string, Peer>,
-    private readonly consensusPublicKey: {
-      publicKey: string;
-    },
-    private readonly db: BlockchainSchema,
+    consensusPublicKey: { publicKey: string },
+    db: BlockchainSchema,
+    mempool?: Mempool,
   ) {
     this.blockchain = blockchain;
-    this.mempool = mempool;
     this.peers = peers;
+    this.consensusPublicKey = consensusPublicKey;
+    this.db = db;
+    this.mempool = mempool as Mempool;
     this.state = SyncState.IDLE;
     this.lastSyncHeight = 0;
     this.retryAttempts = 0;
-    this.consensusPublicKey = consensusPublicKey;
     this.currentEpoch = 0;
 
     this.setupEventListeners();
@@ -814,5 +815,13 @@ export class BlockchainSync {
 
   public isInitialBlockDownload(): boolean {
     return this.state === SyncState.SYNCING;
+  }
+
+  /**
+   * Updates mempool and peers after initialization
+   */
+  public updateDependencies(mempool?: Mempool, peers?: Map<string, Peer>): void {
+    if (mempool) this.mempool = mempool;
+    if (peers) this.peers = peers;
   }
 }
