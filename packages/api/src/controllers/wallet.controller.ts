@@ -6,8 +6,6 @@ import {
   Param,
   HttpException,
   HttpStatus,
-  Request,
-  Response,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { WalletService } from '../services/wallet.service';

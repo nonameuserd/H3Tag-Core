@@ -1,6 +1,19 @@
 import { Command } from 'commander';
 import { api } from '../services/api';
 
+interface MempoolEntry {
+  fee: number;
+  vsize: number;
+  weight: number;
+  time: number;
+  height: number;
+  descendantcount: number;
+  descendantsize: number;
+  ancestorcount: number;
+  ancestorsize: number;
+  depends: string[];
+}
+
 export const mempoolCommand = new Command('mempool').description(
   'Manage mempool operations',
 );
@@ -59,8 +72,9 @@ mempoolCommand
       } else {
         console.log('\nDetailed Mempool Transactions:');
         console.log('---------------------------');
-        Object.entries(response.data).forEach(
-          ([txid, entry]: [string, any]) => {
+
+        Object.entries(response.data as Record<string, MempoolEntry>).forEach(
+          ([txid, entry]) => {
             console.log(`\nTransaction: ${txid}`);
             console.log(`Fee: ${entry.fee}`);
             console.log(`Size: ${entry.vsize} bytes`);
