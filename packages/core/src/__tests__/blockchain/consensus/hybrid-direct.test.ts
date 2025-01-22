@@ -200,11 +200,9 @@ describe('HybridDirectConsensus', () => {
   let mockTransaction: Transaction;
 
   beforeEach(async () => {
-    console.log('Setting up test environment...');
 
     // Mock setInterval to prevent cleanup timer
     jest.useFakeTimers();
-    console.log('Mocked timers');
 
     // Create mocked blockchain
     blockchain = mock<Blockchain>({
@@ -218,20 +216,16 @@ describe('HybridDirectConsensus', () => {
         },
       }),
     });
-    console.log('Created mock blockchain');
 
     try {
       // Create consensus instance
-      console.log('Creating consensus instance...');
       consensus = await HybridDirectConsensus.create(blockchain);
-      console.log('Successfully created consensus instance');
     } catch (error) {
       console.error('Failed to create consensus instance:', error);
       throw error;
     }
 
     // Setup mock block and transaction
-    console.log('Setting up mock block and transaction...');
     mockTransaction = {
       hash: 'txHash',
       sender: 'sender',
@@ -307,7 +301,6 @@ describe('HybridDirectConsensus', () => {
   });
 
   describe('initialization', () => {
-    console.log('Running initialization tests...');
     it('should initialize successfully with valid blockchain', async () => {
       const instance = await HybridDirectConsensus.create(blockchain);
       expect(instance).toBeDefined();
@@ -353,7 +346,6 @@ describe('HybridDirectConsensus', () => {
 
     it('should process a valid block', async () => {
       const result = await consensus.processBlock(mockBlock);
-      console.log('Processed block:', result);
       expect(result.hash).toBeDefined();
     }, 35000);
 
@@ -937,11 +929,8 @@ describe('HybridDirectConsensus', () => {
   let mockTransaction: Transaction;
 
   beforeEach(async () => {
-    console.log('Setting up test environment...');
-
     // Mock setInterval to prevent cleanup timer
     jest.useFakeTimers();
-    console.log('Mocked timers');
 
     // Create mocked blockchain
     blockchain = mock<Blockchain>({
@@ -955,20 +944,15 @@ describe('HybridDirectConsensus', () => {
         },
       }),
     });
-    console.log('Created mock blockchain');
-
     try {
       // Create consensus instance
-      console.log('Creating consensus instance...');
       consensus = await HybridDirectConsensus.create(blockchain);
-      console.log('Successfully created consensus instance');
     } catch (error) {
       console.error('Failed to create consensus instance:', error);
       throw error;
     }
 
     // Setup mock block and transaction
-    console.log('Setting up mock block and transaction...');
     mockTransaction = {
       hash: 'txHash',
       sender: 'sender',
@@ -1044,7 +1028,6 @@ describe('HybridDirectConsensus', () => {
   });
 
   describe('initialization', () => {
-    console.log('Running initialization tests...');
     it('should initialize successfully with valid blockchain', async () => {
       const instance = await HybridDirectConsensus.create(blockchain);
       expect(instance).toBeDefined();
@@ -1090,7 +1073,6 @@ describe('HybridDirectConsensus', () => {
 
     it('should process a valid block', async () => {
       const result = await consensus.processBlock(mockBlock);
-      console.log('Processed block:', result);
       expect(result.hash).toBeDefined();
     }, 35000);
 

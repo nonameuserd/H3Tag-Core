@@ -301,7 +301,7 @@ interface BlockSizeComponents {
 export class ProofOfWork {
   private readonly eventEmitter = new EventEmitter();
   private isInterrupted = false;
-  public isMining = false;  // Add this line
+  public isMining = false;
   private readonly MAX_NONCE = Number.MAX_SAFE_INTEGER;
   private readonly db: BlockchainSchema;
   private readonly miningDb: MiningDatabase;
@@ -1328,24 +1328,45 @@ export class ProofOfWork {
    * Cleans up mining resources
    */
   public async dispose(): Promise<void> {
-    this.isInterrupted = true;
-
-    const cleanupTasks = [
-      this.cleanupWorkers(),
-      this.gpuMiner?.dispose(),
-      this.db.close(),
-      this.performanceMonitor.dispose(),
-      this.healthMonitor.dispose(),
-    ];
-
     try {
-      await Promise.all(cleanupTasks.filter((task) => task));
-    } catch (error) {
-      Logger.error('Cleanup failed:', error);
-    } finally {
-      this.nonceCache.clear(true);
-      this.blockCache.clear(true);
+      // Stop mining
+      this.stopMining();
+      
+      // Cleanup workers
+      await this.cleanupWorkers();
+      
+      // Cleanup health monitor
+      if (this.healthMonitor) {
+        await this.healthMonitor.dispose();
+      }
+      
+      // Cleanup performance monitor
+      if (this.performanceMonitor) {
+        await this.performanceMonitor.dispose();
+      }
+      
+      // Cleanup GPU miner
+      if (this.gpuMiner) {
+        await this.gpuMiner.dispose();
+      }
+      
+      // Clear event listeners
       this.eventEmitter.removeAllListeners();
+      
+      // Clear caches
+      this.blockCache.clear();
+      this.nonceCache.clear();
+      this.templateCache.clear();
+      
+      // Clear blocks in flight
+      this.blocksInFlight.forEach((block) => {
+        clearTimeout(block.timeout);
+      });
+      this.blocksInFlight.clear();
+      
+    } catch (error) {
+      Logger.error('Error during ProofOfWork disposal:', error);
+      throw error;
     }
   }
 
@@ -2012,6 +2033,7 @@ export class ProofOfWork {
    * Starts the mining loop
    */
   public async startMining(): Promise<void> {
+    this.isMining = true; // Set isMining to true
     while (!this.isInterrupted) {
       try {
         const block = await this.createAndMineBlock();
@@ -2066,6 +2088,7 @@ export class ProofOfWork {
    * Stops the mining loop
    */
   public stopMining(): void {
+    this.isMining = false; // Set isMining to false
     this.isInterrupted = true;
   }
 
