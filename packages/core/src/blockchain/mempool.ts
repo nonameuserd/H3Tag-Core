@@ -266,7 +266,7 @@ export class Mempool {
   private readonly feeRateBuckets: Map<number, Set<string>>;
   private readonly ancestorMap: Map<string, Set<string>>;
   private readonly descendantMap: Map<string, Set<string>>;
-  private readonly consensus: HybridDirectConsensus;
+  private consensus: HybridDirectConsensus | undefined;
   private readonly blockchain: Blockchain;
   private readonly node: Node | undefined;
 
@@ -416,7 +416,6 @@ export class Mempool {
     this.feeRateBuckets = new Map();
     this.ancestorMap = new Map();
     this.descendantMap = new Map();
-    this.consensus = new HybridDirectConsensus(this.blockchain);
     this.reputationSystem = new Map();
     this.lastVoteHeight = new Map();
     this.voteCounter = new Map();
@@ -503,7 +502,7 @@ export class Mempool {
       const votesInWindow = this.voteCounter.get(address) || 0;
 
       // Add PoW validation using consensus mechanism
-      const hasValidPoW = await this.consensus.pow.validateWork(
+      const hasValidPoW = await this.consensus?.pow?.validateWork(
         address,
         BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_CONTRIBUTION,
       );
@@ -518,7 +517,7 @@ export class Mempool {
           BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS &&
         votesInWindow <
           BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW
-      );
+      ) || false;
     } catch (error) {
       Logger.error('Error validating vote eligibility:', error);
       return false;
@@ -581,7 +580,9 @@ export class Mempool {
     // Process the transaction based on type
     switch (transaction.type) {
       case TransactionType.QUADRATIC_VOTE: {
-        const isEligible = await this.validateVoteEligibility(transaction.sender);
+        const isEligible = await this.validateVoteEligibility(
+          transaction.sender,
+        );
         if (!isEligible) return false;
         await this.handleVoteTransaction(transaction);
         await this.updateVoteTracking(transaction.sender);
@@ -589,7 +590,7 @@ export class Mempool {
       }
 
       case TransactionType.POW_REWARD: {
-        const isValidPoW = await this.consensus.pow.validateReward(
+        const isValidPoW = await this.consensus?.pow?.validateReward(
           transaction,
           this.blockchain.getCurrentHeight(),
         );
@@ -1434,7 +1435,7 @@ export class Mempool {
       const firstTx =
         await this.blockchain.getFirstTransactionForAddress(address);
       if (!firstTx) return 0;
-      const currentHeight = await this.blockchain.getCurrentHeight();
+      const currentHeight = this.blockchain.getCurrentHeight();
       return currentHeight - firstTx.blockHeight;
     } catch (error) {
       Logger.error('Error getting account age:', error);
@@ -1455,7 +1456,7 @@ export class Mempool {
 
       while (retryCount < maxRetries) {
         try {
-          const isValid = await this.consensus.pow.validateWork(address, 0);
+          const isValid = await this.consensus?.pow?.validateWork(address, 0);
           contribution = isValid ? 1 : 0;
           break;
         } catch (error) {
@@ -2153,7 +2154,7 @@ export class Mempool {
   // Add cache cleanup
   private cleanupCache(): void {
     const now = Date.now();
-    for (const [key,] of this.mempoolStateCache.entries()) {
+    for (const [key] of this.mempoolStateCache.entries()) {
       if (now - this.lastChangeTimestamp > this.maxTransactionAge) {
         this.mempoolStateCache.delete(key);
       }
@@ -2897,5 +2898,10 @@ export class Mempool {
       Logger.error('Failed to get base fee rate:', error);
       return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
     }
+  }
+
+  // Add a method to set consensus after initialization
+  public setConsensus(consensus: HybridDirectConsensus): void {
+    this.consensus = consensus;
   }
 }

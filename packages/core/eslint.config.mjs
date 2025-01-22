@@ -5,7 +5,23 @@ import tsParser from '@typescript-eslint/parser';
 export default [
   eslint.configs.recommended,
   {
-    files: ['**/*.{js,ts}'],
+    ignores: ['**/dist/**'], // Add this line at the top level
+  },
+  // Base config for all JavaScript files
+  {
+    files: ['**/*.js'],
+    rules: {
+      'no-undef': 'off',
+      'no-unused-vars': 'off',
+    },
+  },
+  {
+    files: [
+      '**/*.ts',
+      'src/**/*.test.ts',
+      'src/__tests__/**/*.ts',
+      'src/__tests__/**/*',
+    ],
     ignores: [
       'packages/**/dist/**/*',
       'packages/**/node_modules/**',
@@ -14,10 +30,10 @@ export default [
       '**/pkg/**',
       '**/*.d.ts',
       '**/jest.config.ts',
-      '**/wasm/**/*.js',        // Ignore compiled WebAssembly JS
-      '**/types/**/*.js',       // Ignore generated type definitions
+      '**/wasm/**/*.js', // Ignore compiled WebAssembly JS
+      '**/types/**/*.js', // Ignore generated type definitions
       '**/build/**',
-      '**/lib/**',              // Other common output directories
+      '**/lib/**', // Other common output directories
       '**/.next/**',
       '**/.cache/**',
     ],

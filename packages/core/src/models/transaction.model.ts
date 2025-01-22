@@ -290,7 +290,7 @@ export class TransactionBuilder {
   private outputs: TxOutput[] = [];
   private readonly merkleTree: MerkleTree;
   private readonly db: BlockchainSchema;
-  private static readonly blockchain = new Blockchain();
+  private static readonly blockchain = Blockchain.getInstance();
   private static readonly pow = new ProofOfWork(TransactionBuilder.blockchain);
   private static readonly hybridDirect = new HybridDirectConsensus(
     TransactionBuilder.blockchain,

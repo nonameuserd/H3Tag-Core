@@ -70,7 +70,7 @@ export class HealthMonitor {
     this.config = config;
 
     try {
-      const configService = new ConfigService();
+      const configService = ConfigService.getInstance();
       const database = new BlockchainSchema();
       this.dnsSeeder = new DNSSeeder(configService, database);
     } catch (error) {

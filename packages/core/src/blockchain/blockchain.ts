@@ -233,12 +233,12 @@ export class Blockchain {
   private static instance: Blockchain;
   private chain: Block[] = [];
   private utxoSet: UTXOSet = new UTXOSet();
-  private mempool: Mempool = new Mempool(this);
+  private mempool: Mempool;
+  private consensus: HybridDirectConsensus;
   private peers: Map<string, Peer> = new Map();
   private genesisBlock: Block = this.createGenesisBlock();
   private totalSupply: number = 0;
   private config: BlockchainConfig = this.initializeConfig();
-  private consensus: HybridDirectConsensus = new HybridDirectConsensus(this);
   public db: BlockchainSchema = new BlockchainSchema();
   private shardManager: ShardManager = new ShardManager(
     {
@@ -252,20 +252,8 @@ export class Blockchain {
     },
     this.db,
   );
-  private sync: BlockchainSync = new BlockchainSync(
-    this,
-    this.mempool,
-    this.peers,
-    {
-      publicKey: '',
-    },
-    this.db,
-  );
-  private consensusPublicKey: {
-    publicKey: string;
-  } = {
-    publicKey: '',
-  };
+  private consensusPublicKey: { publicKey: string }; // Declare first
+  private sync: BlockchainSync;
   private node: Node;
   private readonly minConfirmations: number = 6; // Standard value for most blockchains
 
@@ -337,13 +325,6 @@ export class Blockchain {
     this.errorMonitor = new ErrorMonitor();
     this.auditManager = new AuditManager();
     this.merkleTree = new MerkleTree();
-    this.node = new Node(
-      this,
-      this.db,
-      this.mempool,
-      new ConfigService(this.config),
-      this.auditManager,
-    );
 
     this.healthMonitor = new HealthMonitor({
       interval: 1000,
@@ -404,7 +385,7 @@ export class Blockchain {
         handshakeTimeout: 5000,
         maxBanScore: 100,
       },
-      new ConfigService(this.config),
+      ConfigService.getInstance(this.config),
       this.db,
     );
 
@@ -477,11 +458,7 @@ export class Blockchain {
     // Bind event handlers
     this.boundSyncCompleted = this.handleSyncCompleted.bind(this);
     this.boundSyncError = this.handleSyncError.bind(this);
-
-    // Add listeners
-    this.sync.on('sync_completed', this.boundSyncCompleted);
-    this.sync.on('sync_error', this.boundSyncError);
-
+    
     // Start periodic health checks
     this.healthCheckTimer = setInterval(async () => {
       try {
@@ -516,6 +493,36 @@ export class Blockchain {
       },
       this.auditManager,
     );
+
+  // Initialize mempool first
+    this.mempool = new Mempool(this);
+
+    this.consensusPublicKey = { publicKey: '' }; // Initialize first
+    this.sync = new BlockchainSync( // Initialize after
+      this,
+      this.peers,
+      this.consensusPublicKey,
+      this.db,
+      this.mempool
+    );
+
+    this.node = new Node(
+      this,
+      this.db,
+      this.mempool,
+      ConfigService.getInstance(this.config),
+      this.auditManager,
+    );
+
+    // Add listeners after sync initialization
+    this.sync.on('sync_completed', this.boundSyncCompleted);
+    this.sync.on('sync_error', this.boundSyncError);
+
+    // Initialize consensus
+    this.consensus = new HybridDirectConsensus(this);
+
+    // Link mempool and consensus
+    this.mempool.setConsensus(this.consensus);
   }
 
   /**
@@ -579,10 +586,10 @@ export class Blockchain {
       // Initialize other components
       this.sync = new BlockchainSync(
         this,
-        this.mempool,
         this.peers,
         this.consensusPublicKey,
         this.db,
+        this.mempool,
       );
 
       // Setup event listeners
@@ -1699,8 +1706,8 @@ export class Blockchain {
 
   public async getConsensusMetrics() {
     const metrics = this.consensus.getMetrics();
-    const activeVoters = await metrics.voting.activeVoters;
-    const participation = await metrics.voting.participationRate;
+    const activeVoters = await metrics?.voting?.activeVoters || [];
+    const participation = await metrics?.voting?.participationRate || 0;
 
     return {
       powHashrate: metrics.pow.averageHashRate,
