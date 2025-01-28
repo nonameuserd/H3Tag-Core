@@ -34,6 +34,16 @@
             "date": 1737846894365,
             "name": "logs/exceptions-2025-01-25.log",
             "hash": "5f6b6821fd876097324cd6512af0e67fffdd8b026f50cc369f5e1680e09b3219"
+        },
+        {
+            "date": 1737925215470,
+            "name": "logs/exceptions-2025-01-26.log",
+            "hash": "a3f6b3a3a4216413e95fa3c3b848107a5aa5e6678ee31e4e5562bc46a69c04ce"
+        },
+        {
+            "date": 1738012008612,
+            "name": "logs/exceptions-2025-01-27.log",
+            "hash": "44e83a87e6aa5c78155db4df958585c284f31c55c464dc2ae622709931d9642b"
         }
     ],
     "hashType": "sha256"

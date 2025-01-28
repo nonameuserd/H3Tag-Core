@@ -83,3 +83,9 @@ dist/*
 .DS_Store
 yarn.lock
 packages/.DS_Store
+packages/core/audit-logs/
+packages/core/audit-logs/*
+packages/core/build/
+packages/core/build/*
+packages/core/dist/
+packages/core/node_modules/
