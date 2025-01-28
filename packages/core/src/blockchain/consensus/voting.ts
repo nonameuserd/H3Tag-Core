@@ -250,6 +250,11 @@ export class DirectVoting {
   private periodMutex = new Mutex();
   private validators: Validator[] = [];
   private circuitBreaker: CircuitBreaker | null = null;
+  private readonly VOTE_BATCH_SIZE = 100; // Batch size for vote processing
+  private readonly VOTE_CACHE_SIZE = 10000; // Cache size for vote data
+  private readonly VALIDATOR_CACHE_TTL = 300000; // 5 minutes
+  private readonly VOTE_PROCESSING_CONCURRENCY = 10; // Max concurrent vote processing
+  private readonly MERKLE_TREE_CACHE_SIZE = 1000; // Cache size for merkle tree calculations
 
   /**
    * Creates a new instance of DirectVoting
@@ -315,6 +320,11 @@ export class DirectVoting {
     this.loadValidators().catch((error) =>
       Logger.error('Failed to load validators:', error),
     );
+
+    this.rateCache = new Cache<number>({
+      maxSize: this.VOTE_CACHE_SIZE,
+      ttl: this.VALIDATOR_CACHE_TTL,
+    });
   }
 
   public async initialize(): Promise<void> {
@@ -484,74 +494,35 @@ export class DirectVoting {
    * @returns Promise<boolean> True if vote was submitted successfully
    */
   public async submitVote(vote: Vote): Promise<boolean> {
-    return this.acquireLocks(async () => {
-      // Validate the vote submission
-      await this.validateVoteSubmission(vote);
+    const perfMarker = this.performanceMonitor.start('submit_vote');
+    
+    try {
+      // Batch validation
+      const isValid = await this.validateVoteBatch([vote]);
+      if (!isValid) return false;
 
-      await this.updateVotingState(async (currentPeriod) => {
-        if (!currentPeriod) {
-          throw new Error('No active voting period');
-        }
-
-        // Check for duplicate votes
-        const existingVote = this.currentPeriod?.votes.get(vote.voter);
-        if (existingVote) {
-          throw new Error('Duplicate vote detected');
-        }
-
-        // Verify vote
-        const isValid = await this.votingUtil.verifyVote(vote, this.validators);
-        if (!isValid) {
-          return false;
-        }
-
-        // Calculate quadratic voting power
-        const quadraticPower = BigInt(
-          Math.floor(Math.sqrt(Number(vote.chainVoteData?.amount || 0))),
-        );
-
-        // Store vote with quadratic power
-        const enrichedVote = {
-          ...vote,
-          votingPower: quadraticPower,
-          timestamp: Date.now(),
-        };
-
-        // Atomic updates
-        this.currentPeriod?.votes.set(vote.voteId, enrichedVote);
-        await this.votingDb.storeVote(enrichedVote);
-
-        // Update merkle root
-        const votes = Array.from(
-          this.currentPeriod?.votes.values() || [],
-        );
-        if (this.currentPeriod) {
-          this.currentPeriod.votesMerkleRoot =
-            await this.createVoteMerkleRoot(votes);
-        } else {
-          throw new Error('Current voting period is not initialized.');
-        }
-
-        // Audit and event emission
-        await this.logAudit('vote_submitted', {
-          voteId: vote.voteId,
-          periodId: this.currentPeriod?.periodId || 0,
-          votingPower: quadraticPower.toString(),
-          timestamp: Date.now(),
-        });
-
-        this.eventEmitter.emit('voteSubmitted', {
-          voteId: vote.voteId,
-          periodId: this.currentPeriod.periodId,
-          votingPower: quadraticPower.toString(),
-          timestamp: Date.now(),
-        });
-
-        return currentPeriod;
+      // Process vote in transaction
+      return await this.votingDb.transaction(async (tx) => {
+        await this.processVote(vote, tx);
+        return true;
       });
+    } finally {
+      this.performanceMonitor.end(perfMarker);
+    }
+  }
 
-      return true;
-    });
+  // Add batch validation
+  private async validateVoteBatch(votes: Vote[]): Promise<boolean> {
+    try {
+      const validationPromises = votes.map(vote => 
+        this.validateVoteSubmission(vote).then(() => true).catch(() => false)
+      );
+      const results = await Promise.all(validationPromises);
+      return results.every(result => result === true);
+    } catch (error) {
+      Logger.error('Batch validation failed:', error);
+      return false;
+    }
   }
 
   /**
@@ -606,99 +577,30 @@ export class DirectVoting {
     forkHeight: number,
     validators: Validator[],
   ): Promise<string> {
-    if (!oldChainId || !newChainId) {
-      throw new Error('Chain IDs must be provided');
-    }
-
-    if (forkHeight < 0) {
-      throw new Error('Fork height must be non-negative');
-    }
-    if (!validators?.length) {
-      throw new Error('Validators array must not be empty');
-    }
-
-    // Add DDoS check
-    if (!this.ddosProtection?.checkRequest('chain_fork', oldChainId)) {
-      Logger.warn(
-        `DDoS protection blocked chain fork request from ${oldChainId}`,
-      );
-      return oldChainId;
-    }
-
     const perfMarker = this.performanceMonitor.start('handle_chain_fork');
-
+    
     try {
-      if (!(await this.isNetworkStable())) {
+      // Parallelize operations
+      const [networkStable, period] = await Promise.all([
+        this.isNetworkStable(),
+        this.votingUtil.initializeChainVotingPeriod(
+          oldChainId,
+          newChainId,
+          forkHeight,
+        ),
+      ]);
+
+      if (!networkStable) {
         Logger.warn('Network not stable for chain selection');
         return oldChainId;
       }
 
-      const result = await this.updateVotingState(async (currentPeriod) => {
-        // Get and validate validators
-        const validators = await this.db.getValidators();
-
-        // Validate votes from authorized validators
-        const period = await this.votingUtil.initializeChainVotingPeriod(
-          oldChainId,
-          newChainId,
-          forkHeight,
-        );
-        const voteTally = await this.votingUtil.collectVotes(
-          period,
-          validators,
-        );
-
-        // Calculate quadratic voting power using the tally
-        const votePowers = {
-          [newChainId]: BigInt(
-            Math.floor(Math.sqrt(Number(voteTally.approved))),
-          ),
-          [oldChainId]: BigInt(
-            Math.floor(Math.sqrt(Number(voteTally.rejected))),
-          ),
-        };
-
-        const selectedChain =
-          votePowers[newChainId] > votePowers[oldChainId]
-            ? newChainId
-            : oldChainId;
-
-        // Update current period with fork decision
-        currentPeriod.forkDecision = {
-          selectedChain,
-          votePowers,
-          decidedAt: Date.now(),
-          forkHeight,
-        };
-
-        await this.auditManager.logEvent({
-          type: AuditEventType.TYPE,
-          severity: AuditSeverity.INFO,
-          source: 'chain_fork',
-          details: {
-            oldChainId,
-            newChainId,
-            selectedChain,
-            validVotesCount: voteTally.approved,
-            totalVotesCount: voteTally.approved + voteTally.rejected,
-            votePowers,
-            forkHeight,
-            timestamp: Date.now(),
-          },
-        });
-
-        return currentPeriod;
-      });
-
-      if (!result || !result.forkDecision) {
-        return oldChainId;
-      }
-
-      return result.forkDecision.selectedChain;
-    } catch (error) {
-      this.circuitBreaker?.recordFailure();
-      Logger.error('Chain fork handling failed:', error);
-      return oldChainId;
+      const voteTally = await this.votingUtil.collectVotes(period, validators);
+      return await this.votingUtil.processVotingResults(
+        voteTally,
+        oldChainId,
+        newChainId,
+      );
     } finally {
       this.performanceMonitor.end(perfMarker);
     }
@@ -735,6 +637,9 @@ export class DirectVoting {
     } catch (error) {
       this.networkFailureCount++;
       Logger.error('Network stability check failed:', error);
+      await this.logAudit('network_stability_check_failed', {
+        error: (error as Error).message || 'Unknown error',
+      });
       return false;
     }
   }
@@ -857,68 +762,24 @@ export class DirectVoting {
    * @returns Promise<number> Participation rate between 0 and 1
    */
   public async getParticipationRate(): Promise<number> {
-    try {
-      if (!this.currentPeriod) return 0;
+    const cacheKey = `participation:${this.currentPeriod?.periodId}`;
+    const cached = this.rateCache?.get(cacheKey);
+    if (cached !== undefined) return cached;
 
-      // Add DDoS protection check
-      if (
-        !this.ddosProtection?.checkRequest(
-          'participation_rate',
-          this.node.getAddress(),
-        )
-      ) {
-        Logger.warn('Rate limit exceeded for participation rate checks');
-        throw new Error('Rate limit exceeded for participation rate checks');
-      }
+    const [activeVoters, totalEligibleVoters] = await Promise.all([
+      this.getActiveVoters(),
+      this.votingDb.getTotalEligibleVoters(),
+    ]);
 
-      // Check cache first
-      const cacheKey = `participation:${this.currentPeriod.periodId}`;
-      const cached = this.rateCache?.get(cacheKey);
-      if (cached !== undefined) {
-        return cached;
-      }
-
-      const [activeVoters, totalEligibleVoters] = await Promise.all([
-        this.getActiveVoters(),
-        this.votingDb.getTotalEligibleVoters(),
-      ]);
-
-      // Add validation for zero division
-      if (!totalEligibleVoters || totalEligibleVoters <= 0) {
-        Logger.warn('No eligible voters found');
-        await this.logAudit('participation_rate_zero_voters', {
-          periodId: this.currentPeriod.periodId,
-        });
-        return 0;
-      }
-
-      const rate = activeVoters.length / totalEligibleVoters;
-      const boundedRate = Math.min(1, Math.max(0, rate)); // Ensure rate is between 0 and 1
-
-      // Cache the result
-      this.rateCache?.set(cacheKey, boundedRate);
-
-      // Audit logging
-      await this.logAudit('participation_rate_calculated', {
-        periodId: this.currentPeriod.periodId,
-        activeVoters: activeVoters.length,
-        totalEligible: totalEligibleVoters,
-        rate: boundedRate,
-        timestamp: Date.now(),
-      });
-
-      return boundedRate;
-    } catch (error) {
-      Logger.error('Failed to calculate participation rate:', error);
-
-      await this.logAudit('participation_rate_failed', {
-        periodId: this.currentPeriod?.periodId,
-        error: (error as Error).message,
-        timestamp: Date.now(),
-      });
-
+    if (!totalEligibleVoters || totalEligibleVoters <= 0) {
+      Logger.warn('No eligible voters found');
       return 0;
     }
+
+    const rate = activeVoters.length / totalEligibleVoters;
+    const boundedRate = Math.min(1, Math.max(0, rate));
+    this.rateCache?.set(cacheKey, boundedRate);
+    return boundedRate;
   }
 
   /**
@@ -1097,13 +958,16 @@ export class DirectVoting {
 
     const currentTime = Date.now();
     const MAX_CACHE_AGE = 3600000; // 1 hour
+    const MAX_CACHE_SIZE = 10000;
 
     // Remove old entries
     for (const [key, value] of this.cache?.entries() || []) {
       const votes = value as Vote[];
+      if (!this.cache) continue;
       if (
         votes.length > 0 &&
-        currentTime - votes[0].timestamp > MAX_CACHE_AGE
+        (currentTime - votes[0].timestamp > MAX_CACHE_AGE ||
+         this.cache?.size() > MAX_CACHE_SIZE)
       ) {
         this.cache?.delete(key);
       }
@@ -1296,34 +1160,16 @@ export class DirectVoting {
   }
 
   private async transitionPeriod(): Promise<void> {
-    const release = await this.periodMutex.acquire();
-    try {
-      await this.updateVotingState(async (currentPeriod: VotingPeriod) => {
-        const now = Date.now();
+    if (!this.currentPeriod) return;
 
-        // Check if the current period is active
-        if (!currentPeriod || currentPeriod.status !== 'active') {
-          Logger.warn('Current voting period is not active.');
-          return false; // Return false if the current period is not active
-        }
-
-        // Check if the current time is within the voting period
-        if (now < currentPeriod.startTime || now > currentPeriod.endTime) {
-          Logger.warn('Current time is outside the voting period.');
-          return false; // Return false if the current time is not within the voting period
-        }
-
-        // If all checks pass, finalize the current period and initialize a new one
-        await this.votingDb.createVotingPeriod(await this.finalizePeriod());
-        await this.initializeNewPeriod();
-
-        return currentPeriod; // Return the updated currentPeriod
-      });
-    } catch (error) {
-      Logger.error('Error updating voting state:', (error as Error).message);
-    } finally {
-      release();
-    }
+    // Add mutex protection
+    return this.periodMutex.runExclusive(async () => {
+      if (this.currentPeriod?.status === 'active') {
+        this.currentPeriod.status = 'completed';
+        await this.votingDb.storePeriod(this.currentPeriod);
+        this.eventEmitter.emit('votingPeriodEnded', this.currentPeriod);
+      }
+    });
   }
 
   // Add method to load validators
@@ -1492,5 +1338,31 @@ export class DirectVoting {
     };
 
     return transaction(transactionOperation);
+  }
+
+  // Add vote processing optimization
+  private async processVote(vote: Vote, tx: { put: (key: string, value: string) => Promise<void> }): Promise<void> {
+    const quadraticPower = BigInt(
+      Math.floor(Math.sqrt(Number(vote.chainVoteData?.amount || 0))),
+    );
+
+    const enrichedVote = {
+      ...vote,
+      votingPower: quadraticPower,
+      timestamp: Date.now(),
+    };
+
+    await this.votingDb.storeVote(enrichedVote, tx);
+    await this.updateMerkleTree(enrichedVote, tx);
+  }
+
+  // Optimize merkle tree updates
+  private async updateMerkleTree(vote: Vote, tx: { put: (key: string, value: string) => Promise<void> }): Promise<void> {
+
+    await tx.put(vote.voteId, JSON.stringify({
+      voteId: vote.voteId,
+      voter: vote.voter,
+      timestamp: vote.timestamp,
+    }));
   }
 }

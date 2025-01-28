@@ -49,9 +49,14 @@ export interface IVotingSchema {
   getTotalEligibleVoters(): Promise<number>;
   close(): Promise<void>;
   getVotesByAddress(address: string): Promise<Vote[]>;
-  storeVote(vote: Vote): Promise<void>;
+  storeVote(vote: Vote, tx?: { put: (key: string, value: string) => Promise<void> }): Promise<void>;
   updateVotingPeriod(period: VotingPeriod): Promise<void>;
   getVotes(): Promise<Vote[]>;
+  storePeriod(period: VotingPeriod): Promise<void>;
+  transaction<T>(fn: (tx: { 
+    execute: (fn: () => Promise<void>) => Promise<void>;
+    put: (key: string, value: string) => Promise<void>;
+  }) => Promise<T>): Promise<T>;
 }
 
 export class VotingDatabase implements IVotingSchema {
@@ -513,28 +518,21 @@ export class VotingDatabase implements IVotingSchema {
    * @async
    * @method storeVote
    * @param {Vote} vote - Vote to store
+   * @param {any} tx - Transaction object (optional)
    * @returns {Promise<void>}
    * @throws {VotingError} If vote is invalid or storage fails
    */
   @retry({ maxAttempts: 3, delay: 1000 })
-  async storeVote(vote: Vote): Promise<void> {
-    return await this.mutex.runExclusive(async () => {
-      const key = `vote:${vote.periodId}:${vote.voteId}`;
-      try {
-        // Validate vote
-        if (!vote?.voteId || !vote.periodId) {
-          throw new VotingError('INVALID_VOTE', 'Invalid vote format');
-        }
-
-        await this.db.put(key, JSON.stringify(vote));
-        this.cache.set(key, vote);
-      } catch (error) {
-        Logger.error('Failed to store vote:', error);
-        throw new VotingError('STORE_FAILED', 'Failed to store vote', {
-          voteId: vote.voteId,
-        });
-      }
-    });
+  async storeVote(vote: Vote, tx?: { put: (key: string, value: string) => Promise<void> }): Promise<void> {
+    const key = `vote:${vote.periodId}:${vote.voteId}`;
+    try {
+      const operation = tx ? tx.put(key, JSON.stringify(vote)) : this.db.put(key, JSON.stringify(vote));
+      await operation;
+      this.cache.set(key, vote);
+    } catch (error) {
+      Logger.error('Failed to store vote:', error);
+      throw new VotingError('STORE_FAILED', 'Failed to store vote');
+    }
   }
 
   /**
@@ -584,5 +582,56 @@ export class VotingDatabase implements IVotingSchema {
       Logger.error('Failed to get votes:', error);
       return [];
     }
+  }
+
+  /**
+   * Stores a period
+   *
+   * @async
+   * @method storePeriod
+   * @param {VotingPeriod} period - Period to store
+   * @returns {Promise<void>}
+   * @throws {VotingError} If period is invalid or storage fails
+   */
+  @retry({ maxAttempts: 3, delay: 1000 })
+  async storePeriod(period: VotingPeriod): Promise<void> {
+    return await this.mutex.runExclusive(async () => {
+      const key = `period:${period.periodId}`;
+      try {
+        // Validate period
+        if (!period.periodId || !period.startBlock || !period.endBlock) {
+          throw new VotingError('INVALID_PERIOD', 'Invalid period format');
+        }
+
+        await this.db.put(key, JSON.stringify(period));
+        this.cache.set(key, period);
+      } catch (error) {
+        Logger.error('Failed to store period:', error);
+        throw new VotingError('STORE_FAILED', 'Failed to store period');
+      }
+    });
+  }
+
+  async transaction<T>(fn: (tx: { 
+    execute: (fn: () => Promise<void>) => Promise<void>;
+    put: (key: string, value: string) => Promise<void>;
+  }) => Promise<T>): Promise<T> {
+    return await this.mutex.runExclusive(async () => {
+      const tx = {
+        execute: async (fn: () => Promise<void>) => {
+          try {
+            await fn();
+            await this.db.batch().write();
+          } catch (error) {
+            this.cache.clear();
+            throw error;
+          }
+        },
+        put: async (key: string, value: string) => {
+          await this.db.put(key, value);
+        }
+      };
+      return await fn(tx);
+    });
   }
 }

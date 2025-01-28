@@ -1,0 +1,30 @@
+{
+    "keep": {
+        "days": true,
+        "amount": 30
+    },
+    "auditLog": "logs/.mockHash-audit.json",
+    "files": [
+        {
+            "date": 1738025498122,
+            "name": "logs/error-2025-01-27.log",
+            "hash": "mockHash"
+        },
+        {
+            "date": 1738025498123,
+            "name": "logs/combined-2025-01-27.log",
+            "hash": "mockHash"
+        },
+        {
+            "date": 1738025498124,
+            "name": "logs/exceptions-2025-01-27.log",
+            "hash": "mockHash"
+        },
+        {
+            "date": 1738025498125,
+            "name": "logs/rejections-2025-01-27.log",
+            "hash": "mockHash"
+        }
+    ],
+    "hashType": "sha256"
+}

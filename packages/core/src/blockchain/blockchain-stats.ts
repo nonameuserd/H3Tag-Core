@@ -166,6 +166,7 @@ import { performance } from 'perf_hooks';
 import { Transaction } from '../models/transaction.model';
 import { BlockchainStatsError } from './utils/blockchain-stats-error';
 import { UTXO } from '../models/utxo.model';
+import { Mutex } from 'async-mutex';
 
 // Create interface for what BlockchainStats needs
 export interface IBlockchainData {
@@ -196,12 +197,9 @@ export interface IBlockchainData {
 
 export class BlockchainStats {
   private readonly blockchain: IBlockchainData;
-  private readonly statsCache: Map<
-    string,
-    { value: unknown; timestamp: number }
-  >;
+  private readonly statsCache = new Map<string, { value: unknown; timestamp: number }>();
   private readonly maxCacheSize = 1000; // Prevent unlimited growth
-  private readonly metricsCollector: MetricsCollector;
+  private metricsCollector?: MetricsCollector;
   private circuitBreaker = new Map<
     string,
     {
@@ -211,6 +209,11 @@ export class BlockchainStats {
     }
   >();
   private readonly cleanupInterval = 300000; // 5 minutes
+  private cleanupIntervalId?: NodeJS.Timeout;
+  private cacheMutex = new Mutex();
+  private readonly cacheIndex = new Map<number, string>(); // Height to key mapping
+  private readonly cacheQueue: string[] = []; // Add cache queue
+  private readonly BATCH_SIZE = 1000; // Add to constants
 
   /**
    * Constructor for BlockchainStats
@@ -218,8 +221,6 @@ export class BlockchainStats {
    */
   constructor(blockchain: IBlockchainData) {
     this.blockchain = blockchain;
-    this.statsCache = new Map();
-    this.metricsCollector = new MetricsCollector('blockchain_stats');
     this.initializeMetrics();
     this.startCacheCleanup();
   }
@@ -228,16 +229,17 @@ export class BlockchainStats {
    * Initializes metrics
    */
   private initializeMetrics(): void {
-    this.metricsCollector.gauge(
+    this.metricsCollector = new MetricsCollector('blockchain_stats');
+    this.getMetricsCollector()?.gauge(
       'blockchain_stats_cache_size',
       () => this.statsCache.size,
     );
-    this.metricsCollector.gauge('blockchain_stats_last_update.voting_stats', 0);
-    this.metricsCollector.gauge(
+    this.getMetricsCollector()?.gauge('blockchain_stats_last_update.voting_stats', 0);
+    this.getMetricsCollector()?.gauge(
       'blockchain_stats_last_update.consensus_health',
       0,
     );
-    this.metricsCollector.gauge('blockchain_stats_last_update.chain_stats', 0);
+    this.getMetricsCollector()?.gauge('blockchain_stats_last_update.chain_stats', 0);
   }
 
   /**
@@ -257,11 +259,10 @@ export class BlockchainStats {
 
       // Manage cache size
       if (this.statsCache.size > this.maxCacheSize) {
-        const oldestKey = Array.from(this.statsCache.entries()).sort(
-          ([, a], [, b]) => a.timestamp - b.timestamp,
-        )[0][0];
-        this.statsCache.delete(oldestKey);
+        const oldestKey = this.cacheQueue.shift();
+        if (oldestKey) this.statsCache.delete(oldestKey);
       }
+      this.cacheQueue.push(key);
 
       if (
         cached &&
@@ -276,24 +277,28 @@ export class BlockchainStats {
       this.statsCache.set(key, { value, timestamp: now });
 
       // Update all relevant metrics
-      this.metricsCollector.histogram(
+      this.getMetricsCollector()?.histogram(
         'blockchain_stats_calculation_time',
         performance.now() - startTime,
       );
-      this.metricsCollector.gauge(`blockchain_stats_last_update.${key}`, now);
-      this.metricsCollector.gauge(
+      this.getMetricsCollector()?.gauge(`blockchain_stats_last_update.${key}`, now);
+      this.getMetricsCollector()?.gauge(
         'blockchain_stats_cache_size',
         this.statsCache.size,
       );
 
+      this.cacheIndex.set(this.blockchain.getHeight(), key);
+
       return value;
     } catch (error: unknown) {
       // Add error type to metrics
-      this.metricsCollector.counter('blockchain_stats_errors').inc({
+      this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
         stat: key,
         error: (error as Error).name,
       });
       throw error;
+    } finally {
+      this.cacheMutex.release();
     }
   }
 
@@ -366,8 +371,8 @@ export class BlockchainStats {
    */
   private async validateHeight(): Promise<number> {
     const height = this.blockchain.getHeight();
-    if (height < 0) {
-      throw new Error('Invalid blockchain height');
+    if (height < 10) {
+      throw new BlockchainStatsError('Insufficient blockchain height', 'INSUFFICIENT_HEIGHT');
     }
     return height;
   }
@@ -404,10 +409,8 @@ export class BlockchainStats {
         }
 
         // Batch fetch blocks with proper memory management
-        const batchSize = 1000;
-
-        for (let i = startHeight; i < currentHeight; i += batchSize) {
-          const endHeight = Math.min(i + batchSize, currentHeight);
+        for (let i = startHeight; i < currentHeight; i += this.BATCH_SIZE) {
+          const endHeight = Math.min(i + this.BATCH_SIZE, currentHeight);
           const blocks = await Promise.all(
             Array.from({ length: endHeight - i }, (_, idx) =>
               this.blockchain.getBlockByHeight(i + idx),
@@ -509,8 +512,8 @@ export class BlockchainStats {
       const currentHeight = await this.validateHeight();
       this.validateInput(
         BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
-        (v) => v > 0 && v <= 10000,
-        'Invalid propagation window size',
+        (v) => v > 0 && v <= (BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_WINDOW || 10000),
+        'Invalid propagation window size'
       );
       const batchSize = 100;
       const startHeight = Math.max(
@@ -618,7 +621,9 @@ export class BlockchainStats {
   public async getNetworkHashRate(): Promise<number> {
     try {
       const currentBlock = this.blockchain.getLatestBlock();
-      if (!currentBlock) return 0;
+      if (!currentBlock) {
+        throw new BlockchainStatsError('No current block', 'NO_CURRENT_BLOCK');
+      }
 
       const difficulty = currentBlock.header.difficulty;
       const blockTime = await this.getAverageBlockTime();
@@ -627,9 +632,9 @@ export class BlockchainStats {
       if (blockTime <= 0) return 0;
 
       // Network hash rate = difficulty * 2^32 / blockTime
-      return (difficulty * Math.pow(2, 32)) / blockTime;
+      return Number((BigInt(difficulty) * BigInt(Math.pow(2, 32))) / BigInt(blockTime));
     } catch (error) {
-      Logger.error('Error calculating network hash rate:', error);
+      this.handleError(error as Error, 'getNetworkHashRate');
       return 0;
     }
   }
@@ -689,14 +694,14 @@ export class BlockchainStats {
   }
 
   private startCacheCleanup(): void {
-    setInterval(() => {
+    this.cleanupIntervalId = setInterval(() => {
       const now = Date.now();
       for (const [key, entry] of this.statsCache.entries()) {
         if (now - entry.timestamp > BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL) {
           this.statsCache.delete(key);
         }
       }
-      this.metricsCollector.gauge(
+      this.metricsCollector?.gauge(
         'blockchain_stats_cache_size',
         this.statsCache.size,
       );
@@ -707,7 +712,9 @@ export class BlockchainStats {
    * Cleans up resources
    */
   public cleanup(): void {
-    clearInterval(this.cleanupInterval);
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+    }
     this.statsCache.clear();
     this.circuitBreaker.clear();
   }
@@ -721,7 +728,7 @@ export class BlockchainStats {
   private handleError(error: Error, context: string): never {
     const errorCode =
       error instanceof BlockchainStatsError ? error.code : 'UNKNOWN_ERROR';
-    this.metricsCollector.counter('blockchain_stats_errors').inc({
+    this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
       context,
       error: errorCode,
     });
@@ -748,5 +755,12 @@ export class BlockchainStats {
         return Date.now();
       }
     }) as Promise<number>;
+  }
+
+  private getMetricsCollector() {
+    if (!this.metricsCollector) {
+      this.metricsCollector = new MetricsCollector('blockchain_stats');
+    }
+    return this.metricsCollector;
   }
 }

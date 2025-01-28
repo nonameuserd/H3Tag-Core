@@ -26,6 +26,7 @@ import { BLOCKCHAIN_CONSTANTS } from '../utils/constants';
 import { Performance } from '../../monitoring/performance';
 import { Transaction } from '../../models/transaction.model';
 import { IVotingSchema } from '../../database/voting-schema';
+import { CircuitBreaker } from '../../network/circuit-breaker';
 
 interface CacheMetrics {
   hitRate: number;
@@ -228,12 +229,7 @@ export class HybridDirectConsensus {
   private readonly forkLock = new Mutex();
   private cleanupHandler?: () => Promise<void>;
   private blockchainSync: BlockchainSync | undefined;
-  private readonly circuitBreaker = {
-    failures: 0,
-    lastFailure: 0,
-    threshold: 5,
-    resetTimeout: 60000, // 1 minute
-  };
+  private readonly circuitBreaker: CircuitBreaker;
   private ddosProtection: DDoSProtection | undefined;
   private readonly cacheLock = new Mutex();
   private readonly consensusPublicKey: string;
@@ -251,6 +247,10 @@ export class HybridDirectConsensus {
     this.merkleTree = new MerkleTree();
     this.auditManager = new AuditManager();
     this.pow = new ProofOfWork(this.blockchain);
+    this.circuitBreaker = new CircuitBreaker({
+      failureThreshold: 5,
+      resetTimeout: 60000
+    });
 
     // Initialize core dependencies
     this.initializeCoreDependencies();
@@ -345,10 +345,7 @@ export class HybridDirectConsensus {
 
   async validateBlock(block: Block): Promise<boolean> {
     const validationTimer = Performance.startTimer('block_validation');
-    let timeoutId = setTimeout(
-      () => {},
-      BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS,
-    );
+    let timeoutId: NodeJS.Timeout | undefined;
 
     try {
       const result = await Promise.race([
@@ -375,7 +372,9 @@ export class HybridDirectConsensus {
       );
       return false;
     } finally {
-      clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       const duration = Performance.stopTimer(validationTimer);
       this.emitMetric('validation_duration', duration);
     }
@@ -393,8 +392,15 @@ export class HybridDirectConsensus {
         try {
           cached = this.blockCache?.get(block.hash);
           if (cached !== undefined) return cached;
-        } catch (error) {
+        } catch (error: unknown) {
           Logger.warn('Cache read error:', error);
+          this.auditManager.logEvent({
+            type: AuditEventType.SECURITY,
+            severity: AuditSeverity.WARNING,
+            source: 'cache',
+            details: { error: (error as Error).message }
+          });
+          // Continue with full validation
         }
 
         // Clean up circuit breaker before checking
@@ -483,7 +489,16 @@ export class HybridDirectConsensus {
    */
   private async handleChainFork(block: Block): Promise<string> {
     return this.forkResolutionLock.runExclusive(async () => {
-      // First check DDoS protection within the lock
+      // Validate fork block
+      if (block.header.height > this.blockchain.getCurrentHeight() + 1) {
+        throw new ConsensusError('Fork block height invalid');
+      }
+
+      if (block.header.timestamp > Date.now() + 60000) { // 1 minute in future
+        throw new ConsensusError('Fork block timestamp invalid');
+      }
+
+      // Check DDoS protection
       if (
         !this.ddosProtection?.checkRequest('fork_resolution', block.header.miner)
       ) {
@@ -761,34 +776,19 @@ export class HybridDirectConsensus {
     if (this.isDisposed) return false;
 
     try {
-      const [powHealth, votingHealth, dbHealth, cacheMetrics] =
-        await Promise.all([
-          this.pow.healthCheck(),
-          this.directVoting?.healthCheck() || Promise.resolve(false),
-          this.db.ping(),
-          this.validateCacheIntegrity(),
-          this.getCacheMetrics(),
-        ]);
+      const [powHealth, votingHealth, dbHealth, cacheMetrics] = await Promise.all([
+        this.pow.healthCheck(),
+        this.directVoting?.healthCheck() || Promise.resolve(false),
+        this.db.ping(),
+        this.validateCacheIntegrity(),
+      ]);
 
-      // Check cache health
       const isCacheHealthy =
         cacheMetrics.hitRate > 0.5 &&
         cacheMetrics.size < (this.blockCache?.maxSize || 0) &&
-        cacheMetrics.memoryUsage <
-          Number(process.env.MAX_MEMORY_USAGE || Infinity);
+        cacheMetrics.memoryUsage < Number(process.env.MAX_MEMORY_USAGE || Infinity);
 
-      const isHealthy = powHealth && votingHealth && dbHealth && isCacheHealthy;
-
-      if (!isHealthy) {
-        Logger.warn('Hybrid consensus health check failed', {
-          pow: powHealth,
-          voting: votingHealth,
-          db: dbHealth,
-          cache: cacheMetrics,
-        });
-      }
-
-      return isHealthy;
+      return powHealth && votingHealth && dbHealth && isCacheHealthy;
     } catch (error) {
       Logger.error('Health check failed:', error);
       return false;
@@ -809,16 +809,19 @@ export class HybridDirectConsensus {
    * @returns Promise<void>
    */
   public async dispose(): Promise<void> {
-    if (this.isDisposed) return;
-
-    process.off('beforeExit', this.cleanupHandler || (() => {}));
-    process.off('SIGINT', this.cleanupHandler || (() => {}));
-    process.off('SIGTERM', this.cleanupHandler || (() => {}));
-
-    this.blockCache?.clear();
-    await this.directVoting?.close();
-    await this.pow.dispose();
     this.isDisposed = true;
+    this.eventEmitter.removeAllListeners();
+     this.forkLock.release();
+     this.cacheLock.release();
+     this.forkResolutionLock.release();
+    
+    if (this.cleanupHandler) {
+      await this.cleanupHandler();
+    }
+    
+    if (this.blockCache) {
+      await this.blockCache.shutdown();
+    }
   }
 
   /**
@@ -1019,9 +1022,12 @@ export class HybridDirectConsensus {
         return a / b;
       };
 
+      const hundred = 100n;
+      const baseDifficulty = BigInt(BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_DIFFICULTY);
+
       // Higher participation = lower rewards (to incentivize early participation)
       const participationFactor = BigInt(Math.floor(100 - hybridRate));
-      reward = safeDivide(safeMultiply(reward, participationFactor), 100n);
+      reward = safeDivide(safeMultiply(reward, participationFactor), hundred);
 
       // Adjust based on block height (halving)
       const halvingInterval = BLOCKCHAIN_CONSTANTS.CONSENSUS.HALVING_INTERVAL;
@@ -1033,11 +1039,11 @@ export class HybridDirectConsensus {
       reward = reward >> BigInt(halvings);
 
       // Network difficulty adjustment
-      const difficultyFactor = await this.pow.getNetworkDifficulty(); // Kept the original network difficulty call
+      const difficultyFactor = await this.pow.getNetworkDifficulty();
       const difficultyBigInt = BigInt(difficultyFactor);
       reward = safeDivide(
         safeMultiply(reward, difficultyBigInt),
-        BigInt(BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_DIFFICULTY),
+        baseDifficulty,
       );
 
       // Minimum reward protection

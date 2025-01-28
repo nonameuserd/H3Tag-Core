@@ -667,4 +667,16 @@ export class BlockValidator {
   public removeAllListeners(): void {
     this.eventEmitter.removeAllListeners();
   }
+
+  public static async validateStructure(block: Block): Promise<boolean> {
+    try {
+      await this.validateBlockStructure(block);
+      await this.validateBlockSize(block);
+      await this.validateTimestamp(block);
+      return true;
+    } catch (error) {
+      Logger.error('Block structure validation failed:', error);
+      return false;
+    }
+  }
 }

@@ -30,6 +30,7 @@ export class DirectVotingUtil {
   private readonly backupManager: BackupManager;
   private readonly eventEmitter = new EventEmitter();
   private readonly ddosProtection: DDoSProtection;
+  private readonly voteCache = new Map<string, boolean>();
 
   /**
    * Constructor for DirectVotingUtil
@@ -126,31 +127,48 @@ export class DirectVotingUtil {
     period: VotingPeriod,
     validators: Validator[],
   ): Promise<VoteTally> {
-    // Take snapshot of period state at start
-    const periodSnapshot = { ...period };
-
     return this.voteMutex.runExclusive(async () => {
-      if (
-        Date.now() < periodSnapshot.endTime &&
-        periodSnapshot.status === 'active'
-      ) {
+      const periodSnapshot = { ...period };
+      
+      if (Date.now() < periodSnapshot.endTime && periodSnapshot.status === 'active') {
         throw new Error('Voting period still active');
       }
 
-      // Use periodSnapshot instead of period
-      const votes = Array.from(periodSnapshot.votes.values());
-      const validVotes = await Promise.all(
-        votes.map(async (vote) => {
-          try {
-            return (await this.verifyVote(vote, validators)) ? vote : null;
-          } catch (error) {
-            Logger.error('Vote verification failed:', error);
-            return null;
-          }
-        }),
-      );
+      const BATCH_SIZE = 1000; // Adjust based on performance testing
+      let offset = 0;
+      const validVotes: Vote[] = [];
 
-      return this.tallyVotes(validVotes.filter((v): v is Vote => v !== null));
+      while (true) {
+        const votesBatch = Array.from(periodSnapshot.votes.values())
+          .slice(offset, offset + BATCH_SIZE);
+        
+        if (votesBatch.length === 0) break;
+
+        // Process batch in parallel with concurrency limit
+        const batchResults = await Promise.allSettled(
+          votesBatch.map(async (vote) => {
+            try {
+              return (await this.verifyVote(vote, validators)) ? vote : null;
+            } catch (error) {
+              Logger.error('Vote verification failed:', error);
+              return null;
+            }
+          })
+        );
+
+        // Filter and store valid votes
+        validVotes.push(
+          ...batchResults
+            .filter((result): result is PromiseFulfilledResult<Vote> => 
+              result.status === 'fulfilled' && result.value !== null
+            )
+            .map((result) => result.value)
+        );
+
+        offset += BATCH_SIZE;
+      }
+
+      return this.tallyVotes(validVotes);
     });
   }
 
@@ -161,32 +179,49 @@ export class DirectVotingUtil {
    */
   private async tallyVotes(votes: Vote[]): Promise<VoteTally> {
     const tally: VoteTally = {
-      approved: BigInt(0),
-      rejected: BigInt(0),
+      approved: 0n,
+      rejected: 0n,
       totalVotes: votes.length,
       uniqueVoters: new Set(votes.map((v) => v.voter)).size,
       participationRate: 0,
       timestamp: Date.now(),
     };
 
+    // single loop for counting
     for (const vote of votes) {
-      try {
-        if (vote.approve) {
-          tally.approved = tally.approved + BigInt(1);
-        } else {
-          tally.rejected = tally.rejected + BigInt(1);
-        }
-      } catch (error) {
-        Logger.error('Vote counting error:', error);
+      if (vote.approve) {
+        tally.approved++;
+      } else {
+        tally.rejected++;
       }
     }
 
-    // Calculate participation rate safely
+    // Calculate participation rate
     const total = tally.approved + tally.rejected;
-    tally.participationRate =
-      total > 0 ? Number(tally.approved) / Number(total) : 0;
+    tally.participationRate = total > 0 ? Number(tally.approved * 10000n / total) / 10000 : 0;
 
     return tally;
+  }
+
+  /**
+   * Emits voting progress
+   * @param currentVotes Current votes
+   * @param totalVotes Total votes
+   * @param startTime Start time
+   */
+  private emitProgress(
+    currentVotes: number,
+    totalVotes: number,
+    startTime: number,
+  ): void {
+    const elapsed = Date.now() - startTime;
+    const rate = (currentVotes / elapsed) * 1000; // votes per second
+    this.eventEmitter.emit('votingProgress', {
+      currentVotes,
+      totalVotes,
+      rate,
+      elapsed,
+    });
   }
 
   /**
@@ -196,7 +231,7 @@ export class DirectVotingUtil {
    * @param newChainId New chain ID
    * @returns Promise<string> New chain ID if selected, old chain ID otherwise
    */
-  private async processVotingResults(
+  public async processVotingResults(
     tally: VoteTally,
     oldChainId: string,
     newChainId: string,
@@ -237,9 +272,15 @@ export class DirectVotingUtil {
         return newChainId;
       }
       return oldChainId;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Processing voting results failed:', error);
-      return oldChainId;
+      this.auditManager.logEvent({
+        type: AuditEventType.TYPE,
+        severity: AuditSeverity.CRITICAL,
+        source: 'node_selection',
+        details: { error: (error as Error).message || 'Unknown error' }
+      });
+      throw error;
     } finally {
       if (timer) {
         try {
@@ -261,14 +302,25 @@ export class DirectVotingUtil {
     vote: Vote,
     validators: Validator[],
   ): Promise<boolean> {
+    const cacheKey = `${vote.voter}:${vote.timestamp}`;
+
+    // Check cache first
+    if (this.voteCache.has(cacheKey)) {
+      return this.voteCache.get(cacheKey)!;
+    }
+
     // DDoS protection check
-    if (
-      !this.ddosProtection.checkRequest(`vote_verify:${vote.voter}`, vote.voter)
-    ) {
+    if (!this.ddosProtection.checkRequest(`vote_verify:${vote.voter}`, vote.voter)) {
+      this.auditManager.logEvent({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.WARNING,
+        source: 'ddos_protection',
+        details: { voter: vote.voter }
+      });
       throw new Error('Rate limit exceeded');
     }
 
-    return Promise.race([
+    const result = await Promise.race([
       this._verifyVote(vote, validators),
       new Promise<boolean>((_, reject) =>
         setTimeout(() => reject(new Error('Verification timeout')), 5000),
@@ -277,26 +329,36 @@ export class DirectVotingUtil {
       Logger.error('Vote verification failed:', error);
       return false;
     });
+
+    // Cache the result
+    this.voteCache.set(cacheKey, result);
+    return result;
   }
 
   private async _verifyVote(
     vote: Vote,
     validators: Validator[],
   ): Promise<boolean> {
-    // Basic validation
-    if (!vote?.chainVoteData || !vote.signature || !vote.voter) {
-      Logger.warn('Invalid vote structure');
+    // Early return for invalid votes
+    if (!vote?.chainVoteData || !vote.signature || !vote.voter || 
+        !vote.timestamp || !vote.chainVoteData.targetChainId) {
       return false;
     }
 
-    // Validator check
-    const validator = validators.find((v) => v.address === vote.voter);
+    // Check vote age
+    if (Date.now() - vote.timestamp > BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTE_AGE) {
+      return false;
+    }
+
+    // Map for O(1) validator lookup
+    const validatorMap = new Map(validators.map(v => [v.address, v]));
+    const validator = validatorMap.get(vote.voter);
+
     if (!validator?.isActive) {
-      Logger.warn(`Invalid or inactive validator ${vote.voter}`);
       return false;
     }
 
-    // Single signature verification attempt
+    // Verify signature
     return await this.db.verifySignature(
       vote.voter,
       `${vote.chainVoteData.targetChainId}:${vote.timestamp}`,

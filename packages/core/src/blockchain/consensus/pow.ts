@@ -301,7 +301,7 @@ interface BlockSizeComponents {
 export class ProofOfWork {
   private readonly eventEmitter = new EventEmitter();
   private isInterrupted = false;
-  public isMining = false;  // Add this line
+  public isMining = false;
   private readonly MAX_NONCE = Number.MAX_SAFE_INTEGER;
   private readonly db: BlockchainSchema;
   private readonly miningDb: MiningDatabase;
@@ -364,6 +364,11 @@ export class ProofOfWork {
   private readonly MAX_FAILURES = 5;
   private readonly retryStrategy: RetryStrategy;
   private readonly txSelectionLock = new Mutex();
+  private readonly HASH_BATCH_SIZE = 1000; // Optimized batch size for hashing
+  private readonly GPU_FALLBACK_THRESHOLD = 3; // Number of GPU failures before fallback
+  private readonly CACHE_PREFETCH_SIZE = 100; // Number of blocks to prefetch
+  private readonly MERKLE_TREE_CACHE_SIZE = 1000; // Cache size for merkle tree calculations
+  private readonly WORKER_POOL_OVERSUBSCRIBE = 1.5; // Oversubscribe worker pool for better CPU utilization
 
   /**
    * Creates a new ProofOfWork instance
@@ -374,7 +379,7 @@ export class ProofOfWork {
     this.db = new BlockchainSchema();
     this.miningDb = new MiningDatabase(databaseConfig.databases.mining.path);
     this.workerPool = new WorkerPool(
-      this.NUM_WORKERS,
+      Math.ceil(this.NUM_WORKERS * this.WORKER_POOL_OVERSUBSCRIBE),
       '../../mining/worker.ts',
     );
     this.target = this.calculateTarget(
@@ -386,17 +391,10 @@ export class ProofOfWork {
       compression: true,
       priorityLevels: { pow: 3, default: 1 },
       onEvict: (key, value) => {
-        // Add cleanup for evicted items
         Logger.info(`Evicting cache item with key: ${key}`);
         if (value && value.hash) {
           this.merkleTree.removeHash(value.hash);
-          Logger.info(
-            `Successfully removed hash ${value.hash} from Merkle tree.`,
-          );
-        } else {
-          Logger.warn(
-            `Evicted item does not have a valid hash: ${JSON.stringify(value)}`,
-          );
+          this.blockCache.delete(value.hash); // Clean up block cache
         }
       },
     });
@@ -535,11 +533,10 @@ export class ProofOfWork {
         this.gpuMiner = new GPUMiner();
         await this.gpuMiner.initialize();
       } catch (error: unknown) {
-        if (error instanceof Error) {
-          Logger.warn('GPU mining not available, falling back to CPU');
-        } else {
-          Logger.error('Unknown error during GPU mining initialization');
-        }
+        Logger.warn('GPU mining not available, falling back to CPU', {
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+        this.metrics?.recordError('gpu_init');
       }
 
       // Start mining loop if configured to do so
@@ -595,11 +592,13 @@ export class ProofOfWork {
 
         while (!this.isInterrupted && block.header.nonce < this.MAX_NONCE) {
           // Update merkle root if mempool changed
-          if (await this.mempool?.hasChanged()) {
-            block.header.merkleRoot = await this.merkleTree.createRoot(
-              block.transactions.map((tx) => tx.hash),
-            );
-          }
+          await this.txSelectionLock.runExclusive(async () => {
+            if (await this.mempool?.hasChanged()) {
+              block.header.merkleRoot = await this.merkleTree.createRoot(
+                block.transactions.map((tx) => tx.hash),
+              );
+            }
+          });
 
           // Try mining with different strategies (GPU, CPU, etc.)
           const result = await this.tryMiningStrategies(block);
@@ -646,6 +645,7 @@ export class ProofOfWork {
 
             await this.miningDb.storeMiningMetrics(metricsData);
 
+            this.updateMetrics(startTime, result.header.nonce, true); // Add metrics update
             return result;
           }
 
@@ -655,10 +655,20 @@ export class ProofOfWork {
           }
 
           block.header.nonce += BLOCKCHAIN_CONSTANTS.MINING.BATCH_SIZE;
+
+          // Emit progress periodically
+          if (block.header.nonce % 1000 === 0) {
+            const hashRate = this.calculateHashRate(
+              block.header.nonce,
+              performance.now() - startTime
+            );
+            this.emitProgress(block.header.nonce, hashRate, startTime);
+          }
         }
 
         throw new Error('Mining failed: nonce space exhausted');
       } catch (error) {
+        this.updateMetrics(startTime, block.header.nonce, false); // Add metrics update for failures
         Logger.error('Mining failed:', error);
         throw error;
       } finally {
@@ -687,15 +697,16 @@ export class ProofOfWork {
   }
 
   private async tryMiningStrategies(block: Block): Promise<Block | null> {
-    return this.withErrorBoundary('tryMiningStrategies', async () => {
-      if (!this.ddosProtection?.checkRequest('mining', block.header.miner)) {
-        throw new Error('Mining rate limit exceeded');
-      }
+    const startTime = performance.now();
+    
+    try {
+      // Add prefetching for better cache utilization
+      await this.prefetchCache(block.header.height);
 
-      // Try GPU mining first if available
+      // Try GPU mining with optimized batch size
       if (this.gpuMiner && !this.gpuCircuitBreaker.isOpen()) {
         try {
-          const gpuResult = await this.gpuMiner.mine(block, this.target);
+          const gpuResult = await this.gpuMiner.mine(block, this.target, this.HASH_BATCH_SIZE);
           if (gpuResult) {
             block.header.nonce = gpuResult.nonce;
             block.hash = gpuResult.hash;
@@ -703,24 +714,24 @@ export class ProofOfWork {
           }
         } catch (error) {
           this.gpuCircuitBreaker.recordFailure();
+          if (this.gpuCircuitBreaker.failures >= this.GPU_FALLBACK_THRESHOLD) {
+            Logger.warn('GPU mining failed, permanently falling back to CPU');
+            this.gpuMiner = undefined; // Permanently disable GPU mining
+          }
           Logger.warn('GPU mining failed, trying parallel CPU mining', error);
         }
       }
 
-      // Try parallel mining next
-      try {
-        const parallelResult = await this.tryParallelMining(block);
-        if (parallelResult) return parallelResult;
-      } catch (error) {
-        Logger.warn(
-          'Parallel mining failed, falling back to single CPU',
-          error,
-        );
-      }
+      const parallelResult = await this.tryOptimizedParallelMining(block);
+      if (parallelResult) return parallelResult;
 
-      // Finally, try single CPU mining
-      return await this.tryCPUMining(block);
-    });
+      // Fallback to optimized CPU mining
+      return await this.tryOptimizedCPUMining(block);
+    } catch (error) {
+      this.updateMetrics(startTime, block.header.nonce, false);
+      Logger.error('Mining failed:', error);
+      throw error;
+    }
   }
 
   private getTarget(difficulty: number): bigint {
@@ -788,6 +799,16 @@ export class ProofOfWork {
         BLOCKCHAIN_CONSTANTS.MINING.MAX_BLOCK_SIZE
       ) {
         Logger.error('Invalid block: exceeds maximum size');
+        return false;
+      }
+
+      if (block.header.version < BLOCKCHAIN_CONSTANTS.MINING.MIN_VERSION) {
+        Logger.error('Invalid block: version too low');
+        return false;
+      }
+
+      if (block.header.timestamp > Date.now() + 60000) { // 1 minute in future
+        Logger.error('Invalid block: timestamp in future');
         return false;
       }
 
@@ -1094,11 +1115,18 @@ export class ProofOfWork {
 
   private async prepareHeaderBase(block: Block): Promise<void> {
     try {
-      // Get transaction hashes
       const txHashes = block.transactions.map((tx) => tx.hash);
-
-      // Create merkle root using MerkleTree
-      block.header.merkleRoot = await this.merkleTree.createRoot(txHashes);
+      
+      // Use cached merkle tree if available
+      const cacheKey = `merkle:${txHashes.join('')}`;
+      const cachedRoot = this.merkleTree.getCachedRoot(cacheKey);
+      
+      if (cachedRoot) {
+        block.header.merkleRoot = cachedRoot;
+      } else {
+        block.header.merkleRoot = await this.merkleTree.createRoot(txHashes);
+        this.merkleTree.cacheRoot(cacheKey, block.header.merkleRoot);
+      }
     } catch (error) {
       Logger.error('Failed to prepare block header:', error);
       throw error;
@@ -1226,67 +1254,30 @@ export class ProofOfWork {
    * @returns Promise<boolean> True if block meets difficulty target
    */
   public async validateBlock(block: Block): Promise<boolean> {
-    // Add timeout to prevent hanging
-    const timeoutPromise = new Promise<boolean>((_, reject) => {
-      setTimeout(() => reject(new Error('Block validation timeout')), 30000);
-    });
-
+    const perfMarker = this.performanceMonitor.start('validate_block');
+    
     try {
-      // Get expected validators for this block
-      const expectedValidators = await this.mempool?.getExpectedValidators();
-      const expectedValidatorSet = new Set(
-        expectedValidators?.map((v) => v.address) || [],
-      );
-
-      // Get present validators from active nodes
-      const presentValidators = new Set(
-        (await this.node?.getActiveValidators())?.map((v) => v.address) || [],
-      );
-
-      // Check for missing validators
-      const absentValidators = Array.from(expectedValidatorSet).filter(
-        (validator) => !presentValidators.has(validator),
-      );
-
-      // Handle absent validators
-      for (const absentValidator of absentValidators) {
-        await this.mempool?.handleValidationFailure(
-          `validator_absence:${block.hash}`,
-          absentValidator,
-        );
-      }
-
-      // Continue with normal validation if we have minimum required validators
-      const minimumValidators = Math.ceil(
-        (expectedValidators?.length || 0) * 0.67,
-      ); // 67% quorum
-      if (presentValidators.size < minimumValidators) {
-        Logger.warn(
-          `Insufficient validators present: ${presentValidators.size}/${minimumValidators} required`,
-        );
-        return false;
-      }
-
-      // Proceed with regular validation with timeout
-      return await Promise.race([
-        timeoutPromise,
-        (async () => {
-          if (!block?.header || !block.hash) {
-            return false;
-          }
-          const [calculatedHash, target] = await Promise.all([
-            this.calculateBlockHash(block),
-            this.getTarget(block.header.difficulty),
-          ]);
-          return (
-            block.hash === calculatedHash && BigInt(`0x${block.hash}`) <= target
-          );
-        })(),
+      // Parallelize validation checks
+      const [hashValid, structureValid, difficultyValid] = await Promise.all([
+        this.validateBlockHash(block),
+        this.validateBlockStructure(block),
+        this.validateBlockDifficulty(block),
       ]);
-    } catch (error) {
-      Logger.error('Block validation failed:', error);
-      return false;
+
+      return hashValid && structureValid && difficultyValid;
+    } finally {
+      this.performanceMonitor.end(perfMarker);
     }
+  }
+
+  private async validateBlockHash(block: Block): Promise<boolean> {
+    const calculatedHash = this.calculateBlockHash(block);
+    return block.hash === calculatedHash;
+  }
+
+  private async validateBlockDifficulty(block: Block): Promise<boolean> {
+    const target = this.getTarget(block.header.difficulty);
+    return BigInt(`0x${block.hash}`) <= target;
   }
 
   /**
@@ -1329,24 +1320,11 @@ export class ProofOfWork {
    */
   public async dispose(): Promise<void> {
     this.isInterrupted = true;
-
-    const cleanupTasks = [
-      this.cleanupWorkers(),
-      this.gpuMiner?.dispose(),
-      this.db.close(),
-      this.performanceMonitor.dispose(),
-      this.healthMonitor.dispose(),
-    ];
-
-    try {
-      await Promise.all(cleanupTasks.filter((task) => task));
-    } catch (error) {
-      Logger.error('Cleanup failed:', error);
-    } finally {
-      this.nonceCache.clear(true);
-      this.blockCache.clear(true);
-      this.eventEmitter.removeAllListeners();
-    }
+    this.stopMining();
+    await this.nonceCache.shutdown();
+    await this.blockCache.shutdown();
+    await this.cleanupWorkers();
+    this.eventEmitter.removeAllListeners();
   }
 
   public on(event: string, listener: (...args: Block[]) => void): void {
@@ -1470,7 +1448,7 @@ export class ProofOfWork {
   async getNetworkDifficulty(): Promise<number> {
     try {
       // Get last N blocks
-      const recentBlocks = await this.getRecentBlocks(2016); // ~2 weeks of blocks
+      const recentBlocks = await this.getRecentBlocks(BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL); // ~2 weeks of blocks
 
       // Calculate average block time
       const averageBlockTime = this.calculateAverageBlockTime(recentBlocks);
@@ -2012,6 +1990,7 @@ export class ProofOfWork {
    * Starts the mining loop
    */
   public async startMining(): Promise<void> {
+    this.isMining = true; // Set isMining to true
     while (!this.isInterrupted) {
       try {
         const block = await this.createAndMineBlock();
@@ -2066,6 +2045,7 @@ export class ProofOfWork {
    * Stops the mining loop
    */
   public stopMining(): void {
+    this.isMining = false; // Set isMining to false
     this.isInterrupted = true;
   }
 
@@ -2642,5 +2622,86 @@ export class ProofOfWork {
   public async updateDifficulty(block: Block): Promise<void> {
     const currentDifficulty = await this.calculateNextDifficulty(block);
     await this.db.updateDifficulty(block.hash, currentDifficulty);
+  }
+
+  // Add cache prefetching
+  private async prefetchCache(currentHeight: number): Promise<void> {
+    try {
+      const heights = Array.from({ length: this.CACHE_PREFETCH_SIZE }, (_, i) => currentHeight + i + 1);
+      await Promise.all(heights.map(height => this.blockCache.prefetch(`block:${height}`)));
+    } catch (error) {
+      Logger.warn('Cache prefetch failed:', error);
+    }
+  }
+
+  // Optimize parallel mining
+  private async tryOptimizedParallelMining(block: Block): Promise<Block | null> {
+    const workers = await Promise.all(
+      Array(Math.ceil(this.NUM_WORKERS * this.WORKER_POOL_OVERSUBSCRIBE))
+        .fill(0)
+        .map(async () => {
+          const worker = await this.workerPool.getWorker();
+          return { worker, release: () => this.workerPool.releaseWorker(worker) };
+        }),
+    );
+
+    try {
+      const results = await Promise.race<MiningResult>(
+        workers.map(({ worker }) => 
+          new Promise<MiningResult>((resolve) => {
+            worker.once('message', resolve);
+            worker.postMessage({
+              start: block.header.nonce,
+              end: Math.min(
+                block.header.nonce + this.HASH_BATCH_SIZE,
+                this.MAX_NONCE,
+              ),
+              target: this.target.toString(),
+              headerBase: block.getHeaderBase(),
+              batchSize: this.HASH_BATCH_SIZE,
+            });
+          })
+        ),
+      );
+
+      if (results?.found) {
+        block.header.nonce = results.nonce!;
+        block.hash = results.hash!;
+        return block;
+      }
+      return null;
+    } finally {
+      workers.forEach(({ release }) => release());
+    }
+  }
+
+  // Optimize CPU mining
+  private async tryOptimizedCPUMining(block: Block): Promise<Block | null> {
+    const worker = await this.workerPool.getWorker();
+    try {
+      const result = await new Promise<MiningResult>((resolve, reject) => {
+        worker.once('message', resolve);
+        worker.once('error', reject);
+        worker.postMessage({
+          start: block.header.nonce,
+          end: Math.min(
+            block.header.nonce + this.HASH_BATCH_SIZE,
+            this.MAX_NONCE,
+          ),
+          target: this.target.toString(),
+          headerBase: block.getHeaderBase(),
+          batchSize: this.HASH_BATCH_SIZE,
+        });
+      });
+
+      if (result.found) {
+        block.header.nonce = result.nonce!;
+        block.hash = result.hash!;
+        return block;
+      }
+      return null;
+    } finally {
+      this.workerPool.releaseWorker(worker);
+    }
   }
 }

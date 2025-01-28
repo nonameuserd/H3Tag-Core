@@ -12,6 +12,7 @@ export class MerkleTree {
   private layers: string[][] = [];
   private readonly hashCache: Map<string, string> = new Map();
   private readonly maxCacheSize = 10000;
+  private readonly rootCache: Map<string, string> = new Map();
 
   /**
    * Creates a Merkle root from an array of data
@@ -247,6 +248,16 @@ export class MerkleTree {
     const index = this.leaves.indexOf(hash);
     if (index > -1) {
       this.leaves.splice(index, 1);
+    }
+  }
+
+  public getCachedRoot(key: string): string | undefined {
+    return this.rootCache.get(key);
+  }
+
+  public cacheRoot(key: string, root: string): void {
+    if (this.rootCache.size < this.maxCacheSize) {
+      this.rootCache.set(key, root);
     }
   }
 }

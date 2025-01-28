@@ -17,7 +17,11 @@ export type VotingErrorCode =
   | 'STORE_FAILED'
   | 'DUPLICATE_VOTE'
   | 'RECORD_FAILED'
-  | 'CLOSE_FAILED';
+  | 'CLOSE_FAILED'
+  | 'INVALID_PERIOD'
+  | 'INVALID_VOTER'
+  | 'COMMIT_FAILED'
+  | 'ROLLBACK_FAILED';
 
 export class VotingError extends Error {
   constructor(
