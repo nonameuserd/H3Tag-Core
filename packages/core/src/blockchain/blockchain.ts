@@ -199,6 +199,7 @@ import { retry, RetryStrategy } from '../utils/retry';
 import { DDoSProtection } from '../security/ddos';
 import { Vote } from '../models/vote.model';
 
+
 interface DbSolution {
   data: {
     blockHash: string;
@@ -315,6 +316,8 @@ export class Blockchain {
   private validationTimer: NodeJS.Timeout | null = null;
   private ddosProtection: DDoSProtection;
   private readonly chainLock = new Mutex();
+  private cleanupIntervalId?: NodeJS.Timeout;
+  private readonly cleanupInterval = 300000; // 5 minutes
 
   /**
    * Creates a new blockchain instance with the specified configuration
@@ -721,70 +724,52 @@ export class Blockchain {
    * @throws Error if block validation fails
    */
   public async addBlock(block: Block): Promise<boolean> {
-    return this.withErrorBoundary('addBlock', async () => {
-      const startTime = performance.now();
-      const release = await this.chainLock.acquire();
-
-      try {
-        // System health validation
-        if (!(await this.healthCheck())) {
-          throw new Error(
-            'UNHEALTHY_STATE, System unhealthy, cannot add block',
-          );
-        }
-
-        // Validate block before processing
+    const release = await this.chainLock.acquire();
+    try {
+        // Validate the block before adding
         await this.validateBlockPreAdd(block);
-
-        // Create immutable chain copy for atomic update
+        
+        // Create immutable chain copy
         const chainCopy = [...this.chain];
         chainCopy.push(block);
-
-        // Atomic updates with rollback on failure
+        
+        // Atomic updates
+        await this.db.startTransaction();
         try {
-          await this.db.startTransaction();
-          await this.db.saveBlock(block);
-          await this.db.updateChainState({
-            height: this.chain.length - 1,
-            lastBlockHash: block.hash,
-            timestamp: Date.now(),
-          });
-          await this.utxoSet.applyBlock(block);
-
-          // Update chain reference only after successful DB update
-          this.chain = chainCopy;
-          await this.db.commitTransaction();
-
-          // Post-commit updates that can be retried if failed
-          await this.updatePostBlockAdd(block);
-
-          this.metrics.emitMetrics(block, performance.now() - startTime);
-          return true;
-        } catch (error: unknown) {
-          Logger.error('Block addition failed, rolling back:', error);
-          throw new Error(error as string);
+            await this.db.saveBlock(block);
+            await this.db.updateChainState({
+                height: chainCopy.length - 1,
+                lastBlockHash: block.hash,
+                timestamp: Date.now()
+            });
+            await this.utxoSet.applyBlock(block);
+            await this.db.commitTransaction();
+            
+            // Update chain reference only after successful commit
+            this.chain = chainCopy;
+            return true;
+        } catch (error) {
+            await this.db.rollbackTransaction();
+            throw error;
         }
-      } finally {
+    } finally {
         release();
-      }
-    });
+    }
   }
 
   private async validateBlockPreAdd(block: Block): Promise<void> {
-    const [signatureValid, consensusValid] = await Promise.all([
-      HybridCrypto.verify(
-        block.hash || '',
-        block.header.signature || '',
-        block.header.publicKey || '',
-      ),
-      this.consensus.pow.validateBlock(block),
+    if (!block.hash || !block.header.signature || !block.header.publicKey) {
+        throw new Error('INVALID_BLOCK, Missing required block fields');
+    }
+
+    const [signatureValid, consensusValid, structureValid] = await Promise.all([
+        HybridCrypto.verify(block.hash, block.header.signature, block.header.publicKey),
+        this.consensus.pow.validateBlock(block),
+        BlockValidator.validateStructure(block)
     ]);
 
-    if (!signatureValid) {
-      throw new Error('INVALID_SIGNATURE, Invalid block signature');
-    }
-    if (!consensusValid) {
-      throw new Error('CONSENSUS_INVALID, Block failed consensus validation');
+    if (!signatureValid || !consensusValid || !structureValid) {
+        throw new Error('BLOCK_VALIDATION_FAILED, Block validation failed');
     }
   }
 
@@ -807,30 +792,23 @@ export class Blockchain {
   /**
    * Get block by hash with caching and validation
    */
-  public async getBlock(hash: string): Promise<Block | undefined | null> {
+  public async getBlock(hash: string): Promise<Block | null> {
     try {
-      // Check cache first
-      const cachedBlock = this.blockCache.get(hash);
-      if (cachedBlock) {
-        return Promise.resolve(cachedBlock);
-      }
-
-      // If not in cache, get from database
-      return this.db
-        .getBlock(hash)
-        .then((block) => {
-          if (block) {
+        const cachedBlock = this.blockCache.get(hash);
+        if (cachedBlock) return cachedBlock;
+        
+        const block = await this.db.getBlock(hash);
+        if (block) {
             this.blockCache.set(hash, block);
-          }
-          return block;
-        })
-        .catch((error) => {
-          Logger.error('Error retrieving block from database:', error);
-          return undefined;
+        }
+        return block;
+    } catch (error) {
+        Logger.error('Error retrieving block:', {
+            error,
+            hash,
+            stack: new Error().stack
         });
-    } catch (error: unknown) {
-      Logger.error('Error retrieving block:', error as Error);
-      return Promise.resolve(undefined);
+        throw new Error('BLOCK_RETRIEVAL_FAILED, Failed to retrieve block');
     }
   }
 
@@ -1002,36 +980,37 @@ export class Blockchain {
 
   /**
    * Validate the entire chain
+   * @returns Promise<boolean> True if chain is valid
    */
   public async validateChain(): Promise<boolean> {
-    try {
-      for (let i = 1; i < this.chain.length; i++) {
-        const currentBlock = this.chain[i];
-        const previousBlock = this.chain[i - 1];
-
-        // Validate block hash
-        if (
-          currentBlock.hash !==
-          this.consensus.pow.calculateBlockHash(currentBlock)
-        ) {
-          return false;
+    const BATCH_SIZE = 100;
+    
+    const results = await this.chain.slice(1).reduce(async (accPromise, block, index) => {
+        const acc = await accPromise;
+        
+        // Validate current block
+        const isValid = await this.validateBlockPreAdd(block)
+            .then(() => true)
+            .catch(() => false);
+        
+        // Add to current batch
+        acc.currentBatch.push(isValid);
+        
+        // Process batch if full or at end
+        if (acc.currentBatch.length === BATCH_SIZE || index === this.chain.length - 2) {
+            if (acc.currentBatch.some(valid => !valid)) {
+                acc.valid = false;
+            }
+            acc.currentBatch = [];
         }
+        
+        return acc;
+    }, Promise.resolve({ 
+        valid: true, 
+        currentBatch: [] as boolean[] 
+    }));
 
-        // Validate previous hash reference
-        if (currentBlock.header.previousHash !== previousBlock.hash) {
-          return false;
-        }
-
-        // Validate block using consensus rules
-        if (!(await this.consensus.validateBlock(currentBlock))) {
-          return false;
-        }
-      }
-      return true;
-    } catch (error) {
-      Logger.error('Chain validation failed:', error);
-      return false;
-    }
+    return results.valid;
   }
 
   /**
@@ -2788,5 +2767,18 @@ export class Blockchain {
   })
   private async retryPostBlockAdd(block: Block): Promise<void> {
     await this.updatePostBlockAdd(block);
+  }
+
+  private startCacheCleanup(): void {
+    this.cleanupIntervalId = setInterval(() => {
+        // ... cleanup code ...
+    }, this.cleanupInterval);
+  }
+
+  public cleanup(): void {
+    if (this.cleanupIntervalId) {
+      clearInterval(this.cleanupIntervalId);
+    }
+    // ... other cleanup ...
   }
 }

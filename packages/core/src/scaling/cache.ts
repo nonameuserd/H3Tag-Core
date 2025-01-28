@@ -460,4 +460,20 @@ export class Cache<T> {
   public get maxSize(): number {
     return this.maxItems;
   }
+
+  public async prefetch(key: string): Promise<void> {
+    if (!this.items.has(key)) {
+      // Add placeholder item to mark as prefetched
+      this.items.set(key, {
+        value: null as unknown as T,
+        expires: Date.now() + this.options.ttl * 1000,
+        lastAccessed: Date.now(),
+        size: 0,
+        compressed: false,
+        serialized: '',
+        priority: this.options.priorityLevels.default || 1,
+        currency: this.options.currency,
+      });
+    }
+  }
 }

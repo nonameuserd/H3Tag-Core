@@ -127,6 +127,7 @@ export class GPUMiner {
    * @method mine
    * @param {Block} block - Block to mine
    * @param {bigint} target - Mining target difficulty
+   * @param {number} [batchSize] - Optional batch size for mining
    * @returns {Promise<MiningResult>} Mining result with nonce and hash
    * @throws {Error} If GPU not initialized or mining fails
    *
@@ -137,11 +138,12 @@ export class GPUMiner {
    * }
    */
 
-  async mine(block: Block, target: bigint): Promise<MiningResult> {
+  async mine(block: Block, target: bigint, batchSize?: number): Promise<MiningResult> {
     if (!this.device || !this.pipeline) {
       throw new Error('GPU not initialized');
     }
 
+    const effectiveBatchSize = batchSize || 256; // Use provided batch size or default
     const buffer = this.device.createBuffer({
       size: 16,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
@@ -172,7 +174,7 @@ export class GPUMiner {
       const pass = commandEncoder.beginComputePass();
       pass.setPipeline(this.pipeline);
       pass.setBindGroup(0, this.bindGroup);
-      pass.dispatchWorkgroups(Math.ceil(this.MAX_NONCE / 256));
+      pass.dispatchWorkgroups(Math.ceil(this.MAX_NONCE / effectiveBatchSize));
       pass.end();
 
       const readBuffer = this.device.createBuffer({

@@ -16,4 +16,19 @@ jest.setTimeout(10000);
 // Clean up any resources after each test
 afterEach(() => {
   jest.clearAllMocks();
-}); 
+});
+
+// Mock the static blockchain instance before any tests run
+jest.mock('../blockchain/blockchain', () => ({
+  Blockchain: {
+    getInstance: jest.fn().mockReturnValue({
+      calculateBlockReward: jest.fn().mockReturnValue(BigInt(50)),
+      getValidatorCount: jest.fn().mockResolvedValue(10),
+      getCurrentHeight: jest.fn().mockReturnValue(1),
+    }),
+  },
+}));
+
+// Increase max listeners to avoid warning
+import { EventEmitter } from 'events';
+EventEmitter.defaultMaxListeners = 20; 

@@ -531,13 +531,10 @@ export class Mempool {
   }
 
   public async addTransaction(transaction: Transaction): Promise<boolean> {
-    const mutex = this.getMutexForTransaction(transaction.id);
-    const release = await mutex.acquire();
-    let timeoutId: NodeJS.Timeout | undefined;
-
+    const release = await this.transactionMutexes.get(transaction.hash)?.acquire();
     try {
       const timeoutPromise = new Promise<boolean>((_, reject) => {
-        timeoutId = setTimeout(
+        setTimeout(
           () => reject(new Error('Transaction processing timeout')),
           30000,
         );
@@ -548,8 +545,7 @@ export class Mempool {
         timeoutPromise,
       ]);
     } finally {
-      clearTimeout(timeoutId);
-      release();
+      release?.();
     }
   }
 
@@ -829,7 +825,10 @@ export class Mempool {
    * Removes transactions that are included in a block
    * @param {Transaction[]} transactions - Array of transactions to remove
    */
-  removeTransactions(transactions: Transaction[]): void {
+  public removeTransactions(transactions: Transaction[]): void {
+    if (!transactions || !Array.isArray(transactions)) {
+        throw new Error('INVALID_INPUT');
+    }
     transactions.forEach((tx) => {
       this.transactions.delete(tx.id);
     });
@@ -1152,9 +1151,9 @@ export class Mempool {
       return true;
     } catch (error: unknown) {
       Logger.error('Transaction validation failed:', {
-        txId: transaction?.id,
-        error: (error as Error).message,
-        stack: (error as Error).stack,
+        error,
+        txHash: transaction.hash,
+        stack: new Error().stack
       });
       await this.auditManager.log(
         AuditEventType.TRANSACTION_VALIDATION_FAILED,
@@ -1164,7 +1163,7 @@ export class Mempool {
           severity: AuditSeverity.ERROR,
         },
       );
-      return false;
+      throw new Error('VALIDATION_FAILED');
     } finally {
       if (typeof perfMarker !== 'undefined') {
         this.performanceMonitor.end(perfMarker);

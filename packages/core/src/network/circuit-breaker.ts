@@ -8,13 +8,17 @@ interface CircuitBreakerConfig {
 }
 
 export class CircuitBreaker {
-  private failures: number = 0;
-  private lastFailureTime: number = 0;
+  public failures: number = 0;
+  public lastFailure: number = 0;
+  public threshold: number;
+  public resetTimeout: number;
   private state: 'closed' | 'open' | 'half-open' = 'closed';
   private readonly config: Required<CircuitBreakerConfig>;
   private monitorInterval: NodeJS.Timeout;
 
   constructor(config: CircuitBreakerConfig) {
+    this.threshold = config.failureThreshold;
+    this.resetTimeout = config.resetTimeout;
     this.config = {
       failureThreshold: config.failureThreshold,
       resetTimeout: config.resetTimeout,
@@ -36,14 +40,14 @@ export class CircuitBreaker {
     if (this.state === 'half-open') {
       this.state = 'closed';
       this.failures = 0;
-      this.lastFailureTime = 0;
+      this.lastFailure = 0;
       Logger.info('Circuit breaker reset after successful operation');
     }
   }
 
   recordFailure(): void {
     this.failures++;
-    this.lastFailureTime = Date.now();
+    this.lastFailure = Date.now();
 
     if (this.failures >= this.config.failureThreshold) {
       this.state = 'open';
@@ -56,7 +60,7 @@ export class CircuitBreaker {
 
   private monitor(): void {
     if (this.state === 'open') {
-      const timeSinceLastFailure = Date.now() - this.lastFailureTime;
+      const timeSinceLastFailure = Date.now() - this.lastFailure;
 
       if (timeSinceLastFailure >= this.config.resetTimeout) {
         this.state = 'half-open';
@@ -75,7 +79,7 @@ export class CircuitBreaker {
 
   public onSuccess(): void {
     this.failures = 0;
-    this.lastFailureTime = 0;
+    this.lastFailure = 0;
     this.state = 'closed';
   }
 
@@ -85,7 +89,7 @@ export class CircuitBreaker {
 
   public async reset(): Promise<void> {
     this.failures = 0;
-    this.lastFailureTime = 0;
+    this.lastFailure = 0;
     this.state = 'closed';
   }
 }

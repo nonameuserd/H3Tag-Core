@@ -280,6 +280,12 @@ interface RawTransaction {
  */
 export class TransactionBuilder {
   static mempool: Mempool;
+  private static pow: ProofOfWork;
+  private static hybridDirect: HybridDirectConsensus;
+  static initialize(blockchain: Blockchain) {
+    this.pow = new ProofOfWork(blockchain);
+    this.hybridDirect = new HybridDirectConsensus(blockchain);
+  }
 
   public type: TransactionType;
   private timestamp: number;
@@ -291,10 +297,6 @@ export class TransactionBuilder {
   private readonly merkleTree: MerkleTree;
   private readonly db: BlockchainSchema;
   private static readonly blockchain = Blockchain.getInstance();
-  private static readonly pow = new ProofOfWork(TransactionBuilder.blockchain);
-  private static readonly hybridDirect = new HybridDirectConsensus(
-    TransactionBuilder.blockchain,
-  );
   private readonly mutex = new Mutex();
   private signature: string = '';
   private sender: string = '';

@@ -43,7 +43,6 @@ export class NodeInitializer {
     const dbConfig = this.getDatabaseConfig('/data/blockchain');
 
     return `
-      // 1. Core Dependencies
       const { Database } = require('@h3tag-blockchain/core/dist/database/database');
       const { MiningDatabase } = require('@h3tag-blockchain/core/dist/database/mining-schema');
       const { KeystoreDatabase } = require('@h3tag-blockchain/core/dist/database/keystore-database');
@@ -52,18 +51,15 @@ export class NodeInitializer {
       const { VotingDatabase } = require('@h3tag-blockchain/core/dist/database/voting-schema');
       const { ConfigService, Logger } = require('@h3tag-blockchain/shared');
       
-      // 2. Blockchain and Consensus
       const { Blockchain } = require('@h3tag-blockchain/core/dist/blockchain/blockchain');
       const { ProofOfWork } = require('@h3tag-blockchain/core/dist/blockchain/consensus/pow');
       const { DirectVoting } = require('@h3tag-blockchain/core/dist/blockchain/consensus/direct-voting');
       const { HybridDirectConsensus } = require('@h3tag-blockchain/core/dist/consensus/hybrid-direct');
       
-      // 3. Security and Crypto
       const { HybridCrypto } = require('@h3tag-blockchain/crypto');
       const { AuditManager } = require('@h3tag-blockchain/core/dist/security/audit');
       const { InMemoryAuditStorage } = require('@h3tag-blockchain/core/dist/security/storage');
       
-      // 4. Network Components
       const { Node } = require('@h3tag-blockchain/core/dist/network/node');
       const { Peer } = require('@h3tag-blockchain/core/dist/network/peer');
       const { BlockchainSync } = require('@h3tag-blockchain/core/dist/network/sync');
@@ -125,7 +121,6 @@ export class NodeInitializer {
           // Initialize merkle tree for block verification
           const merkleTree = new MerkleTree();
 
-          // 1. Initialize Databases with configuration
           const dbConfig = ${JSON.stringify(dbConfig)};
           
           const mainDb = new Database(dbConfig.main.path, dbConfig.main.options);
@@ -135,18 +130,15 @@ export class NodeInitializer {
           const walletDb = new WalletDatabase(dbConfig.wallet.path, dbConfig.wallet.options);
           const votingDb = new VotingDatabase(dbConfig.voting.path, dbConfig.voting.options);
 
-          // 2. Initialize Security and Monitoring with retry
           await retryStrategy.execute(async () => {
             await HybridCrypto.initialize();
             const securityKeys = await HybridCrypto.generateKeyPair();
             return securityKeys;
           });
 
-          // 3. Initialize Scaling Components
           const workerPool = new WorkerPool(4);
           const cache = new Cache({ maxSize: 1000 });
 
-          // 4. Initialize Blockchain with deep config copy
           const blockchainConfigCopy = JSON.parse(JSON.stringify(${JSON.stringify(
             blockchainConfig,
           )}));
@@ -155,14 +147,12 @@ export class NodeInitializer {
           const blockchain = new Blockchain(blockchainConfigCopy);
           await blockchain.initialize();
 
-          // 5. Initialize Network Components
           const mempool = new Mempool(blockchain);
           const dnsSeeder = new DNSSeeder(ConfigService.getConfig(), mainDb, {
             networkType: blockchainConfigCopy.network.type,
             port: blockchainConfigCopy.network.port
           });
 
-          // 6. Initialize Node and Peer Management
           const node = new Node(
             blockchain,
             mainDb,
@@ -174,7 +164,6 @@ export class NodeInitializer {
           const peerDiscovery = new PeerDiscovery(node, dnsSeeder);
           await peerDiscovery.initialize();
 
-          // 7. Initialize Blockchain Sync
           const blockchainSync = new BlockchainSync(
             blockchain,
             mempool,
@@ -187,7 +176,6 @@ export class NodeInitializer {
             mainDb
           );
 
-          // 8. Initialize Consensus Components
           const pow = new ProofOfWork(blockchain);
           await pow.initialize();
 
@@ -273,7 +261,6 @@ export class NodeInitializer {
           process.on('SIGTERM', cleanup);
           process.on('SIGINT', cleanup);
 
-          // 9. Start Node Services
           await node.initialize();
           await blockchainSync.start();
 
