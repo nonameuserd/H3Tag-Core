@@ -249,7 +249,7 @@ export class HybridDirectConsensus {
     this.pow = new ProofOfWork(this.blockchain);
     this.circuitBreaker = new CircuitBreaker({
       failureThreshold: 5,
-      resetTimeout: 60000
+      resetTimeout: 60000,
     });
 
     // Initialize core dependencies
@@ -288,7 +288,7 @@ export class HybridDirectConsensus {
       new Map(),
       { publicKey: this.consensusPublicKey },
       this.db,
-      undefined
+      undefined,
     );
 
     this.ddosProtection = new DDoSProtection(
@@ -322,7 +322,10 @@ export class HybridDirectConsensus {
       this.blockchainSync as BlockchainSync,
     );
 
+    await this.warmupCache();
+
     this.isInitialized = true;
+    this.registerCleanupHandler();
   }
 
   /**
@@ -398,7 +401,7 @@ export class HybridDirectConsensus {
             type: AuditEventType.SECURITY,
             severity: AuditSeverity.WARNING,
             source: 'cache',
-            details: { error: (error as Error).message }
+            details: { error: (error as Error).message },
           });
           // Continue with full validation
         }
@@ -494,13 +497,17 @@ export class HybridDirectConsensus {
         throw new ConsensusError('Fork block height invalid');
       }
 
-      if (block.header.timestamp > Date.now() + 60000) { // 1 minute in future
+      if (block.header.timestamp > Date.now() + 60000) {
+        // 1 minute in future
         throw new ConsensusError('Fork block timestamp invalid');
       }
 
       // Check DDoS protection
       if (
-        !this.ddosProtection?.checkRequest('fork_resolution', block.header.miner)
+        !this.ddosProtection?.checkRequest(
+          'fork_resolution',
+          block.header.miner,
+        )
       ) {
         throw new ConsensusError('Rate limit exceeded for fork resolution');
       }
@@ -776,17 +783,19 @@ export class HybridDirectConsensus {
     if (this.isDisposed) return false;
 
     try {
-      const [powHealth, votingHealth, dbHealth, cacheMetrics] = await Promise.all([
-        this.pow.healthCheck(),
-        this.directVoting?.healthCheck() || Promise.resolve(false),
-        this.db.ping(),
-        this.validateCacheIntegrity(),
-      ]);
+      const [powHealth, votingHealth, dbHealth, cacheMetrics] =
+        await Promise.all([
+          this.pow.healthCheck(),
+          this.directVoting?.healthCheck() || Promise.resolve(false),
+          this.db.ping(),
+          this.validateCacheIntegrity(),
+        ]);
 
       const isCacheHealthy =
         cacheMetrics.hitRate > 0.5 &&
         cacheMetrics.size < (this.blockCache?.maxSize || 0) &&
-        cacheMetrics.memoryUsage < Number(process.env.MAX_MEMORY_USAGE || Infinity);
+        cacheMetrics.memoryUsage <
+          Number(process.env.MAX_MEMORY_USAGE || Infinity);
 
       return powHealth && votingHealth && dbHealth && isCacheHealthy;
     } catch (error) {
@@ -811,14 +820,14 @@ export class HybridDirectConsensus {
   public async dispose(): Promise<void> {
     this.isDisposed = true;
     this.eventEmitter.removeAllListeners();
-     this.forkLock.release();
-     this.cacheLock.release();
-     this.forkResolutionLock.release();
-    
+    this.forkLock.release();
+    this.cacheLock.release();
+    this.forkResolutionLock.release();
+
     if (this.cleanupHandler) {
       await this.cleanupHandler();
     }
-    
+
     if (this.blockCache) {
       await this.blockCache.shutdown();
     }
@@ -1023,9 +1032,10 @@ export class HybridDirectConsensus {
       };
 
       const hundred = 100n;
-      const baseDifficulty = BigInt(BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_DIFFICULTY);
+      const baseDifficulty = BigInt(
+        BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_DIFFICULTY,
+      );
 
-      // Higher participation = lower rewards (to incentivize early participation)
       const participationFactor = BigInt(Math.floor(100 - hybridRate));
       reward = safeDivide(safeMultiply(reward, participationFactor), hundred);
 
@@ -1117,9 +1127,10 @@ export class HybridDirectConsensus {
       }
     };
 
+    // Register for process events
     process.on('beforeExit', this.cleanupHandler);
-    process.on('SIGINT', this.cleanupHandler);
-    process.on('SIGTERM', this.cleanupHandler);
+    process.on('SIGINT', this.cleanupHandler); // Ctrl+C
+    process.on('SIGTERM', this.cleanupHandler); // Termination signal
   }
 
   public getCacheMetrics(): CacheMetrics {
@@ -1153,6 +1164,8 @@ export class HybridDirectConsensus {
 
       // Update cache
       this.blockCache?.set(block.hash, true);
+
+      await this.warmupCache();
     } catch (error) {
       Logger.error('Failed to update consensus state:', error);
       throw error;

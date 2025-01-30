@@ -255,6 +255,7 @@ export class DirectVoting {
   private readonly VALIDATOR_CACHE_TTL = 300000; // 5 minutes
   private readonly VOTE_PROCESSING_CONCURRENCY = 10; // Max concurrent vote processing
   private readonly MERKLE_TREE_CACHE_SIZE = 1000; // Cache size for merkle tree calculations
+  private initializationPromise: Promise<void>;
 
   /**
    * Creates a new instance of DirectVoting
@@ -275,7 +276,7 @@ export class DirectVoting {
     this.sync = sync;
     this.merkleTree = new MerkleTree();
     this.performanceMonitor = new PerformanceMonitor('direct_voting');
-    this.initializeVotingSchedule().catch((error) => {
+    this.initializationPromise = this.initializeVotingSchedule().catch((error) => {
       Logger.error('Failed to initialize voting schedule:', error);
       throw error;
     });
@@ -325,9 +326,12 @@ export class DirectVoting {
       maxSize: this.VOTE_CACHE_SIZE,
       ttl: this.VALIDATOR_CACHE_TTL,
     });
+
+    this.eventEmitter.removeAllListeners(); // Clean up any existing listeners
   }
 
   public async initialize(): Promise<void> {
+    await this.initializationPromise;
     await this.initializeVotingSchedule();
     await this.mempool?.initialize();
     await this.ddosProtection?.initialize();
@@ -497,17 +501,21 @@ export class DirectVoting {
     const perfMarker = this.performanceMonitor.start('submit_vote');
     
     try {
-      // Batch validation
-      const isValid = await this.validateVoteBatch([vote]);
-      if (!isValid) return false;
+        if (!this.currentPeriod || this.currentPeriod.status !== 'active') {
+            throw new VotingError('INACTIVE_PERIOD', 'No active voting period');
+        }
 
-      // Process vote in transaction
-      return await this.votingDb.transaction(async (tx) => {
-        await this.processVote(vote, tx);
-        return true;
-      });
+        // Batch validation
+        const isValid = await this.validateVoteBatch([vote]);
+        if (!isValid) return false;
+
+        // Process vote in transaction
+        return await this.votingDb.transaction(async (tx) => {
+            await this.processVote(vote, tx);
+            return true;
+        });
     } finally {
-      this.performanceMonitor.end(perfMarker);
+        this.performanceMonitor.end(perfMarker);
     }
   }
 
@@ -951,26 +959,30 @@ export class DirectVoting {
    * Cleans up cache
    */
   private cleanupCache(): void {
-    if (!this.currentPeriod) {
-      this.cache?.clear();
-      return;
+    if (!this.currentPeriod || !this.cache) {
+        this.cache?.clear();
+        return;
     }
 
     const currentTime = Date.now();
     const MAX_CACHE_AGE = 3600000; // 1 hour
     const MAX_CACHE_SIZE = 10000;
+    const CLEANUP_THRESHOLD = 0.8; // Clean when 80% full
+
+    // Early return if cache is not too large
+    if (this.cache.size() < MAX_CACHE_SIZE * CLEANUP_THRESHOLD) {
+        return;
+    }
 
     // Remove old entries
-    for (const [key, value] of this.cache?.entries() || []) {
-      const votes = value as Vote[];
-      if (!this.cache) continue;
-      if (
-        votes.length > 0 &&
-        (currentTime - votes[0].timestamp > MAX_CACHE_AGE ||
-         this.cache?.size() > MAX_CACHE_SIZE)
-      ) {
-        this.cache?.delete(key);
-      }
+    const entries = Array.from(this.cache.entries());
+    for (const [key, value] of entries) {
+        const votes = value as Vote[];
+        if (votes.length > 0 && 
+            (currentTime - votes[0].timestamp > MAX_CACHE_AGE || 
+             this.cache.size() > MAX_CACHE_SIZE)) {
+            this.cache.delete(key);
+        }
     }
   }
 
@@ -1160,15 +1172,11 @@ export class DirectVoting {
   }
 
   private async transitionPeriod(): Promise<void> {
-    if (!this.currentPeriod) return;
-
-    // Add mutex protection
     return this.periodMutex.runExclusive(async () => {
-      if (this.currentPeriod?.status === 'active') {
+        if (!this.currentPeriod || this.currentPeriod.status !== 'active') return;
         this.currentPeriod.status = 'completed';
         await this.votingDb.storePeriod(this.currentPeriod);
         this.eventEmitter.emit('votingPeriodEnded', this.currentPeriod);
-      }
     });
   }
 
@@ -1266,34 +1274,52 @@ export class DirectVoting {
   }
 
   private setupIntervals(): void {
+    let consecutiveFailures = 0;
+    const MAX_CONSECUTIVE_FAILURES = 3;
+    
     const periodCheckInterval = setInterval(async () => {
-      try {
-        if (this.isShuttingDown) {
-          clearInterval(periodCheckInterval);
-          return;
+        try {
+            if (this.isShuttingDown) {
+                clearInterval(periodCheckInterval);
+                return;
+            }
+            await this.transitionPeriod();
+            consecutiveFailures = 0;
+        } catch (error) {
+            consecutiveFailures++;
+            Logger.error('Period transition failed:', error);
+            try {
+                await this.logAudit('period_transition_failed', {
+                    error: (error as Error).message,
+                    timestamp: Date.now(),
+                });
+            } catch (e) {
+                Logger.error('Failed to log audit:', e);
+            }
+            
+            if (consecutiveFailures > MAX_CONSECUTIVE_FAILURES) {
+                clearInterval(periodCheckInterval);
+                Logger.error('Stopping period check due to repeated failures');
+            }
         }
-        await this.transitionPeriod();
-      } catch (error) {
-        Logger.error('Period transition failed:', error);
-        await this.logAudit('period_transition_failed', {
-          error: (error as Error).message,
-          timestamp: Date.now(),
-        }).catch((e) => Logger.error('Failed to log audit:', e));
-      }
     }, BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.PERIOD_CHECK_INTERVAL);
   }
 
   private async acquireLocks<T>(operation: () => Promise<T>): Promise<T> {
-    const voteLockRelease = await this.voteMutex.acquire();
+    // Always acquire locks in the same order
+    const lock1 = this.voteMutex;
+    const lock2 = this.periodMutex;
+    
+    const release1 = await lock1.acquire();
     try {
-      const periodLockRelease = await this.periodMutex.acquire();
-      try {
-        return await operation();
-      } finally {
-        periodLockRelease();
-      }
+        const release2 = await lock2.acquire();
+        try {
+            return await operation();
+        } finally {
+            release2();
+        }
     } finally {
-      voteLockRelease();
+        release1();
     }
   }
 

@@ -348,4 +348,12 @@ export class MetricsCollector {
       },
     };
   }
+
+  /**
+   * Cleans up metrics collector resources
+   */
+  cleanup(): void {
+    this.metrics.clear();
+    this.timers.clear();
+  }
 }

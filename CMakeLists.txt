@@ -4,6 +4,7 @@ project(quantum-safe-blockchain VERSION 0.1.0)
 # version check for liboqs
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBOQS REQUIRED IMPORTED_TARGET liboqs>=0.12.0)
+find_package(OpenSSL REQUIRED)
 
 # Platform-specific settings
 if(APPLE)
@@ -21,6 +22,7 @@ include_directories(
     ${CMAKE_JS_INC}
     ${LIBOQS_ROOT}/include
     ${CMAKE_SOURCE_DIR}/src/crypto/native
+    /opt/homebrew/opt/openssl@3/include
 )
 
 add_library(${PROJECT_NAME} SHARED 

@@ -305,7 +305,7 @@ export class Blockchain {
   private readonly auditManager: AuditManager;
   private readonly cacheLock = new Mutex();
   private readonly circuitBreakers: Map<string, CircuitBreaker> = new Map();
-  private readonly metrics: MetricsCollector;
+  private metrics: MetricsCollector;
   private readonly retryStrategy: RetryStrategy;
   private boundSyncCompleted: () => void;
   private boundSyncError: (error: Error) => void;
@@ -318,6 +318,13 @@ export class Blockchain {
   private readonly chainLock = new Mutex();
   private cleanupIntervalId?: NodeJS.Timeout;
   private readonly cleanupInterval = 300000; // 5 minutes
+
+  private readonly MAX_CACHE_SIZE = 10000; // Add this constant
+  private readonly CACHE_TTL = 300000; // 5 minutes
+
+  private readonly utxoMutex = new Mutex();
+
+  private readonly MEMPOOL_TTL = 3600000; // 1 hour
 
   /**
    * Creates a new blockchain instance with the specified configuration
@@ -1671,16 +1678,25 @@ export class Blockchain {
   }
 
   private pruneMemory(): void {
-    // Clear caches
-    const blockEntries = Array.from(this.blockCache.entries());
-    blockEntries
-      .slice(Math.floor(blockEntries.length / 2))
-      .forEach(([key]) => this.blockCache.delete(key));
+    const now = Date.now();
+    
+    // Prune block cache
+    Array.from(this.blockCache.entries())
+      .slice(Math.floor(Number(this.blockCache.size) / 2))
+      .forEach(([key, value]) => {
+        if ((Number(now) - Number(value.timestamp || 0)) > this.CACHE_TTL || Number(this.blockCache.size) > Number(this.MAX_CACHE_SIZE)) {
+          this.blockCache.delete(key);
+        }
+      });
 
-    const txEntries = Array.from(this.transactionCache.entries());
-    txEntries
-      .slice(Math.floor(txEntries.length / 2))
-      .forEach(([key]) => this.transactionCache.delete(key));
+    // Prune transaction cache
+    Array.from(this.transactionCache.entries())
+      .slice(Math.floor(Number(this.transactionCache.size) / 2))
+      .forEach(([key, value]) => {
+        if ((Number(now) - Number(value.timestamp || 0)) > this.CACHE_TTL || Number(this.transactionCache.size) > Number(this.MAX_CACHE_SIZE)) {
+          this.transactionCache.delete(key);
+        }
+      });
   }
 
   public async getConsensusMetrics() {
@@ -1851,14 +1867,16 @@ export class Blockchain {
   private async calculateInputAmount(
     inputs: Array<{ txId: string; outputIndex: number }>,
   ): Promise<bigint> {
-    let total = 0n;
-    for (const input of inputs) {
-      const utxo = await this.utxoSet.getUtxo(input.txId, input.outputIndex);
-      if (!utxo || utxo.spent) {
-        throw new Error('Invalid or spent UTXO');
-      }
-      total += BigInt(utxo.amount);
-    }
+    const total = await Promise.all(
+      inputs.map(async (input) => {
+        const utxo = this.utxoSet.getUtxo(input.txId, input.outputIndex);
+        if (!utxo || utxo.spent) {
+          throw new Error('Invalid or spent UTXO');
+        }
+        return BigInt(utxo.amount);
+      })
+    ).then((amounts) => amounts.reduce((sum, amount) => sum + amount, 0n));
+
     return total;
   }
 
@@ -1870,17 +1888,18 @@ export class Blockchain {
   private async checkAndMarkSpent(tx: Transaction): Promise<boolean> {
     const release = await this.txLock.acquire();
     try {
-      for (const input of tx.inputs) {
+      // Replace for loop with array methods
+      const hasDoubleSpend = tx.inputs.some(input => {
         const spentOutputs = this.spentTxTracker.get(input.txId) || new Set();
-
         if (spentOutputs.has(input.outputIndex)) {
-          return false; // Double-spend detected
+          return true; // Double-spend detected
         }
-
         spentOutputs.add(input.outputIndex);
         this.spentTxTracker.set(input.txId, spentOutputs);
-      }
-      return true;
+        return false;
+      });
+
+      return !hasDoubleSpend;
     } finally {
       release();
     }
@@ -1943,44 +1962,20 @@ export class Blockchain {
    * Cleans up mempool
    */
   private cleanupMempool(): void {
-    const before = this.mempool.getSize();
-    try {
-      const now = Date.now();
-      const transactions = this.mempool.getTransactions();
+    const now = Date.now();
+    const transactions = this.mempool.getTransactions();
 
-      for (const tx of transactions) {
-        // Remove expired transactions
-        if (now - tx.timestamp > this.MEMPOOL_EXPIRY_TIME) {
-          this.mempool.removeTransaction(tx.id);
-          continue;
-        }
+    // Remove expired transactions
+    transactions
+      .filter(tx => now - tx.timestamp > this.MEMPOOL_TTL)
+      .forEach(tx => this.mempool.removeTransaction(tx.id));
 
-        // Remove transactions from blacklisted addresses
-        if (this.blacklistedAddresses.has(tx.sender)) {
-          this.mempool.removeTransaction(tx.id);
-          continue;
-        }
-      }
-
-      // If mempool is still too large, remove oldest transactions
-      if (this.mempool.getSize() > this.MAX_MEMPOOL_SIZE) {
-        const sortedTxs = transactions.sort(
-          (a, b) => a.timestamp - b.timestamp,
-        );
-        const excessCount = this.mempool.getSize() - this.MAX_MEMPOOL_SIZE;
-        sortedTxs.slice(0, excessCount).forEach((tx) => {
-          this.mempool.removeTransaction(tx.id);
-        });
-      }
-
-      const after = this.mempool.getSize();
-
-      // Record cleanup metrics
-      this.metrics.gauge('mempool_size', after);
-      this.metrics.histogram('mempool_cleanup_removed', before - after);
-    } catch (error) {
-      this.metrics.increment('mempool_cleanup_errors');
-      throw error;
+    // If mempool is still too large, remove oldest transactions
+    if (this.mempool.getSize() > this.MAX_MEMPOOL_SIZE) {
+      transactions
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .slice(0, this.mempool.getSize() - this.MAX_MEMPOOL_SIZE)
+        .forEach(tx => this.mempool.removeTransaction(tx.id));
     }
   }
 
@@ -2024,7 +2019,7 @@ export class Blockchain {
         this.errorHandler.handle(error as Error, 'chainReorganization');
         return false;
       } finally {
-        await release();
+         release();
       }
     });
   }
@@ -2194,15 +2189,22 @@ export class Blockchain {
   private async rollbackToBlock(height: number): Promise<void> {
     try {
       const currentHeight = this.getCurrentHeight();
-      for (let i = currentHeight; i > height; i--) {
-        const blockHash = await this.db.getBlockHashByHeight(i);
-        if (blockHash) {
-          const block = await this.getBlock(blockHash);
-          if (block) {
-            await this.revertBlock(block);
+      const heightsToRollback = Array.from(
+        { length: currentHeight - height },
+        (_, i) => currentHeight - i
+      );
+
+      await Promise.all(
+        heightsToRollback.map(async (i) => {
+          const blockHash = await this.db.getBlockHashByHeight(i);
+          if (blockHash) {
+            const block = await this.getBlock(blockHash);
+            if (block) {
+              await this.revertBlock(block);
+            }
           }
-        }
-      }
+        })
+      );
       await this.db.setChainHead(height);
     } catch (error) {
       Logger.error('Error rolling back blocks:', error);
@@ -2240,11 +2242,16 @@ export class Blockchain {
    */
   private async revertBlock(block: Block): Promise<void> {
     try {
-      // Revert transactions in reverse order
-      for (const tx of block.transactions.reverse()) {
-        await this.utxoSet.revertTransaction(tx);
-        this.mempool.addTransaction(tx);
-      }
+      // Revert transactions in reverse order using array methods
+      await Promise.all(
+        block.transactions
+          .slice()
+          .reverse()
+          .map(async (tx) => {
+            await this.utxoSet.revertTransaction(tx);
+            this.mempool.addTransaction(tx);
+          })
+      );
 
       // Update chain state
       await this.db.setChainHead(block.header.height - 1);
@@ -2266,21 +2273,30 @@ export class Blockchain {
     operation: string,
     action: () => Promise<T>,
   ): Promise<T> {
-    const breaker = this.circuitBreakers.get(operation);
-    if (!breaker) {
-      throw new Error(`No circuit breaker found for operation: ${operation}`);
-    }
+    const breaker = this.circuitBreakers.get(operation) || {
+      failures: 0,
+      lastFailure: 0,
+      isOpen: false,
+    };
 
-    if (breaker.isOpen()) {
-      throw new Error(`Circuit breaker is open for operation: ${operation}`);
+    if (breaker.isOpen) {
+      const cooldownTime = 60000; // 1 minute
+      if (Date.now() - breaker.lastFailure < cooldownTime) {
+        throw new Error(`Circuit breaker is open for operation: ${operation}`);
+      }
+      breaker.isOpen = false;
     }
 
     try {
       const result = await action();
-      breaker.recordSuccess();
+      breaker.failures = 0;
+      this.circuitBreakers.set(operation, breaker as CircuitBreaker);
       return result;
     } catch (error) {
-      breaker.recordFailure();
+      breaker.failures++;
+      breaker.lastFailure = Date.now();
+      breaker.isOpen = breaker.failures >= 5;
+      this.circuitBreakers.set(operation, breaker as CircuitBreaker);
       throw error;
     }
   }
@@ -2347,18 +2363,16 @@ export class Blockchain {
    * @throws Error if validation fails
    */
   private async validateAndUpdateUTXOSet(): Promise<void> {
-    return this.withErrorBoundary('utxoValidation', async () => {
-      const release = await this.cacheLock.acquire();
-      try {
-        if (!this.utxoSet.validate()) {
-          Logger.warn('UTXO set validation failed, rebuilding...');
-          this.rebuildUTXOSet();
-        }
-        this.utxoSetCache.set('current', this.utxoSet);
-      } finally {
-        release();
+    const release = await this.utxoMutex.acquire();
+    try {
+      if (!this.utxoSet.validate()) {
+        Logger.warn('UTXO set validation failed, rebuilding...');
+        this.rebuildUTXOSet();
       }
-    });
+      this.utxoSetCache.set('current', this.utxoSet);
+    } finally {
+      release();
+    }
   }
 
   /**
@@ -2780,5 +2794,13 @@ export class Blockchain {
       clearInterval(this.cleanupIntervalId);
     }
     // ... other cleanup ...
+  }
+
+  private initializeMetrics(): void {
+    this.metrics = new MetricsCollector('blockchain');
+    this.metrics.gauge('block_height', this.getCurrentHeight());
+    this.metrics.gauge('mempool_size', this.mempool.getSize());
+    this.metrics.gauge('utxo_set_size', this.utxoSet.size());
+    this.metrics.gauge('active_peers', this.peers.size);
   }
 }

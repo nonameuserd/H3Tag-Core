@@ -32,6 +32,7 @@ class QuantumNative {
         if (this.healthCheckInterval) {
             clearInterval(this.healthCheckInterval);
             this.healthCheckInterval = undefined;
+            shared_1.Logger.debug('Health checks cleared');
         }
     }
     static getInstance() {
@@ -68,7 +69,7 @@ class QuantumNative {
         const start = perf_hooks_1.performance.now();
         try {
             const keyPair = await this.generateDilithiumKeyPair();
-            console.log(keyPair);
+            shared_1.Logger.debug('Generated key pair for health check');
             const testMessage = Buffer.from('health_check');
             const signature = await this.dilithiumSign(testMessage, keyPair.privateKey);
             const isValid = await this.dilithiumVerify(testMessage, signature, keyPair.publicKey);
@@ -80,13 +81,20 @@ class QuantumNative {
         }
         catch (error) {
             shared_1.Logger.error('Quantum health check failed:', error);
+            this.clearHealthChecks();
             throw error;
         }
     }
     async shutdown() {
-        this.clearHealthChecks();
-        this.isInitialized = false;
-        shared_1.Logger.info('Quantum native module shut down');
+        try {
+            this.clearHealthChecks();
+            this.isInitialized = false;
+            shared_1.Logger.info('Quantum native module shut down');
+        }
+        catch (error) {
+            shared_1.Logger.error('Failed to shutdown quantum native module:', error);
+            throw new QuantumError('Shutdown failed');
+        }
     }
     checkInitialization() {
         if (!this.isInitialized) {
@@ -120,6 +128,7 @@ class QuantumNative {
         }
         catch (error) {
             shared_1.Logger.error('Failed to generate Dilithium key pair:', error);
+            this.clearHealthChecks();
             throw new QuantumError(error instanceof Error
                 ? error.message
                 : 'Dilithium key generation failed');

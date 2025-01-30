@@ -474,7 +474,9 @@ export class ProofOfWork {
       }
 
       this.metrics = MiningMetrics.getInstance();
-      this.difficultyAdjuster = new DifficultyAdjuster(this.blockchain as IBlockchainData);
+      this.difficultyAdjuster = new DifficultyAdjuster(
+        this.blockchain as IBlockchainData,
+      );
 
       // Initialize block validation
       const validateBlock = async (block: Block): Promise<boolean> => {
@@ -534,7 +536,7 @@ export class ProofOfWork {
         await this.gpuMiner.initialize();
       } catch (error: unknown) {
         Logger.warn('GPU mining not available, falling back to CPU', {
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : 'Unknown error',
         });
         this.metrics?.recordError('gpu_init');
       }
@@ -660,7 +662,7 @@ export class ProofOfWork {
           if (block.header.nonce % 1000 === 0) {
             const hashRate = this.calculateHashRate(
               block.header.nonce,
-              performance.now() - startTime
+              performance.now() - startTime,
             );
             this.emitProgress(block.header.nonce, hashRate, startTime);
           }
@@ -698,15 +700,19 @@ export class ProofOfWork {
 
   private async tryMiningStrategies(block: Block): Promise<Block | null> {
     const startTime = performance.now();
-    
+
     try {
       // Add prefetching for better cache utilization
       await this.prefetchCache(block.header.height);
 
-      // Try GPU mining with optimized batch size
+      // Try GPU mining with batch size
       if (this.gpuMiner && !this.gpuCircuitBreaker.isOpen()) {
         try {
-          const gpuResult = await this.gpuMiner.mine(block, this.target, this.HASH_BATCH_SIZE);
+          const gpuResult = await this.gpuMiner.mine(
+            block,
+            this.target,
+            this.HASH_BATCH_SIZE,
+          );
           if (gpuResult) {
             block.header.nonce = gpuResult.nonce;
             block.hash = gpuResult.hash;
@@ -722,11 +728,11 @@ export class ProofOfWork {
         }
       }
 
-      const parallelResult = await this.tryOptimizedParallelMining(block);
+      const parallelResult = await this.tryParallelMining(block);
       if (parallelResult) return parallelResult;
 
-      // Fallback to optimized CPU mining
-      return await this.tryOptimizedCPUMining(block);
+      // Fallback to CPU mining
+      return await this.tryCPUMining(block);
     } catch (error) {
       this.updateMetrics(startTime, block.header.nonce, false);
       Logger.error('Mining failed:', error);
@@ -807,7 +813,8 @@ export class ProofOfWork {
         return false;
       }
 
-      if (block.header.timestamp > Date.now() + 60000) { // 1 minute in future
+      if (block.header.timestamp > Date.now() + 60000) {
+        // 1 minute in future
         Logger.error('Invalid block: timestamp in future');
         return false;
       }
@@ -1116,11 +1123,11 @@ export class ProofOfWork {
   private async prepareHeaderBase(block: Block): Promise<void> {
     try {
       const txHashes = block.transactions.map((tx) => tx.hash);
-      
+
       // Use cached merkle tree if available
       const cacheKey = `merkle:${txHashes.join('')}`;
       const cachedRoot = this.merkleTree.getCachedRoot(cacheKey);
-      
+
       if (cachedRoot) {
         block.header.merkleRoot = cachedRoot;
       } else {
@@ -1166,96 +1173,13 @@ export class ProofOfWork {
   }
 
   /**
-   * Attempts parallel mining
-   * @param block Block to mine
-   * @returns Promise<Block | null> Mined block or null if failed
-   */
-  private async tryParallelMining(block: Block): Promise<Block | null> {
-    const workers = await Promise.all(
-      Array(this.NUM_WORKERS)
-        .fill(0)
-        .map(async () => {
-          const worker = await this.workerPool.getWorker();
-          return {
-            worker,
-            release: () => this.workerPool.releaseWorker(worker),
-          };
-        }),
-    );
-
-    try {
-      const results = await Promise.race<MiningResult>(
-        workers.map(
-          ({ worker }) =>
-            new Promise<MiningResult>((resolve) => {
-              worker.once('message', resolve);
-              worker.postMessage({
-                start: block.header.nonce,
-                end: Math.min(
-                  block.header.nonce + BLOCKCHAIN_CONSTANTS.MINING.BATCH_SIZE,
-                  this.MAX_NONCE,
-                ),
-                target: this.target.toString(),
-                headerBase: block.getHeaderBase(),
-                batchSize: 1000,
-              });
-            }),
-        ),
-      );
-
-      if (results?.found) {
-        block.header.nonce = results.nonce!;
-        block.hash = results.hash!;
-        return block;
-      }
-      return null;
-    } finally {
-      workers.forEach(({ release }) => release());
-    }
-  }
-
-  /**
-   * Attempts CPU mining
-   * @param block Block to mine
-   * @returns Promise<Block | null> Mined block or null if failed
-   */
-  private async tryCPUMining(block: Block): Promise<Block | null> {
-    const worker = await this.workerPool.getWorker();
-    try {
-      const result = await new Promise<MiningResult>((resolve, reject) => {
-        worker.once('message', resolve);
-        worker.once('error', reject);
-        worker.postMessage({
-          start: block.header.nonce,
-          end: Math.min(
-            block.header.nonce + BLOCKCHAIN_CONSTANTS.MINING.BATCH_SIZE,
-            this.MAX_NONCE,
-          ),
-          target: this.target.toString(),
-          headerBase: block.getHeaderBase(),
-          batchSize: 1000,
-        });
-      });
-
-      if (result.found) {
-        block.header.nonce = result.nonce!;
-        block.hash = result.hash!;
-        return block;
-      }
-      return null;
-    } finally {
-      this.workerPool.releaseWorker(worker);
-    }
-  }
-
-  /**
    * Validates block's proof of work
    * @param block Block to validate
    * @returns Promise<boolean> True if block meets difficulty target
    */
   public async validateBlock(block: Block): Promise<boolean> {
     const perfMarker = this.performanceMonitor.start('validate_block');
-    
+
     try {
       // Parallelize validation checks
       const [hashValid, structureValid, difficultyValid] = await Promise.all([
@@ -1448,7 +1372,9 @@ export class ProofOfWork {
   async getNetworkDifficulty(): Promise<number> {
     try {
       // Get last N blocks
-      const recentBlocks = await this.getRecentBlocks(BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL); // ~2 weeks of blocks
+      const recentBlocks = await this.getRecentBlocks(
+        BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
+      ); // ~2 weeks of blocks
 
       // Calculate average block time
       const averageBlockTime = this.calculateAverageBlockTime(recentBlocks);
@@ -1962,7 +1888,10 @@ export class ProofOfWork {
     tx.id = tx.hash;
 
     // Sign the transaction
-    tx.signature = await HybridCrypto.sign(tx.hash, this.minerKeyPair as HybridKeyPair);
+    tx.signature = await HybridCrypto.sign(
+      tx.hash,
+      this.minerKeyPair as HybridKeyPair,
+    );
 
     return tx;
   }
@@ -2627,40 +2556,56 @@ export class ProofOfWork {
   // Add cache prefetching
   private async prefetchCache(currentHeight: number): Promise<void> {
     try {
-      const heights = Array.from({ length: this.CACHE_PREFETCH_SIZE }, (_, i) => currentHeight + i + 1);
-      await Promise.all(heights.map(height => this.blockCache.prefetch(`block:${height}`)));
+      const heights = Array.from(
+        { length: this.CACHE_PREFETCH_SIZE },
+        (_, i) => currentHeight + i + 1,
+      );
+      await Promise.all(
+        heights.map((height) => this.blockCache.prefetch(`block:${height}`)),
+      );
     } catch (error) {
       Logger.warn('Cache prefetch failed:', error);
     }
   }
 
-  // Optimize parallel mining
-  private async tryOptimizedParallelMining(block: Block): Promise<Block | null> {
+    /**
+   * Attempts parallel mining
+   * @param block Block to mine
+   * @returns Promise<Block | null> Mined block or null if failed
+   */
+
+  private async tryParallelMining(
+    block: Block,
+  ): Promise<Block | null> {
     const workers = await Promise.all(
       Array(Math.ceil(this.NUM_WORKERS * this.WORKER_POOL_OVERSUBSCRIBE))
         .fill(0)
         .map(async () => {
           const worker = await this.workerPool.getWorker();
-          return { worker, release: () => this.workerPool.releaseWorker(worker) };
+          return {
+            worker,
+            release: () => this.workerPool.releaseWorker(worker),
+          };
         }),
     );
 
     try {
       const results = await Promise.race<MiningResult>(
-        workers.map(({ worker }) => 
-          new Promise<MiningResult>((resolve) => {
-            worker.once('message', resolve);
-            worker.postMessage({
-              start: block.header.nonce,
-              end: Math.min(
-                block.header.nonce + this.HASH_BATCH_SIZE,
-                this.MAX_NONCE,
-              ),
-              target: this.target.toString(),
-              headerBase: block.getHeaderBase(),
-              batchSize: this.HASH_BATCH_SIZE,
-            });
-          })
+        workers.map(
+          ({ worker }) =>
+            new Promise<MiningResult>((resolve) => {
+              worker.once('message', resolve);
+              worker.postMessage({
+                start: block.header.nonce,
+                end: Math.min(
+                  block.header.nonce + this.HASH_BATCH_SIZE,
+                  this.MAX_NONCE,
+                ),
+                target: this.target.toString(),
+                headerBase: block.getHeaderBase(),
+                batchSize: this.HASH_BATCH_SIZE,
+              });
+            }),
         ),
       );
 
@@ -2675,8 +2620,14 @@ export class ProofOfWork {
     }
   }
 
-  // Optimize CPU mining
-  private async tryOptimizedCPUMining(block: Block): Promise<Block | null> {
+
+  /**
+   * Attempts parallel CPU mining
+   * @param block Block to mine
+   * @returns Promise<Block | null> Mined block or null if failed
+   * 
+   */
+  private async tryCPUMining(block: Block): Promise<Block | null> {
     const worker = await this.workerPool.getWorker();
     try {
       const result = await new Promise<MiningResult>((resolve, reject) => {
