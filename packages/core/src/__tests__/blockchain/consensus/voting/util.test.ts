@@ -114,23 +114,23 @@ describe('DirectVotingUtil', () => {
         periodId: Date.now(),
         status: 'completed',
         endTime: Date.now() - 1000,
-        votes: new Map([
-          ['1', {
+        votes: {
+          '1': {
             voter: 'voter1',
             approve: true,
             chainVoteData: { targetChainId: 'chain1' },
             signature: 'sig1',
             timestamp: Date.now()
-          } as Vote],
-          ['2', {
+          } as Vote,
+          '2': {
             voter: 'voter2',
             approve: false,
             chainVoteData: { targetChainId: 'chain1' },
             signature: 'sig2',
             timestamp: Date.now()
-          } as Vote],
-        ]),
-      } as VotingPeriod;
+          } as Vote,
+        },
+      } as unknown as VotingPeriod;
 
       const mockValidators = [
         { address: 'voter1', isActive: true } as Validator,
@@ -153,7 +153,7 @@ describe('DirectVotingUtil', () => {
       const mockPeriod: VotingPeriod = {
         status: 'active',
         endTime: Date.now() + 1000,
-        votes: new Map(),
+        votes: {},
       } as VotingPeriod;
 
       await expect(votingUtil.collectVotes(mockPeriod, [])).rejects.toThrow(
@@ -186,13 +186,13 @@ describe('DirectVotingUtil', () => {
 
       mockDb.verifySignature.mockResolvedValue(true);
 
-      const result = await votingUtil.verifyVote(mockVote, mockValidators);
+      const result = await votingUtil.verifyVote(mockVote, new Map(mockValidators.map(v => [v.address, v])));
       expect(result).toBe(true);
     });
 
     it('should reject invalid vote structure', async () => {
       const mockVote = {} as Vote;
-      const result = await votingUtil.verifyVote(mockVote, []);
+      const result = await votingUtil.verifyVote(mockVote, new Map());
       expect(result).toBe(false);
     });
   });

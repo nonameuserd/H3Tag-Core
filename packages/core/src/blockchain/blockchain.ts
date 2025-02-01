@@ -991,33 +991,28 @@ export class Blockchain {
    */
   public async validateChain(): Promise<boolean> {
     const BATCH_SIZE = 100;
-    
-    const results = await this.chain.slice(1).reduce(async (accPromise, block, index) => {
-        const acc = await accPromise;
-        
-        // Validate current block
-        const isValid = await this.validateBlockPreAdd(block)
-            .then(() => true)
-            .catch(() => false);
-        
-        // Add to current batch
-        acc.currentBatch.push(isValid);
-        
-        // Process batch if full or at end
-        if (acc.currentBatch.length === BATCH_SIZE || index === this.chain.length - 2) {
-            if (acc.currentBatch.some(valid => !valid)) {
-                acc.valid = false;
-            }
-            acc.currentBatch = [];
-        }
-        
-        return acc;
-    }, Promise.resolve({ 
-        valid: true, 
-        currentBatch: [] as boolean[] 
-    }));
+    let currentBatch: boolean[] = [];
 
-    return results.valid;
+    // Skip genesis block and iterate through remaining ones
+    for (let index = 1; index < this.chain.length; index++) {
+      const block = this.chain[index];
+      try {
+        await this.validateBlockPreAdd(block);
+        currentBatch.push(true);
+      } catch {
+        currentBatch.push(false);
+      }
+
+      // Process batch if full or at end
+      if (currentBatch.length === BATCH_SIZE || index === this.chain.length - 1) {
+        if (currentBatch.some(valid => !valid)) {
+          return false;
+        }
+        currentBatch = [];
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -1800,30 +1795,44 @@ export class Blockchain {
       if (cached) return cached;
 
       // Query database with pagination for efficiency
-      const batchSize = 1000;
       let currentHeight = this.getCurrentHeight();
 
-      while (currentHeight > 0) {
-        const startHeight = Math.max(0, currentHeight - batchSize);
-        const blocks = await this.db.getBlocksFromHeight(
-          startHeight,
-          currentHeight,
-        );
+      const MAX_TRAVERSAL_DEPTH = 100; // Set a reasonable limit to prevent stack overflow
 
-        for (const block of blocks) {
-          for (const tx of block.transactions) {
-            if (
-              tx.sender === address ||
-              tx.outputs.some((out) => out.address === address)
-            ) {
-              const result = { blockHeight: block.header.height };
-              this.firstTxCache.set(cacheKey, result);
-              return result;
-            }
-          }
+      const findFirstTransaction = async (
+        currentHeight: number,
+        depth: number = 0
+      ): Promise<{ blockHeight: number } | null> => {
+        if (depth >= MAX_TRAVERSAL_DEPTH) {
+          throw new Error('Max traversal depth reached');
         }
 
-        currentHeight = startHeight - 1;
+        const batchSize = 1000; // Adjust batch size as needed
+        const startHeight = Math.max(0, currentHeight - batchSize);
+        const blocks = await this.db.getBlocksFromHeight(startHeight, currentHeight);
+
+        const result = blocks.find(block =>
+          block.transactions.some(tx =>
+            tx.sender === address || tx.outputs.some(out => out.address === address)
+          )
+        );
+
+        if (result) {
+          return { blockHeight: result.header.height };
+        }
+
+        if (startHeight > 0) {
+          return findFirstTransaction(startHeight - 1, depth + 1);
+        }
+
+        return null;
+      };
+
+      // Usage
+      const firstTx = await findFirstTransaction(currentHeight);
+      if (firstTx) {
+        this.firstTxCache.set(cacheKey, firstTx);
+        return firstTx;
       }
 
       return null;
@@ -1888,18 +1897,23 @@ export class Blockchain {
   private async checkAndMarkSpent(tx: Transaction): Promise<boolean> {
     const release = await this.txLock.acquire();
     try {
-      // Replace for loop with array methods
-      const hasDoubleSpend = tx.inputs.some(input => {
+      // First check for any double-spend without marking
+      const isDoubleSpend = tx.inputs.some(input => {
         const spentOutputs = this.spentTxTracker.get(input.txId) || new Set();
-        if (spentOutputs.has(input.outputIndex)) {
-          return true; // Double-spend detected
-        }
-        spentOutputs.add(input.outputIndex);
-        this.spentTxTracker.set(input.txId, spentOutputs);
-        return false;
+        return spentOutputs.has(input.outputIndex);
       });
 
-      return !hasDoubleSpend;
+      if (isDoubleSpend) {
+        return false;
+      }
+
+      // No double-spend found; mark the inputs as spent
+      tx.inputs.forEach(input => {
+        const spentOutputs = this.spentTxTracker.get(input.txId) || new Set();
+        spentOutputs.add(input.outputIndex);
+        this.spentTxTracker.set(input.txId, spentOutputs);
+      });
+      return true;
     } finally {
       release();
     }
@@ -2077,19 +2091,27 @@ export class Blockchain {
    * @returns Promise<boolean> True if transaction is valid
    */
   public async validateTransaction(tx: Transaction): Promise<boolean> {
-    return Promise.race([
-      TransactionValidator.validateTransaction(
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    try {
+      const validationPromise = TransactionValidator.validateTransaction(
         tx,
         this.utxoSet,
         this.getCurrentHeight(),
-      ),
-      new Promise<boolean>((_, reject) =>
-        setTimeout(
+      );
+      
+      const timeoutPromise = new Promise<boolean>((_, reject) => {
+        timeoutHandle = setTimeout(
           () => reject(new Error('Transaction validation timeout')),
           5000,
-        ),
-      ),
-    ]);
+        );
+      });
+      
+      return await Promise.race([validationPromise, timeoutPromise]);
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
+    }
   }
 
   /**
@@ -2111,7 +2133,17 @@ export class Blockchain {
         this.db,
       );
 
-      await peer.handshake();
+      // Use a timeout wrapper if handshake() does not time out itself
+      await Promise.race([
+        peer.handshake(),
+        new Promise((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Peer handshake timed out')),
+            5000,
+          ),
+        ),
+      ]);
+
       this.peers.set(peer.getId(), peer);
       Logger.info(`Successfully added peer: ${peerUrl}`);
       this.eventEmitter.emit('peer_added', { url: peerUrl });
@@ -2528,11 +2560,10 @@ export class Blockchain {
       if (!validSignature) return false;
 
       // Verify transactions
-      for (const tx of block.transactions) {
-        if (!(await tx.verify())) return false;
-      }
-
-      return true;
+      const verificationResults = await Promise.all(
+        block.transactions.map(tx => tx.verify())
+      );
+      return verificationResults.every(result => result);
     } catch (error) {
       Logger.error('Block verification failed:', error);
       return false;
@@ -2609,42 +2640,48 @@ export class Blockchain {
       const blocksAtHeight = await this.db.getBlocksByHeight(currentHeight);
 
       // Process alternative chain tips
-      for (const block of blocksAtHeight) {
-        if (processedHashes.has(block.hash)) continue;
+      await Promise.all(blocksAtHeight.map(async block => {
+        if (processedHashes.has(block.hash)) return;
 
-        let branchLen = 0;
-        let currentBlock = block;
-        let firstBlockHash = block.hash;
-        let isValid = true;
+        const MAX_TRAVERSAL_DEPTH = 100; // a reasonable limit to prevent stack overflow
 
-        // Traverse down the chain to find branch length and validity
-        while (currentBlock && currentBlock.header.height > 0) {
-          // Try to find the block in our main chain
-          const mainChainBlock = this.getBlockByHeight(
-            currentBlock.header.height,
-          );
-
-          if (mainChainBlock && mainChainBlock.hash === currentBlock.hash) {
-            break; // Found the fork point
+        const traverseChain = async (
+          currentBlock: Block,
+          depth: number = 0
+        ): Promise<{ branchLen: number; isValid: boolean; firstBlockHash: string }> => {
+          if (depth >= MAX_TRAVERSAL_DEPTH) {
+            throw new Error('Max traversal depth reached');
           }
 
-          branchLen++;
+          // Try to find the block in our main chain
+          const mainChainBlock = this.getBlockByHeight(currentBlock.header.height);
+          if (mainChainBlock && mainChainBlock.hash === currentBlock.hash) {
+            return { branchLen: 0, isValid: true, firstBlockHash: currentBlock.hash };
+          }
 
           // Validate the block
-          isValid = isValid && (await this.validateBlock(currentBlock));
-          if (!isValid) break;
-
-          // Get previous block
-          const previousBlock = await this.getBlock(
-            currentBlock.header.previousHash,
-          );
-          if (!previousBlock) {
-            throw new Error('Previous block not found'); // Handle the error as needed
+          const isValid = await this.validateBlock(currentBlock);
+          if (!isValid) {
+            return { branchLen: depth, isValid: false, firstBlockHash: currentBlock.hash };
           }
 
-          currentBlock = previousBlock; // Assign only if previousBlock is valid
-          firstBlockHash = currentBlock.hash;
-        }
+          // Get previous block
+          const previousBlock = await this.getBlock(currentBlock.header.previousHash);
+          if (!previousBlock) {
+            throw new Error('Previous block not found');
+          }
+
+          // Recursively traverse the chain
+          const result = await traverseChain(previousBlock, depth + 1);
+          return {
+            branchLen: result.branchLen + 1,
+            isValid: result.isValid,
+            firstBlockHash: result.firstBlockHash,
+          };
+        };
+
+        // Replace the while loop with this
+        const { branchLen, isValid, firstBlockHash } = await traverseChain(block);
 
         // Determine status
         let status: ChainTip['status'];
@@ -2666,7 +2703,7 @@ export class Blockchain {
         });
 
         processedHashes.add(block.hash);
-      }
+      }));
 
       // Sort tips by height descending
       tips.sort((a, b) => b.height - a.height);
@@ -2744,23 +2781,17 @@ export class Blockchain {
   private async updatePostBlockAdd(block: Block): Promise<void> {
     try {
       await Promise.all([
-        // Update mempool
+        // Critical operations
         this.mempool.removeTransactions(block.transactions),
-
-        // Update UTXO cache
         this.utxoSet.applyBlock(block),
-
-        // Update block cache
         this.blockCache.set(block.hash, block),
-
-        // Update consensus state
         this.consensus.updateState(block),
-
-        // Notify peers of new block
-        this.node.broadcastBlock(block),
+        // Non-critical; can be separated if desired:
+        this.node.broadcastBlock(block).catch(err => {
+          Logger.warn('Broadcast block failed, continuing...', err);
+        }),
       ]);
 
-      // Update metrics
       this.metrics.gauge('blockchain_height', this.getHeight());
       this.metrics.histogram(
         'transactions_per_block',
@@ -2768,7 +2799,6 @@ export class Blockchain {
       );
     } catch (error) {
       Logger.error('Post-block update failed:', error);
-      // Use retry decorator instead of queue
       await this.retryPostBlockAdd(block);
     }
   }
@@ -2785,7 +2815,6 @@ export class Blockchain {
 
   private startCacheCleanup(): void {
     this.cleanupIntervalId = setInterval(() => {
-        // ... cleanup code ...
     }, this.cleanupInterval);
   }
 
@@ -2793,7 +2822,6 @@ export class Blockchain {
     if (this.cleanupIntervalId) {
       clearInterval(this.cleanupIntervalId);
     }
-    // ... other cleanup ...
   }
 
   private initializeMetrics(): void {

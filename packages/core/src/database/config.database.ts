@@ -104,6 +104,6 @@ export const databaseConfig: DatabaseConfig = {
     writeBufferSize: 4 * 1024 * 1024, // 4MB
     blockSize: 4096,
     maxOpenFiles: 1000,
-    sync: false, // Set to true for stronger durability guarantees
+    sync: true, // Set to true for stronger durability guarantees
   },
 };

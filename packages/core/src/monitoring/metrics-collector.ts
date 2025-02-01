@@ -31,8 +31,9 @@ export class MetricsCollector {
   private timers: Map<string, number>;
   private readonly eventEmitter: EventEmitter;
   private readonly namespace: string;
-  private flushInterval: NodeJS.Timeout;
+  private flushInterval: NodeJS.Timeout | null;
   private readonly FLUSH_INTERVAL_MS = 60000; // 1 minute default
+  private isFlushing: boolean = false;
 
   /**
    * Creates a new MetricsCollector instance
@@ -50,13 +51,15 @@ export class MetricsCollector {
     this.timers = new Map();
     this.eventEmitter = new EventEmitter();
 
-    // Validate flush interval
+    // Validate flush interval to be at least 1 second.
     if (flushIntervalMs < 1000) {
       Logger.warn('Flush interval too low, setting to 1 second minimum');
       flushIntervalMs = 1000;
     }
 
-    this.flushInterval = setInterval(() => this.flush(), flushIntervalMs);
+    this.flushInterval = setInterval(() => {
+      void this.flush();
+    }, flushIntervalMs);
   }
 
   /**
@@ -115,18 +118,24 @@ export class MetricsCollector {
       return () => 0;
     }
 
-    const start = Date.now();
-    const key = `${this.namespace}.${metric}`;
-    this.timers.set(key, start);
-
+    const timerKey = `${this.namespace}.${metric}`;
+    const startTime = Date.now();
+    this.timers.set(timerKey, startTime);
+    
     return () => {
       try {
-        const duration = Date.now() - start;
-        this.metrics.set(key, duration);
-        this.timers.delete(key); // Clean up timer
+        const currentTime = Date.now();
+        const start = this.timers.get(timerKey);
+        if (start === undefined) {
+          Logger.warn(`Timer for ${timerKey} not found. It might have already been stopped.`);
+          return 0;
+        }
+        const duration = currentTime - start;
+        this.metrics.set(timerKey, duration);
+        this.timers.delete(timerKey);
         return duration;
       } catch (error) {
-        Logger.error(`Failed to stop timer ${metric}:`, error);
+        Logger.error(`Failed to stop timer for ${timerKey}:`, error);
         return 0;
       }
     };
@@ -149,9 +158,8 @@ export class MetricsCollector {
     }
 
     try {
-      const key = `${this.namespace}.${metric}${
-        labels ? `.${labels.stat}` : ''
-      }`;
+      const labelSuffix = labels && labels.stat ? `.${labels.stat}` : '';
+      const key = `${this.namespace}.${metric}${labelSuffix}`;
       this.metrics.set(key, value);
     } catch (error) {
       Logger.error(`Failed to update histogram ${metric}:`, error);
@@ -165,23 +173,12 @@ export class MetricsCollector {
    */
   private async flush(): Promise<void> {
     try {
-      const metricsData = Array.from(this.metrics.entries()).map(
-        ([key, value]) => ({
-          name: key,
-          value,
-          timestamp: Date.now(),
-          type: this.timers.has(key) ? 'timer' : 'counter',
-        }),
-      );
-
-      if (metricsData.length > 0) {
-        this.eventEmitter.emit('metrics', metricsData);
+      if (this.metrics.size > 0) {
+        Logger.info('Flushing metrics:', Array.from(this.metrics.entries()));
+        this.metrics.clear();
       }
-
-      this.metrics.clear();
-      this.timers.clear();
     } catch (error) {
-      Logger.error('Failed to flush metrics:', error);
+      Logger.error('Error during flushing metrics:', error);
     }
   }
 
@@ -277,6 +274,9 @@ export class MetricsCollector {
   }
 
   private calculateVarIntSize(value: number): number {
+    if (value < 0) {
+      throw new Error('Negative value is not allowed for varInt calculation');
+    }
     if (value < 0xfd) return 1;
     if (value <= 0xffff) return 3;
     if (value <= 0xffffffff) return 5;
@@ -284,21 +284,36 @@ export class MetricsCollector {
   }
 
   private calculateInputSize(input: TxInput): number {
-    return (
-      Buffer.from(input.txId, 'hex').length +
-      this.calculateVarIntSize(input.outputIndex) +
-      this.calculateVarIntSize(input.script.length) +
-      input.script.length +
-      this.calculateVarIntSize(input.confirmations)
-    );
+    try {
+      // Convert hex string to a Buffer to measure script byte length accurately.
+      const scriptBuffer = Buffer.from(input.script, 'hex');
+      const scriptLength = scriptBuffer.length;
+      return (
+        Buffer.from(input.txId, 'hex').length +
+        this.calculateVarIntSize(input.outputIndex) +
+        this.calculateVarIntSize(scriptLength) +
+        scriptLength +
+        this.calculateVarIntSize(input.confirmations)
+      );
+    } catch (error) {
+      Logger.error('Failed to calculate input size:', error);
+      return 0;
+    }
   }
 
   private calculateOutputSize(output: TxOutput): number {
-    return (
-      this.calculateVarIntSize(Number(output.amount)) +
-      this.calculateVarIntSize(output.script.length) +
-      output.script.length
-    );
+    try {
+      const scriptBuffer = Buffer.from(output.script, 'hex');
+      const scriptLength = scriptBuffer.length;
+      return (
+        this.calculateVarIntSize(Number(output.amount)) +
+        this.calculateVarIntSize(scriptLength) +
+        scriptLength
+      );
+    } catch (error) {
+      Logger.error('Failed to calculate output size:', error);
+      return 0;
+    }
   }
 
   /**
@@ -338,10 +353,9 @@ export class MetricsCollector {
     return {
       inc: (labels?: Record<string, string>) => {
         try {
-          const key = `${this.namespace}.${metric}${
-            labels ? `.${labels.stat}` : ''
-          }`;
-          this.increment(key);
+          const labelSuffix = labels && labels.stat ? `.${labels.stat}` : '';
+          // Pass metric with its label suffix to increment(), which applies the namespace.
+          this.increment(`${metric}${labelSuffix}`);
         } catch (error) {
           Logger.error(`Failed to increment counter ${metric}:`, error);
         }

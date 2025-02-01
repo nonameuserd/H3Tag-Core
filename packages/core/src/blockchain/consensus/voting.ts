@@ -206,15 +206,19 @@ import { CircuitBreaker } from '../../network/circuit-breaker';
 
 /**
  * @typedef {Object} VotingPeriod
- * @property {number} periodId - Unique identifier for voting period
- * @property {number} startBlock - Starting block height
- * @property {number} endBlock - Ending block height
- * @property {number} startTime - Period start timestamp
- * @property {number} endTime - Period end timestamp
- * @property {'active' | 'completed'} status - Current period status
- * @property {Map<string, Vote>} votes - Map of votes in period
- * @property {boolean} isAudited - Whether period has been audited
- * @property {string} votesMerkleRoot - Merkle root of period votes
+ * @property {number} periodId
+ * @property {number} startBlock
+ * @property {number} endBlock
+ * @property {number} startTime
+ * @property {number} endTime
+ * @property {'active' | 'completed'} status
+ * @property {Map<string, Vote>} votes
+ * @property {boolean} isAudited
+ * @property {string} votesMerkleRoot
+ * @property {string} [type]        // Optional type identifier 
+ * @property {number} [createdAt]
+ * @property {number} [startHeight]
+ * @property {number} [endHeight]
  */
 
 /**
@@ -256,6 +260,10 @@ export class DirectVoting {
   private readonly VOTE_PROCESSING_CONCURRENCY = 10; // Max concurrent vote processing
   private readonly MERKLE_TREE_CACHE_SIZE = 1000; // Cache size for merkle tree calculations
   private initializationPromise: Promise<void>;
+  private participationCache: Cache<boolean> | null = new Cache<boolean>({
+    maxSize: 1000, // adjust as needed
+    ttl: 300000,   // 5 minutes, adjust as needed
+  });
 
   /**
    * Creates a new instance of DirectVoting
@@ -327,12 +335,15 @@ export class DirectVoting {
       ttl: this.VALIDATOR_CACHE_TTL,
     });
 
-    this.eventEmitter.removeAllListeners(); // Clean up any existing listeners
+    // Instantiate the cache instance with proper parameters
+    this.cache = new Cache<Vote[]>({
+      maxSize: this.VOTE_CACHE_SIZE,
+      ttl: BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL, // adjust as needed
+    });
   }
 
   public async initialize(): Promise<void> {
     await this.initializationPromise;
-    await this.initializeVotingSchedule();
     await this.mempool?.initialize();
     await this.ddosProtection?.initialize();
     await this.transitionPeriod();
@@ -414,6 +425,7 @@ export class DirectVoting {
       const blocksUntilVoting = this.nextVotingHeight - currentHeight;
 
       if (blocksUntilVoting <= 0) {
+        Logger.info('Blocks until voting period are <= 0, starting voting period immediately');
         await this.startVotingPeriod();
         return;
       }
@@ -422,6 +434,7 @@ export class DirectVoting {
       const MAX_TIMEOUT = 2147483647; // Max safe setTimeout value
 
       if (msUntilVoting > MAX_TIMEOUT) {
+        Logger.info('msUntilVoting exceeds MAX_TIMEOUT, deferring scheduling');
         setTimeout(() => this.scheduleNextVotingPeriod(), MAX_TIMEOUT);
       } else {
         this.votingScheduleTimer = setTimeout(async () => {
@@ -432,7 +445,7 @@ export class DirectVoting {
       }
     } catch (error) {
       Logger.error('Failed to schedule next voting period:', error);
-      // Retry after delay
+      // Retry after a delay
       setTimeout(() => this.scheduleNextVotingPeriod(), 60000);
     }
   }
@@ -462,7 +475,7 @@ export class DirectVoting {
           Date.now() + BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_MS,
         status: 'active',
         type: 'node_selection',
-        votes: new Map(),
+        votes: {},
         isAudited: false,
         createdAt: Date.now(),
         votesMerkleRoot: '',
@@ -473,6 +486,10 @@ export class DirectVoting {
       this.nextVotingHeight +=
         BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.VOTING_PERIOD_BLOCKS;
       await this.scheduleNextVotingPeriod();
+
+      if(!this.currentPeriod) {
+        throw new VotingError('INVALID_PERIOD', 'Failed to start voting period');
+      }
 
       await this.logAudit('voting_period_started', {
         periodId: this.currentPeriod.periodId,
@@ -499,24 +516,21 @@ export class DirectVoting {
    */
   public async submitVote(vote: Vote): Promise<boolean> {
     const perfMarker = this.performanceMonitor.start('submit_vote');
-    
-    try {
+    return await this.voteMutex.runExclusive(async () => {
+      try {
         if (!this.currentPeriod || this.currentPeriod.status !== 'active') {
-            throw new VotingError('INACTIVE_PERIOD', 'No active voting period');
+          throw new VotingError('INACTIVE_PERIOD', 'No active voting period');
         }
-
-        // Batch validation
         const isValid = await this.validateVoteBatch([vote]);
         if (!isValid) return false;
-
-        // Process vote in transaction
         return await this.votingDb.transaction(async (tx) => {
-            await this.processVote(vote, tx);
-            return true;
+          await this.processVote(vote, tx);
+          return true;
         });
-    } finally {
+      } finally {
         this.performanceMonitor.end(perfMarker);
-    }
+      }
+    });
   }
 
   // Add batch validation
@@ -701,25 +715,7 @@ export class DirectVoting {
    * Cleans up resources and stops voting system
    */
   public async close(): Promise<void> {
-    this.isShuttingDown = true;
-    if (this.votingScheduleTimer) {
-      clearTimeout(this.votingScheduleTimer);
-    }
-    if (this.cacheCleanupTimer) {
-      clearInterval(this.cacheCleanupTimer);
-    }
-    if (this.networkResetTimer) {
-      clearInterval(this.networkResetTimer);
-    }
-    try {
-      await this.votingUtil.dispose();
-      this.eventEmitter.removeAllListeners();
-      await this.node.close();
-      await this.votingDb.close();
-    } catch (error) {
-      Logger.error('Error during voting system cleanup:', error);
-      throw error;
-    }
+    return this.dispose();
   }
 
   /**
@@ -731,11 +727,11 @@ export class DirectVoting {
     nextVotingHeight: number;
     blocksUntilNextVoting: number;
   }> {
+    const currentHeight = await this.getCurrentHeight();
     return {
       currentPeriod: this.currentPeriod,
       nextVotingHeight: this.nextVotingHeight,
-      blocksUntilNextVoting:
-        this.nextVotingHeight - (await this.getCurrentHeight()),
+      blocksUntilNextVoting: Math.max(0, this.nextVotingHeight - currentHeight),
     };
   }
 
@@ -948,7 +944,7 @@ export class DirectVoting {
       }
 
       // Validate signature
-      return await this.votingUtil.verifyVote(vote, validators);
+      return await this.votingUtil.verifyVote(vote, new Map(validators.map(v => [v.address, v])));
     } catch (error) {
       Logger.error('Vote validation failed:', error);
       return false;
@@ -959,30 +955,27 @@ export class DirectVoting {
    * Cleans up cache
    */
   private cleanupCache(): void {
-    if (!this.currentPeriod || !this.cache) {
-        this.cache?.clear();
-        return;
-    }
+    // Always clear if cache exists 
+    if (!this.cache) return;
 
     const currentTime = Date.now();
     const MAX_CACHE_AGE = 3600000; // 1 hour
     const MAX_CACHE_SIZE = 10000;
     const CLEANUP_THRESHOLD = 0.8; // Clean when 80% full
 
-    // Early return if cache is not too large
     if (this.cache.size() < MAX_CACHE_SIZE * CLEANUP_THRESHOLD) {
-        return;
+      return;
     }
 
-    // Remove old entries
-    const entries = Array.from(this.cache.entries());
-    for (const [key, value] of entries) {
-        const votes = value as Vote[];
-        if (votes.length > 0 && 
-            (currentTime - votes[0].timestamp > MAX_CACHE_AGE || 
-             this.cache.size() > MAX_CACHE_SIZE)) {
-            this.cache.delete(key);
-        }
+    // Remove entries that are too old or if the cache is too large
+    for (const [key, value] of Array.from(this.cache.entries())) {
+      const votes = value as Vote[];
+      if (
+        votes.length > 0 &&
+        (currentTime - votes[0].timestamp > MAX_CACHE_AGE || this.cache.size() > MAX_CACHE_SIZE)
+      ) {
+        this.cache.delete(key);
+      }
     }
   }
 
@@ -1022,7 +1015,7 @@ export class DirectVoting {
   ): Promise<boolean> {
     try {
       for (const vote of votes) {
-        const isValid = await this.votingUtil.verifyVote(vote, validators);
+        const isValid = await this.votingUtil.verifyVote(vote, new Map(validators.map(v => [v.address, v])));
         if (!isValid) return false;
       }
       return true;
@@ -1044,34 +1037,25 @@ export class DirectVoting {
   })
   public async hasParticipated(address: string): Promise<boolean> {
     const perfMarker = this.performanceMonitor.start('check_participation');
-
     try {
-      // Validate address format
       if (!address || typeof address !== 'string') {
         throw new VotingError('INVALID_ADDRESS', 'Invalid address format');
       }
-
-      // Check cache first
       const cacheKey = `participation:${this.currentPeriod?.periodId}:${address}`;
-      const cached = this.cache?.get(cacheKey);
+      const cached = this.participationCache?.get(cacheKey);
       if (cached !== undefined) {
-        return Boolean(cached);
+        return cached;
       }
-
-      // Get active voters for current period
       const activeVoters = await this.getActiveVoters();
       const hasVoted = activeVoters.includes(address);
-
-      // Cache the result
-      this.rateCache?.set(cacheKey, Number(hasVoted)); // Use rateCache for numbers
-
+      // Use the participationCache for booleans.
+      this.participationCache?.set(cacheKey, hasVoted);
       await this.logAudit('participation_check', {
         address,
         periodId: this.currentPeriod?.periodId,
         hasVoted,
         timestamp: Date.now(),
       });
-
       return hasVoted;
     } catch (error) {
       Logger.error('Failed to check participation:', error);
@@ -1174,9 +1158,17 @@ export class DirectVoting {
   private async transitionPeriod(): Promise<void> {
     return this.periodMutex.runExclusive(async () => {
         if (!this.currentPeriod || this.currentPeriod.status !== 'active') return;
-        this.currentPeriod.status = 'completed';
+        // Finalize the current period
+        const finalizedPeriod = await this.finalizePeriod();
+        this.eventEmitter.emit('votingPeriodEnded', finalizedPeriod);
+
+        // Initialize a new period
+        await this.initializeNewPeriod();
+
+        // Update the current period
+        this.currentPeriod.status = 'active';
         await this.votingDb.storePeriod(this.currentPeriod);
-        this.eventEmitter.emit('votingPeriodEnded', this.currentPeriod);
+        this.eventEmitter.emit('votingPeriodStarted', this.currentPeriod);
     });
   }
 
@@ -1222,7 +1214,8 @@ export class DirectVoting {
         startHeight: await this.db.getCurrentHeight(),
         endHeight: 0,
         status: 'active',
-        votes: new Map(),
+        type: 'node_selection',
+        votes: {},
         isAudited: false,
         createdAt: now,
       };
@@ -1249,12 +1242,10 @@ export class DirectVoting {
     if (this.networkResetTimer) clearInterval(this.networkResetTimer);
 
     try {
-      // Remove all event listeners
-      this.eventEmitter.removeAllListeners();
-
       // Clear caches
       this.cache?.clear();
       this.rateCache?.clear();
+      this.participationCache?.clear();
 
       // Close connections
       await Promise.all([
@@ -1374,7 +1365,7 @@ export class DirectVoting {
 
     const enrichedVote = {
       ...vote,
-      votingPower: quadraticPower,
+      votingPower: quadraticPower.toString(),
       timestamp: Date.now(),
     };
 
@@ -1383,12 +1374,21 @@ export class DirectVoting {
   }
 
   // Optimize merkle tree updates
-  private async updateMerkleTree(vote: Vote, tx: { put: (key: string, value: string) => Promise<void> }): Promise<void> {
-
-    await tx.put(vote.voteId, JSON.stringify({
-      voteId: vote.voteId,
-      voter: vote.voter,
-      timestamp: vote.timestamp,
-    }));
+  private async updateMerkleTree(
+    vote: Vote,
+    tx: { put: (key: string, value: string) => Promise<void> }
+  ): Promise<void> {
+    if (!tx?.put) {
+      Logger.error('Invalid transaction object provided to updateMerkleTree.');
+      throw new Error('Invalid transaction');
+    }
+    await tx.put(
+      vote.voteId,
+      JSON.stringify({
+        voteId: vote.voteId,
+        voter: vote.voter,
+        timestamp: vote.timestamp,
+      })
+    );
   }
 }

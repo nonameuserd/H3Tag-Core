@@ -17,6 +17,8 @@ export class WorkerPool {
   private readonly maxWorkers: number;
   private readonly maxIdleTime = 60000; // 1 minute
   private readonly healthCheckInterval = 30000; // 30 seconds
+  private healthCheckIntervalId: NodeJS.Timeout | undefined;
+  private disposed = false;
 
   constructor(
     maxWorkers: number,
@@ -28,7 +30,7 @@ export class WorkerPool {
   }
 
   private startHealthCheck(): void {
-    setInterval(() => {
+    this.healthCheckIntervalId = setInterval(() => {
       this.checkWorkerHealth();
     }, this.healthCheckInterval);
   }
@@ -55,7 +57,7 @@ export class WorkerPool {
 
     worker.on('error', (error) => {
       metrics.errors++;
-      Logger.error('Worker error:', error);
+      Logger.error('Worker error:', error?.stack || error);
       this.handleWorkerError(worker);
     });
 
@@ -93,6 +95,10 @@ export class WorkerPool {
   }
 
   public async getWorker(): Promise<Worker> {
+    if (this.disposed) {
+      throw new Error('WorkerPool is disposed');
+    }
+
     if (this.available.length > 0) {
       const worker = this.available.pop()!;
       this.updateWorkerMetrics(worker);
@@ -135,12 +141,25 @@ export class WorkerPool {
   }
 
   public async dispose(): Promise<void> {
+    this.disposed = true;
+
+    if (this.healthCheckIntervalId) {
+      clearInterval(this.healthCheckIntervalId);
+      this.healthCheckIntervalId = undefined;
+    }
+
     const terminationPromises = Array.from(this.workers.keys()).map((worker) =>
       this.terminateWorker(worker),
     );
 
     await Promise.all(terminationPromises);
-    this.tasks.clear();
+
+    while (this.tasks.size > 0) {
+      const task = this.tasks.dequeue();
+      if (task) {
+        Logger.warn('WorkerPool disposed; rejecting pending getWorker request.');
+      }
+    }
     this.available = [];
   }
 

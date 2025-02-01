@@ -10,14 +10,12 @@ interface CircuitBreakerConfig {
 export class CircuitBreaker {
   public failures: number = 0;
   public lastFailure: number = 0;
-  public threshold: number;
   public resetTimeout: number;
   private state: 'closed' | 'open' | 'half-open' = 'closed';
   private readonly config: Required<CircuitBreakerConfig>;
   private monitorInterval: NodeJS.Timeout;
 
   constructor(config: CircuitBreakerConfig) {
-    this.threshold = config.failureThreshold;
     this.resetTimeout = config.resetTimeout;
     this.config = {
       failureThreshold: config.failureThreshold,
@@ -30,6 +28,10 @@ export class CircuitBreaker {
       () => this.monitor(),
       this.config.monitorInterval,
     );
+  }
+
+  public get failureThreshold(): number {
+    return this.config.failureThreshold;
   }
 
   isOpen(): boolean {
@@ -46,6 +48,14 @@ export class CircuitBreaker {
   }
 
   recordFailure(): void {
+    if (this.state === 'half-open') {
+      this.state = 'open';
+      this.failures = this.config.failureThreshold;
+      this.lastFailure = Date.now();
+      Logger.warn('Circuit breaker transitioned back to open state due to a failure in half-open state');
+      return;
+    }
+    
     this.failures++;
     this.lastFailure = Date.now();
 

@@ -280,10 +280,13 @@ export class BackupManager {
         createWriteStream(targetFile),
       );
     } catch (error) {
-      Logger.error(`Failed to compress file ${file}:`, error);
+      Logger.error(
+        `Failed to compress file "${file}" from "${sourceFile}" to "${targetFile}":`,
+        error,
+      );
       await fs.rm(targetFile, { force: true }).catch(() => {});
       throw error;
-    }
+    } 
   }
 
   private async createChecksum(path: string): Promise<string> {
@@ -430,15 +433,17 @@ export class BackupManager {
   }
 
   private isValidMetadata(metadata: unknown): metadata is BackupMetadata {
+    if (typeof metadata !== 'object' || metadata === null) {
+      return false;
+    }
+    const meta = metadata as Record<string, unknown>;
     return (
-      typeof metadata === 'object' &&
-      metadata !== null &&
-      'timestamp' in metadata &&
-      'checksum' in metadata &&
-      'size' in metadata &&
-      'label' in metadata &&
-      'compressionLevel' in metadata &&
-      'dbVersion' in metadata
+      typeof meta.timestamp === 'string' &&
+      typeof meta.label === 'string' &&
+      typeof meta.size === 'number' &&
+      typeof meta.checksum === 'string' &&
+      typeof meta.compressionLevel === 'number' &&
+      typeof meta.dbVersion === 'string'
     );
   }
 
@@ -463,29 +468,13 @@ export class BackupManager {
   }
 
   async restoreBackup(backupPath: string, targetPath?: string): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const task = async () => {
-        try {
-          await this.acquireLock();
-
-          if (!(await this.verifyBackup(backupPath))) {
-            throw new Error('Backup verification failed');
-          }
-
-          const restorePath = targetPath || this.dbPath;
-          await this.copyAndDecompressDatabase(backupPath, restorePath);
-
-          Logger.info('Backup restored successfully:', { path: backupPath });
-          resolve();
-        } catch (error) {
-          Logger.error('Restore failed:', error);
-          reject(error);
-        } finally {
-          this.releaseLock();
-        }
-      };
-
-      this.queueTask(task).catch(reject);
+    return this.withLock(async () => {
+      if (!(await this.verifyBackup(backupPath))) {
+        throw new Error('Backup verification failed');
+      }
+      const restorePath = targetPath || this.dbPath;
+      await this.copyAndDecompressDatabase(backupPath, restorePath);
+      Logger.info('Backup restored successfully:', { path: backupPath });
     });
   }
 
@@ -544,38 +533,24 @@ export class BackupManager {
   private async getDirectorySize(path: string): Promise<number> {
     const files = await fs.readdir(path);
     const stats = await Promise.all(
-      files.map((file) => fs.stat(join(path, file))),
+      files.map(async (file) => {
+        const stat = await fs.stat(join(path, file));
+        return stat.isFile() ? stat.size : 0;
+      }),
     );
-    return stats.reduce((acc, stat) => acc + stat.size, 0);
+    return stats.reduce((acc, size) => acc + size, 0);
   }
 
   async cleanup(): Promise<void> {
     await this.dispose();
   }
 
-  private async acquireLock(timeoutMs = TIMEOUT_MS): Promise<void> {
-    const startTime = Date.now();
-
-    while (this.isLocked) {
-      if (Date.now() - startTime > timeoutMs) {
-        throw new LockError('Timeout while waiting for lock');
-      }
-      await setTimeout(100);
-    }
-
-    this.isLocked = true;
-  }
-
-  private releaseLock(): void {
-    this.isLocked = false;
-  }
-
   private async cleanupFailedBackup(path: string, error: Error): Promise<void> {
-    Logger.error('Backup failed:', error);
+    Logger.error(`Backup creation failed at "${path}":`, error);
     try {
       await fs.rm(path, { recursive: true, force: true });
     } catch (cleanupError) {
-      Logger.error('Failed to cleanup failed backup:', cleanupError);
+      Logger.error(`Failed to cleanup backup at "${path}":`, cleanupError);
     }
   }
 }

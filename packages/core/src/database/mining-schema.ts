@@ -274,14 +274,19 @@ export class MiningDatabase {
 
         // Store in batch for atomicity
         const batch = this.db.batch();
+        let opCount = 0;
 
-        // Store main record
         batch.put(key, JSON.stringify(solution));
+        opCount++;
 
         // Index by miner address with timestamp for ordering
         const minerKey = `miner:${solution.minerAddress}:${solution.timestamp}`;
         batch.put(minerKey, key);
+        opCount++;
 
+        if (opCount > this.BATCH_SIZE) {
+          throw new Error('Batch size exceeds allowed limit');
+        }
         await batch.write();
         this.cache.set(key, solution, { ttl: this.CACHE_TTL });
 
@@ -335,13 +340,17 @@ export class MiningDatabase {
         }
 
         const batch = this.db.batch();
+        let opCount = 0;
 
         // Store main record
         batch.put(key, JSON.stringify(vote));
 
         // Index by timestamp for time-based queries
         batch.put(`vote:time:${vote.timestamp}`, key);
-
+        opCount++;
+        if (opCount > this.BATCH_SIZE) {
+          throw new Error('Batch size exceeds allowed limit');
+        }
         await batch.write();
         this.cache.set(key, vote);
 
@@ -413,13 +422,17 @@ export class MiningDatabase {
     const key = `metrics:${blockHeight}`;
     try {
       const cached = this.cache.get(key) as MiningMetrics;
-      if (cached) return cached;
-
-      const metrics = await this.db.get(key);
-      this.cache.set(key, JSON.parse(metrics));
-      return JSON.parse(metrics);
+      if (cached) {
+        this.cache.set(key, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
+      
+      const metricsString = await this.db.get(key);
+      const metrics = JSON.parse(metricsString) as MiningMetrics;
+      this.cache.set(key, metrics, { ttl: this.CACHE_TTL });
+      return metrics;
     } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return null;
+      if (this.isNotFoundError(error)) return null;
       Logger.error('Failed to retrieve mining metrics:', error);
       throw error;
     }
@@ -432,7 +445,10 @@ export class MiningDatabase {
     const key = `consensus_vote:${blockHash}:${voterAddress}`;
     try {
       const cached = this.cache.get(key) as ConsensusVote;
-      if (cached) return cached;
+      if (cached) {
+        this.cache.set(key, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       const vote = await this.db.get(key);
       this.cache.set(key, JSON.parse(vote));
@@ -514,7 +530,7 @@ export class MiningDatabase {
   private validatePowSolution(solution: PowSolution): boolean {
     return !!(
       solution.blockHash &&
-      solution.nonce &&
+      solution.nonce !== undefined &&
       solution.minerAddress &&
       solution.timestamp &&
       solution.signature
@@ -568,5 +584,9 @@ export class MiningDatabase {
       Logger.error('Failed to parse stored value:', error);
       return null;
     }
+  }
+
+  private isNotFoundError(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && 'notFound' in error;
   }
 }

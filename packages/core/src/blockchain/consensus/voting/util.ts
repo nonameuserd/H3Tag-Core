@@ -23,6 +23,23 @@ export interface VoteTally {
   timestamp: number;
 }
 
+/**
+ * Custom Error for when fork depth exceeds allowed production limits.
+ */
+export class ForkDepthError extends Error {
+  cause: object;
+  constructor(message: string, cause: object) {
+    super(message);
+    this.cause = cause;
+    this.name = 'ForkDepthError';
+  }
+}
+
+interface VoteCacheEntry {
+  value: boolean;
+  timestamp: number;
+}
+
 export class DirectVotingUtil {
   private readonly voteMutex = new Mutex();
   private readonly metrics: MetricsCollector;
@@ -30,7 +47,10 @@ export class DirectVotingUtil {
   private readonly backupManager: BackupManager;
   private readonly eventEmitter = new EventEmitter();
   private readonly ddosProtection: DDoSProtection;
-  private readonly voteCache = new Map<string, boolean>();
+  private readonly voteCache = new Map<string, VoteCacheEntry>();
+  
+  // Define TTL in milliseconds (adjust as needed)
+  private readonly VOTE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   /**
    * Constructor for DirectVotingUtil
@@ -85,11 +105,10 @@ export class DirectVotingUtil {
         maxAllowed: BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
       };
       Logger.error('Fork depth exceeds maximum allowed', metadata);
-      const error = new Error(
-        `Fork depth exceeds maximum allowed: current depth ${forkDepth} exceeds max allowed ${BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH}`
+      throw new ForkDepthError(
+        `Fork depth exceeds maximum allowed: current depth ${forkDepth} exceeds max allowed ${BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH}`,
+        metadata,
       );
-      (error as ForkDepthError).cause = metadata;
-      throw error;
     }
 
     return {
@@ -102,7 +121,7 @@ export class DirectVotingUtil {
       endTime: Date.now() + BLOCKCHAIN_CONSTANTS.CONSENSUS.CONSENSUS_TIMEOUT,
       status: 'active',
       createdAt: Date.now(),
-      votes: new Map(),
+      votes: {},
       isAudited: false,
       type: 'node_selection',
       chainId: newChainId,
@@ -138,31 +157,30 @@ export class DirectVotingUtil {
       let offset = 0;
       const validVotes: Vote[] = [];
 
-      while (true) {
-        const votesBatch = Array.from(periodSnapshot.votes.values())
-          .slice(offset, offset + BATCH_SIZE);
-        
-        if (votesBatch.length === 0) break;
+      const validatorMap = new Map(validators.map(v => [v.address, v]));
 
-        // Process batch in parallel with concurrency limit
-        const batchResults = await Promise.allSettled(
-          votesBatch.map(async (vote) => {
-            try {
-              return (await this.verifyVote(vote, validators)) ? vote : null;
-            } catch (error) {
-              Logger.error('Vote verification failed:', error);
-              return null;
-            }
-          })
+      while (true) {
+        const votesBatch = Object.values(periodSnapshot.votes).slice(
+          offset,
+          offset + BATCH_SIZE,
         );
 
-        // Filter and store valid votes
+        if (votesBatch.length === 0) break;
+
+        // Map each vote to a promise that returns the vote if valid or null otherwise.
+        const batchResults = await Promise.allSettled(
+          votesBatch.map((vote) =>
+            this.verifyVote(vote as Vote, validatorMap).then((isValid) => (isValid ? vote : null)),
+          ),
+        );
+
+        // Use a type predicate that checks for a fulfilled result with a non-null vote.
         validVotes.push(
           ...batchResults
-            .filter((result): result is PromiseFulfilledResult<Vote> => 
-              result.status === 'fulfilled' && result.value !== null
+            .filter((result): result is PromiseFulfilledResult<Vote> =>
+              result.status === 'fulfilled' && result.value !== null,
             )
-            .map((result) => result.value)
+            .map((result) => result.value),
         );
 
         offset += BATCH_SIZE;
@@ -295,18 +313,24 @@ export class DirectVotingUtil {
   /**
    * Verifies a vote
    * @param vote Vote to verify
-   * @param validators Validators to verify against
+   * @param validatorMap Validators to verify against
    * @returns Promise<boolean> True if vote is valid
    */
   public async verifyVote(
     vote: Vote,
-    validators: Validator[],
+    validatorMap: Map<string, Validator>,
   ): Promise<boolean> {
     const cacheKey = `${vote.voter}:${vote.timestamp}`;
+    const now = Date.now();
 
-    // Check cache first
+    // Check cache first and evict expired entry
     if (this.voteCache.has(cacheKey)) {
-      return this.voteCache.get(cacheKey)!;
+      const entry = this.voteCache.get(cacheKey)!;
+      if (now - entry.timestamp < this.VOTE_CACHE_TTL) {
+        return entry.value;
+      } else {
+        this.voteCache.delete(cacheKey);
+      }
     }
 
     // DDoS protection check
@@ -321,7 +345,7 @@ export class DirectVotingUtil {
     }
 
     const result = await Promise.race([
-      this._verifyVote(vote, validators),
+      this._verifyVote(vote, validatorMap),
       new Promise<boolean>((_, reject) =>
         setTimeout(() => reject(new Error('Verification timeout')), 5000),
       ),
@@ -330,14 +354,14 @@ export class DirectVotingUtil {
       return false;
     });
 
-    // Cache the result
-    this.voteCache.set(cacheKey, result);
+    // Cache the result along with current timestamp
+    this.voteCache.set(cacheKey, { value: result, timestamp: now });
     return result;
   }
 
   private async _verifyVote(
     vote: Vote,
-    validators: Validator[],
+    validatorMap: Map<string, Validator>,
   ): Promise<boolean> {
     // Early return for invalid votes
     if (!vote?.chainVoteData || !vote.signature || !vote.voter || 
@@ -350,8 +374,6 @@ export class DirectVotingUtil {
       return false;
     }
 
-    // Map for O(1) validator lookup
-    const validatorMap = new Map(validators.map(v => [v.address, v]));
     const validator = validatorMap.get(vote.voter);
 
     if (!validator?.isActive) {
@@ -393,14 +415,5 @@ export class DirectVotingUtil {
       Logger.error('Disposal failed:', error);
       throw error;
     }
-  }
-}
-class ForkDepthError extends Error {
-  cause: object;
-
-  constructor(message: string, cause: object) {
-    super(message);
-    this.cause = cause;
-    this.name = 'ForkDepthError';
   }
 }

@@ -29,13 +29,13 @@ export type VotingType = 'node_selection' | 'parameter_change';
  * @property {boolean} encrypted - Whether the vote is encrypted
  * @property {string} [encryptedChoice] - Optional encrypted vote choice
  * @property {string} voter - Voter identifier
- * @property {bigint} votingPower - Voter's voting power
+ * @property {string} votingPower - Voter's voting power (stored as a string to ensure JSON compatibility)
  * @property {Object} [chainVoteData] - Optional chain selection vote data
  * @property {string} chainVoteData.targetChainId - Target chain identifier
  * @property {number} chainVoteData.forkHeight - Fork height
- * @property {bigint} chainVoteData.amount - Vote amount
+ * @property {string} chainVoteData.amount - Vote amount (stored as a string for serialization)
  * @property {number} height - Block height of the vote
- * @property {bigint} balance - Voter's balance at time of vote
+ * @property {string} balance - Voter's balance at time of vote (stored as a string for serialization)
  */
 export interface Vote {
   voteId: string;
@@ -49,14 +49,14 @@ export interface Vote {
   encrypted: boolean;
   encryptedChoice?: string;
   voter: string;
-  votingPower: bigint;
+  votingPower: string;
   chainVoteData?: {
     targetChainId: string;
     forkHeight: number;
-    amount: bigint;
+    amount: string;
   };
   height: number;
-  balance: bigint;
+  balance: string;
 }
 
 /**
@@ -64,13 +64,13 @@ export interface Vote {
  * @description Represents a fork decision in the blockchain
  *
  * @property {string} selectedChain - Selected chain identifier
- * @property {Record<string, bigint>} votePowers - Voting power distribution
+ * @property {Record<string, string>} votePowers - Voting power distribution (as strings)
  * @property {number} decidedAt - Decision timestamp
  * @property {number} forkHeight - Height of the fork
  */
 export interface ForkDecision {
   selectedChain: string;
-  votePowers: Record<string, bigint>;
+  votePowers: Record<string, string>;
   decidedAt: number;
   forkHeight: number;
 }
@@ -87,7 +87,7 @@ export interface ForkDecision {
  * @property {number} endHeight - Ending block height
  * @property {number} endTime - Period end timestamp
  * @property {"active" | "completed" | "cancelled"} status - Period status
- * @property {Map<string, Vote>} votes - Map of votes in the period
+ * @property {Record<string, Vote>} votes - Map of votes in the period
  * @property {string} [votesMerkleRoot] - Optional merkle root of votes
  * @property {VotingType} [type] - Type of voting period
  * @property {string} [chainId] - Optional chain identifier
@@ -98,7 +98,7 @@ export interface ForkDecision {
  * @property {number} competingChains.commonAncestorHeight - Common ancestor height
  * @property {Object} [chainSelectionResult] - Optional chain selection result
  * @property {string} chainSelectionResult.selectedChainId - Selected chain
- * @property {bigint} chainSelectionResult.votingPower - Total voting power
+ * @property {string} chainSelectionResult.votingPower - Total voting power (stored as a string for serialization)
  * @property {number} chainSelectionResult.participationRate - Participation rate
  * @property {number} chainSelectionResult.timestamp - Result timestamp
  * @property {boolean} isAudited - Whether period has been audited
@@ -114,7 +114,7 @@ export interface VotingPeriod {
   endHeight: number;
   endTime: number;
   status: 'active' | 'completed' | 'cancelled';
-  votes: Map<string, Vote>;
+  votes: Record<string, Vote>;
   votesMerkleRoot?: string;
   type?: VotingType;
   chainId?: string;
@@ -126,11 +126,33 @@ export interface VotingPeriod {
   };
   chainSelectionResult?: {
     selectedChainId: string;
-    votingPower: bigint;
+    votingPower: string;
     participationRate: number;
     timestamp: number;
   };
   isAudited: boolean;
   createdAt: number;
   forkDecision?: ForkDecision;
+}
+
+/**
+ * Utility to convert a Map to a Record (plain object)
+ */
+export function mapToRecord<T>(map: Map<string, T>): Record<string, T> {
+  const result: Record<string, T> = {};
+  map.forEach((value, key) => {
+    result[key] = value;
+  });
+  return result;
+}
+
+/**
+ * Utility to convert a Record (plain object) to a Map<string, T>
+ */
+export function recordToMap<T>(record: Record<string, T>): Map<string, T> {
+  const map = new Map<string, T>();
+  Object.keys(record).forEach((key) => {
+    map.set(key, record[key]);
+  });
+  return map;
 }

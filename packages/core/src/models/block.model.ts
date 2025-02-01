@@ -379,39 +379,41 @@ export class BlockBuilder {
    */
   public async calculateHash(): Promise<string> {
     try {
-      // Validate header fields before hashing
-      if (
-        !this.header ||
-        !this.header.previousHash ||
-        !this.header.merkleRoot
-      ) {
+      if (!this.header || !this.header.previousHash || !this.header.merkleRoot) {
         throw new BlockError('Invalid block header');
       }
 
-      // Performance tracking
       const startTime = Date.now();
 
-      // Create header string with ordered fields for consistent hashing
-      const headerString = JSON.stringify({
-        ...this.header,
+      // Create an object with explicitly ordered fields for hashing
+      const orderedHeader = {
+        version: this.header.version,
+        height: this.header.height,
+        previousHash: this.header.previousHash,
         timestamp: this.header.timestamp,
+        merkleRoot: this.header.merkleRoot,
+        difficulty: this.header.difficulty,
         nonce: this.header.nonce,
-      });
+        miner: this.header.miner,
+        validatorMerkleRoot: this.header.validatorMerkleRoot,
+        totalTAG: this.header.totalTAG,
+        blockReward: this.header.blockReward,
+        fees: this.header.fees,
+        target: this.header.target,
+        locator: this.header.locator,
+        hashStop: this.header.hashStop,
+        consensusData: this.header.consensusData,
+        publicKey: this.header.publicKey,
+      };
 
-      // Use HybridCrypto for quantum-resistant hashing
+      const headerString = JSON.stringify(orderedHeader);
       const hash = await HybridCrypto.hash(headerString);
 
-      // Log performance metrics
       Logger.debug(`Block hash calculation took ${Date.now() - startTime}ms`);
-
       return hash;
     } catch (error) {
       Logger.error('Failed to calculate block hash:', error);
-      throw new BlockError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to calculate block hash',
-      );
+      throw new BlockError(error instanceof Error ? error.message : 'Failed to calculate block hash');
     }
   }
 
@@ -585,8 +587,10 @@ export class BlockBuilder {
    */
   public async verifyHash(): Promise<boolean> {
     try {
+      // Recalculate the hash from the header
       const calculatedHash = await this.calculateHash();
-      return calculatedHash === this.hash;
+      // Compare with the hash stored in the header (updated in build())
+      return calculatedHash === this.header.hash;
     } catch (error) {
       Logger.error('Hash verification failed:', error);
       return false;

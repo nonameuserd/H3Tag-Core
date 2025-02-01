@@ -22,8 +22,12 @@
  * const compressed = await compressor.compress(data);
  */
 
+interface MappableGPUBuffer extends GPUBuffer {
+  _mapped?: boolean;
+}
+
 export class ZeroCopyCompression {
-  private device: GPUDevice;
+  private device!: GPUDevice; // will be provided after async initialization
   private sharedBuffers: Map<string, SharedArrayBuffer>;
   private isWebGPUSupported: boolean;
 
@@ -34,13 +38,28 @@ export class ZeroCopyCompression {
       'gpu' in navigator &&
       typeof GPUBuffer !== 'undefined';
 
-    this.device = device || new GPUDevice();
+    // If device is provided, use it; otherwise, leave device uninitialized.
+    if (device) {
+      this.device = device;
+    }
     this.sharedBuffers = new Map();
 
-    // Add proper environment check
+    // For test environments, override methods with no-ops if WebGPU is not supported.
     if (!this.isWebGPUSupported && process?.env?.NODE_ENV === 'test') {
       this.compressInPlace = async () => Promise.resolve();
       this.compressWithSharedMemory = async () => Promise.resolve();
+    }
+  }
+
+  /**
+   * Asynchronously initializes the GPU device.
+   * In production you must obtain the device from a GPU adapter.
+   */
+  async initialize(): Promise<void> {
+    if (!this.device) {
+      const adapter = await navigator.gpu.requestAdapter();
+      if (!adapter) throw new Error('No GPU adapter found');
+      this.device = await adapter.requestDevice();
     }
   }
 
@@ -55,17 +74,15 @@ export class ZeroCopyCompression {
         'compression',
         Math.min(buffer.size, Number.MAX_SAFE_INTEGER),
       );
-      const view = new Uint8Array(shared);
+      const sharedView = new Uint8Array(shared);
 
-      // Map buffer with proper error handling
-      const mapped = await buffer
-        .mapAsync(GPUMapMode.WRITE | GPUMapMode.READ)
-        .catch((error) => {
-          throw new Error(`Failed to map buffer: ${error.message}`);
-        });
-
-      // Copy data from mapped buffer to shared array
-      view.set(new Uint8Array(mapped || new Uint8Array()));
+      // Map the buffer for both READ and WRITE.
+      await buffer.mapAsync(GPUMapMode.WRITE | GPUMapMode.READ).catch((error) => {
+        throw new Error(`Failed to map buffer: ${error.message}`);
+      });
+      // Use getMappedRange() to obtain the underlying ArrayBuffer.
+      const mappedRange = buffer.getMappedRange();
+      sharedView.set(new Uint8Array(mappedRange));
 
       // Create command encoder with proper error handling
       const commandEncoder = this.device.createCommandEncoder();
@@ -78,10 +95,15 @@ export class ZeroCopyCompression {
       computePass.end();
       this.device.queue.submit([commandEncoder.finish()]);
 
-      // Ensure proper cleanup
-      buffer.unmap();
+      // Ensure proper cleanup by unmapping the buffer if still mapped.
+      if ((buffer as MappableGPUBuffer)._mapped) {
+        (buffer as MappableGPUBuffer).unmap();
+      }
     } catch (error) {
-      buffer?.unmap();
+      // In the catch block, attempt to unmap buffer if mapped.
+      try {
+        buffer.unmap();
+      } catch { /* ignore unmap errors */ }
       if (error instanceof Error) {
         throw new Error(`Compression failed: ${error.message}`);
       }
@@ -89,6 +111,11 @@ export class ZeroCopyCompression {
     }
   }
 
+  /**
+   * createBindGroup creates a bind group for the compression shader.
+   * It accepts an ArrayBuffer (may be a SharedArrayBuffer) containing the data,
+   * and an optional compressionLevel.
+   */
   private createBindGroup(
     buffer: ArrayBuffer,
     compressionLevel: number = 1,
@@ -97,26 +124,26 @@ export class ZeroCopyCompression {
       throw new Error('Invalid buffer');
     }
 
-    // Create buffers with proper error handling
+    // Create a GPU buffer for the data with mapping at creation.
     const gpuBuffer = this.device.createBuffer({
       size: buffer.byteLength,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
       mappedAtCreation: true,
     });
 
-    // Copy data with bounds checking
+    // Copy data with bounds checking into the mapped range.
     const gpuArray = new Uint8Array(gpuBuffer.getMappedRange());
     gpuArray.set(new Uint8Array(buffer));
     gpuBuffer.unmap();
 
-    // Create state buffer with proper size calculation
+    // Create a state buffer with proper size calculation.
     const stateSize = 4 + 4 + 4096 * 4 + 2048 * 4 + 65536 * 4;
     const stateBuffer = this.device.createBuffer({
       size: stateSize,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
 
-    // Initialize compression level with bounds checking
+    // Initialize compression level with bounds checking.
     const levelData = new Uint32Array([
       0,
       Math.max(0, Math.min(2, compressionLevel)),
@@ -138,6 +165,10 @@ export class ZeroCopyCompression {
     });
   }
 
+  /**
+   * Returns the compute pipeline used for compression.
+   * In production this may be cached if the shader is static.
+   */
   private getCompressionPipeline(): GPUComputePipeline {
     return this.device.createComputePipeline({
       layout: 'auto',

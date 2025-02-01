@@ -100,7 +100,7 @@ export class KeystoreDatabase {
       await this.db.get('__health_check__');
       return true;
     } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return true; // DB is accessible but key not found
+      if (error instanceof Error && 'notFound' in error) return true;
       return false;
     }
   }
@@ -116,7 +116,9 @@ export class KeystoreDatabase {
     if (!address) throw new Error('Address is required');
 
     try {
-      const value = await this.db.get(`keystore:${address}`);
+      const value = await this.db.get<string>(`keystore:${address}`, {
+        valueEncoding: 'json',
+      });
       return JSON.parse(value) as EncryptedKeystore;
     } catch (error: unknown) {
       if (error instanceof Error && 'notFound' in error) return null;

@@ -116,15 +116,6 @@ export class PeerDiscovery {
       120000,
     );
 
-    // Set up message handling for each peer
-    this.peers.forEach((peer) => {
-      peer.eventEmitter.on('message', (message: PeerMessage) => {
-        this.processMessage(message).catch((error) => {
-          Logger.error('Error processing peer message:', error);
-        });
-      });
-    });
-
     this.initializeDiscovery().catch((error) => {
       Logger.error('Discovery initialization failed:', error);
       this.state = DiscoveryState.ERROR;
@@ -305,10 +296,12 @@ export class PeerDiscovery {
 
   private async updatePeerTypes(): Promise<void> {
     const updatePromises = Array.from(this.peers.values()).map(async (peer) => {
+      let url: string;
       try {
         const info = await peer.getNodeInfo();
-        const url = (await peer.getInfo()).url;
-
+        const peerInfo = await peer.getInfo();
+        url = peerInfo.url;
+        
         // Check TAG requirements for miners
         const isValidMiner =
           info.isMiner &&
@@ -318,26 +311,27 @@ export class PeerDiscovery {
 
         if (isValidMiner) {
           this.miners.add(url);
-          Logger.debug(
-            `Added TAG miner: ${url}, blocks: ${info.tagInfo.minedBlocks}`,
-          );
+          Logger.debug(`Added TAG miner: ${url}, blocks: ${info.tagInfo.minedBlocks}`);
         } else {
           this.miners.delete(url);
         }
 
         // Update peer metrics
-        this.peerScores.set(
-          url,
-          (this.peerScores.get(url) || 0) + (isValidMiner ? 2 : 1),
-        );
+        this.peerScores.set(url, (this.peerScores.get(url) || 0) + (isValidMiner ? 2 : 1));
       } catch (error) {
-        const url = (await peer.getInfo()).url;
+        // Ensure url is captured even in error state
+        // If getInfo fails, try to get url from peer; otherwise use a fallback identifier
+        try {
+          const peerInfo = await peer.getInfo();
+          url = peerInfo.url;
+        } catch {
+          url = 'unknown';
+        }
         Logger.warn(`Failed to update peer type for ${url}:`, error);
         this.peerScores.set(url, (this.peerScores.get(url) || 0) - 1);
         this.miners.delete(url);
       }
     });
-
     await Promise.allSettled(updatePromises);
   }
 
@@ -349,11 +343,15 @@ export class PeerDiscovery {
 
   private async cleanupOldPeers(): Promise<void> {
     const now = Date.now();
+    // Construct a list of removal promises to await together
+    const removalPromises = [];
     for (const [url, peer] of this.peers.entries()) {
-      if (now - (await peer.getInfo()).lastSeen > PeerDiscovery.MAX_PEER_AGE) {
-        this.removePeer(url);
+      const info = await peer.getInfo();
+      if (now - info.lastSeen > PeerDiscovery.MAX_PEER_AGE) {
+        removalPromises.push(this.removePeer(url));
       }
     }
+    await Promise.allSettled(removalPromises);
   }
 
   private cleanupBannedPeers(): void {
@@ -419,10 +417,10 @@ export class PeerDiscovery {
     }
   }
 
-  private isValidPeer(peerInfo: PeerInfo): string | boolean {
+  private isValidPeer(peerInfo: PeerInfo): boolean {
     const now = Date.now();
     return (
-      peerInfo.url &&
+      Boolean(peerInfo.url) &&
       peerInfo.lastSeen > now - PeerDiscovery.MAX_PEER_AGE &&
       !this.bannedPeers.has(peerInfo.url) &&
       !this.peers.has(peerInfo.url)
@@ -431,21 +429,41 @@ export class PeerDiscovery {
 
   private async connectToPeer(url: string, retryCount = 0): Promise<void> {
     try {
-      const [address, portStr] = url.split(':');
-      if (!address || !portStr) {
+      let address: string;
+      let port: number;
+      if (url.startsWith('[')) {
+        // IPv6 literal e.g. "[::1]:3000"
+        const closingBracketIndex = url.indexOf(']');
+        if (closingBracketIndex === -1) {
+          throw new Error(`Invalid IPv6 address format: ${url}`);
+        }
+        address = url.substring(1, closingBracketIndex);
+        const portPart = url.substring(closingBracketIndex + 1);
+        if (!portPart.startsWith(':')) {
+          throw new Error(`Missing port separator in IPv6 URL: ${url}`);
+        }
+        port = parseInt(portPart.substring(1));
+      } else {
+        const splitIndex = url.lastIndexOf(':');
+        if (splitIndex === -1) {
+          throw new Error(`Invalid peer URL, missing port: ${url}`);
+        }
+        address = url.substring(0, splitIndex);
+        const portStr = url.substring(splitIndex + 1);
+        port = parseInt(portStr);
+      }
+      if (!address) {
         throw new Error(`Invalid peer URL: ${url}`);
       }
-
-      const port = parseInt(portStr);
       if (isNaN(port) || port <= 0 || port > 65535) {
-        throw new Error(`Invalid port number: ${portStr}`);
+        throw new Error(`Invalid port number extracted: ${port}`);
       }
-
+      
       const peer = new Peer(
         address,
         port,
         {}, // config
-        this.config, // configService
+        this.config, // ConfigService
         this.database || new BlockchainSchema(),
       );
       await peer.connect();
@@ -460,9 +478,7 @@ export class PeerDiscovery {
       this.peers.set(url, peer);
     } catch (error) {
       if (retryCount < PeerDiscovery.MAX_RECONNECT_ATTEMPTS) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, PeerDiscovery.RECONNECT_DELAY),
-        );
+        await new Promise((resolve) => setTimeout(resolve, PeerDiscovery.RECONNECT_DELAY));
         return this.connectToPeer(url, retryCount + 1);
       }
       throw error;
@@ -493,7 +509,7 @@ export class PeerDiscovery {
   private async removePeer(url: string): Promise<void> {
     const peer = this.peers.get(url);
     if (peer) {
-      peer.disconnect();
+      await peer.disconnect();
       this.peers.delete(url);
       this.miners.delete(url);
       this.peerCache.delete(url);
@@ -693,10 +709,7 @@ export class PeerDiscovery {
   private async handleAddr(payload: AddrPayload): Promise<void> {
     try {
       if (!Array.isArray(payload.addresses)) {
-        throw new DiscoveryError(
-          'Invalid addr payload format',
-          'INVALID_PAYLOAD',
-        );
+        throw new DiscoveryError('Invalid addr payload format', 'INVALID_PAYLOAD');
       }
 
       const validAddresses = payload.addresses.filter(
@@ -729,7 +742,7 @@ export class PeerDiscovery {
     } catch (error) {
       if (error instanceof Error) {
         Logger.error('Error handling addr message:', error);
-        this.eventEmitter.emit('discoveryError', error);
+        this.eventEmitter.emit('discovery_error', error);
       }
     }
   }

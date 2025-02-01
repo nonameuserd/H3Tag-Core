@@ -546,55 +546,42 @@ export class UTXOSet {
         { field: 'timestamp', type: 'number', minValue: 1 },
         { field: 'spent', type: 'boolean' },
         { field: 'currency', type: 'object' },
-        {
-          field: 'currency.name',
-          type: 'string',
-          value: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
-        },
-        {
-          field: 'currency.symbol',
-          type: 'string',
-          value: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-        },
-        {
-          field: 'currency.decimals',
-          type: 'number',
-          value: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
-        },
+        { field: 'currency.name', type: 'string', value: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME },
+        { field: 'currency.symbol', type: 'string', value: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL },
+        { field: 'currency.decimals', type: 'number', value: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS },
       ];
 
-      return validations.every(({ field, type, minLength, minValue }) => {
-        const value = utxo[field as keyof UTXO];
-
-        if (typeof value !== type) return false;
-        if (minLength && typeof value === 'string' && value.length < minLength)
+      return validations.every(({ field, type, minLength, minValue, value: expectedValue }) => {
+        const fieldValue = field
+          .split('.')
+          .reduce<unknown>((prev, curr) => {
+            return (prev as Record<string, unknown>)?.[curr];
+          }, utxo);
+        
+        if (typeof fieldValue !== type) {
           return false;
-        if (minValue && typeof value === 'number' && value < minValue)
+        }
+        
+        // If minLength is defined, ensure the string meets that length
+        if (minLength !== undefined && typeof fieldValue === 'string' && fieldValue.length < minLength) {
           return false;
-        if (minValue && typeof value === 'bigint' && value < minValue)
+        }
+        
+        // For numeric and bigint values, check the minimum value
+        if (minValue !== undefined) {
+          if (typeof fieldValue === 'number' && fieldValue < minValue) {
+            return false;
+          }
+          if (typeof fieldValue === 'bigint' && fieldValue < minValue) {
+            return false;
+          }
+        }
+        
+        // If an expected constant value is provided, ensure they match exactly.
+        if (expectedValue !== undefined && fieldValue !== expectedValue) {
           return false;
-        if (
-          value &&
-          typeof value === 'object' &&
-          'name' in value &&
-          value.name !== BLOCKCHAIN_CONSTANTS.CURRENCY.NAME
-        )
-          return false;
-        if (
-          value &&
-          typeof value === 'object' &&
-          'symbol' in value &&
-          value.symbol !== BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
-        )
-          return false;
-        if (
-          value &&
-          typeof value === 'object' &&
-          'decimals' in value &&
-          value.decimals !== BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS
-        )
-          return false;
-
+        }
+        
         return true;
       });
     } catch (error) {
@@ -831,11 +818,19 @@ export class UTXOSet {
     }
   }
 
-  public validate(): boolean {
+  public async validate(): Promise<boolean> {
     try {
-      return Array.from(this.utxos.values()).every(
-        (utxo) => UTXOSet.validateUtxo(utxo) && this.verifyUtxo(utxo),
-      );
+      for (const utxo of this.utxos.values()) {
+        // Validate basic structure synchronously
+        if (!UTXOSet.validateUtxo(utxo)) {
+          return false;
+        }
+        // Await asynchronous merkle/signature verification
+        if (!(await this.verifyUtxo(utxo))) {
+          return false;
+        }
+      }
+      return true;
     } catch (error) {
       Logger.error('UTXO set validation failed:', error);
       return false;

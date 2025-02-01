@@ -188,31 +188,14 @@ export class Monitoring {
    */
   async shutdown(): Promise<void> {
     try {
-      await Promise.all(
-        this.logger.transports.map(
-          (transport) =>
-            new Promise<void>((resolve, reject) => {
-              const timeout = setTimeout(() => {
-                reject(new Error('Transport shutdown timeout'));
-              }, 5000);
-
-              transport.once('finish', () => {
-                clearTimeout(timeout);
-                resolve();
-              });
-              transport.end();
-            }),
-        ),
-      );
+      // Use Winston's built-in close method for graceful shutdown.
+      this.logger.close();
 
       Object.values(this.metrics).forEach((metric) => {
-        if (metric instanceof prometheus.Gauge) {
-          metric.reset();
-        } else if (metric instanceof prometheus.Histogram) {
+        if (metric instanceof prometheus.Gauge || metric instanceof prometheus.Histogram) {
           metric.reset();
         }
       });
-
       this.timers.clear();
     } catch (error) {
       this.logger.error('Failed to shutdown monitoring:', error);
@@ -244,11 +227,7 @@ export class Monitoring {
   ): void {
     try {
       if (!method || !path || typeof duration !== 'number' || duration < 0) {
-        this.logger.warn('Invalid response time parameters', {
-          method,
-          path,
-          duration,
-        });
+        this.logger.warn('Invalid response time parameters', { method, path, duration });
         return;
       }
 
@@ -286,7 +265,8 @@ export class Monitoring {
     totalHashPower: number,
     totalNodes: number,
   ): void {
-    this.metrics.powHashrate.set(totalHashPower);
-    this.metrics.powNodeCount.set(totalNodes);
+    // Provide required label objects to avoid production errors.
+    this.metrics.powHashrate.set({ node_id: 'total' }, totalHashPower);
+    this.metrics.powNodeCount.set({ status: 'active' }, totalNodes);
   }
 }

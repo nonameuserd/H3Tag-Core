@@ -131,14 +131,12 @@ export class HealthMonitor {
 
       const thresholds = this.config.thresholds;
       const isHealthy =
-        thresholds &&
         (health.powNodeCount || 0) >= (thresholds.minPowNodes || 0) &&
         (health.networkHashrate || 0) >= (thresholds.minPowHashrate || 0) &&
         (health.tagHolderCount || 0) >= (thresholds.minTagDistribution || 0) &&
         (health.tagDistribution || 0) <= (thresholds.maxTagConcentration || 1);
 
       health.isHealthy = isHealthy;
-
       return health;
     } catch (error) {
       Logger.error('Health check failed:', error);
@@ -152,11 +150,12 @@ export class HealthMonitor {
    * @private
    */
   private validateThresholds(): boolean {
-    return !!(
-      this.config.thresholds.minPowNodes &&
-      this.config.thresholds.minPowHashrate &&
-      this.config.thresholds.minTagDistribution &&
-      this.config.thresholds.maxTagConcentration
+    const thresholds = this.config.thresholds;
+    return (
+      typeof thresholds.minPowNodes === 'number' &&
+      typeof thresholds.minPowHashrate === 'number' &&
+      typeof thresholds.minTagDistribution === 'number' &&
+      typeof thresholds.maxTagConcentration === 'number'
     );
   }
 

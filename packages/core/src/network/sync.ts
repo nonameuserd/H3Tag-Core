@@ -697,7 +697,7 @@ export class BlockchainSync {
     ) {
       try {
         const response = await Promise.race([
-          peer.request(PeerMessageType.GETHEADERS, { startHeight, endHeight }),
+          peer.request(PeerMessageType.GET_HEADERS, { startHeight, endHeight }),
           new Promise<never>((_, reject) =>
             setTimeout(
               () => reject(new Error('Timeout')),

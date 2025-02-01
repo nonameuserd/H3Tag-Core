@@ -263,9 +263,14 @@ export class BlockchainStats {
       const startTime = performance.now();
       const cached = this.statsCache.get(key);
       const now = Date.now();
-
-      // Manage cache size
-      if (this.statsCache.size > this.maxCacheSize) {
+      
+      // Remove duplicates from the cacheQueue.
+      const existingIndex = this.cacheQueue.indexOf(key);
+      if (existingIndex !== -1) {
+        this.cacheQueue.splice(existingIndex, 1);
+      }
+      // Manage cache size: remove oldest if necessary.
+      if (this.statsCache.size >= this.maxCacheSize) {
         const oldestKey = this.cacheQueue.shift();
         if (oldestKey) this.statsCache.delete(oldestKey);
       }
@@ -283,7 +288,6 @@ export class BlockchainStats {
       );
       this.statsCache.set(key, { value, timestamp: now });
 
-      // Update all relevant metrics
       this.getMetricsCollector()?.histogram(
         'blockchain_stats_calculation_time',
         performance.now() - startTime,
@@ -295,10 +299,8 @@ export class BlockchainStats {
       );
 
       this.cacheIndex.set(this.blockchain.getHeight(), key);
-
       return value;
     } catch (error: unknown) {
-      // Add error type to metrics
       this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
         stat: key,
         error: (error as Error).name,
@@ -618,15 +620,12 @@ export class BlockchainStats {
   private partition(arr: number[], left: number, right: number): number {
     const pivot = arr[right];
     let i = left;
-    
-    // Replace for loop with array slice and forEach
-    arr.slice(left, right).forEach((value, j) => {
-      if (value < pivot) {
-        [arr[i], arr[j + left]] = [arr[j + left], arr[i]];
+    for (let j = left; j < right; j++) {
+      if (arr[j] < pivot) {
+        [arr[i], arr[j]] = [arr[j], arr[i]];
         i++;
       }
-    });
-    
+    }
     [arr[i], arr[right]] = [arr[right], arr[i]];
     return i;
   }
@@ -792,30 +791,36 @@ export class BlockchainStats {
       const result = await operation();
       breaker.failures = 0;
       this.circuitBreaker.set(key, breaker);
-      await this.saveCircuitBreakerState();
+      try {
+        await this.saveCircuitBreakerState();
+      } catch (stateError) {
+        Logger.error('Failed to save circuit breaker state:', stateError);
+      }
       return result;
     } catch (error) {
       breaker.failures++;
       breaker.lastFailure = Date.now();
       breaker.isOpen = breaker.failures >= 5;
       this.circuitBreaker.set(key, breaker);
-      await this.saveCircuitBreakerState();
+      try {
+        await this.saveCircuitBreakerState();
+      } catch (stateError) {
+        Logger.error('Failed to save circuit breaker state after error:', stateError);
+      }
       throw error;
     }
   }
 
-  private startCacheCleanup(): void {
+  private async startCacheCleanup(): Promise<void> {
     this.cleanupIntervalId = setInterval(async () => {
       await this.cacheMutex.runExclusive(() => {
         const now = Date.now();
-        
-        // Replace for loop with Map iteration using forEach
         this.statsCache.forEach((entry, key) => {
           if (now - entry.timestamp > BLOCKCHAIN_CONSTANTS.UTIL.CACHE_TTL) {
+            Logger.debug(`Cache expired for ${key}`);
             this.statsCache.delete(key);
           }
         });
-        
         this.metricsCollector?.gauge(
           'blockchain_stats_cache_size',
           this.statsCache.size,
@@ -842,7 +847,7 @@ export class BlockchainStats {
     this.cacheQueue.length = 0;
     this.cacheIndex.clear();
     this.metricsCollector?.cleanup();
-    this.cacheMutex.cancel();
+    this.cacheMutex.cancel(); // Ensure no pending operations.
   }
 
   /**

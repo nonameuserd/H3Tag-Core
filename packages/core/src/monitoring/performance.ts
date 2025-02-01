@@ -72,37 +72,27 @@ export class Performance {
         return;
       }
 
-      Performance.metrics.set('cache_hit_rate', {
-        startTime: Date.now(),
-        count: 0,
-        total: 0,
-        min: Infinity,
-        max: -Infinity,
-        avg: 0,
-      });
-      Performance.metrics.set('cache_size', {
-        startTime: Date.now(),
-        count: 0,
-        total: 0,
-        min: Infinity,
-        max: -Infinity,
-        avg: 0,
-      });
-      Performance.metrics.set('cache_evictions', {
-        startTime: Date.now(),
-        count: 0,
-        total: 0,
-        min: Infinity,
-        max: -Infinity,
-        avg: 0,
-      });
-      Performance.metrics.set('cache_memory_usage', {
-        startTime: Date.now(),
-        count: 0,
-        total: 0,
-        min: Infinity,
-        max: -Infinity,
-        avg: 0,
+      // Using unique keys for cache metrics
+      const cacheKeys = ['cache_hit_rate', 'cache_size', 'cache_evictions', 'cache_memory_usage'];
+      cacheKeys.forEach((key) => {
+        const now = Date.now();
+        const existing = Performance.metrics.get(key);
+        
+        // if metric exists, update its timestamp and log the new value; if not, initialize it.
+        if (existing) {
+          existing.startTime = now;
+          // Here, update additional fields as needed for more meaningful cache performance data.
+          // For example, you might want to store cacheMetrics[key] if available.
+        } else {
+          Performance.metrics.set(key, {
+            startTime: now,
+            count: 0,
+            total: 0,
+            min: Infinity,
+            max: -Infinity,
+            avg: 0,
+          });
+        }
       });
 
       // Alert if cache performance degrades
@@ -136,14 +126,15 @@ export class Performance {
       throw new Error('Timer label is required');
     }
 
-    const marker = `${label}_${Date.now()}`;
+    const now = Date.now();
+    const marker = `${label}_${now}`;
     this.metrics.set(marker, {
       count: 0,
       total: 0,
       min: Infinity,
       max: -Infinity,
       avg: 0,
-      startTime: Date.now(),
+      startTime: now,
     });
     return marker;
   }
@@ -156,25 +147,25 @@ export class Performance {
   public static stopTimer(marker: string): number {
     if (!marker) {
       Logger.error('Timer marker is required');
-      return 0;
+      throw new Error('Timer marker is required');
+    }
+
+    const metric = this.metrics.get(marker) as { startTime: number };
+    if (!metric?.startTime) {
+      const message = `No start time found for marker: ${marker}`;
+      Logger.warn(message);
+      throw new Error(message);
     }
 
     try {
-      const metric = this.metrics.get(marker) as { startTime: number };
-      if (!metric?.startTime) {
-        Logger.warn('No start time found for marker:', marker);
-        return 0;
-      }
-
       const duration = Date.now() - metric.startTime;
       const label = marker.split('_')[0];
-
       this.recordMetric(label, duration);
       this.metrics.delete(marker);
       return duration;
     } catch (error) {
       Logger.error('Failed to stop timer:', error);
-      return 0;
+      throw error;
     }
   }
 

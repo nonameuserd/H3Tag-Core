@@ -49,7 +49,7 @@ export class GPUMiner {
    * await miner.initialize();
    */
 
-  private hashBlockHeader(block: Block): number {
+  protected hashBlockHeader(block: Block): number {
     const header = block.header;
     const data = [
       header.version,
@@ -143,82 +143,100 @@ export class GPUMiner {
       throw new Error('GPU not initialized');
     }
 
-    const effectiveBatchSize = batchSize || 256; // Use provided batch size or default
+    // Use provided batch size or default to 256
+    const effectiveBatchSize = batchSize || 256;
+
+    // Create a storage buffer for the block data and mining result.
+    // We only need 8 bytes: 2 x uint32 (4 bytes each)
     const buffer = this.device.createBuffer({
-      size: 16,
+      size: 8, // 2 * 4 bytes for two uint32 values.
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 
-    const blockData = new Uint32Array([this.hashBlockHeader(block)]);
-    const targetData = new BigUint64Array([target]);
+    // Initialize the storage buffer with:
+    //  - data[0] = block header hash (computed from the block)
+    //  - data[1] = sentinel value 0xffffffff indicating "not found"
+    const initialData = new Uint32Array([this.hashBlockHeader(block), 0xffffffff]);
+    this.device.queue.writeBuffer(buffer, 0, initialData);
 
-    try {
-      this.device.queue.writeBuffer(buffer, 0, blockData);
-      this.device.queue.writeBuffer(buffer, 8, targetData);
+    // Create a target buffer, holding the mining target as a 32-bit unsigned integer.
+    const targetBuffer = this.device.createBuffer({
+      size: 4, // 4 bytes for a single uint32 value.
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    });
+    // Convert the bigint target to number (ensure target is in 32-bit range)
+    const targetNumber = Number(target);
+    const targetData = new Uint32Array([targetNumber]);
+    this.device.queue.writeBuffer(targetBuffer, 0, targetData);
 
-      const targetBuffer = this.device.createBuffer({
-        size: 8,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      });
-      this.device.queue.writeBuffer(targetBuffer, 0, targetData);
+    // Create bind group with the expected layout:
+    // Bind group slot 0: the data buffer (block header and nonce result)
+    // Bind group slot 1: the target buffer
+    this.bindGroup = this.device.createBindGroup({
+      layout: this.pipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer } },
+        { binding: 1, resource: { buffer: targetBuffer } },
+      ],
+    });
 
-      this.bindGroup = this.device.createBindGroup({
-        layout: this.pipeline.getBindGroupLayout(0),
-        entries: [
-          { binding: 0, resource: { buffer } },
-          { binding: 1, resource: { buffer: targetBuffer } },
-        ],
-      });
+    // Create command encoder and compute pass.
+    const commandEncoder = this.device.createCommandEncoder();
+    const pass = commandEncoder.beginComputePass();
+    pass.setPipeline(this.pipeline);
+    pass.setBindGroup(0, this.bindGroup);
 
-      const commandEncoder = this.device.createCommandEncoder();
-      const pass = commandEncoder.beginComputePass();
-      pass.setPipeline(this.pipeline);
-      pass.setBindGroup(0, this.bindGroup);
-      pass.dispatchWorkgroups(Math.ceil(this.MAX_NONCE / effectiveBatchSize));
-      pass.end();
+    // IMPORTANT: Limit the dispatch count to what the GPU supports.
+    // Instead of dispatching Math.ceil(MAX_NONCE / effectiveBatchSize) workgroups (which would be huge),
+    // we clip it to the device limit.
+    const maxWorkgroups = this.device.limits.maxComputeWorkgroupsPerDimension;
+    const dispatchCount = Math.min(
+      Math.ceil(this.MAX_NONCE / effectiveBatchSize),
+      maxWorkgroups
+    );
+    pass.dispatchWorkgroups(dispatchCount);
+    pass.end();
 
-      const readBuffer = this.device.createBuffer({
-        size: 8,
-        usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
-      });
-      commandEncoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, 8);
+    // Create a read-buffer to extract only the nonce result (stored in data[1], i.e. offset of 4 bytes).
+    const readBuffer = this.device.createBuffer({
+      size: 4, // Only 4 bytes are needed.
+      usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
+    });
+    // Copy from offset 4 of our storage buffer.
+    commandEncoder.copyBufferToBuffer(buffer, 4, readBuffer, 0, 4);
 
-      this.device.queue.submit([commandEncoder.finish()]);
-      await readBuffer.mapAsync(GPUMapMode.READ);
-      const result = new Uint32Array(readBuffer.getMappedRange())[0];
+    // Submit the GPU commands.
+    this.device.queue.submit([commandEncoder.finish()]);
+    await readBuffer.mapAsync(GPUMapMode.READ);
+    const result = new Uint32Array(readBuffer.getMappedRange())[0];
 
-      readBuffer.unmap();
-      buffer.destroy();
-      targetBuffer.destroy();
-      readBuffer.destroy();
+    readBuffer.unmap();
+    buffer.destroy();
+    targetBuffer.destroy();
+    readBuffer.destroy();
 
-      return {
-        found: true,
-        nonce: result,
-        hash: HashUtils.sha3(this.getBlockHeaderString(block, result)).slice(
-          0,
-          8,
-        ),
-      };
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw new Error(`Mining operation failed: ${error.message}`);
-      }
-      throw new Error('Mining operation failed: Unknown error');
-    }
+    // Determine if a valid nonce was found. If the result still equals the sentinel then nothing was found.
+    const found = result !== 0xffffffff;
+
+    return {
+      found,
+      nonce: result,
+      hash: found
+        ? HashUtils.sha3(this.getBlockHeaderString(block, result)).slice(0, 8)
+        : '', // Return an empty hash if not found.
+    };
   }
 
   /**
    * Gets block header as string
    *
-   * @private
+   * @protected
    * @method getBlockHeaderString
    * @param {Block} block - Block to process
    * @param {number} nonce - Nonce value
    * @returns {string} Block header string
    */
-
-  private getBlockHeaderString(block: Block, nonce: number): string {
+  protected getBlockHeaderString(block: Block, nonce: number): string {
     const header = block.header;
     return [
       header.version,

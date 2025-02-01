@@ -76,34 +76,34 @@ export enum PeerServices {
  * @property {PeerServices[]} services - Provided services
  */
 export interface PeerInfo {
-  id: string;
-  url: string;
-  version: string;
-  height: number;
-  lastSeen: number;
-  latency: number;
-  capabilities: string[];
-  connectedAt: number;
-  peers: number;
-  consensusRole: 'validator' | 'participant' | 'observer';
-  consensusStats: {
+  readonly id: string;
+  readonly url: string;
+  readonly version: string;
+  readonly height: number;
+  readonly lastSeen: number;
+  readonly latency: number;
+  readonly capabilities: string[];
+  readonly connectedAt: number;
+  readonly peers: number;
+  readonly consensusRole: 'validator' | 'participant' | 'observer';
+  readonly consensusStats: {
     powContributions: number;
     votingParticipation: number;
     lastVoteHeight: number;
     reputation: number;
   };
-  currency: {
-    name: string;
-    symbol: string;
-    decimals: number;
-    currentSupply: number;
-    maxSupply: number;
-    blockReward: number;
+  readonly currency: {
+    readonly name: string;
+    readonly symbol: string;
+    readonly decimals: number;
+    readonly currentSupply: number;
+    readonly maxSupply: number;
+    readonly blockReward: number;
   };
-  services: PeerServices[];
-  timestamp: number;
-  startHeight?: number;
-  userAgent?: string;
+  readonly services: PeerServices[];
+  readonly timestamp: number;
+  readonly startHeight?: number;
+  readonly userAgent?: string;
 }
 
 /**
@@ -169,8 +169,8 @@ export interface ExtendedPeerInfo extends PeerInfo {
  * @property {string} INV - Inventory
  * @property {string} GETDATA - Data request
  * @property {string} NOTFOUND - Data not found
- * @property {string} GETBLOCKS - Block request
- * @property {string} GETHEADERS - Headers request
+ * @property {string} GET_BLOCKS - Blocks request
+ * @property {string} GET_HEADERS - Headers request
  * @property {string} GETBLOCKTXN - Block transactions request
  * @property {string} TX - Transaction
  * @property {string} BLOCK - Block
@@ -179,8 +179,6 @@ export interface ExtendedPeerInfo extends PeerInfo {
  * @property {string} MEMPOOL - Mempool request
  * @property {string} REJECT - Message rejection
  * @property {string} GET_NODE_INFO - Node information request
- * @property {string} GET_HEADERS - Headers request
- * @property {string} GET_BLOCKS - Blocks request
  * @property {string} GET_BLOCK - Single block request
  * @property {string} NEW_BLOCK - New block announcement
  * @property {string} NEW_TRANSACTION - New transaction announcement
@@ -195,8 +193,8 @@ export enum PeerMessageType {
   INV = 'inv',
   GETDATA = 'getdata',
   NOTFOUND = 'notfound',
-  GETBLOCKS = 'getblocks',
-  GETHEADERS = 'getheaders',
+  GET_BLOCKS = 'get_blocks',
+  GET_HEADERS = 'get_headers',
   GETBLOCKTXN = 'getblocktxn',
   TX = 'tx',
   BLOCK = 'block',
@@ -205,14 +203,19 @@ export enum PeerMessageType {
   MEMPOOL = 'mempool',
   REJECT = 'reject',
   GET_NODE_INFO = 'get_node_info',
-  GET_HEADERS = 'get_headers',
-  GET_BLOCKS = 'get_blocks',
   GET_BLOCK = 'get_block',
   NEW_BLOCK = 'new_block',
   NEW_TRANSACTION = 'new_transaction',
   GET_VOTES = 'get_votes',
 }
 
+/**
+ * @interface MessagePayload
+ * @description Defines the possible shapes of the payload data for peer messages.
+ * 
+ * NOTE: Because many fields are optional, consider adding runtime validation (using libraries such as AJV or Zod)
+ * when processing incoming peer messages to ensure data integrity.
+ */
 export interface MessagePayload {
   addresses?: {
     url: string;

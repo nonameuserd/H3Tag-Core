@@ -50,6 +50,11 @@ interface SeedInfo {
   score: number;
 }
 
+interface PeerResult {
+  address: string;
+  seed: string;
+}
+
 export class DNSSeeder extends EventEmitter {
   private readonly resolve4Async = promisify(dns.resolve4);
   private readonly resolve6Async = promisify(dns.resolve6);
@@ -184,7 +189,7 @@ export class DNSSeeder extends EventEmitter {
   }
 
   private async resolvePeers(seeds: string[]): Promise<string[]> {
-    const uniquePeers = new Set<string>();
+    const peerResults: PeerResult[] = [];
     const promises: Promise<void>[] = [];
 
     for (const seed of seeds) {
@@ -201,7 +206,9 @@ export class DNSSeeder extends EventEmitter {
             const latency = Date.now() - startTime;
 
             this.updateSeedMetrics(seed, addresses.length, latency);
-            addresses.forEach((addr) => uniquePeers.add(addr));
+            addresses.forEach((addr) => {
+              peerResults.push({ address: addr, seed });
+            });
           } catch (error: unknown) {
             this.handleSeedFailure(seed, error as Error);
           } finally {
@@ -213,7 +220,7 @@ export class DNSSeeder extends EventEmitter {
     }
 
     await Promise.allSettled(promises);
-    return this.rankPeers(Array.from(uniquePeers));
+    return this.rankPeers(peerResults);
   }
 
   private async resolveWithRetry(
@@ -258,37 +265,32 @@ export class DNSSeeder extends EventEmitter {
     }
   }
 
-  private rankPeers(peers: string[]): string[] {
+  private rankPeers(peers: PeerResult[]): string[] {
     if (!this.config.seedRanking) {
-      return peers.slice(0, this.config.maxPeers);
+      return peers.slice(0, this.config.maxPeers).map(peer => peer.address);
     }
 
     return peers
-      .map((peer) => ({
-        address: peer,
-        score: this.calculatePeerScore(peer),
-      }))
+      .map((peer) => {
+        const score = this.calculatePeerScoreForSeed(peer.seed);
+        return { ...peer, score };
+      })
       .sort((a, b) => b.score - a.score)
       .slice(0, this.config.maxPeers)
       .map((p) => p.address);
   }
 
-  private calculatePeerScore(peer: string): number {
-    const info = this.seedCache.get(peer);
-    if (!info) return 0;
-
+  private calculatePeerScoreForSeed(seed: string): number {
+    const info = this.seedCache.get(seed);
     let score = 100;
 
-    // Reduce score based on failures
-    score -= info.failures * 10;
-
-    // Prefer peers with lower latency
-    score -= Math.floor(info.latency / 100);
-
-    // Prefer peers seen recently
-    const hoursSinceLastSeen = (Date.now() - info.lastSeen) / 3600000;
-    score -= Math.floor(hoursSinceLastSeen * 2);
-
+    if (info) {
+      score -= info.failures * 10;
+      score -= Math.floor(info.latency / 100);
+      const hoursSinceLastSeen = (Date.now() - info.lastSeen) / 3600000;
+      score -= Math.floor(hoursSinceLastSeen * 2);
+    }
+    
     return Math.max(0, score);
   }
 

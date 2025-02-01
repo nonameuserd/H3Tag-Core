@@ -585,12 +585,14 @@ export class ProofOfWork {
       // Add block to inflight tracking
       this.addInflightBlock(block);
 
+      let timestampInterval: NodeJS.Timeout | undefined;
+
       try {
         // Update block timestamp periodically during mining
         const updateTimestamp = () => {
           block.header.timestamp = Math.floor(Date.now() / 1000);
         };
-        const timestampInterval = setInterval(updateTimestamp, 1000);
+        timestampInterval = setInterval(updateTimestamp, 1000);
 
         while (!this.isInterrupted && block.header.nonce < this.MAX_NONCE) {
           // Update merkle root if mempool changed
@@ -675,6 +677,10 @@ export class ProofOfWork {
         throw error;
       } finally {
         this.removeInflightBlock(block.header.height);
+        // Clear the interval if it was set
+        if (timestampInterval) {
+          clearInterval(timestampInterval);
+        }
       }
     });
   }
@@ -833,7 +839,8 @@ export class ProofOfWork {
    * @returns number Calculated hash rate
    */
   private calculateHashRate(hashes: number, timeInMs: number): number {
-    return (hashes * 1000) / timeInMs; // Hashes per second
+    const safeTime = timeInMs > 0 ? timeInMs : 1;
+    return (hashes * 1000) / safeTime; // Hashes per second
   }
 
   /**
@@ -2417,21 +2424,15 @@ export class ProofOfWork {
         return false;
       }
 
-      // Verify previous block exists and hash matches
-      const prevBlock = this.blockchain.getBlockByHeight(
-        block.header.height - 1,
-      );
+      // Verify previous block exists and hash matches (await the async call)
+      const prevBlock = await this.blockchain.getBlockByHeight(block.header.height - 1);
       if (!prevBlock || prevBlock.hash !== block.header.previousHash) {
         return false;
       }
 
       // Check timestamp is within allowed range
       const now = Math.floor(Date.now() / 1000);
-      if (
-        block.header.timestamp < this.minTime ||
-        block.header.timestamp > now + 7200
-      ) {
-        // Max 2 hours in future
+      if (block.header.timestamp < this.minTime || block.header.timestamp > now + 7200) {
         return false;
       }
 

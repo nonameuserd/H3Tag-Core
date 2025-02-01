@@ -138,13 +138,16 @@ export class DifficultyAdjuster {
   ): Promise<number> {
     let adjustment = this.calculatePOWAdjustment(blockTimes, hashRate);
 
+    // Add hash rate adjustment
+    const hashRateAdjustment = this.calculateHashRateAdjustment(hashRate);
+    adjustment = adjustment * hashRateAdjustment;
+
     // Apply voting influence
     if (voteData.participation >= this.MIN_VOTES_WEIGHT) {
       const voteAdjustment = this.calculateVoteAdjustment(
         voteData.participation,
         voteData.approvalRate,
       );
-
       adjustment =
         adjustment * (1 - this.VOTE_INFLUENCE) +
         voteAdjustment * this.VOTE_INFLUENCE;
@@ -163,10 +166,11 @@ export class DifficultyAdjuster {
     participation: number,
     approvalRate: number,
   ): number {
-    const cappedParticipation = Math.min(participation, this.VOTE_POWER_CAP);
+    const cappedParticipation = Math.min(Math.max(participation, 0), 1);
+    const cappedApprovalRate = Math.min(Math.max(approvalRate, 0), 1);
 
     const participationWeight = cappedParticipation / this.MIN_VOTES_WEIGHT;
-    const approvalWeight = approvalRate - 0.5; // Center around 50%
+    const approvalWeight = cappedApprovalRate - 0.5; // Center around 50%
 
     return 1 + participationWeight * approvalWeight * this.ADJUSTMENT_FACTOR;
   }
@@ -177,24 +181,24 @@ export class DifficultyAdjuster {
     if (this.hashRateHistory.length > this.HASH_RATE_WINDOW) {
       this.hashRateHistory.shift();
     }
-
+  
     if (this.hashRateHistory.length < 6) {
       return 1.0;
     }
-
+  
     const shortTermEMA = this.calculateEMA(
       this.hashRateHistory.slice(-6).map(Number),
       2,
     );
     const longTermEMA = this.calculateEMA(this.hashRateHistory.map(Number), 12);
-
+  
     const hashRateChange = (shortTermEMA - longTermEMA) / longTermEMA;
-
+  
     const adjustment =
       1 + this.sigmoid(hashRateChange) * this.MAX_HASH_RATE_ADJUSTMENT;
-
+  
     const networkFactor = this.calculateNetworkHealthFactor();
-
+  
     return Math.max(
       1 - this.MAX_HASH_RATE_ADJUSTMENT,
       Math.min(
@@ -224,37 +228,40 @@ export class DifficultyAdjuster {
   }
 
   private async calculateNetworkHealthFactor(): Promise<number> {
-    const metrics = {
-      orphanRate: await this.getOrphanRate(),
-      propagationTime: this.getAveragePropagationTime(),
-      peerCount: this.getActivePeerCount(),
-      networkLatency: this.getAverageNetworkLatency(),
-    };
+    try {
+      const metrics = {
+        orphanRate: await this.getOrphanRate().catch(() => 0),
+        propagationTime: this.getAveragePropagationTime(),
+        peerCount: this.getActivePeerCount(),
+        networkLatency: await this.getAverageNetworkLatency().catch(() => 0),
+      };
 
-    const normalizedMetrics = {
-      orphanRate: Math.min(Number(metrics.orphanRate || 0) / 0.05, 1),
-      propagationTime: Math.min(
-        Number(metrics.propagationTime || 0) / 30000,
-        1,
-      ),
-      peerCount: Math.max(0, Math.min(((metrics.peerCount || 0) - 8) / 50, 1)),
-      networkLatency: Math.min(Number(metrics.networkLatency || 0) / 1000, 1),
-    };
+      const normalizedMetrics = {
+        orphanRate: Math.min(Number(metrics.orphanRate || 0) / 0.05, 1),
+        propagationTime: Math.min(
+          Number(metrics.propagationTime || 0) / 30000,
+          1,
+        ),
+        peerCount: Math.max(0, Math.min(((metrics.peerCount || 0) - 8) / 50, 1)),
+        networkLatency: Math.min(Number(metrics.networkLatency || 0) / 1000, 1),
+      };
 
-    const weights = {
-      orphanRate: 0.4,
-      propagationTime: 0.3,
-      peerCount: 0.2,
-      networkLatency: 0.1,
-    };
+      const weights = {
+        orphanRate: 0.4,
+        propagationTime: 0.3,
+        peerCount: 0.2,
+        networkLatency: 0.1,
+      };
 
-    // Calculate weighted average
-    const healthScore = Object.keys(weights).reduce((score, metric) => {
-      return score + normalizedMetrics[metric as keyof typeof normalizedMetrics] * weights[metric as keyof typeof weights];
-    }, 0);
+      const healthScore = Object.keys(weights).reduce((score, metric) => {
+        return score + normalizedMetrics[metric as keyof typeof normalizedMetrics] * weights[metric as keyof typeof weights];
+      }, 0);
 
-    // Convert to adjustment factor (0.9 - 1.1 range)
-    return 0.9 + healthScore * 0.2;
+      return 0.9 + healthScore * 0.2;
+    } catch (error) {
+      Logger.error('Failed to calculate network health factor:', error);
+      return 1.0; // Fallback to neutral health factor
+    }
   }
 
   private async getOrphanRate(): Promise<number> {
@@ -321,21 +328,21 @@ export class DifficultyAdjuster {
       ) {
         return 1.0;
       }
-
+  
       const avgBlockTime = this.calculateAverageBlockTime(blockTimes);
       if (avgBlockTime <= 0) return 1.0;
-
+  
       const timeRatio = this.TARGET_BLOCK_TIME / avgBlockTime;
       const hashRateChange =
         this.lastHashRate > 0
           ? (Number(hashRate) - Number(this.lastHashRate)) /
             Number(this.lastHashRate)
           : 0;
-
+  
       const dampening = 0.75;
       const adjustment = timeRatio * (1 + hashRateChange * dampening);
       this.lastHashRate = BigInt(hashRate);
-
+  
       return Math.max(
         1 - this.ADJUSTMENT_FACTOR,
         Math.min(adjustment, 1 + this.ADJUSTMENT_FACTOR),

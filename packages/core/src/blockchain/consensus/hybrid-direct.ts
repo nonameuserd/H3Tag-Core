@@ -479,9 +479,10 @@ export class HybridDirectConsensus {
    * @param block Block to check
    * @returns Promise<boolean> True if block is a fork point
    */
-  private async isForkPoint(block: Block): Promise<boolean | null> {
+  private async isForkPoint(block: Block): Promise<boolean> {
     const existingBlock = await this.db.getBlockByHeight(block.header.height);
-    return existingBlock && existingBlock.hash !== block.header.previousHash;
+    // If there is no existing block, then treat it as not a fork point.
+    return existingBlock ? existingBlock.hash !== block.header.previousHash : false;
   }
 
   /**
@@ -609,27 +610,16 @@ export class HybridDirectConsensus {
    */
   async processBlock(block: Block): Promise<Block> {
     const processingTimer = Performance.startTimer('block_processing');
-    let timeoutId = setTimeout(
-      () => {},
-      BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS,
-    );
-
     try {
-      const result = await Promise.race([
-        this._processBlock(block),
-        new Promise<Block>((_, reject) => {
-          timeoutId = setTimeout(() => {
-            reject(new ConsensusError('Block processing timeout exceeded'));
-          }, BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS);
-        }),
-      ]);
-
+      const processingPromise = this._processBlock(block);
+      const timeoutPromise = new Promise<Block>((_, reject) => {
+        setTimeout(() => {
+          reject(new ConsensusError('Block processing timeout exceeded'));
+        }, BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS);
+      });
+      const result = await Promise.race([processingPromise, timeoutPromise]);
       return result;
-    } catch (error) {
-      Logger.error('Block processing failed:', error);
-      throw error;
     } finally {
-      clearTimeout(timeoutId);
       const duration = Performance.stopTimer(processingTimer);
       this.emitMetric('block_processing_duration', duration);
     }
@@ -820,14 +810,16 @@ export class HybridDirectConsensus {
   public async dispose(): Promise<void> {
     this.isDisposed = true;
     this.eventEmitter.removeAllListeners();
-    this.forkLock.release();
-    this.cacheLock.release();
-    this.forkResolutionLock.release();
-
+    // Remove cleanup event listeners
+    if (this.cleanupHandler) {
+      process.off('beforeExit', this.cleanupHandler);
+      process.off('SIGINT', this.cleanupHandler);
+      process.off('SIGTERM', this.cleanupHandler);
+    }
+    // ... continue with disposal of resources
     if (this.cleanupHandler) {
       await this.cleanupHandler();
     }
-
     if (this.blockCache) {
       await this.blockCache.shutdown();
     }
@@ -888,7 +880,7 @@ export class HybridDirectConsensus {
       this.circuitBreaker.failures = 0;
       return false;
     }
-    return this.circuitBreaker.failures >= this.circuitBreaker.threshold;
+    return this.circuitBreaker.failures >= this.circuitBreaker.failureThreshold;
   }
 
   /**

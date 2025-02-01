@@ -124,36 +124,43 @@
 export class GPUCircuitBreaker {
   private failures = 0;
   private readonly defaultThreshold = 3;
-  private readonly defaultResetTime = 300000; // 5 minutes
+  private readonly defaultResetTime = 300000; // 5 minutes in milliseconds
   private lastFailure = Date.now();
   private threshold: number;
   private resetTime: number;
 
   constructor(options?: { threshold?: number; resetTime?: number }) {
+    // Use provided options or defaults
     this.threshold = options?.threshold ?? this.defaultThreshold;
     this.resetTime = options?.resetTime ?? this.defaultResetTime;
     this.validateSettings();
+    // Reset timestamp on creation
+    this.lastFailure = Date.now();
   }
 
   private validateSettings(): void {
     if (this.threshold <= 0 || !Number.isInteger(this.threshold)) {
       throw new Error('Threshold must be a positive integer');
     }
-    if (this.resetTime <= 0) {
-      throw new Error('Reset time must be positive');
+    if (this.resetTime <= 0 || this.resetTime > 86400000) { // reset time must be < 24 hours
+      throw new Error('Reset time must be positive and less than 24 hours');
     }
   }
 
+  /**
+   * Returns true if the circuit breaker is tripped (open).
+   */
   isOpen(): boolean {
     const now = Date.now();
     const timeSinceLastFailure = now - this.lastFailure;
 
-    // Handle invalid timestamps
+    // Handle possible clock skew by resetting the lastFailure if negative
     if (timeSinceLastFailure < 0) {
       this.lastFailure = now;
       return false;
     }
 
+    // If enough time has passed, reset failures
     if (timeSinceLastFailure > this.resetTime) {
       this.reset();
       return false;
@@ -162,37 +169,61 @@ export class GPUCircuitBreaker {
     return this.failures >= this.threshold;
   }
 
+  /**
+   * Records a failure event and updates the failure counter.
+   */
   recordFailure(): void {
-    // Prevent counter overflow
+    // Use saturating increment to prevent overflow
     if (this.failures < Number.MAX_SAFE_INTEGER) {
       this.failures++;
       this.lastFailure = Date.now();
+    } else {
+      // If at max value, saturate at the threshold.
+      this.failures = this.threshold;
     }
   }
 
+  /**
+   * Resets the circuit breaker state.
+   */
   reset(): void {
     this.failures = 0;
     this.lastFailure = Date.now();
   }
 
+  /**
+   * Returns the current failure count.
+   */
   getFailureCount(): number {
     return this.failures;
   }
 
+  /**
+   * Returns the timestamp of the last failure.
+   */
   getLastFailureTime(): number {
     return this.lastFailure;
   }
 
+  /**
+   * Updates the failure threshold.
+   */
   setThreshold(threshold: number): void {
     this.threshold = threshold;
     this.validateSettings();
   }
 
+  /**
+   * Updates the reset time in milliseconds.
+   */
   setResetTime(resetTime: number): void {
     this.resetTime = resetTime;
     this.validateSettings();
   }
 
+  /**
+   * Returns the current circuit breaker settings.
+   */
   getSettings(): { threshold: number; resetTime: number } {
     return {
       threshold: this.threshold,

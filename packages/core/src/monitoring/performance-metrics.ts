@@ -148,11 +148,10 @@ export class PerformanceMetrics {
   private async updateMetric(metric: Metric, duration: number, now: number) {
     // Check for numeric overflow
     if (metric.totalDuration > Number.MAX_SAFE_INTEGER - duration) {
-      await this.cleanupOldMetrics(now);
-      metric.totalDuration = metric.durations.reduce(
-        (a: number, b: number) => a + b,
-        0,
-      );
+      // Directly call the internal cleanup function to avoid deadlock
+      await this.cleanupOldMetricsInternal(now);
+      // Recalculate totalDuration using the (possibly trimmed) durations array
+      metric.totalDuration = metric.durations.reduce((a: number, b: number) => a + b, 0);
     }
 
     // Prevent array growth
@@ -229,9 +228,16 @@ export class PerformanceMetrics {
   }
 
   private async cleanupOldMetrics(now: number): Promise<void> {
-    const cutoff = now - this.MAX_METRICS_AGE;
     const release = await this.mutex.acquire();
+    try {
+      await this.cleanupOldMetricsInternal(now);
+    } finally {
+      release();
+    }
+  }
 
+  private async cleanupOldMetricsInternal(now: number): Promise<void> {
+    const cutoff = now - this.MAX_METRICS_AGE;
     try {
       for (const [key, metric] of this.metrics.operations.entries()) {
         // Check if metric is too old or empty
@@ -270,8 +276,6 @@ export class PerformanceMetrics {
     } catch (error) {
       Logger.error('Failed to cleanup metrics:', error);
       throw error;
-    } finally {
-      release();
     }
   }
 }

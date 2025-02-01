@@ -75,6 +75,15 @@ export class UTXODatabase {
     }
   }
 
+  private batchWrite(batch: AbstractChainedBatch<string, string>): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      batch.write((error: unknown) => {
+        if (error instanceof Error) reject(error);
+        else resolve();
+      });
+    });
+  }
+
   /**
    * Inserts a new UTXO into the database
    *
@@ -120,9 +129,7 @@ export class UTXODatabase {
         }
 
         if (!this.batch) {
-          await batch.write((err) => {
-            if (err) throw err;
-          });
+          await this.batchWrite(batch);
         }
 
         this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
@@ -164,15 +171,16 @@ export class UTXODatabase {
     }
 
     try {
-      const data = await this.db.get(key);
-      const utxo = this.safeParse<UTXO>(data);
+      const utxo = await this.db.get<string>(key, {
+        valueEncoding: 'json',
+      });
       if (!utxo) return null;
 
-      this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
-      return utxo;
+      this.cache.set(key, JSON.parse(utxo) as UTXO, { ttl: this.CACHE_TTL });
+      return JSON.parse(utxo) as UTXO;
     } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return null;
-      Logger.error('Failed to get UTXO:', error instanceof Error ? error.message : 'Unknown error');
+      if (this.isNotFoundError(error)) return null;
+      Logger.error('Failed to get UTXO:', (error instanceof Error ? error.message : 'Unknown error'));
       throw new Error('Failed to get UTXO');
     }
   }
@@ -274,9 +282,7 @@ export class UTXODatabase {
         throw new Error('No transaction in progress');
       }
       if (this.batch) {
-        await this.batch.write((err) => {
-          if (err) throw err;
-        });
+        await this.batchWrite(this.batch);
         this.batch = null;
         this.transactionInProgress = false;
       }
@@ -318,12 +324,7 @@ export class UTXODatabase {
     );
   }
 
-  private safeParse<T>(value: string): T | null {
-    try {
-      return JSON.parse(value) as T;
-    } catch (error) {
-      Logger.error('Failed to parse stored value:', error);
-      return null;
-    }
+  private isNotFoundError(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && 'notFound' in error;
   }
 }

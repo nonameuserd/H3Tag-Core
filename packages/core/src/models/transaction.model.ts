@@ -688,7 +688,7 @@ export class TransactionBuilder {
         }
       }
 
-      return tx;
+      return Object.freeze(tx);
     } catch (error) {
       Logger.error('Transaction build failed:', error);
       throw new TransactionError(
@@ -1337,18 +1337,23 @@ export class TransactionBuilder {
         throw new TransactionError('Missing required transaction fields');
       }
 
+      // Use provided txData.id if available (and valid), otherwise calculate a new one.
+      const txId = txData.id && typeof txData.id === 'string' 
+        ? txData.id 
+        : await this.calculateTransactionHash();
+
       // Build transaction object
       const tx: Transaction = {
         ...txData,
-        id: await this.calculateTransactionHash(),
+        id: txId,
         status: TransactionStatus.PENDING,
         timestamp: Date.now(),
         verify: async () => await TransactionBuilder.verify(tx),
         transaction: {
-          hash: '',
+          hash: txData.transaction?.hash || '', // fallback when missing
           timestamp: Date.now(),
-          fee: BigInt(0),
-          signature: '',
+          fee: BigInt(txData.transaction?.fee || 0),
+          signature: txData.transaction?.signature || '',
         },
         toHex: () => JSON.stringify(tx),
         getSize: () => TransactionBuilder.getSize(tx),
@@ -1361,7 +1366,7 @@ export class TransactionBuilder {
 
       return tx;
     } catch (error: unknown) {
-      throw new TransactionError('Invalid transaction format' + (error as Error).message);
+      throw new TransactionError('Invalid transaction format: ' + (error as Error).message);
     }
   }
 
@@ -1469,35 +1474,17 @@ export class TransactionBuilder {
    * @returns Promise<Transaction> Decoded transaction
    * @throws TransactionError If decoding fails
    */
-  public static async decodeRawTransaction(
-    rawTx: string,
-  ): Promise<Transaction> {
+  public static async decodeRawTransaction(rawTx: string): Promise<Transaction> {
     try {
-      // Input validation
       if (!rawTx || typeof rawTx !== 'string') {
         throw new TransactionError('Invalid raw transaction format');
       }
 
-      // Parse the JSON string
       let txData: RawTransaction;
       try {
         txData = JSON.parse(rawTx);
       } catch (error: unknown) {
-        throw new TransactionError('Invalid transaction JSON format' + (error as Error).message);
-      }
-
-      // Validate required fields
-      const requiredFields: (keyof RawTransaction)[] = [
-        'version',
-        'type',
-        'inputs',
-        'outputs',
-        'timestamp',
-      ];
-      for (const field of requiredFields) {
-        if (!(field in txData)) {
-          throw new TransactionError(`Missing required field: ${field}`);
-        }
+        throw new TransactionError('Invalid transaction JSON format: ' + (error as Error).message);
       }
 
       // Convert amounts back to BigInt
@@ -1511,17 +1498,15 @@ export class TransactionBuilder {
         amount: BigInt(output.amount),
       }));
 
-      if (txData.fee) {
-        txData.fee = txData.fee.toString();
-      }
+      // Normalize fee as a string and then convert to BigInt reliably.
+      const feeString = (txData.fee as number | string).toString();
 
-      // Create Transaction object
       const tx: Transaction = {
         ...txData,
         transaction: {
           hash: '',
           timestamp: Date.now(),
-          fee: BigInt(0),
+          fee: BigInt(feeString),
           signature: '',
         },
         verify: async () => await TransactionBuilder.verify(tx),
@@ -1534,7 +1519,7 @@ export class TransactionBuilder {
         },
         id: txData.id || '',
         timestamp: txData.timestamp,
-        fee: BigInt(txData.fee),
+        fee: BigInt(feeString),
         signature: txData.signature,
         sender: txData.sender,
         recipient: txData.recipient,
@@ -1543,7 +1528,6 @@ export class TransactionBuilder {
         status: txData.status || TransactionStatus.PENDING,
       };
 
-      // Validate transaction structure
       if (!(await TransactionBuilder.verify(tx))) {
         throw new TransactionError('Invalid transaction structure');
       }
@@ -1559,9 +1543,7 @@ export class TransactionBuilder {
     } catch (error) {
       Logger.error('Failed to decode transaction:', error);
       throw new TransactionError(
-        error instanceof TransactionError
-          ? error.message
-          : 'Failed to decode transaction',
+        error instanceof TransactionError ? error.message : 'Failed to decode transaction',
       );
     }
   }
@@ -1655,42 +1637,35 @@ export class TransactionBuilder {
     publicKey: string,
   ): Promise<boolean> {
     try {
-      // Input validation
       if (!message || typeof message !== 'string') {
         throw new TransactionError('Invalid message format');
       }
-      if (!signature?.match(/^[a-f0-9]{128}$/i)) {
-        throw new TransactionError('Invalid signature format');
+      // Allow a configurable range or document the expected signature length.
+      const expectedSignatureLength = 128;
+      if (!signature || signature.length !== expectedSignatureLength) {
+        throw new TransactionError('Invalid signature format (unexpected length)');
       }
-      if (!publicKey?.match(/^[a-f0-9]{130}$/i)) {
+      if (!publicKey || publicKey.length !== 130) {
         throw new TransactionError('Invalid public key format');
       }
-
-      // Prepare message for verification
       const messagePrefix = BLOCKCHAIN_CONSTANTS.MESSAGE.PREFIX;
       const messageBuffer = Buffer.from(messagePrefix + message);
       const messageHash = createHash('sha256').update(messageBuffer).digest();
-
-      // Verify using HybridCrypto
       const isValid = await HybridCrypto.verify(
         messageHash.toString('hex'),
         signature,
         HashUtils.sha256(publicKey),
       );
-
       Logger.debug('Message verification completed', {
         messageLength: message.length,
         signatureLength: signature.length,
         isValid,
       });
-
       return isValid;
     } catch (error) {
       Logger.error('Message verification failed:', error);
       throw new TransactionError(
-        error instanceof TransactionError
-          ? error.message
-          : 'Failed to verify message',
+        error instanceof TransactionError ? error.message : 'Failed to verify message',
       );
     }
   }
@@ -1813,19 +1788,11 @@ export class TransactionBuilder {
    */
   private async getDynamicMinFee(txSize: number): Promise<bigint> {
     try {
-      // Get base fee rate from mempool
-      const baseFeeRate = await TransactionBuilder.mempool.getMinFeeRate();
-
-      // Calculate minimum fee based on transaction size
-      const minFee = BigInt(Math.ceil(txSize * Number(baseFeeRate)));
-
-      // Never go below absolute minimum fee
-      return BigInt(
-        Math.max(
-          Number(minFee),
-          Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE),
-        ),
-      );
+      // Get base fee rate as a BigInt string, then convert to BigInt.
+      const baseFeeRateNumber = await TransactionBuilder.mempool.getMinFeeRate();
+      const minFeeFromSize = BigInt(Math.ceil(txSize * Number(baseFeeRateNumber)));
+      const absoluteMinFee = BigInt(BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE);
+      return minFeeFromSize < absoluteMinFee ? absoluteMinFee : minFeeFromSize;
     } catch (error) {
       Logger.warn('Failed to get dynamic min fee, using fallback:', error);
       // Fallback to static minimum
@@ -1840,20 +1807,12 @@ export class TransactionBuilder {
    */
   private async getDynamicMaxFee(txSize: number): Promise<bigint> {
     try {
-      // Calculate dynamic max fee based on congestion
-      const baseMaxFee = await TransactionBuilder.mempool.getBaseFeeRate();
-      const dynamicMaxFee = baseMaxFee * txSize;
-
-      // Never exceed absolute maximum fee
-      return BigInt(
-        Math.min(
-          Number(dynamicMaxFee),
-          Number(await TransactionBuilder.mempool.getMaxFeeRate()),
-        ),
-      );
+      const baseMaxFeeNumber = await TransactionBuilder.mempool.getBaseFeeRate();
+      const dynamicMaxFee = BigInt(Math.floor(txSize * Number(baseMaxFeeNumber)));
+      const maxFeeRate = BigInt(await TransactionBuilder.mempool.getMaxFeeRate());
+      return dynamicMaxFee > maxFeeRate ? maxFeeRate : dynamicMaxFee;
     } catch (error) {
       Logger.warn('Failed to get dynamic max fee, using fallback:', error);
-      // Fallback to static maximum
       return BigInt(await TransactionBuilder.mempool.getMaxFeeRate());
     }
   }

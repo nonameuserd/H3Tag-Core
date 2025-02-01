@@ -72,7 +72,7 @@ export class Node {
   private isRunning = false;
   private maintenanceTimer?: NodeJS.Timeout;
   private readonly discovery: PeerDiscovery;
-  private readonly eventEmitter: EventEmitter | undefined;
+  private readonly eventEmitter: EventEmitter;
 
   private static readonly DEFAULT_CONFIG: NodeConfig = {
     networkType: NetworkType.MAINNET,
@@ -96,6 +96,8 @@ export class Node {
     private readonly configService: ConfigService,
     private readonly auditManager: AuditManager,
   ) {
+    this.eventEmitter = new EventEmitter();
+
     this.config = {
       ...Node.DEFAULT_CONFIG,
       ...ConfigService.getInstance(),
@@ -148,18 +150,18 @@ export class Node {
   }
 
   private setupEventHandlers(): void {
-    this.eventEmitter?.on('peer:connect', this.handlePeerConnect.bind(this));
-    this.eventEmitter?.on(
+    this.eventEmitter.on('peer:connect', this.handlePeerConnect.bind(this));
+    this.eventEmitter.on(
       'peer:disconnect',
       this.handlePeerDisconnect.bind(this),
     );
-    this.eventEmitter?.on('peer:message', this.handlePeerMessage.bind(this));
-    this.eventEmitter?.on('peer:error', this.handlePeerError.bind(this));
-    this.eventEmitter?.on(
+    this.eventEmitter.on('peer:message', this.handlePeerMessage.bind(this));
+    this.eventEmitter.on('peer:error', this.handlePeerError.bind(this));
+    this.eventEmitter.on(
       'block:received',
       this.handleBlockReceived.bind(this),
     );
-    this.eventEmitter?.on(
+    this.eventEmitter.on(
       'tx:received',
       this.handleTransactionReceived.bind(this),
     );
@@ -320,7 +322,7 @@ export class Node {
       });
 
       breaker.onSuccess();
-      this.eventEmitter?.emit('peer:connect', tempPeer);
+      this.eventEmitter.emit('peer:connect', tempPeer);
 
       Logger.info('Peer connected and verified', {
         address,
@@ -348,8 +350,8 @@ export class Node {
     },
   ): Promise<void> {
     try {
-      if (!this.ddosProtection.checkRequest('peer_message', peer.getId())) {
-        this.increasePeerBanScore(peer.getId(), 10);
+      if (!this.ddosProtection.checkRequest('peer_message', peer.getAddress())) {
+        this.increasePeerBanScore(peer.getAddress(), 10);
         return;
       }
 
@@ -382,13 +384,13 @@ export class Node {
           Logger.warn('Unknown message type:', message.type);
       }
 
-      this.updatePeerLastSeen(peer.getId());
+      this.updatePeerLastSeen(peer.getAddress());
     } catch (error) {
       Logger.error('Error handling peer message:', {
-        peerId: peer.getId(),
+        peerAddress: peer.getAddress(),
         error: (error as Error).message,
       });
-      this.increasePeerBanScore(peer.getId(), 1);
+      this.increasePeerBanScore(peer.getAddress(), 1);
     }
   }
 
@@ -398,7 +400,7 @@ export class Node {
       if (this.blockchain.hasBlock(block.hash)) return;
 
       if (!(await this.blockchain.validateBlock(block))) {
-        this.increasePeerBanScore(peer.getId(), 20);
+        this.increasePeerBanScore(peer.getAddress(), 20);
         return;
       }
 
@@ -412,7 +414,7 @@ export class Node {
 
       await this.blockchain.addBlock(block);
       this.processOrphanBlocks(block.hash);
-      this.eventEmitter?.emit('block:received', block);
+      this.eventEmitter.emit('block:received', block);
     } catch (error: unknown) {
       Logger.error('Error handling block message:', {
         blockHash: block.hash,
@@ -435,12 +437,12 @@ export class Node {
           this.blockchain.getCurrentHeight(),
         ))
       ) {
-        this.increasePeerBanScore(peer.getId(), 10);
+        this.increasePeerBanScore(peer.getAddress(), 10);
         return;
       }
 
       await this.mempool.addTransaction(tx);
-      this.eventEmitter?.emit('tx:received', tx);
+      this.eventEmitter.emit('tx:received', tx);
     } catch (error: unknown) {
       Logger.error('Error handling transaction message:', {
         txId: tx.id,
@@ -472,26 +474,26 @@ export class Node {
     this.peerCache.set(address, this.peerStates.get(address)!);
   }
 
-  private increasePeerBanScore(peerId: string, score: number): void {
-    const state = this.peerStates.get(peerId);
+  private increasePeerBanScore(peerAddress: string, score: number): void {
+    const state = this.peerStates.get(peerAddress);
     if (!state) return;
 
     state.banScore += score;
     if (state.banScore >= this.config.maxBanScore) {
-      this.banPeer(peerId);
+      this.banPeer(peerAddress);
     }
   }
 
-  private banPeer(peerId: string): void {
-    const peer = this.peers.get(peerId);
+  private banPeer(peerAddress: string): void {
+    const peer = this.peers.get(peerAddress);
     if (peer) {
       peer.disconnect();
-      this.peers.delete(peerId);
-      this.bannedPeers.set(peerId, Date.now() + this.config.banTime);
+      this.peers.delete(peerAddress);
+      this.bannedPeers.set(peerAddress, Date.now() + this.config.banTime);
 
       Logger.warn('Peer banned:', {
-        peerId,
-        banScore: this.peerStates.get(peerId)?.banScore,
+        peerAddress,
+        banScore: this.peerStates.get(peerAddress)?.banScore,
       });
     }
   }
@@ -558,20 +560,20 @@ export class Node {
   }
 
   private handlePeerConnect(peer: Peer): void {
-    Logger.info('Peer connected:', peer.getId());
+    Logger.info('Peer connected:', peer.getAddress());
   }
 
   private handlePeerDisconnect(peer: Peer): void {
-    const peerId = peer.getId();
-    this.peers.delete(peerId);
-    this.peerStates.delete(peerId);
-    this.peerCircuitBreakers.delete(peerId);
-    Logger.info('Peer disconnected:', peerId);
+    const addr = peer.getAddress();
+    this.peers.delete(addr);
+    this.peerStates.delete(addr);
+    this.peerCircuitBreakers.delete(addr);
+    Logger.info('Peer disconnected:', addr);
   }
 
   private handlePeerError(peer: Peer, error: Error): void {
     Logger.error('Peer error:', {
-      peerId: peer.getId(),
+      peerAddress: peer.getAddress(),
       error: error.message,
     });
   }
@@ -691,8 +693,8 @@ export class Node {
     }
   }
 
-  private updatePeerLastSeen(peerId: string): void {
-    this.updatePeerState(peerId, {
+  private updatePeerLastSeen(peerAddress: string): void {
+    this.updatePeerState(peerAddress, {
       lastSeen: Date.now(),
     });
   }

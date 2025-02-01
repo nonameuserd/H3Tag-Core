@@ -1,6 +1,7 @@
 import { HybridCrypto } from '@h3tag-blockchain/crypto';
 import { MerkleTree, MerkleProof } from '../utils/merkle';
 import { Logger } from '@h3tag-blockchain/shared';
+import { createHash } from 'crypto';
 
 /**
  * @fileoverview Validator model definitions for the H3Tag blockchain. Includes validator structure,
@@ -75,6 +76,7 @@ export class ValidatorSet {
   private readonly CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
   private validatorCache: Map<string, Validator> = new Map();
   private cacheTimestamps: Map<string, number> = new Map();
+  private cacheCleanupInterval: NodeJS.Timeout; // Store interval id
 
   /**
    * Creates a new ValidatorSet instance
@@ -83,8 +85,11 @@ export class ValidatorSet {
   constructor() {
     this.merkleTree = new MerkleTree();
     this.validators = new Map();
-    // Set up periodic cache cleanup
-    setInterval(() => this.cleanExpiredCache(), this.CACHE_EXPIRY);
+    // Set up periodic cache cleanup and store the interval id
+    this.cacheCleanupInterval = setInterval(
+      () => this.cleanExpiredCache(),
+      this.CACHE_EXPIRY,
+    );
   }
 
   /**
@@ -131,7 +136,7 @@ export class ValidatorSet {
   }
 
   /**
-   * Verifies a validator's merkle proof
+   * Verifies a validator's merkle proof and signature integrity
    * @param {Validator} validator - Validator to verify
    * @param {string} [merkleRoot] - Optional merkle root for verification
    * @returns {Promise<boolean>} True if validator is verified
@@ -150,11 +155,13 @@ export class ValidatorSet {
         merkleRoot,
       );
 
-      // Add signature verification
+      // Verify signature against the hash of the full signable validator data.
       if (isValid && validator.signature) {
-        const data = Buffer.from(validatorData);
+        // Recreate the full signable data by excluding merkleProof, merkleRoot, and signature
+        const signableData = this.serializeValidatorForSignature(validator);
+        // HybridCrypto.verify expects the original data and signature
         const isValidSignature = await HybridCrypto.verify(
-          data.toString(),
+          signableData,
           validator.signature,
           validator.publicKey,
         );
@@ -194,13 +201,78 @@ export class ValidatorSet {
   }
 
   /**
-   * Serializes validator data for merkle tree
+   * Serializes validator data for the merkle tree.
+   *
+   * The serialization process includes:
+   *   • Base fields: id, publicKey, lastActive, reputation.
+   *   • A SHA-256 hash of the validator's full signable data.
+   *
+   * The full signable data includes all fields that determine the validator's identity and integrity,
+   * excluding mutable or meta fields (merkleProof, merkleRoot, and signature).
+   *
    * @param {Validator} validator - Validator to serialize
    * @returns {string} Serialized validator data
    * @private
    */
   private serializeValidator(validator: Validator): string {
-    return `${validator.id}:${validator.publicKey}:${validator.lastActive}:${validator.reputation}`;
+    // Base fields for merkle representation
+    const baseStr = `${validator.id}:${validator.publicKey}:${validator.lastActive}:${validator.reputation}`;
+    // Extract all immutable/signable fields (excluding meta/merkle fields)
+    const signableData = {
+      id: validator.id,
+      publicKey: validator.publicKey,
+      lastActive: validator.lastActive,
+      reputation: validator.reputation,
+      address: validator.address,
+      isActive: validator.isActive,
+      isSuspended: validator.isSuspended,
+      isAbsent: validator.isAbsent,
+      uptime: validator.uptime,
+      metrics: validator.metrics,
+      validationData: validator.validationData,
+      powHashRate: validator.powHashRate,
+    };
+    // Compute a SHA-256 hash of the signable data to safeguard against manipulation of other fields.
+    const fullDataHash = createHash('sha256')
+      .update(JSON.stringify(signableData))
+      .digest('hex');
+    return `${baseStr}:${fullDataHash}`;
+  }
+
+  /**
+   * Serializes validator data for signature verification.
+   *
+   * This method creates a JSON string based on the signable data (similar to serializeValidator)
+   * but without concatenating the full data hash. This ensures that the signature verification
+   * is performed on the original, signed data.
+   *
+   * @param {Validator} validator - Validator to serialize for signature verification.
+   * @returns {string} Serialized signable validator data.
+   * @private
+   */
+  private serializeValidatorForSignature(validator: Validator): string {
+    const signableData = {
+      id: validator.id,
+      publicKey: validator.publicKey,
+      lastActive: validator.lastActive,
+      reputation: validator.reputation,
+      address: validator.address,
+      isActive: validator.isActive,
+      isSuspended: validator.isSuspended,
+      isAbsent: validator.isAbsent,
+      uptime: validator.uptime,
+      metrics: validator.metrics,
+      validationData: validator.validationData,
+      powHashRate: validator.powHashRate,
+    };
+
+    // Use sorted keys in JSON to ensure deterministic serialization
+    const sortedKeys = Object.keys(signableData).sort();
+    const sortedData: Record<string, unknown> = {};
+    for (const key of sortedKeys) {
+      sortedData[key] = (signableData as Record<string, unknown>)[key];
+    }
+    return JSON.stringify(sortedData);
   }
 
   /**
@@ -208,6 +280,8 @@ export class ValidatorSet {
    */
   async cleanup(): Promise<void> {
     try {
+      // Stop the periodic cleanup
+      clearInterval(this.cacheCleanupInterval);
       this.merkleTree?.clearCache();
       this.validators.clear();
       this.validatorCache.clear();
@@ -235,7 +309,8 @@ export class ValidatorSet {
    * Updates an existing validator's information
    * @param {Validator} validator - Updated validator data
    * @throws {Error} If validator not found or invalid reputation change
-   */ async updateValidator(validator: Validator): Promise<void> {
+   */
+  async updateValidator(validator: Validator): Promise<void> {
     if (!this.validators.has(validator.id)) {
       throw new Error('Validator not found');
     }
@@ -243,8 +318,12 @@ export class ValidatorSet {
     const existingValidator = this.validators.get(validator.id);
     if (!existingValidator) return;
 
-    // Prevent reputation manipulation
-    if (Math.abs(validator.reputation - existingValidator.reputation) > 10) {
+    const reputationDifference = Math.abs(validator.reputation - existingValidator.reputation);
+    // Log a warning if the reputation change is abnormal
+    if (reputationDifference > 10) {
+      Logger.warn(
+        `Suspicious reputation update attempt for validator ${validator.id}: reputation change from ${existingValidator.reputation} to ${validator.reputation} (difference: ${reputationDifference})`
+      );
       throw new Error('Invalid reputation change');
     }
 

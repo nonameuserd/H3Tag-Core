@@ -159,61 +159,58 @@ export class NodeVerifier {
    * @throws {VerificationError} If the address is invalid
    */
   public static validateNodeAddress(address: string): void {
-    try {
-      // 1. Basic input validation
-      if (!address || typeof address !== 'string') {
-        throw new VerificationError('Missing or invalid node address');
+    // 1. Basic input validation
+    if (!address || typeof address !== 'string') {
+      throw new VerificationError('Missing or invalid node address');
+    }
+
+    // 2. Determine protocol type
+    const isHttpAddress = /^https?:\/\//i.test(address);
+    const isP2PAddress = /^p2p:\/\//i.test(address);
+
+    if (!isHttpAddress && !isP2PAddress) {
+      throw new VerificationError(
+        'Node address must start with http://, https://, or p2p://',
+      );
+    }
+
+    if (isHttpAddress) {
+      // HTTP/HTTPS specific validations using URL for robust parsing.
+      let url: URL;
+      try {
+        url = new URL(address);
+      } catch (error: unknown) {
+        const errorMessage =
+          error instanceof Error ? error.message : 'Unknown error';
+        Logger.error('Node address validation failed:', errorMessage);
+        throw new VerificationError(`Invalid node address: ${errorMessage}`);
       }
 
-      // 2. Protocol validation - support both HTTP/HTTPS and P2P
-      const isHttpAddress = address.match(/^https?:\/\//i);
-      const isP2PAddress = address.match(/^p2p:\/\//i);
+      // Validate against a robust URL regex to mitigate malicious input.
+      // (Consider simplifying this regex if performance becomes an issue)
+      const urlRegex = new RegExp(
+        '^' + // Start of string
+          '(?:https?://)' + // Protocol (http or https)
+          '(?:\\S+(?::\\S*)?@)?' + // Optional authentication
+          '(?:' + // Hostname parts:
+          '(?!(?:10|127)(?:\\.\\d{1,3}){3})' + // Exclude private ranges 10.x.x.x
+          '(?!(?:169\\.254|192\\.168)(?:\\.\\d{1,3}){2})' + // Exclude private ranges 169.254.x.x, 192.168.x.x
+          '(?!172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.\\d{1,3}){2})' + // Exclude private range 172.16.0.0 - 172.31.255.255
+          '(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])' + // First octet
+          '(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}' + // Second and third octets
+          '(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))' + // Fourth octet
+          '|' + // OR
+          '(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)' + // Hostname
+          '(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*' + // Domain
+          '\\.(?:[a-z\\u00a1-\\uffff]{2,})' + // TLD
+          ')' +
+          '(?::\\d{2,5})?' + // Optional port
+          '(?:[/?#][^\\s]*)?$', // Optional path and query
+        'i',
+      );
 
-      if (!isHttpAddress && !isP2PAddress) {
-        throw new VerificationError(
-          'Node address must start with http://, https://, or p2p://',
-        );
-      }
-
-      // 3. Parse URL
-      const url = new URL(address);
-
-      // 4. Protocol-specific validation
-      if (isHttpAddress) {
-        // HTTP/HTTPS specific validations
-        const urlRegex = new RegExp(
-          '^' + // Start of string
-            '(?:https?://)' + // Protocol (http or https)
-            '(?:\\S+(?::\\S*)?@)?' + // Optional authentication
-            '(?:' + // Hostname parts:
-            '(?!(?:10|127)(?:\\.\\d{1,3}){3})' + // Exclude private ranges 10.x.x.x
-            '(?!(?:169\\.254|192\\.168)(?:\\.\\d{1,3}){2})' + // Exclude private ranges 169.254.x.x, 192.168.x.x
-            '(?!172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.\\d{1,3}){2})' + // Exclude private range 172.16.0.0 - 172.31.255.255
-            '(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])' + // First octet
-            '(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}' + // Second and third octets
-            '(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))' + // Fourth octet
-            '|' + // OR
-            '(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)' + // Hostname
-            '(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*' + // Domain
-            '\\.(?:[a-z\\u00a1-\\uffff]{2,})' + // TLD
-            ')' +
-            '(?::\\d{2,5})?' + // Port number (optional)
-            '(?:[/?#][^\\s]*)?$', // Path and query params (optional)
-          'i', // Case-insensitive
-        );
-
-        if (!urlRegex.test(address)) {
-          throw new VerificationError(
-            'Invalid HTTP/HTTPS node address format',
-          );
-        }
-      } else {
-        // P2P specific validations
-        const p2pRegex =
-          /^p2p:\/\/([a-f0-9]{64}|\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})(:\d{2,5})?$/i;
-        if (!p2pRegex.test(address)) {
-          throw new VerificationError('Invalid P2P node address format');
-        }
+      if (!urlRegex.test(address)) {
+        throw new VerificationError('Invalid HTTP/HTTPS node address format');
       }
 
       // 5. Port validation
@@ -229,32 +226,44 @@ export class NodeVerifier {
 
       // 6. Hostname length validation
       if (url.hostname.length > 253) {
-        throw new VerificationError(
-          'Hostname exceeds maximum length of 253 characters',
-        );
+        throw new VerificationError('Hostname exceeds maximum length of 253 characters');
       }
 
       // 7. Path security validation
       if (url.pathname.includes('..')) {
-        throw new VerificationError(
-          'Path contains invalid directory traversal patterns',
-        );
+        throw new VerificationError('Path contains invalid directory traversal patterns');
       }
 
       Logger.debug('Node address validation successful', {
         protocol: url.protocol,
         hostname: url.hostname,
         port: url.port || 'default',
-        type: isHttpAddress ? 'HTTP(S)' : 'P2P',
+        type: 'HTTP(S)',
       });
-    } catch (error) {
-      if (error instanceof VerificationError) {
-        throw error;
+    } else {
+      // P2P specific validations
+      const p2pRegex =
+        /^p2p:\/\/([a-f0-9]{64}|\d{1,3}(?:\.\d{1,3}){3})(?::\d{2,5})?$/i;
+      if (!p2pRegex.test(address)) {
+        throw new VerificationError('Invalid P2P node address format');
       }
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      Logger.error('Node address validation failed:', errorMessage);
-      throw new VerificationError(`Invalid node address: ${errorMessage}`);
+
+      // Manually extract host and port if needed
+      const withoutProtocol = address.substring(6); // remove "p2p://"
+      const [host, portStr] = withoutProtocol.split(':');
+      if (portStr) {
+        const portNum = parseInt(portStr, 10);
+        if (portNum < 1024 || portNum > 65535) {
+          throw new VerificationError(
+            'Invalid port number in P2P address. Must be between 1024 and 65535',
+          );
+        }
+      }
+
+      Logger.debug('Node address validation successful for P2P address', {
+        host,
+        port: portStr || 'default',
+      });
     }
   }
 }

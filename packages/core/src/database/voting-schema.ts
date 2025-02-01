@@ -5,6 +5,7 @@ import { Mutex } from 'async-mutex';
 import { retry } from '../utils/retry';
 import { Vote, VotingPeriod } from '../models/vote.model';
 import { VotingError } from '../blockchain/utils/voting-error';
+import { AbstractChainedBatch } from 'abstract-leveldown';
 
 /**
  * @fileoverview VotingSchema implements the database schema and operations for blockchain voting.
@@ -171,7 +172,7 @@ export class VotingDatabase implements IVotingSchema {
         // Index by period
         batch.put(`period_vote:${vote.periodId}:${vote.voterAddress}`, key);
 
-        await batch.write();
+        await this.batchWrite(batch);
         this.cache.set(key, vote, { ttl: this.CACHE_TTL });
 
         Logger.debug('Vote recorded successfully', {
@@ -362,20 +363,22 @@ export class VotingDatabase implements IVotingSchema {
     const key = `vote:${periodId}:${voterAddress}`;
     try {
       const cached = this.cache.get(key) as Vote;
-      if (cached) return cached;
-
-      const value = await this.db.get(key);
-      const vote = JSON.parse(value);
-      this.cache.set(key, vote);
-      return vote;
-    } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return null;
-      if (error instanceof SyntaxError) {
-        Logger.error('Invalid JSON in vote:', error);
-        return null;
+      if (cached) {
+        this.cache.set(key, cached, { ttl: this.CACHE_TTL });
+        return cached;
       }
-      Logger.error('Failed to get vote:', error);
-      return null;
+
+      const vote = await this.db.get<string>(key, {
+        valueEncoding: 'json',
+      });
+      if (!vote) return null;
+
+      this.cache.set(key, JSON.parse(vote) as Vote, { ttl: this.CACHE_TTL });
+      return JSON.parse(vote) as Vote;
+    } catch (error: unknown) {
+      if (this.isNotFoundError(error)) return null;
+      Logger.error('Failed to get vote:', error instanceof Error ? error.message : 'Unknown error');
+      throw new Error('Failed to get vote');
     }
   }
 
@@ -621,7 +624,7 @@ export class VotingDatabase implements IVotingSchema {
         execute: async (fn: () => Promise<void>) => {
           try {
             await fn();
-            await this.db.batch().write();
+            await this.batchWrite(this.db.batch());
           } catch (error) {
             this.cache.clear();
             throw error;
@@ -633,5 +636,18 @@ export class VotingDatabase implements IVotingSchema {
       };
       return await fn(tx);
     });
+  }
+
+  private batchWrite(batch: AbstractChainedBatch<string, string>): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      batch.write((error: unknown) => {
+        if (error instanceof Error) reject(error);
+        else resolve();
+      });
+    });
+  }
+
+  private isNotFoundError(error: unknown): boolean {
+    return typeof error === 'object' && error !== null && 'notFound' in error;
   }
 }

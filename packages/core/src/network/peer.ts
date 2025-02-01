@@ -21,6 +21,7 @@ import { Metric } from '../monitoring/performance-metrics';
 import { Vote } from '../models/vote.model';
 import { VotingDatabase } from '../database/voting-schema';
 import { ConfigService } from '@h3tag-blockchain/shared';
+import crypto from 'crypto';
 
 export enum PeerState {
   DISCONNECTED = 'disconnected',
@@ -513,8 +514,18 @@ export class Peer {
   }
 
   private updateMessageMetrics(data: WebSocket.Data): void {
-    this.bytesReceived += data.toString().length;
-    this.metrics.increment('bytes_received', data.toString().length);
+    let messageBuffer: Buffer;
+    if (typeof data === 'string') {
+      messageBuffer = Buffer.from(data);
+    } else if (data instanceof Buffer) {
+      messageBuffer = data;
+    } else {
+      // If data is of some other type (or ArrayBuffer) then convert it to Buffer
+      messageBuffer = Buffer.from(data.toString());
+    }
+    const byteCount = messageBuffer.byteLength;
+    this.bytesReceived += byteCount;
+    this.metrics.increment('bytes_received', byteCount);
     this.metrics.increment('messages_received');
   }
 
@@ -931,7 +942,7 @@ export class Peer {
       });
 
       let voteCount = 0;
-      for await (const [value] of recentVotes) {
+      for await (const [, value] of recentVotes) {
         const vote = this.votingDatabase?.getSafeParse<Vote>(value);
         if (vote && this.votingDatabase?.getValidateVote(vote)) {
           voteCount++;
@@ -1214,7 +1225,7 @@ export class Peer {
       const bans: Ban[] = [];
 
       // Iterate through database to find ban records
-      for await (const [value] of this.database.iterator({
+      for await (const [, value] of this.database.iterator({
         gte: 'ban:',
         lte: 'ban:\xFF',
       })) {

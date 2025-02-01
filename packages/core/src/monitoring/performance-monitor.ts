@@ -1,6 +1,7 @@
 import { Logger } from '@h3tag-blockchain/shared';
 import { PerformanceMetrics } from './performance-metrics';
 import { Mutex } from 'async-mutex';
+import { performance } from 'perf_hooks';
 
 /**
  * @fileoverview Performance monitoring and tracking system for the H3Tag blockchain.
@@ -24,7 +25,7 @@ import { Mutex } from 'async-mutex';
  * await monitor.end(markerId);
  */
 export class PerformanceMonitor {
-  private metrics: Map<string, { startTime: number; measurements: number[] }> =
+  private metrics: Map<string, { startTime: number; measurements: number[]; operation: string }> =
     new Map();
   private readonly MAX_MEASUREMENTS = 1000;
   private readonly ALERT_THRESHOLD_MS = 5000;
@@ -59,6 +60,7 @@ export class PerformanceMonitor {
     this.metrics.set(markerId, {
       startTime: performance.now(),
       measurements: [],
+      operation,
     });
     return markerId;
   }
@@ -71,14 +73,14 @@ export class PerformanceMonitor {
   public async end(markerId: string): Promise<void> {
     const release = await this.mutex.acquire();
     try {
-      const metric = this.metrics.get(markerId);
-      if (!metric) {
+      const metricEntry = this.metrics.get(markerId);
+      if (!metricEntry) {
         Logger.warn(`No start time found for marker: ${markerId}`);
         return;
       }
 
-      const duration = performance.now() - metric.startTime;
-      const [context, operation] = markerId.split('_');
+      const duration = performance.now() - metricEntry.startTime;
+      const operation = metricEntry.operation;
 
       // Record metric using the PerformanceMetrics class
       await this.metricsClient.recordMetric(operation, duration, {
@@ -87,13 +89,13 @@ export class PerformanceMonitor {
       });
 
       // Store measurement with bounds checking
-      if (metric.measurements.length >= this.MAX_MEASUREMENTS) {
-        metric.measurements.shift();
+      if (metricEntry.measurements.length >= this.MAX_MEASUREMENTS) {
+        metricEntry.measurements.shift();
       }
-      metric.measurements.push(duration);
+      metricEntry.measurements.push(duration);
 
       // Calculate statistics
-      const stats = this.calculateStats(metric.measurements);
+      const stats = this.calculateStats(metricEntry.measurements);
 
       // Report metrics
       await this.metricsClient.recordMetric(`${operation}_duration`, duration, {
@@ -115,7 +117,7 @@ export class PerformanceMonitor {
       // Performance alerts
       if (duration > this.ALERT_THRESHOLD_MS) {
         Logger.warn('Performance threshold exceeded', {
-          context,
+          context: this.context,
           operation,
           duration,
           threshold: this.ALERT_THRESHOLD_MS,
@@ -171,25 +173,23 @@ export class PerformanceMonitor {
       p99: number;
     };
   } {
-    const metrics: Record<
+    const metricsResult: Record<
       string,
       { current: number; average: number; p95: number; p99: number }
     > = {};
 
-    for (const [markerId, data] of this.metrics.entries()) {
-      const [op] = markerId.split('_');
-      if (!operation || op === operation) {
-        const stats = this.calculateStats(data.measurements);
-        metrics[op] = {
+    for (const [, data] of this.metrics.entries()) {
+      if (!operation || data.operation === operation) {
+        metricsResult[data.operation] = {
           current: performance.now() - data.startTime,
-          average: stats.average,
-          p95: stats.p95,
-          p99: stats.p99,
+          average: this.calculateStats(data.measurements).average,
+          p95: this.calculateStats(data.measurements).p95,
+          p99: this.calculateStats(data.measurements).p99,
         };
       }
     }
 
-    return metrics;
+    return metricsResult;
   }
 
   /**

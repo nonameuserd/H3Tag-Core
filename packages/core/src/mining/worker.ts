@@ -128,11 +128,11 @@ export class MiningWorker {
   private static readonly REPORT_INTERVAL = 5000; // 5 seconds
   private isInitialized = false;
   private lastReportTime = 0;
-  private startTime = Date.now();
+  private startTime = 0; // Will be set at start of each mineRange call
   private hashesProcessed = 0n; // Change to BigInt for large numbers
 
   constructor() {
-    this.initialize();
+ 
   }
 
   private async initialize(): Promise<void> {
@@ -145,7 +145,10 @@ export class MiningWorker {
         error: `Worker initialization failed: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
+        hashRate: 0,
       });
+      // Re-throw the error to ensure failure propagates.
+      throw error;
     }
   }
 
@@ -174,6 +177,9 @@ export class MiningWorker {
     if (!this.isInitialized) {
       await this.initialize();
     }
+    // Reset the start time and hashes counter so hash rate is per task.
+    this.startTime = Date.now();
+    this.hashesProcessed = 0n;
 
     if (start >= end || start < 0 || end > Number.MAX_SAFE_INTEGER) {
       parentPort?.postMessage({
@@ -226,9 +232,9 @@ export class MiningWorker {
           });
         }
 
-        // Optional GC with reduced frequency
-        if (global.gc && Math.random() < 0.001) {
-          // 0.1% chance to GC
+        // Optional GC with reduced frequency: only allow explicit GC if an env flag is set.
+        if (process.env.NODE_ENV !== 'production' && global.gc && Math.random() < 0.001) {
+          // 0.1% chance to GC (only if --expose-gc is used and not in production)
           global.gc();
         }
       }

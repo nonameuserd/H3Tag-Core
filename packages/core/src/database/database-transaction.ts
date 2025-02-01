@@ -181,16 +181,9 @@ export class DatabaseTransaction {
     this.validateTransactionState();
 
     try {
-      await new Promise<void>((resolve, reject) => {
-        this.batch.write((error) => {
-          if (error) reject(error);
-          else resolve();
-        });
-      });
+      await this.batchWrite(this.batch);
       this.committed = true;
-      Logger.debug(
-        `Transaction committed with ${this.operations.length} operations`,
-      );
+      Logger.debug(`Transaction committed with ${this.operations.length} operations`);
     } catch (error: unknown) {
       Logger.error('Transaction commit failed:', error);
       await this.rollback();
@@ -205,48 +198,33 @@ export class DatabaseTransaction {
     if (this.committed || this.rolledBack) return;
 
     try {
-      const reverseBatch = this.db.db.batch();
-
-      const keyStates = new Map<string, string | null>();
-
-      for (const op of this.operations) {
-        if (!keyStates.has(op.key)) {
+      const uniqueKeys = Array.from(new Set(this.operations.map(op => op.key)));
+      const keyStates = await Promise.all(
+        uniqueKeys.map(async (key) => {
           try {
-            const value = await this.db.db.get(op.key);
-            keyStates.set(op.key, value);
-          } catch (err) {
+            const value = await this.db.db.get(key);
+            return { key, value };
+          } catch (err: unknown) {
             if (err instanceof Error) {
-              keyStates.set(
-                op.key,
-                JSON.stringify({ value: null, timestamp: Date.now() }),
-              );
-            } else {
-              throw err;
+              return { key, value: null };
             }
+            throw err;
           }
-        }
-      }
+        })
+      );
 
-      for (const key of keyStates.keys()) {
-        const originalValue = keyStates.get(key);
-        if (originalValue === null) {
+      const reverseBatch = this.db.db.batch();
+      for (const { key, value } of keyStates) {
+        if (value === null) {
           reverseBatch.del(key);
         } else {
-          reverseBatch.put(key, originalValue ?? '');
+          reverseBatch.put(key, value);
         }
       }
 
-      await new Promise<void>((resolve, reject) => {
-        reverseBatch.write((error: unknown) => {
-          if (error instanceof Error) reject(error);
-          else resolve();
-        });
-      });
-
+      await this.batchWrite(reverseBatch);
       this.rolledBack = true;
-      Logger.debug(
-        `Transaction rolled back ${this.operations.length} operations`,
-      );
+      Logger.debug(`Transaction rolled back ${this.operations.length} operations`);
     } catch (error) {
       Logger.error('Transaction rollback failed:', error);
       throw new Error(
@@ -321,5 +299,17 @@ export class DatabaseTransaction {
     if (this.committed) return 'committed';
     if (this.rolledBack) return 'rolled_back';
     return 'active';
+  }
+
+  private batchWrite(batch: AbstractChainedBatch): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      batch.write((error: unknown) => {
+        if (error instanceof Error) {
+          reject(error);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 }

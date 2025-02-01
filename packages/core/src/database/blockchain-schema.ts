@@ -257,7 +257,7 @@ export class BlockchainSchema {
   private transactionLock = new Mutex();
   private transactionStartTime: number | null = null;
   private transactionLocks = new Map<string, Mutex>();
-
+  private readonly CACHE_TTL = 3600; // 1 hour
   /**
    * Constructor for Database
    * @param dbPath Path to the database
@@ -336,60 +336,35 @@ export class BlockchainSchema {
     return await this.mutex.runExclusive(async () => {
       const batch = this.db.batch();
       try {
-        // Check for existing vote
-        const existingVote = await this.db
-          .get(`vote:${periodId}:${vote.voter}`)
-          .catch((e: unknown) => {
-            if (e instanceof Error) {
-              Logger.error('Failed to get existing vote:', e);
-            } else {
-              Logger.error('Failed to get existing vote:', e);
-            }
-            return null;
-          });
-        if (existingVote) {
+        const existingVoteData = await this.db.get(`vote:${periodId}:${vote.voter}`).catch(() => null);
+        if (existingVoteData) {
           throw new Error('Voter has already voted in this period');
         }
 
-        // Validate vote credentials
         if (!vote.signature) {
           throw new Error('Invalid vote: missing signature');
         }
 
         const voteId = `${periodId}:${vote.voter}`;
-
-        // Record vote
-        batch.put(
-          `vote:${voteId}`,
-          JSON.stringify({
-            ...vote,
-            timestamp: Date.now(),
-            version: '1.0',
-          }),
-        );
-
-        // Record vote incentive
-        const period = JSON.parse(
-          await this.db.get(`voting_period:${periodId}`),
-        );
+        batch.put(`vote:${voteId}`, JSON.stringify({
+          ...vote,
+          timestamp: Date.now(),
+          version: '1.0',
+        }));
+        // Process reward logic after fetching and validating period data
+        const periodData = await this.db.get(`voting_period:${periodId}`);
+        const period = JSON.parse(periodData);
         const reward = period.status === 'active' ? 100 : 50;
-        batch.put(
-          `vote_incentive:${voteId}`,
-          JSON.stringify({
-            reward,
-            timestamp: Date.now(),
-            processed: false,
-          }),
-        );
+        batch.put(`vote_incentive:${voteId}`, JSON.stringify({
+          reward,
+          timestamp: Date.now(),
+          processed: false,
+        }));
 
         await batch.write();
         return true;
       } catch (error: unknown) {
-        if (error instanceof Error) {
-          Logger.error('Failed to record vote:', error);
-        } else {
-          Logger.error('Failed to record vote:', error);
-        }
+        Logger.error('Failed to record vote:', error);
         return false;
       }
     });
@@ -455,14 +430,16 @@ export class BlockchainSchema {
     try {
       const height = await this.db.get('current_height');
       const parsedHeight = parseInt(height);
-      if (isNaN(parsedHeight)) throw new Error('Invalid height value');
+      if (isNaN(parsedHeight)) {
+        throw new Error('Invalid height value');
+      }
       return parsedHeight;
     } catch (error) {
-      if (error instanceof Error) {
-        if (error) return 0;
-      } else {
-        Logger.error('Failed to get current height:', error);
+      if (error instanceof Error && 'notFound' in error) {
+        Logger.warn('Current height not found, returning 0');
+        return 0; // Return a known default if key is missing
       }
+      Logger.error('Failed to get current height:', error);
       throw error;
     }
   }
@@ -808,37 +785,37 @@ export class BlockchainSchema {
     endHeight: number,
   ): Promise<Block[]> {
     const BATCH_SIZE = 100;
-    const blocks: Block[] = [];
+    const batchCount = Math.ceil((endHeight - startHeight + 1) / BATCH_SIZE);
+    const batchStartHeights = Array.from(
+      { length: batchCount },
+      (_, i) => startHeight + i * BATCH_SIZE,
+    );
 
-    try {
-      for (
-        let height = startHeight;
-        height <= endHeight;
-        height += BATCH_SIZE
-      ) {
-        const batchEnd = Math.min(height + BATCH_SIZE - 1, endHeight);
+    const batchPromises = batchStartHeights.map(async (batchStart) => {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, endHeight);
+      const currentBatch: AbstractBatch[] = [];
+      const batchBlocks: Block[] = [];
 
-        // Use iterator for efficient range queries
-        for await (const [, value] of this.db.iterator({
-          gte: `block:${height}`,
-          lte: `block:${batchEnd}`,
-          valueEncoding: 'json',
-        })) {
-          const block = JSON.parse(value) as Block;
-          blocks.push(block);
-
-          // Cache blocks for future queries using batch
-          const batch = this.db.batch();
-          batch.put(`block:${block.header.height}`, JSON.stringify(block));
-          await batch.write();
-        }
+      for await (const [, value] of this.db.iterator({
+        gte: `block:${batchStart}`,
+        lte: `block:${batchEnd}`,
+        valueEncoding: 'json',
+      })) {
+        const block = JSON.parse(value) as Block;
+        batchBlocks.push(block);
+        currentBatch.push({
+          type: 'put',
+          key: `block:${block.header.height}`,
+          value: JSON.stringify(block),
+        });
       }
-
-      return blocks;
-    } catch (error) {
-      Logger.error('Failed to get block range:', error);
-      throw error;
-    }
+      if (currentBatch.length > 0) {
+        await this.db.batch(currentBatch);
+      }
+      return batchBlocks;
+    });
+    const batches = await Promise.all(batchPromises);
+    return batches.flat();
   }
 
   /**
@@ -890,6 +867,7 @@ export class BlockchainSchema {
         typeof cached.balance === 'bigint' &&
         typeof cached.holdingPeriod === 'number'
       ) {
+        this.cache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
         return cached;
       }
 
@@ -917,7 +895,7 @@ export class BlockchainSchema {
         holdingPeriod: Date.now() - earliestUtxo,
       };
 
-      this.cache.set(cacheKey, result, { ttl: 300 });
+      this.cache.set(cacheKey, result, { ttl: this.CACHE_TTL });
       return result;
     } catch (error) {
       Logger.error(`Failed to get token balance for ${address}:`, error);
@@ -961,7 +939,10 @@ export class BlockchainSchema {
     try {
       // Check cache first
       const cached = this.cache.get(key) as { signature: string } | undefined;
-      if (cached) return cached.signature;
+      if (cached) {
+        this.cache.set(key, cached, { ttl: this.CACHE_TTL });
+        return cached.signature;
+      }
 
       const data = await this.db.get(key);
       const result = JSON.parse(data);
@@ -1107,7 +1088,10 @@ export class BlockchainSchema {
     try {
       const key = `transactions:${hash}`;
       const cached = this.transactionCache.get(key);
-      if (cached) return cached;
+      if (cached) {
+        this.transactionCache.set(key, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       const data = await this.db.get(key);
       const transaction = JSON.parse(data);
@@ -1285,7 +1269,10 @@ export class BlockchainSchema {
     try {
       const key = `block:height:${height}`;
       const cached = this.blockCache.get(key);
-      if (cached) return cached;
+      if (cached) {
+        this.blockCache.set(key, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       const value = await this.db.get(key);
       const block = JSON.parse(value);
@@ -1572,7 +1559,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `validator_uptime:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       const now = Date.now();
       const ONE_DAY = 24 * 60 * 60 * 1000;
@@ -1607,7 +1597,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `vote_participation:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       let totalVotes = 0;
       let participatedVotes = 0;
@@ -1641,7 +1634,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `block_production:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       const currentHeight = await this.getCurrentHeight();
       const expectedBlocks = await this.getExpectedBlockCount(address);
@@ -1687,7 +1683,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `slashing_history:${address}`;
       const cached = this.slashingHistoryCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.slashingHistoryCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       const history: Array<{ timestamp: number; reason: string }> = [];
 
@@ -1800,7 +1799,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `validator_hashpower:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       // Get last 100 blocks mined by validator
       let totalDifficulty = BigInt(0);
@@ -1836,7 +1838,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = 'network_hashpower';
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       // Get last 100 blocks network-wide
       let totalDifficulty = BigInt(0);
@@ -1874,7 +1879,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `block_success:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       let successfulBlocks = 0;
       let totalAttempts = 0;
@@ -1913,7 +1921,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `response_time:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       let totalResponseTime = 0;
       let responseCount = 0;
@@ -1960,7 +1971,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = `validator_votes:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
-      if (cached !== undefined) return cached;
+      if (cached !== undefined) {
+        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return cached;
+      }
 
       let totalVotingPower = BigInt(0);
       const now = Date.now();
@@ -1993,7 +2007,10 @@ export class BlockchainSchema {
     try {
       const cacheKey = 'total_voting_power';
       const cached = this.votingPowerCache.get(cacheKey);
-      if (cached !== undefined) return BigInt(cached);
+      if (cached !== undefined) {
+        this.votingPowerCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        return BigInt(cached);
+      }
 
       let total = BigInt(0);
       for await (const [, value] of this.db.iterator({
@@ -2004,7 +2021,7 @@ export class BlockchainSchema {
         total += BigInt(holder.balance);
       }
 
-      this.votingPowerCache.set(cacheKey, total);
+      this.votingPowerCache.set(cacheKey, total, { ttl: this.CACHE_TTL });
       return total;
     } catch (error) {
       Logger.error('Failed to get total voting power:', error);
