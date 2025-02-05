@@ -7,6 +7,23 @@ interface RetryConfig {
   jitterFactor?: number;
 }
 
+/**
+ * A custom error used to halt the retry loop immediately when a non-retryable error is encountered.
+ */
+class AbortRetryError extends Error {
+  public originalError: unknown;
+
+  constructor(originalError: unknown) {
+    super(
+      originalError instanceof Error
+        ? originalError.message
+        : String(originalError),
+    );
+    this.name = 'AbortRetryError';
+    this.originalError = originalError;
+  }
+}
+
 export function retry(config: RetryConfig) {
   return function (
     _target: unknown,
@@ -14,20 +31,24 @@ export function retry(config: RetryConfig) {
     descriptor: PropertyDescriptor,
   ) {
     const originalMethod = descriptor.value;
-    const strategy = new RetryStrategy(config);
 
     descriptor.value = async function (...args: unknown[]) {
+      // Create a new RetryStrategy per invocation to avoid shared state and potential race conditions.
+      const strategy = new RetryStrategy(config);
+
       return strategy.execute(async () => {
         try {
+          // Attempt to call the original method.
           return await originalMethod.apply(this, args);
         } catch (error) {
-          // Only retry on specified errors if configured
+          // When retryableErrors is set, abort the retry immediately for non‑retryable errors.
           if (
             config.retryableErrors &&
             !isRetryableError(error, config.retryableErrors)
           ) {
-            throw error;
+            throw new AbortRetryError(error);
           }
+          // Otherwise, throw to allow the RetryStrategy to attempt a retry.
           throw error;
         }
       });
@@ -71,11 +92,19 @@ export class RetryStrategy {
         this.stats.successes++;
         return result;
       } catch (error) {
+        // Immediately abort if the error is marked as non-retryable.
+        if (error instanceof AbortRetryError) {
+          this.stats.failures++;
+          throw error.originalError;
+        }
+
         attempts++;
+
         if (attempts === this.config.maxAttempts) {
           this.stats.failures++;
           throw error;
         }
+        // Wait before retrying.
         await new Promise((resolve) =>
           setTimeout(resolve, calculateDelay(attempts, this.config)),
         );

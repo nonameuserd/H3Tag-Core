@@ -17,8 +17,8 @@ export declare class HybridCrypto {
     private static metrics;
     static sign(message: string, privateKey: HybridKeyPair): Promise<string>;
     static verify(message: string, signature: string, publicKey: string): Promise<boolean>;
-    static encrypt(message: string, publicKey: string): Promise<string>;
-    static decrypt(encryptedData: string, privateKey: string): Promise<string>;
+    static encrypt(message: string, publicKey: string, iv?: string): Promise<string>;
+    static decrypt(encryptedData: string, privateKey: string, iv?: string): Promise<string>;
     static generateSharedSecret(input: Buffer): Promise<string>;
     static getMetrics(): HybridMetrics;
     static resetMetrics(): void;

@@ -2,6 +2,8 @@ import semver from 'semver';
 import { HybridCrypto } from '@h3tag-blockchain/crypto';
 import { Logger } from '@h3tag-blockchain/shared';
 import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+import * as t from 'io-ts';
+import { PathReporter } from 'io-ts/PathReporter';
 
 export interface NodeInfo {
   version: string;
@@ -21,6 +23,32 @@ export interface NodeInfo {
   };
 }
 
+// Define io-ts codecs for robust schema validation
+
+const NodeTagInfoCodec = t.intersection([
+  t.type({
+    minedBlocks: t.number,
+    voteParticipation: t.number,
+    lastVoteHeight: t.number,
+    currency: t.literal(BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL),
+  }),
+  t.partial({
+    votingPower: t.number,
+  }),
+]);
+
+const NodeInfoCodec = t.type({
+  version: t.string,
+  height: t.number,
+  peers: t.number,
+  isMiner: t.boolean,
+  publicKey: t.string,
+  signature: t.string,
+  timestamp: t.number,
+  address: t.string,
+  tagInfo: NodeTagInfoCodec,
+});
+
 export class VerificationError extends Error {
   constructor(message: string) {
     super(message);
@@ -37,33 +65,42 @@ export class NodeVerifier {
   private static readonly VERIFICATION_TIMEOUT = 10000; // 10 seconds
 
   static async verifyNode(nodeInfo: NodeInfo): Promise<boolean> {
-    try {
-      // Add timeout to prevent hanging
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Verification timeout')),
-          this.VERIFICATION_TIMEOUT,
-        ),
+    let timeoutHandle: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeoutHandle = setTimeout(
+        () => reject(new Error('Verification timeout')),
+        this.VERIFICATION_TIMEOUT,
       );
+    });
 
-      // Wrap verification in try-catch to handle timeout rejection properly
-      return await Promise.race([
+    try {
+      const result = await Promise.race([
         this.verifyNodeWithTimeout(nodeInfo),
         timeoutPromise,
       ]);
+      return result;
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       Logger.error('Node verification failed:', errorMessage);
       return false;
+    } finally {
+      if (timeoutHandle) {
+        clearTimeout(timeoutHandle);
+      }
     }
   }
 
   private static async verifyNodeWithTimeout(
     nodeInfo: NodeInfo,
   ): Promise<boolean> {
-    if (!this.isValidNodeInfo(nodeInfo)) {
-      throw new VerificationError('Invalid node info structure');
+    // Validate structure using io-ts codec
+    const decoded = NodeInfoCodec.decode(nodeInfo);
+    if (decoded._tag === 'Left') {
+      throw new VerificationError(
+        'Invalid node info structure: ' +
+          PathReporter.report(decoded).join(', '),
+      );
     }
 
     await Promise.all([
@@ -90,7 +127,7 @@ export class NodeVerifier {
 
   private static async validateSignature(nodeInfo: NodeInfo): Promise<void> {
     try {
-      const data = JSON.stringify({
+      const data = this.canonicalJSONStringify({
         version: nodeInfo.version,
         timestamp: nodeInfo.timestamp,
         address: nodeInfo.address,
@@ -113,24 +150,6 @@ export class NodeVerifier {
         `Signature verification failed: ${errorMessage}`,
       );
     }
-  }
-
-  private static isValidNodeInfo(info: unknown): info is NodeInfo {
-    const node = info as NodeInfo;
-    return Boolean(
-      node &&
-        typeof node.version === 'string' &&
-        typeof node.publicKey === 'string' &&
-        typeof node.signature === 'string' &&
-        typeof node.timestamp === 'number' &&
-        typeof node.address === 'string' &&
-        node.tagInfo &&
-        typeof node.tagInfo.minedBlocks === 'number' &&
-        typeof node.tagInfo.voteParticipation === 'number' &&
-        typeof node.tagInfo.lastVoteHeight === 'number' &&
-        typeof node.tagInfo.currency === 'string' &&
-        node.tagInfo.currency === BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
-    );
   }
 
   private static validateVersion(version: string): void {
@@ -159,12 +178,10 @@ export class NodeVerifier {
    * @throws {VerificationError} If the address is invalid
    */
   public static validateNodeAddress(address: string): void {
-    // 1. Basic input validation
     if (!address || typeof address !== 'string') {
       throw new VerificationError('Missing or invalid node address');
     }
 
-    // 2. Determine protocol type
     const isHttpAddress = /^https?:\/\//i.test(address);
     const isP2PAddress = /^p2p:\/\//i.test(address);
 
@@ -175,7 +192,6 @@ export class NodeVerifier {
     }
 
     if (isHttpAddress) {
-      // HTTP/HTTPS specific validations using URL for robust parsing.
       let url: URL;
       try {
         url = new URL(address);
@@ -186,37 +202,14 @@ export class NodeVerifier {
         throw new VerificationError(`Invalid node address: ${errorMessage}`);
       }
 
-      // Validate against a robust URL regex to mitigate malicious input.
-      // (Consider simplifying this regex if performance becomes an issue)
-      const urlRegex = new RegExp(
-        '^' + // Start of string
-          '(?:https?://)' + // Protocol (http or https)
-          '(?:\\S+(?::\\S*)?@)?' + // Optional authentication
-          '(?:' + // Hostname parts:
-          '(?!(?:10|127)(?:\\.\\d{1,3}){3})' + // Exclude private ranges 10.x.x.x
-          '(?!(?:169\\.254|192\\.168)(?:\\.\\d{1,3}){2})' + // Exclude private ranges 169.254.x.x, 192.168.x.x
-          '(?!172\\.(?:1[6-9]|2\\d|3[0-1])(?:\\.\\d{1,3}){2})' + // Exclude private range 172.16.0.0 - 172.31.255.255
-          '(?:[1-9]\\d?|1\\d\\d|2[01]\\d|22[0-3])' + // First octet
-          '(?:\\.(?:1?\\d{1,2}|2[0-4]\\d|25[0-5])){2}' + // Second and third octets
-          '(?:\\.(?:[1-9]\\d?|1\\d\\d|2[0-4]\\d|25[0-4]))' + // Fourth octet
-          '|' + // OR
-          '(?:(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)' + // Hostname
-          '(?:\\.(?:[a-z\\u00a1-\\uffff0-9]-*)*[a-z\\u00a1-\\uffff0-9]+)*' + // Domain
-          '\\.(?:[a-z\\u00a1-\\uffff]{2,})' + // TLD
-          ')' +
-          '(?::\\d{2,5})?' + // Optional port
-          '(?:[/?#][^\\s]*)?$', // Optional path and query
-        'i',
-      );
-
-      if (!urlRegex.test(address)) {
-        throw new VerificationError('Invalid HTTP/HTTPS node address format');
+      // Example: Check that hostname is not a private IP.
+      if (this.isPrivateHostname(url.hostname)) {
+        throw new VerificationError('Private IP addresses are not allowed');
       }
 
-      // 5. Port validation
-      const port = url.port;
-      if (port) {
-        const portNum = parseInt(port, 10);
+      // Port validation
+      if (url.port) {
+        const portNum = parseInt(url.port, 10);
         if (portNum < 1024 || portNum > 65535) {
           throw new VerificationError(
             'Invalid port number. Must be between 1024 and 65535',
@@ -224,14 +217,16 @@ export class NodeVerifier {
         }
       }
 
-      // 6. Hostname length validation
       if (url.hostname.length > 253) {
-        throw new VerificationError('Hostname exceeds maximum length of 253 characters');
+        throw new VerificationError(
+          'Hostname exceeds maximum length of 253 characters',
+        );
       }
 
-      // 7. Path security validation
       if (url.pathname.includes('..')) {
-        throw new VerificationError('Path contains invalid directory traversal patterns');
+        throw new VerificationError(
+          'Path contains invalid directory traversal patterns',
+        );
       }
 
       Logger.debug('Node address validation successful', {
@@ -265,5 +260,40 @@ export class NodeVerifier {
         port: portStr || 'default',
       });
     }
+  }
+
+  private static isPrivateHostname(hostname: string): boolean {
+    // Simple check for common private address ranges.
+    const privatePatterns = [
+      /^localhost$/i,
+      /^127\./,
+      /^10\./,
+      /^192\.168\./,
+      /^172\.(1[6-9]|2[0-9]|3[0-1])\./,
+    ];
+    return privatePatterns.some((pattern) => pattern.test(hostname));
+  }
+
+  // Helper for canonical JSON stringification to guarantee property order
+  private static canonicalJSONStringify(obj: unknown): string {
+    if (obj === null || typeof obj !== 'object') {
+      return JSON.stringify(obj);
+    }
+    if (Array.isArray(obj)) {
+      return (
+        '[' + obj.map(this.canonicalJSONStringify.bind(this)).join(',') + ']'
+      );
+    }
+    const keys = Object.keys(obj).sort();
+    return (
+      '{' +
+      keys
+        .map(
+          (key) =>
+            `${JSON.stringify(key)}:${this.canonicalJSONStringify((obj as Record<string, unknown>)[key])}`,
+        )
+        .join(',') +
+      '}'
+    );
   }
 }

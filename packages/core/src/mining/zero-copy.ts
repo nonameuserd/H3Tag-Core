@@ -77,9 +77,11 @@ export class ZeroCopyCompression {
       const sharedView = new Uint8Array(shared);
 
       // Map the buffer for both READ and WRITE.
-      await buffer.mapAsync(GPUMapMode.WRITE | GPUMapMode.READ).catch((error) => {
-        throw new Error(`Failed to map buffer: ${error.message}`);
-      });
+      await buffer
+        .mapAsync(GPUMapMode.WRITE | GPUMapMode.READ)
+        .catch((error) => {
+          throw new Error(`Failed to map buffer: ${error.message}`);
+        });
       // Use getMappedRange() to obtain the underlying ArrayBuffer.
       const mappedRange = buffer.getMappedRange();
       sharedView.set(new Uint8Array(mappedRange));
@@ -103,7 +105,9 @@ export class ZeroCopyCompression {
       // In the catch block, attempt to unmap buffer if mapped.
       try {
         buffer.unmap();
-      } catch { /* ignore unmap errors */ }
+      } catch {
+        /* ignore unmap errors */
+      }
       if (error instanceof Error) {
         throw new Error(`Compression failed: ${error.message}`);
       }

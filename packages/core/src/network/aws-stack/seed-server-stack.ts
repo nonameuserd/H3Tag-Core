@@ -10,6 +10,7 @@ import { Construct } from 'constructs';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import * as kms from 'aws-cdk-lib/aws-kms';
+import { Logger } from '@h3tag-blockchain/shared';
 
 interface SeedServerStackProps extends cdk.StackProps {
   domainName: string;
@@ -24,17 +25,35 @@ export class SeedServerStack extends cdk.Stack {
   }
 
   private initialize(props: SeedServerStackProps): void {
+    // Add input validation
+    if (!props.domainName || !props.environment) {
+      throw new Error(
+        'Missing required properties: domainName and environment',
+      );
+    }
+
     const flowLogBucket = new s3.Bucket(this, 'FlowLogBucket', {
-      bucketName: 'h3tag-flow-logs',
-      encryption: s3.BucketEncryption.S3_MANAGED,
+      bucketName: `h3tag-flow-logs-${this.account}-${this.region}-${props.environment}`,
+      encryption: s3.BucketEncryption.KMS,
+      encryptionKey: new kms.Key(this, 'FlowLogKey', {
+        enableKeyRotation: true,
+        description: 'KMS key for VPC flow logs',
+      }),
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       lifecycleRules: [
         {
           enabled: true,
           expiration: cdk.Duration.days(365),
+          transitions: [
+            {
+              storageClass: s3.StorageClass.INTELLIGENT_TIERING,
+              transitionAfter: cdk.Duration.days(90),
+            },
+          ],
         },
       ],
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      versioned: true, // Enable versioning
     });
 
     const vpc = new ec2.Vpc(this, 'SeedServerVPC', {
@@ -89,15 +108,16 @@ export class SeedServerStack extends cdk.Stack {
 
     vpc.addFlowLog('VpcFlowLogs', {
       destination: ec2.FlowLogDestination.toS3(flowLogBucket),
-      trafficType: ec2.FlowLogTrafficType.REJECT,
-      maxAggregationInterval: ec2.FlowLogMaxAggregationInterval.TEN_MINUTES,
+      trafficType: ec2.FlowLogTrafficType.ALL,
+      maxAggregationInterval: ec2.FlowLogMaxAggregationInterval.ONE_MINUTE,
     });
 
-    // Inbound rules
+    // Enhance security group rules
     securityGroup.addIngressRule(
-      ec2.Peer.anyIpv4(),
+      ec2.Peer.ipv4('0.0.0.0/0'),
       ec2.Port.tcp(8333),
       'Allow blockchain network traffic',
+      true, // Enable connection tracking
     );
 
     securityGroup.addIngressRule(
@@ -144,9 +164,7 @@ export class SeedServerStack extends cdk.Stack {
 
     const instance = new ec2.Instance(this, 'SeedServer', {
       vpc,
-      vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
-      },
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
       securityGroup,
       instanceType: ec2.InstanceType.of(
         ec2.InstanceClass.T3,
@@ -159,6 +177,8 @@ export class SeedServerStack extends cdk.Stack {
         owners: [process.env.CANONICAL_OWNER_ID || '0'],
       }),
       role,
+      requireImdsv2: true,
+      userData: ec2.UserData.forLinux(),
       blockDevices: [
         {
           deviceName: '/dev/xvda',
@@ -166,6 +186,8 @@ export class SeedServerStack extends cdk.Stack {
             volumeType: ec2.EbsDeviceVolumeType.GP3,
             encrypted: true,
             deleteOnTermination: true,
+            iops: 3000,
+            throughput: 125,
           }),
         },
       ],
@@ -175,35 +197,32 @@ export class SeedServerStack extends cdk.Stack {
     try {
       const zone = route53.HostedZone.fromLookup(this, 'HostedZone', {
         domainName: props.domainName,
+        privateZone: false,
+      });
+
+      // Add health check before creating DNS record
+      const healthCheck = new route53.HealthCheck(this, 'SeedHealthCheck', {
+        port: 8333,
+        type: route53.HealthCheckType.HTTP,
+        resourcePath: '/health',
+        requestInterval: cdk.Duration.seconds(30),
+        failureThreshold: 3,
+        enableSNI: true,
+        regions: [this.region],
       });
 
       new route53.ARecord(this, 'SeedServerDNS', {
         zone,
         recordName: `seed.${props.domainName}`,
-        target: route53.RecordTarget.fromIpAddresses(
-          instance.instancePrivateIp,
-        ),
+        target: route53.RecordTarget.fromIpAddresses(instance.instancePublicIp),
         ttl: cdk.Duration.minutes(5),
         comment: 'DNS record for H3TAG seed server',
+        healthCheck,
       });
     } catch (error) {
-      throw new Error(
-        `Failed to configure DNS: ${error instanceof Error ? error.message : String(error)}`,
-      );
+      Logger.error('DNS configuration failed:', error);
+      throw error;
     }
-
-    // 8. Enhanced health check configuration
-    new route53.CfnHealthCheck(this, 'SeedHealthCheck', {
-      healthCheckConfig: {
-        port: 8333,
-        type: 'TCP_AND_HTTP',
-        resourcePath: '/health',
-        fullyQualifiedDomainName: `seed.${props.domainName}`,
-        requestInterval: 30,
-        failureThreshold: 3,
-        regions: [this.region],
-      },
-    });
 
     // 9. Enhanced backup configuration
     const backupPlan = new backup.BackupPlan(this, 'SeedServerBackup', {
@@ -215,6 +234,26 @@ export class SeedServerStack extends cdk.Stack {
           scheduleExpression: events.Schedule.expression('cron(0 0 1 * ? *)'),
           deleteAfter: cdk.Duration.days(365),
           moveToColdStorageAfter: cdk.Duration.days(90),
+          copyActions: [
+            {
+              destinationBackupVault: new backup.BackupVault(
+                this,
+                'CrossRegionVault',
+                {
+                  encryptionKey: new kms.Key(this, 'BackupKey', {
+                    enableKeyRotation: true,
+                    description: 'KMS key for backup encryption',
+                  }),
+                },
+              ),
+            },
+          ],
+          backupVault: new backup.BackupVault(this, 'EncryptedVault', {
+            encryptionKey: new kms.Key(this, 'BackupKey', {
+              enableKeyRotation: true,
+              description: 'KMS key for backup encryption',
+            }),
+          }),
         }),
       ],
     });
@@ -596,5 +635,30 @@ export class SeedServerStack extends cdk.Stack {
         environment: [props.environment],
       },
     });
+
+    // Policy for CloudWatch Logs actions with narrowed resource scope.
+    instance.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          'logs:CreateLogGroup',
+          'logs:CreateLogStream',
+          'logs:PutLogEvents',
+          'logs:DescribeLogStreams',
+        ],
+        resources: [
+          `arn:aws:logs:${this.region}:${this.account}:log-group:/aws/ec2/seed-server-*`,
+        ],
+      }),
+    );
+
+    // Policy for actions that do not support resource-level restrictions.
+    instance.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ['cloudwatch:PutMetricData', 'ec2:DescribeTags'],
+        resources: ['*'],
+      }),
+    );
   }
 }

@@ -37,13 +37,18 @@ export class WorkerPool {
 
   private async checkWorkerHealth(): Promise<void> {
     const now = Date.now();
-    for (const [worker, metrics] of this.workers.entries()) {
-      if (now - metrics.lastActive > this.maxIdleTime) {
+    const idleWorkers = [...this.available];
+
+    for (const worker of idleWorkers) {
+      const metrics = this.workers.get(worker);
+      if (metrics && now - metrics.lastActive > this.maxIdleTime) {
         await this.terminateWorker(worker);
       }
     }
   }
 
+  // In createWorker(), add a timeout while waiting for the worker to come online,
+  // in order to reduce the possibility of hanging indefinitely if the worker fails to start.
   private async createWorker(): Promise<Worker> {
     const worker = new Worker(this.scriptPath, this.workerOptions) as Worker &
       EventEmitter;
@@ -66,14 +71,25 @@ export class WorkerPool {
         Logger.warn(`Worker exited with code ${code}`);
       }
       this.workers.delete(worker);
+      // Remove from available workers if they happen to be there.
       this.available = this.available.filter((w) => w !== worker);
     });
 
     this.workers.set(worker, metrics);
-    await new Promise((resolve) => worker.once('online', resolve));
+
+    // Wait for the worker to be online with a timeout.
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Worker online event timeout'));
+      }, 5000); // 5 seconds
+      worker.once('online', () => {
+        clearTimeout(timeout);
+        resolve();
+      });
+    });
+
     return worker;
   }
-
   private async handleWorkerError(worker: Worker): Promise<void> {
     const metrics = this.workers.get(worker);
     if (metrics && metrics.errors > 3) {
@@ -96,7 +112,7 @@ export class WorkerPool {
 
   public async getWorker(): Promise<Worker> {
     if (this.disposed) {
-      throw new Error('WorkerPool is disposed');
+      return Promise.reject(new Error('WorkerPool is disposed'));
     }
 
     if (this.available.length > 0) {
@@ -111,9 +127,10 @@ export class WorkerPool {
       return worker;
     }
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       this.tasks.enqueue({
         resolve,
+        reject,
         timestamp: Date.now(),
       });
     });
@@ -137,6 +154,11 @@ export class WorkerPool {
       }
     }
 
+    const metrics = this.workers.get(worker);
+    if (metrics) {
+      metrics.lastActive = Date.now();
+    }
+
     this.available.push(worker);
   }
 
@@ -157,7 +179,14 @@ export class WorkerPool {
     while (this.tasks.size > 0) {
       const task = this.tasks.dequeue();
       if (task) {
-        Logger.warn('WorkerPool disposed; rejecting pending getWorker request.');
+        task.reject(
+          new Error(
+            'WorkerPool disposed; rejecting pending getWorker request.',
+          ),
+        );
+        Logger.warn(
+          'WorkerPool disposed; rejecting pending getWorker request.',
+        );
       }
     }
     this.available = [];
@@ -213,6 +242,7 @@ class Queue<T> {
 
 export interface Task {
   resolve: (worker: Worker) => void;
+  reject: (error: Error) => void;
   timestamp: number;
 }
 

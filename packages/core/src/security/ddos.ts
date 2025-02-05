@@ -19,7 +19,7 @@ interface DDoSConfig {
   windowMs: number;
   maxRequests: {
     pow: number; // Higher limit for PoW mining requests
-    qudraticVote: number; // Limit for voting requests
+    quadraticVote: number; // Limit for voting requests
     default: number; // Default limit for other requests
   };
   blockDuration: number;
@@ -92,7 +92,7 @@ export class DDoSProtection {
     windowMs: 60000,
     maxRequests: {
       pow: 200, // Higher throughput for PoW mining
-      qudraticVote: 100, // Reasonable limit for voting
+      quadraticVote: 100, // Reasonable limit for voting
       default: 50, // Conservative default
     },
     blockDuration: 3600000,
@@ -133,7 +133,7 @@ export class DDoSProtection {
     if (
       config.maxRequests &&
       (config.maxRequests.pow < 1 ||
-        config.maxRequests.qudraticVote < 1 ||
+        config.maxRequests.quadraticVote < 1 ||
         config.maxRequests.default < 1)
     ) {
       throw new DDoSError('Max requests must be positive', 'INVALID_CONFIG');
@@ -202,7 +202,7 @@ export class DDoSProtection {
         if (
           this.isRateLimitExceeded(
             record,
-            requestType as 'pow' | 'qudraticVote' | 'default',
+            requestType as 'pow' | 'quadraticVote' | 'default',
           )
         ) {
           await this.handleViolation(ip, record);
@@ -216,7 +216,7 @@ export class DDoSProtection {
         next();
       } catch (error: unknown) {
         this.handleFailure();
-        next(error as Error | undefined );
+        next(error as Error | undefined);
       }
     };
   }
@@ -233,7 +233,7 @@ export class DDoSProtection {
 
   private getRequestType(req: Request): string {
     if (req.path.includes('/pow')) return 'pow';
-    if (req.path.includes('/vote')) return 'vote';
+    if (req.path.includes('/vote')) return 'quadraticVote';
     return 'default';
   }
 
@@ -273,14 +273,14 @@ export class DDoSProtection {
       record.blocked ||
       this.isRateLimitExceeded(
         record,
-        type as 'pow' | 'qudraticVote' | 'default',
+        type as 'pow' | 'quadraticVote' | 'default',
       )
     );
   }
 
   private isRateLimitExceeded(
     record: RequestRecord,
-    type: 'pow' | 'qudraticVote' | 'default',
+    type: 'pow' | 'quadraticVote' | 'default',
   ): boolean {
     const windowExpired =
       Date.now() - record.firstRequest > this.config.windowMs;
@@ -298,6 +298,9 @@ export class DDoSProtection {
     ip: string,
     record: RequestRecord,
   ): Promise<void> {
+    record.violations = (record.violations || 0) + 1;
+    record.lastViolation = Date.now();
+
     const blockDuration = record.violations * this.config.blockDuration;
 
     if (record.violations >= this.config.banThreshold) {
@@ -348,11 +351,13 @@ export class DDoSProtection {
   private async blockIP(ip: string, duration: number): Promise<void> {
     const record = this.requests.get(ip);
     if (record) {
-      record.blocked = true;
-      this.requests.set(ip, record, { ttl: duration / 1000 });
-      if (this.metrics) {
-        this.metrics.activeBlocks++;
+      if (!record.blocked) {
+        record.blocked = true;
+        if (this.metrics) {
+          this.metrics.activeBlocks++;
+        }
       }
+      this.requests.set(ip, record, { ttl: duration / 1000 });
     }
 
     this.eventEmitter.emit('ip_blocked', { ip, duration });
@@ -373,10 +378,13 @@ export class DDoSProtection {
   }
 
   private startCleanupInterval(): void {
-    this.cleanupInterval = setInterval(() => {
-      this.cleanupOldRecords().catch((err) =>
-        Logger.error('Failed to cleanup old records:', err),
-      );
+    this.cleanupInterval = setInterval(async () => {
+      try {
+        await this.cleanupOldRecords();
+        await this.cleanupRequestTracker();
+      } catch (err) {
+        Logger.error('Failed to cleanup old records or tracker:', err);
+      }
     }, this.config.cleanupInterval);
 
     this.cleanupInterval.unref();
@@ -558,5 +566,26 @@ export class DDoSProtection {
     this.requests.clear();
     this.blockedIPs.clear();
     this.rateLimitBuckets.clear();
+  }
+
+  /**
+   * Cleans up the stale entries in the request tracker.
+   * This method now also removes entries where the cooldown period has ended.
+   */
+  private async cleanupRequestTracker(): Promise<void> {
+    const now = Date.now();
+    for (const [key, tracking] of this.requestTracker.entries()) {
+      // Remove the tracking if it is not blocked and the window has passed
+      if (
+        !tracking.blocked &&
+        now - tracking.firstRequest > this.config.windowMs
+      ) {
+        this.requestTracker.delete(key);
+      }
+      // Remove the tracking if it is blocked but the cooldown period has ended.
+      else if (tracking.blocked && now >= tracking.blockExpires) {
+        this.requestTracker.delete(key);
+      }
+    }
   }
 }

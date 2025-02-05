@@ -129,14 +129,14 @@ export class Node {
       {
         maxRequests: {
           pow: 200,
-          qudraticVote: 100,
+          quadraticVote: 100,
           default: 50,
         },
         windowMs: 60000, // 1 minute
       },
       this.auditManager,
     );
-    this.audit = new AuditManager();
+    this.audit = this.auditManager;
 
     this.peerCache = new Cache<PeerState>({
       ttl: 3600000, // 1 hour
@@ -157,10 +157,7 @@ export class Node {
     );
     this.eventEmitter.on('peer:message', this.handlePeerMessage.bind(this));
     this.eventEmitter.on('peer:error', this.handlePeerError.bind(this));
-    this.eventEmitter.on(
-      'block:received',
-      this.handleBlockReceived.bind(this),
-    );
+    this.eventEmitter.on('block:received', this.handleBlockReceived.bind(this));
     this.eventEmitter.on(
       'tx:received',
       this.handleTransactionReceived.bind(this),
@@ -281,6 +278,16 @@ export class Node {
       // Get node info through handshake
       const nodeInfo = await tempPeer.handshake();
 
+      // Ensure the peer's protocol version is compatible
+      if (!this.isCompatibleVersion(nodeInfo.version)) {
+        Logger.warn('Incompatible peer version', {
+          address,
+          version: nodeInfo.version,
+        });
+        tempPeer.disconnect();
+        return;
+      }
+
       // Verify the node using NodeVerifier
       const isVerified = await NodeVerifier.verifyNode({
         version: nodeInfo.version.toString(),
@@ -350,7 +357,9 @@ export class Node {
     },
   ): Promise<void> {
     try {
-      if (!this.ddosProtection.checkRequest('peer_message', peer.getAddress())) {
+      if (
+        !this.ddosProtection.checkRequest('peer_message', peer.getAddress())
+      ) {
         this.increasePeerBanScore(peer.getAddress(), 10);
         return;
       }
@@ -363,10 +372,7 @@ export class Node {
           break;
         case 'tx':
           if (message.data.transaction) {
-            await this.handleTransactionMessage(
-              peer,
-              message.data.transaction,
-            );
+            await this.handleTransactionMessage(peer, message.data.transaction);
           }
           break;
         case 'inv':
@@ -399,16 +405,19 @@ export class Node {
     try {
       if (this.blockchain.hasBlock(block.hash)) return;
 
-      if (!(await this.blockchain.validateBlock(block))) {
-        this.increasePeerBanScore(peer.getAddress(), 20);
+      if (!block.header.previousHash) {
+        // Allow the genesis block if it matches the blockchain's genesis block hash.
+        if (block.hash !== this.blockchain.getGenesisBlock().hash) {
+          this.handleOrphanBlock(block);
+          return;
+        }
+      } else if (!this.blockchain.hasBlock(block.header.previousHash)) {
+        this.handleOrphanBlock(block);
         return;
       }
 
-      if (
-        !block.header.previousHash ||
-        !this.blockchain.hasBlock(block.header.previousHash)
-      ) {
-        this.handleOrphanBlock(block);
+      if (!(await this.blockchain.validateBlock(block))) {
+        this.increasePeerBanScore(peer.getAddress(), 20);
         return;
       }
 
@@ -553,6 +562,12 @@ export class Node {
   }
 
   public async broadcastTransaction(tx: Transaction): Promise<void> {
+    if (this.peers.size === 0) {
+      throw new Error(
+        'No connected peers available to broadcast the transaction',
+      );
+    }
+
     const promises = Array.from(this.peers.values()).map((peer) =>
       peer.send(PeerMessageType.TX, { transaction: tx }),
     );
@@ -629,19 +644,24 @@ export class Node {
   }
 
   private async evictStalePeers(): Promise<void> {
-    const now = Date.now();
-    const staleThreshold = now - this.config.connectionTimeout * 2;
+    const release = await this.mutex.acquire();
+    try {
+      const now = Date.now();
+      const staleThreshold = now - this.config.connectionTimeout * 2;
 
-    for (const [address, state] of this.peerStates.entries()) {
-      if (state.lastSeen < staleThreshold) {
-        const peer = this.peers.get(address);
-        if (peer) {
-          peer.disconnect();
-          this.peers.delete(address);
+      for (const [address, state] of this.peerStates.entries()) {
+        if (state.lastSeen < staleThreshold) {
+          const peer = this.peers.get(address);
+          if (peer) {
+            await peer.disconnect();
+            this.peers.delete(address);
+          }
+          this.peerStates.delete(address);
+          Logger.debug('Evicted stale peer:', { address });
         }
-        this.peerStates.delete(address);
-        Logger.debug('Evicted stale peer:', { address });
       }
+    } finally {
+      release();
     }
   }
 
@@ -709,11 +729,22 @@ export class Node {
   }
 
   private async processOrphanBlocks(parentHash: string): Promise<void> {
-    for (const [key, block] of this.orphanBlocks.entries()) {
-      if (block.header.previousHash === parentHash) {
-        await this.blockchain.addBlock(block);
-        this.orphanBlocks.delete(key);
-        await this.processOrphanBlocks(block.hash); // Recursively process children
+    const orphansQueue: string[] = [parentHash];
+    while (orphansQueue.length > 0) {
+      const currentParentHash = orphansQueue.shift();
+      for (const [key, orphanBlock] of this.orphanBlocks.entries()) {
+        if (orphanBlock.header.previousHash === currentParentHash) {
+          try {
+            await this.blockchain.addBlock(orphanBlock);
+            this.orphanBlocks.delete(key);
+            orphansQueue.push(orphanBlock.hash);
+          } catch (error) {
+            Logger.error('Error processing orphan block', {
+              blockHash: orphanBlock.hash,
+              error: (error as Error).message,
+            });
+          }
+        }
       }
     }
   }
@@ -736,20 +767,7 @@ export class Node {
   }
 
   public async close(): Promise<void> {
-    this.isRunning = false;
-    if (this.maintenanceTimer) {
-      clearInterval(this.maintenanceTimer);
-    }
-
-    // Disconnect all peers
-    const disconnectPromises = Array.from(this.peers.values()).map((peer) =>
-      peer.disconnect(),
-    );
-    await Promise.all(disconnectPromises);
-
-    this.peers.clear();
-    this.peerStates.clear();
-    await this.savePeerCache();
+    await this.stop();
   }
 
   public getInfo() {
@@ -796,7 +814,8 @@ export class Node {
       const successCount = results.filter(
         (r) => r.status === 'fulfilled',
       ).length;
-      const minPeers = Math.ceil(this.peers.size * 0.51); // Require >50% success
+      const peerCount = Math.max(this.peers.size, 1);
+      const minPeers = peerCount === 1 ? 1 : Math.ceil(peerCount * 0.51);
 
       if (successCount < minPeers) {
         throw new Error('Failed to broadcast to sufficient peers');

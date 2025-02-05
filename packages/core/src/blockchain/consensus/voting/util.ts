@@ -71,7 +71,7 @@ export class DirectVotingUtil {
       {
         maxRequests: {
           pow: 200,
-          qudraticVote: 100,
+          quadraticVote: 100,
           default: 50,
         },
       },

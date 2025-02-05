@@ -379,7 +379,11 @@ export class BlockBuilder {
    */
   public async calculateHash(): Promise<string> {
     try {
-      if (!this.header || !this.header.previousHash || !this.header.merkleRoot) {
+      if (
+        !this.header ||
+        !this.header.previousHash ||
+        !this.header.merkleRoot
+      ) {
         throw new BlockError('Invalid block header');
       }
 
@@ -413,7 +417,11 @@ export class BlockBuilder {
       return hash;
     } catch (error) {
       Logger.error('Failed to calculate block hash:', error);
-      throw new BlockError(error instanceof Error ? error.message : 'Failed to calculate block hash');
+      throw new BlockError(
+        error instanceof Error
+          ? error.message
+          : 'Failed to calculate block hash',
+      );
     }
   }
 

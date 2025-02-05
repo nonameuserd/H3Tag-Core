@@ -1,4 +1,7 @@
-import { BlockchainStats, IBlockchainData } from '../blockchain/blockchain-stats';
+import {
+  BlockchainStats,
+  IBlockchainData,
+} from '../blockchain/blockchain-stats';
 import { NetworkStats } from '../network/network-stats';
 import { Logger } from '@h3tag-blockchain/shared';
 
@@ -181,24 +184,24 @@ export class DifficultyAdjuster {
     if (this.hashRateHistory.length > this.HASH_RATE_WINDOW) {
       this.hashRateHistory.shift();
     }
-  
+
     if (this.hashRateHistory.length < 6) {
       return 1.0;
     }
-  
+
     const shortTermEMA = this.calculateEMA(
       this.hashRateHistory.slice(-6).map(Number),
       2,
     );
     const longTermEMA = this.calculateEMA(this.hashRateHistory.map(Number), 12);
-  
+
     const hashRateChange = (shortTermEMA - longTermEMA) / longTermEMA;
-  
+
     const adjustment =
       1 + this.sigmoid(hashRateChange) * this.MAX_HASH_RATE_ADJUSTMENT;
-  
+
     const networkFactor = this.calculateNetworkHealthFactor();
-  
+
     return Math.max(
       1 - this.MAX_HASH_RATE_ADJUSTMENT,
       Math.min(
@@ -242,7 +245,10 @@ export class DifficultyAdjuster {
           Number(metrics.propagationTime || 0) / 30000,
           1,
         ),
-        peerCount: Math.max(0, Math.min(((metrics.peerCount || 0) - 8) / 50, 1)),
+        peerCount: Math.max(
+          0,
+          Math.min(((metrics.peerCount || 0) - 8) / 50, 1),
+        ),
         networkLatency: Math.min(Number(metrics.networkLatency || 0) / 1000, 1),
       };
 
@@ -254,7 +260,11 @@ export class DifficultyAdjuster {
       };
 
       const healthScore = Object.keys(weights).reduce((score, metric) => {
-        return score + normalizedMetrics[metric as keyof typeof normalizedMetrics] * weights[metric as keyof typeof weights];
+        return (
+          score +
+          normalizedMetrics[metric as keyof typeof normalizedMetrics] *
+            weights[metric as keyof typeof weights]
+        );
       }, 0);
 
       return 0.9 + healthScore * 0.2;
@@ -328,21 +338,21 @@ export class DifficultyAdjuster {
       ) {
         return 1.0;
       }
-  
+
       const avgBlockTime = this.calculateAverageBlockTime(blockTimes);
       if (avgBlockTime <= 0) return 1.0;
-  
+
       const timeRatio = this.TARGET_BLOCK_TIME / avgBlockTime;
       const hashRateChange =
         this.lastHashRate > 0
           ? (Number(hashRate) - Number(this.lastHashRate)) /
             Number(this.lastHashRate)
           : 0;
-  
+
       const dampening = 0.75;
       const adjustment = timeRatio * (1 + hashRateChange * dampening);
       this.lastHashRate = BigInt(hashRate);
-  
+
       return Math.max(
         1 - this.ADJUSTMENT_FACTOR,
         Math.min(adjustment, 1 + this.ADJUSTMENT_FACTOR),

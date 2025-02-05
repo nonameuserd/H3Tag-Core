@@ -318,11 +318,13 @@ export class ValidatorSet {
     const existingValidator = this.validators.get(validator.id);
     if (!existingValidator) return;
 
-    const reputationDifference = Math.abs(validator.reputation - existingValidator.reputation);
+    const reputationDifference = Math.abs(
+      validator.reputation - existingValidator.reputation,
+    );
     // Log a warning if the reputation change is abnormal
     if (reputationDifference > 10) {
       Logger.warn(
-        `Suspicious reputation update attempt for validator ${validator.id}: reputation change from ${existingValidator.reputation} to ${validator.reputation} (difference: ${reputationDifference})`
+        `Suspicious reputation update attempt for validator ${validator.id}: reputation change from ${existingValidator.reputation} to ${validator.reputation} (difference: ${reputationDifference})`,
       );
       throw new Error('Invalid reputation change');
     }

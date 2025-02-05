@@ -49,7 +49,7 @@ export class NodeInitializer {
       const { UTXODatabase } = require('@h3tag-blockchain/core/dist/database/utxo-schema');
       const { WalletDatabase } = require('@h3tag-blockchain/core/dist/database/wallet-database');
       const { VotingDatabase } = require('@h3tag-blockchain/core/dist/database/voting-schema');
-      const { ConfigService, Logger } = require('@h3tag-blockchain/shared');
+      const { ConfigService, Logger, BLOCKCHAIN_CONSTANTS } = require('@h3tag-blockchain/shared');
       
       const { Blockchain } = require('@h3tag-blockchain/core/dist/blockchain/blockchain');
       const { ProofOfWork } = require('@h3tag-blockchain/core/dist/blockchain/consensus/pow');
@@ -73,38 +73,23 @@ export class NodeInitializer {
       const { PeerDiscovery } = require('@h3tag-blockchain/core/dist/network/discovery');
       const { MerkleTree } = require('@h3tag-blockchain/core/dist/utils/merkle');
       const { RetryStrategy } = require('@h3tag-blockchain/core/dist/utils/retry');
-
+      
+      // Additional modules required for sharding, keystore and metrics.
+      const { Keystore } = require('@h3tag-blockchain/core/dist/security/keystore');
+      const { CacheMetrics } = require('@h3tag-blockchain/core/dist/monitoring/cache-metrics');
+      const { BlockchainSchema } = require('@h3tag-blockchain/core/dist/database/blockchain-schema');
+      const { ShardManager } = require('@h3tag-blockchain/core/dist/sharding/shard-manager');
+      
       async function initializeNode() {
         let healthCheckInterval;
         try {
           Logger.info('Starting seed node initialization...');
-
-          // Initialize audit manager first
+      
+          // Initialize audit manager first.
           const auditStorage = new InMemoryAuditStorage();
           const auditManager = new AuditManager(auditStorage);
-
-          // Initialize security with proper error handling
-          let securityKeys;
-          try {
-            securityKeys = await retryStrategy.execute(async () => {
-              await HybridCrypto.initialize();
-              return HybridCrypto.generateKeyPair();
-            });
-          } catch (error) {
-            Logger.error('Failed to initialize security:', error);
-            throw error;
-          }
-
-          // Single cache initialization
-          const cacheConfig = {
-            ttl: 3600,
-            maxSize: 1000,
-            maxMemory: 1024 * 1024 * 512,
-            compression: true
-          };
-          const cache = new Cache(cacheConfig);
-
-          // Initialize retry strategy
+      
+          // Set up the retry strategy before its first use.
           const retryConfig = {
             maxAttempts: 3,
             delay: 1000,
@@ -117,42 +102,55 @@ export class NodeInitializer {
             ]
           };
           const retryStrategy = new RetryStrategy(retryConfig);
-
-          // Initialize merkle tree for block verification
+      
+          // Initialize security with proper error handling.
+          let securityKeys;
+          try {
+            securityKeys = await retryStrategy.execute(async () => {
+              await HybridCrypto.initialize();
+              return HybridCrypto.generateKeyPair();
+            });
+          } catch (error) {
+            Logger.error('Failed to initialize security:', error);
+            throw error;
+          }
+      
+          // Initialize cache (use a single cache instance for the remainder of the script).
+          const cacheConfig = {
+            ttl: 3600,
+            maxSize: 1000,
+            maxMemory: 1024 * 1024 * 512,
+            compression: true
+          };
+          const cache = new Cache(cacheConfig);
+      
+          // Initialize merkle tree for block verification.
           const merkleTree = new MerkleTree();
-
+      
           const dbConfig = ${JSON.stringify(dbConfig)};
-          
+      
           const mainDb = new Database(dbConfig.main.path, dbConfig.main.options);
           const miningDb = new MiningDatabase(dbConfig.mining.path, dbConfig.mining.options);
           const keystoreDb = new KeystoreDatabase(dbConfig.keystore.path, dbConfig.keystore.options);
           const utxoDb = new UTXODatabase(dbConfig.utxo.path, dbConfig.utxo.options);
           const walletDb = new WalletDatabase(dbConfig.wallet.path, dbConfig.wallet.options);
           const votingDb = new VotingDatabase(dbConfig.voting.path, dbConfig.voting.options);
-
-          await retryStrategy.execute(async () => {
-            await HybridCrypto.initialize();
-            const securityKeys = await HybridCrypto.generateKeyPair();
-            return securityKeys;
-          });
-
+      
           const workerPool = new WorkerPool(4);
-          const cache = new Cache({ maxSize: 1000 });
-
-          const blockchainConfigCopy = JSON.parse(JSON.stringify(${JSON.stringify(
-            blockchainConfig,
-          )}));
+      
+          // Create a deep copy of the blockchain configuration and inject the security keys.
+          const blockchainConfigCopy = JSON.parse(JSON.stringify(${JSON.stringify(blockchainConfig)}));
           blockchainConfigCopy.wallet.privateKey = securityKeys.privateKey;
-          
+      
           const blockchain = new Blockchain(blockchainConfigCopy);
           await blockchain.initialize();
-
+      
           const mempool = new Mempool(blockchain);
           const dnsSeeder = new DNSSeeder(ConfigService.getConfig(), mainDb, {
             networkType: blockchainConfigCopy.network.type,
             port: blockchainConfigCopy.network.port
           });
-
+      
           const node = new Node(
             blockchain,
             mainDb,
@@ -160,10 +158,10 @@ export class NodeInitializer {
             ConfigService.getConfig(),
             auditManager
           );
-
+      
           const peerDiscovery = new PeerDiscovery(node, dnsSeeder);
           await peerDiscovery.initialize();
-
+      
           const blockchainSync = new BlockchainSync(
             blockchain,
             mempool,
@@ -175,13 +173,13 @@ export class NodeInitializer {
             },
             mainDb
           );
-
+      
           const pow = new ProofOfWork(blockchain);
           await pow.initialize();
-
+      
           const directVoting = new DirectVoting(mainDb, auditManager);
           await directVoting.initialize();
-          
+      
           const consensus = new HybridDirectConsensus({
             pow,
             directVoting,
@@ -189,24 +187,16 @@ export class NodeInitializer {
             blockchain
           });
           await consensus.initialize();
-
-          // Initialize Keystore
+      
+          // Initialize Keystore.
           await Keystore.initialize();
           Logger.info("Keystore initialized successfully");
-
-          // Initialize Cache with metrics
-          const cacheConfig = {
-            ttl: 3600,
-            maxSize: 1000,
-            maxMemory: 1024 * 1024 * 512, // 512MB
-            compression: true,
-            currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
-          };
-          const cache = new Cache(cacheConfig);
+      
+          // Initialize cache metrics (reusing the previous cache instance).
           const cacheMetrics = new CacheMetrics();
           Logger.info("Cache system initialized successfully");
-
-          // Initialize Sharding
+      
+          // Initialize sharding using the main database path.
           const shardConfig = {
             shardCount: 16,
             votingShards: 4,
@@ -216,12 +206,12 @@ export class NodeInitializer {
             reshardThreshold: 0.8,
             syncInterval: 30000
           };
-          const db = new BlockchainSchema(databaseConfig.databases.blockchain.path);
-          const shardManager = new ShardManager(shardConfig, db);
+          const schema = new BlockchainSchema(dbConfig.main.path);
+          const shardManager = new ShardManager(shardConfig, schema);
           await shardManager.initialize();
           Logger.info("Shard manager initialized successfully");
-
-          // Initialize WebAssembly modules
+      
+          // Initialize WebAssembly modules.
           try {
             const wasmModule = await import("../../../wasm/pkg/vote_processor");
             if (!wasmModule) {
@@ -232,13 +222,13 @@ export class NodeInitializer {
             Logger.error("WebAssembly initialization failed:", error);
             throw error;
           }
-
-          // Health monitoring with cleanup
+      
+          // Set up health monitoring with periodic checks.
           healthCheckInterval = setInterval(async () => {
             const keystoreHealth = await Keystore.healthCheck();
             const cacheHealth = cache.getHitRate() > 0.7; // 70% hit rate threshold
             const shardHealth = await shardManager.healthCheck();
-
+      
             if (!keystoreHealth || !cacheHealth || !shardHealth) {
               Logger.warn("Health check failed:", {
                 keystore: keystoreHealth,
@@ -247,8 +237,8 @@ export class NodeInitializer {
               });
             }
           }, 300000);
-
-          // Cleanup handling
+      
+          // Cleanup handling.
           const cleanup = async () => {
             clearInterval(healthCheckInterval);
             await workerPool.shutdown();
@@ -257,14 +247,14 @@ export class NodeInitializer {
             // ... close other resources ...
             process.exit(0);
           };
-
+      
           process.on('SIGTERM', cleanup);
           process.on('SIGINT', cleanup);
-
+      
           await node.initialize();
           await blockchainSync.start();
-
-          // Export configurations
+      
+          // Export the configuration to an environment variable.
           try {
             process.env.BLOCKCHAIN_CONFIG = JSON.stringify({
               blockchain: blockchain.getConfig(),
@@ -278,18 +268,18 @@ export class NodeInitializer {
             Logger.error('Failed to set BLOCKCHAIN_CONFIG:', error);
             throw error;
           }
-
+      
           Logger.info('Seed node initialization completed successfully');
           await node.start();
-
+      
         } catch (error) {
           clearInterval(healthCheckInterval);
           Logger.error('Failed to initialize seed node:', error);
           process.exit(1);
         }
       }
-
-      // Run initialization
+      
+      // Run initialization.
       initializeNode().catch(console.error);
     `;
   }

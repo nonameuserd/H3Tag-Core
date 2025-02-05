@@ -142,7 +142,8 @@ export class GPUCircuitBreaker {
     if (this.threshold <= 0 || !Number.isInteger(this.threshold)) {
       throw new Error('Threshold must be a positive integer');
     }
-    if (this.resetTime <= 0 || this.resetTime > 86400000) { // reset time must be < 24 hours
+    if (this.resetTime <= 0 || this.resetTime > 86400000) {
+      // reset time must be < 24 hours
       throw new Error('Reset time must be positive and less than 24 hours');
     }
   }

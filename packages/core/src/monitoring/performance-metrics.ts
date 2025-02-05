@@ -151,7 +151,10 @@ export class PerformanceMetrics {
       // Directly call the internal cleanup function to avoid deadlock
       await this.cleanupOldMetricsInternal(now);
       // Recalculate totalDuration using the (possibly trimmed) durations array
-      metric.totalDuration = metric.durations.reduce((a: number, b: number) => a + b, 0);
+      metric.totalDuration = metric.durations.reduce(
+        (a: number, b: number) => a + b,
+        0,
+      );
     }
 
     // Prevent array growth

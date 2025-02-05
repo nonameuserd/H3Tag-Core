@@ -1,5 +1,6 @@
 import { Level } from 'level';
 import { EncryptedKeystore } from '../wallet/keystore';
+import { KeyRotationMetadata } from '../wallet/keystore-types';
 import { databaseConfig } from './config.database';
 
 /**
@@ -120,6 +121,29 @@ export class KeystoreDatabase {
         valueEncoding: 'json',
       });
       return JSON.parse(value) as EncryptedKeystore;
+    } catch (error: unknown) {
+      if (error instanceof Error && 'notFound' in error) return null;
+      throw error;
+    }
+  }
+
+  // New method to store rotation metadata
+  async storeRotationMetadata(
+    address: string,
+    metadata: KeyRotationMetadata,
+  ): Promise<void> {
+    if (!address) throw new Error('Address is required for rotation metadata');
+    await this.db.put(`rotationMetadata:${address}`, JSON.stringify(metadata));
+  }
+
+  // New method to retrieve rotation metadata
+  async getRotationMetadata(
+    address: string,
+  ): Promise<KeyRotationMetadata | null> {
+    if (!address) throw new Error('Address is required for rotation metadata');
+    try {
+      const value = await this.db.get(`rotationMetadata:${address}`);
+      return JSON.parse(value) as KeyRotationMetadata;
     } catch (error: unknown) {
       if (error instanceof Error && 'notFound' in error) return null;
       throw error;

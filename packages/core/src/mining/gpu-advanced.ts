@@ -129,26 +129,30 @@ export class AdvancedGPUMiner extends GPUMiner {
    * @throws {Error} If shader compilation fails
    */
 
-  private async createOptimizedPipeline(target: bigint): Promise<GPUComputePipeline> {
+  private async createOptimizedPipeline(
+    target: bigint,
+  ): Promise<GPUComputePipeline> {
     const cacheKey = `pipeline_${target}`;
-    
+
     // Add double-check locking pattern
     if (this.shaderCache.has(cacheKey)) {
-        return this.shaderCache.get(cacheKey)!;
+      return this.shaderCache.get(cacheKey)!;
     }
 
     try {
-        const pipeline = await this.createPipelineInternal(target);
-        this.shaderCache.set(cacheKey, pipeline);
-        return pipeline;
+      const pipeline = await this.createPipelineInternal(target);
+      this.shaderCache.set(cacheKey, pipeline);
+      return pipeline;
     } catch (error) {
-        // Clean up failed pipeline
-        this.shaderCache.delete(cacheKey);
-        throw error;
+      // Clean up failed pipeline
+      this.shaderCache.delete(cacheKey);
+      throw error;
     }
   }
 
-  private async createPipelineInternal(target: bigint): Promise<GPUComputePipeline> {
+  private async createPipelineInternal(
+    target: bigint,
+  ): Promise<GPUComputePipeline> {
     const shader = `
                 @group(0) @binding(0) var<storage, read> blockData: array<u32>;
                 @group(0) @binding(1) var<storage, read_write> result: array<u32>;
@@ -314,11 +318,11 @@ export class AdvancedGPUMiner extends GPUMiner {
     try {
       const commandEncoder = this.device.createCommandEncoder();
       commandEncoder.copyBufferToBuffer(
-        this.resultBuffer!, 
-        0, 
-        readBuffer, 
-        0, 
-        4
+        this.resultBuffer!,
+        0,
+        readBuffer,
+        0,
+        4,
       );
       this.device.queue.submit([commandEncoder.finish()]);
 
@@ -428,7 +432,10 @@ export class AdvancedGPUMiner extends GPUMiner {
     // Create a storage buffer for the header hash and mining result (8 bytes: 2 x uint32).
     const storageBuffer = this.device.createBuffer({
       size: 8,
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+      usage:
+        GPUBufferUsage.STORAGE |
+        GPUBufferUsage.COPY_SRC |
+        GPUBufferUsage.COPY_DST,
     });
     // Initialize with header hash and a sentinel value (0xffffffff) for nonce.
     const initData = new Uint32Array([this.hashBlockHeader(block), 0xffffffff]);

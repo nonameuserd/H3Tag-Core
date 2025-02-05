@@ -93,7 +93,7 @@ export class HybridCrypto {
     }
   }
 
-  static async encrypt(message: string, publicKey: string): Promise<string> {
+  static async encrypt(message: string, publicKey: string, iv?: string): Promise<string> {
     try {
       if (!message || !publicKey) {
         throw new HybridError('Missing required parameters');
@@ -101,8 +101,7 @@ export class HybridCrypto {
 
       // 1. Generate session keys
       const sessionKey = CryptoJS.lib.WordArray.random(this.KEY_SIZE / 8);
-      const { ciphertext: kyberCiphertext, sharedSecret: kyberSecret } =
-        await Kyber.encapsulate(publicKey);
+      const { ciphertext: kyberCiphertext, sharedSecret: kyberSecret } = await Kyber.encapsulate(publicKey);
 
       // 2. Generate quantum-safe components
       const [dilithiumHash, quantumKey] = await Promise.all([
@@ -115,11 +114,13 @@ export class HybridCrypto {
         sessionKey.toString() +
           kyberSecret +
           dilithiumHash +
-          quantumKey.toString('hex'),
+          quantumKey.toString('hex')
       );
 
-      // 4. Encrypt with combined key
-      const encrypted = CryptoJS.AES.encrypt(message, hybridKey);
+      // 4. Encrypt with combined key using the provided IV (if any)
+      const encrypted = iv
+        ? CryptoJS.AES.encrypt(message, hybridKey, { iv: CryptoJS.enc.Base64.parse(iv) })
+        : CryptoJS.AES.encrypt(message, hybridKey);
 
       return JSON.stringify({
         data: encrypted.toString(),
@@ -129,7 +130,7 @@ export class HybridCrypto {
     } catch (error) {
       Logger.error('Hybrid encryption failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : 'Encryption failed',
+        error instanceof Error ? error.message : 'Encryption failed'
       );
     }
   }
@@ -137,41 +138,40 @@ export class HybridCrypto {
   static async decrypt(
     encryptedData: string,
     privateKey: string,
+    iv?: string
   ): Promise<string> {
     try {
       if (!encryptedData || !privateKey) {
         throw new HybridError('Missing required parameters');
       }
-
+      
       const parsed = JSON.parse(encryptedData);
       if (!parsed?.data || !parsed?.sessionKey || !parsed?.quantumProof) {
         throw new HybridError('Invalid encrypted data format');
       }
-
-      // 1. Recover shared secrets
-      const kyberSecret = await Kyber.decapsulate(
-        parsed.sessionKey,
-        privateKey,
-      );
-      const quantumKey = await QuantumWrapper.hashData(
-        Buffer.from(parsed.sessionKey),
-      );
-
-      // 2. Reconstruct hybrid key
+      
+      const kyberSecret = await Kyber.decapsulate(parsed.sessionKey, privateKey);
+      const quantumKey = await QuantumWrapper.hashData(Buffer.from(parsed.sessionKey));
+      
       const hybridKey = HashUtils.sha3(
         parsed.sessionKey +
-          kyberSecret +
-          parsed.quantumProof +
-          quantumKey.toString('hex'),
+        kyberSecret +
+        parsed.quantumProof +
+        quantumKey.toString('hex')
       );
-
-      // 3. Decrypt with combined key
-      const decrypted = CryptoJS.AES.decrypt(parsed.data, hybridKey);
+      
+      // Use the provided IV if available.
+      const decrypted = iv
+        ? CryptoJS.AES.decrypt(parsed.data, hybridKey, {
+            iv: CryptoJS.enc.Base64.parse(iv)
+          })
+        : CryptoJS.AES.decrypt(parsed.data, hybridKey);
+      
       return decrypted.toString(CryptoJS.enc.Utf8);
     } catch (error) {
       Logger.error('Hybrid decryption failed:', error);
       throw new HybridError(
-        error instanceof Error ? error.message : 'Decryption failed',
+        error instanceof Error ? error.message : 'Decryption failed'
       );
     }
   }

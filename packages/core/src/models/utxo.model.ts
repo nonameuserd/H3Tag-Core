@@ -546,44 +546,60 @@ export class UTXOSet {
         { field: 'timestamp', type: 'number', minValue: 1 },
         { field: 'spent', type: 'boolean' },
         { field: 'currency', type: 'object' },
-        { field: 'currency.name', type: 'string', value: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME },
-        { field: 'currency.symbol', type: 'string', value: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL },
-        { field: 'currency.decimals', type: 'number', value: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS },
+        {
+          field: 'currency.name',
+          type: 'string',
+          value: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
+        },
+        {
+          field: 'currency.symbol',
+          type: 'string',
+          value: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
+        },
+        {
+          field: 'currency.decimals',
+          type: 'number',
+          value: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
+        },
       ];
 
-      return validations.every(({ field, type, minLength, minValue, value: expectedValue }) => {
-        const fieldValue = field
-          .split('.')
-          .reduce<unknown>((prev, curr) => {
+      return validations.every(
+        ({ field, type, minLength, minValue, value: expectedValue }) => {
+          const fieldValue = field.split('.').reduce<unknown>((prev, curr) => {
             return (prev as Record<string, unknown>)?.[curr];
           }, utxo);
-        
-        if (typeof fieldValue !== type) {
-          return false;
-        }
-        
-        // If minLength is defined, ensure the string meets that length
-        if (minLength !== undefined && typeof fieldValue === 'string' && fieldValue.length < minLength) {
-          return false;
-        }
-        
-        // For numeric and bigint values, check the minimum value
-        if (minValue !== undefined) {
-          if (typeof fieldValue === 'number' && fieldValue < minValue) {
+
+          if (typeof fieldValue !== type) {
             return false;
           }
-          if (typeof fieldValue === 'bigint' && fieldValue < minValue) {
+
+          // If minLength is defined, ensure the string meets that length
+          if (
+            minLength !== undefined &&
+            typeof fieldValue === 'string' &&
+            fieldValue.length < minLength
+          ) {
             return false;
           }
-        }
-        
-        // If an expected constant value is provided, ensure they match exactly.
-        if (expectedValue !== undefined && fieldValue !== expectedValue) {
-          return false;
-        }
-        
-        return true;
-      });
+
+          // For numeric and bigint values, check the minimum value
+          if (minValue !== undefined) {
+            if (typeof fieldValue === 'number' && fieldValue < minValue) {
+              return false;
+            }
+            if (typeof fieldValue === 'bigint' && fieldValue < minValue) {
+              return false;
+            }
+          }
+
+          // If an expected constant value is provided, ensure they match exactly.
+          if (expectedValue !== undefined && fieldValue !== expectedValue) {
+            return false;
+          }
+
+          return true;
+        },
+      );
     } catch (error) {
       Logger.error('UTXO validation failed:', error);
       return false;
@@ -1667,5 +1683,37 @@ export class UTXOSet {
         this.cacheTimestamps.delete(key);
       }
     }
+  }
+
+  /**
+   * Replaces the current set of UTXOs with the provided ones.
+   * @param newUtxos An array of UTXOs to set.
+   */
+  public setUtxos(newUtxos: UTXO[]): void {
+    // Clear the existing UTXOs.
+    this.utxos.clear();
+
+    // Reset the address index.
+    this.addressIndex.clear();
+
+    // Add each new UTXO.
+    newUtxos.forEach((utxo) => {
+      const key = this.getUtxoKey(utxo);
+      this.utxos.set(key, utxo);
+
+      // Update address index mapping.
+      if (!this.addressIndex.has(utxo.address)) {
+        this.addressIndex.set(utxo.address, new Set());
+      }
+      this.addressIndex.get(utxo.address)!.add(key);
+    });
+  }
+
+  /**
+   * Returns all unspent UTXOs.
+   * @returns {UTXO[]} Array of UTXOs.
+   */
+  public async getAll(): Promise<UTXO[]> {
+    return Array.from(this.utxos.values()).filter((utxo) => !utxo.spent);
   }
 }

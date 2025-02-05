@@ -212,7 +212,7 @@ export enum PeerMessageType {
 /**
  * @interface MessagePayload
  * @description Defines the possible shapes of the payload data for peer messages.
- * 
+ *
  * NOTE: Because many fields are optional, consider adding runtime validation (using libraries such as AJV or Zod)
  * when processing incoming peer messages to ensure data integrity.
  */

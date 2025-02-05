@@ -59,7 +59,7 @@ class HybridCrypto {
             return false;
         }
     }
-    static async encrypt(message, publicKey) {
+    static async encrypt(message, publicKey, iv) {
         try {
             if (!message || !publicKey) {
                 throw new HybridError('Missing required parameters');
@@ -77,8 +77,10 @@ class HybridCrypto {
                 kyberSecret +
                 dilithiumHash +
                 quantumKey.toString('hex'));
-            // 4. Encrypt with combined key
-            const encrypted = crypto_js_1.default.AES.encrypt(message, hybridKey);
+            // 4. Encrypt with combined key using the provided IV (if any)
+            const encrypted = iv
+                ? crypto_js_1.default.AES.encrypt(message, hybridKey, { iv: crypto_js_1.default.enc.Base64.parse(iv) })
+                : crypto_js_1.default.AES.encrypt(message, hybridKey);
             return JSON.stringify({
                 data: encrypted.toString(),
                 sessionKey: kyberCiphertext,
@@ -90,7 +92,7 @@ class HybridCrypto {
             throw new HybridError(error instanceof Error ? error.message : 'Encryption failed');
         }
     }
-    static async decrypt(encryptedData, privateKey) {
+    static async decrypt(encryptedData, privateKey, iv) {
         try {
             if (!encryptedData || !privateKey) {
                 throw new HybridError('Missing required parameters');
@@ -99,16 +101,18 @@ class HybridCrypto {
             if (!parsed?.data || !parsed?.sessionKey || !parsed?.quantumProof) {
                 throw new HybridError('Invalid encrypted data format');
             }
-            // 1. Recover shared secrets
             const kyberSecret = await kyber_1.Kyber.decapsulate(parsed.sessionKey, privateKey);
             const quantumKey = await quantum_wrapper_1.QuantumWrapper.hashData(Buffer.from(parsed.sessionKey));
-            // 2. Reconstruct hybrid key
             const hybridKey = hash_1.HashUtils.sha3(parsed.sessionKey +
                 kyberSecret +
                 parsed.quantumProof +
                 quantumKey.toString('hex'));
-            // 3. Decrypt with combined key
-            const decrypted = crypto_js_1.default.AES.decrypt(parsed.data, hybridKey);
+            // Use the provided IV if available.
+            const decrypted = iv
+                ? crypto_js_1.default.AES.decrypt(parsed.data, hybridKey, {
+                    iv: crypto_js_1.default.enc.Base64.parse(iv)
+                })
+                : crypto_js_1.default.AES.decrypt(parsed.data, hybridKey);
             return decrypted.toString(crypto_js_1.default.enc.Utf8);
         }
         catch (error) {

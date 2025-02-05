@@ -60,10 +60,13 @@ export class NetworkStats {
   private readonly startTime: number = Math.floor(Date.now() / 1000);
 
   constructor() {
-    this.startDiscoveryLoop();
+    // Removed: this.startDiscoveryLoop();
   }
 
   private startDiscoveryLoop(): void {
+    // Prevent multiple intervals from being started.
+    if (this.discoveryTimer) return;
+
     this.discoveryTimer = setInterval(() => {
       this.performDiscovery();
     }, NetworkStats.DISCOVERY_INTERVAL);
@@ -533,15 +536,17 @@ export class NetworkStats {
     totalVoters: number;
   } {
     try {
-      // Calculate voting participation rate
       const activeVoters = Array.from(this.peers.values()).filter((peer) =>
         peer.hasVoted(),
       ).length;
 
+      const totalPeers = this.peers.size;
+      const participation = totalPeers > 0 ? activeVoters / totalPeers : 0;
+
       return {
-        participation: activeVoters / this.peers.size,
+        participation,
         averageVoteTime: this.calculateAverageVoteTime(),
-        totalVoters: this.peers.size,
+        totalVoters: totalPeers,
       };
     } catch (error) {
       Logger.error('Failed to calculate voting stats:', error);
@@ -624,7 +629,7 @@ export class NetworkStats {
         this.blockPropagationTimes = [];
         this.globalHashRate = 0;
 
-        // Start discovery loop
+        // Start the discovery loop (only once)
         this.startDiscoveryLoop();
 
         clearTimeout(timeout);
@@ -643,14 +648,18 @@ export class NetworkStats {
       clearInterval(this.discoveryTimer);
       this.discoveryTimer = null;
     }
-    this.removeAllListeners();
+    this.eventEmitter.removeAllListeners();
+    // Ensure that each peer's event emitter is cleaned up
+    for (const peer of this.peers.values()) {
+      peer.eventEmitter.removeAllListeners();
+    }
     this.peers.clear();
     this.peerScores.clear();
     this.lastSeen.clear();
     this.bannedPeers.clear();
   }
 
-  public getNetworkInfo(): {
+  public async getNetworkInfo(): Promise<{
     version: string;
     subversion: string;
     protocolVersion: number;
@@ -685,7 +694,7 @@ export class NetworkStats {
         mempoolminfee: number;
       };
     };
-  } {
+  }> {
     try {
       // Get connected peers
       const connectedPeers = Array.from(this.peers.values()).filter((peer) =>
@@ -718,6 +727,7 @@ export class NetworkStats {
 
       // Get local addresses
       const localAddresses = this.getLocalAddresses();
+      const warnings = await this.getNetworkWarnings();
 
       return {
         version: BLOCKCHAIN_CONSTANTS.VERSION.toString(),
@@ -754,7 +764,7 @@ export class NetworkStats {
           },
         ],
         localAddresses,
-        warnings: this.getNetworkWarnings(),
+        warnings,
         metrics,
       };
     } catch (error) {
@@ -791,8 +801,7 @@ export class NetworkStats {
 
   private getLocalServices(): string[] {
     const services = [];
-    if (this.configService?.get('NETWORK_NODE'))
-      services.push('NODE_NETWORK');
+    if (this.configService?.get('NETWORK_NODE')) services.push('NODE_NETWORK');
     if (this.configService?.get('NETWORK_BLOOM')) services.push('NODE_BLOOM');
     if (this.configService?.get('NETWORK_WITNESS'))
       services.push('NODE_WITNESS');
@@ -812,8 +821,8 @@ export class NetworkStats {
     }
   }
 
-  private getNetworkWarnings(): string {
-    const warnings = [];
+  private async getNetworkWarnings(): Promise<string> {
+    const warnings: string[] = [];
 
     // Check for version updates
     if (this.isVersionOutdated()) {
@@ -828,7 +837,7 @@ export class NetworkStats {
     }
 
     // Check sync status
-    if (!this.isSynced()) {
+    if (!(await this.isSynced())) {
       warnings.push('WARNING: Node is not fully synced with the network.');
     }
 
@@ -840,10 +849,13 @@ export class NetworkStats {
       const currentVersion = parseFloat(
         BLOCKCHAIN_CONSTANTS.VERSION.toString(),
       );
-      const latestVersion = parseFloat(
-        this.configService?.get('LATEST_VERSION') as string,
-      );
-      return currentVersion < latestVersion;
+      const latestVersionStr = this.configService?.get('LATEST_VERSION');
+      const latestVersion =
+        typeof latestVersionStr === 'string'
+          ? parseFloat(latestVersionStr)
+          : currentVersion;
+
+      return !isNaN(latestVersion) && currentVersion < latestVersion;
     } catch (error) {
       Logger.warn('Failed to check version:', error);
       return false;
@@ -854,7 +866,7 @@ export class NetworkStats {
     try {
       return (
         !this.blockchain?.isInitialBlockDownload() &&
-        (await this.blockchain?.getVerificationProgress() || 0) >= 0.99
+        ((await this.blockchain?.getVerificationProgress()) || 0) >= 0.99
       );
     } catch (error: unknown) {
       Logger.warn('Failed to check sync status:', error as Error);

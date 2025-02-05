@@ -24,7 +24,6 @@ export class TransactionValidator {
     utxoSet: UTXOSet,
     currentHeight: number,
   ): Promise<boolean> {
-    const release = await this.voteLock.acquire();
     try {
       await this.validateBasicRequirements(tx, utxoSet);
 
@@ -38,8 +37,6 @@ export class TransactionValidator {
     } catch (error) {
       Logger.error('Transaction validation failed:', error);
       return false;
-    } finally {
-      release();
     }
   }
 
@@ -75,7 +72,10 @@ export class TransactionValidator {
     }
 
     // Size limits
-    if (JSON.stringify(tx).length > BLOCKCHAIN_CONSTANTS.MINING.MAX_TX_SIZE) {
+    if (
+      this.calculateTransactionSize(tx) >
+      BLOCKCHAIN_CONSTANTS.MINING.MAX_TX_SIZE
+    ) {
       throw new TransactionValidationError(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.NAME} transaction too large`,
         'EXCESS_SIZE',
@@ -172,8 +172,7 @@ export class TransactionValidator {
     }
 
     // Calculate quadratic voting power
-    const committedAmount = await this.calculateVotingPower(tx, utxoSet);
-    const quadraticPower = Math.floor(Math.sqrt(Number(committedAmount)));
+    const quadraticPower = await this.calculateVotingPower(tx, utxoSet);
 
     if (
       quadraticPower < BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_VOTE_AMOUNT
@@ -223,11 +222,8 @@ export class TransactionValidator {
       BigInt(0),
     );
 
-    // Convert to quadratic voting power
-    const quadraticPower = Math.floor(Math.sqrt(Number(totalAmount)));
-
     // Ensure minimum voting power
-    return Math.max(quadraticPower, 0);
+    return Math.max(Number(totalAmount), 0);
   }
 
   private static async validateSignatures(tx: Transaction): Promise<void> {
@@ -275,8 +271,8 @@ export class TransactionValidator {
         ...tx,
         powData: {
           ...tx.powData,
-          timestamp: Date.now(),
-          version: '1.0',
+          timestamp: tx.powData?.timestamp ?? Date.now(),
+          version: tx.powData?.version ?? '1.0',
         },
       };
 
@@ -565,6 +561,8 @@ export class TransactionValidator {
         inputs: tx.inputs,
         outputs: tx.outputs,
         signature: tx.signature,
+        voteData: tx.voteData,
+        powData: tx.powData,
       };
 
       // Convert to buffer to get actual byte size

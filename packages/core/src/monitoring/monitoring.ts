@@ -192,7 +192,10 @@ export class Monitoring {
       this.logger.close();
 
       Object.values(this.metrics).forEach((metric) => {
-        if (metric instanceof prometheus.Gauge || metric instanceof prometheus.Histogram) {
+        if (
+          metric instanceof prometheus.Gauge ||
+          metric instanceof prometheus.Histogram
+        ) {
           metric.reset();
         }
       });
@@ -227,7 +230,11 @@ export class Monitoring {
   ): void {
     try {
       if (!method || !path || typeof duration !== 'number' || duration < 0) {
-        this.logger.warn('Invalid response time parameters', { method, path, duration });
+        this.logger.warn('Invalid response time parameters', {
+          method,
+          path,
+          duration,
+        });
         return;
       }
 

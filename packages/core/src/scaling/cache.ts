@@ -62,7 +62,6 @@ export class Cache<T> {
   private memoryThreshold = 0.9; // 90% memory threshold
   private lastMemoryCheck = Date.now();
   private readonly memoryCheckInterval = 60000; // Check every minute
-  private priorityQueue = new Map<string, number>();
   private readonly eventEmitter = new EventEmitter();
   private static readonly PRIORITIES = {
     CRITICAL: 10,
@@ -115,7 +114,7 @@ export class Cache<T> {
 
     this.startCleanupInterval();
 
-    // Add size checking
+    // Bind methods for size checking
     this.set = this.set.bind(this);
     this.checkSize = this.checkSize.bind(this);
   }
@@ -136,6 +135,19 @@ export class Cache<T> {
     options?: { ttl?: number; priority?: number },
   ): void {
     try {
+      // Check if the object exceeds the per‑entry size limit
+      if (!this.checkSize(value)) {
+        throw new CacheError(
+          `Value for key "${key}" exceeds the maximum entry size of ${this.MEMORY_LIMITS.MAX_ENTRY_SIZE} bytes`,
+        );
+      }
+
+      // If the key already exists, deduct its previous size
+      const existing = this.items.get(key);
+      if (existing) {
+        this.memoryUsage -= existing.size;
+      }
+
       const serializedValue = this.options.serialize(value);
       let compressed = false;
       let finalValue = serializedValue;
@@ -170,10 +182,12 @@ export class Cache<T> {
         currency: this.options.currency,
       };
 
-      if (this.items.size >= this.options.maxSize) {
+      // If the cache is full in terms of max items, evict one using LRU logic.
+      if (!existing && this.items.size >= this.options.maxSize) {
         this.evictLRU();
       }
 
+      // Store the new or updated item and update memory usage.
       this.items.set(key, item);
       this.memoryUsage += size;
       this.updateStats();
@@ -243,10 +257,9 @@ export class Cache<T> {
       this.enforceMemoryLimit();
     }
 
+    // Use each item's own 'priority' property
     const entries = Array.from(this.items.entries()).sort((a, b) => {
-      const priorityA = this.priorityQueue.get(a[0]) || 0;
-      const priorityB = this.priorityQueue.get(b[0]) || 0;
-      if (priorityA !== priorityB) return priorityA - priorityB;
+      if (a[1].priority !== b[1].priority) return a[1].priority - b[1].priority;
       return a[1].lastAccessed - b[1].lastAccessed;
     });
 
@@ -283,9 +296,11 @@ export class Cache<T> {
     this.stats.keys = this.items.size;
     this.stats.size = this.memoryUsage;
     this.stats.compressionRatio = this.calculateCompressionRatio();
+    this.stats.memoryUsage = this.memoryUsage;
   }
 
   private calculateCompressionRatio(): number {
+    if (this.memoryUsage === 0) return 1;
     const compressedItems = Array.from(this.items.values()).filter(
       (item) => item.compressed,
     );
@@ -305,6 +320,8 @@ export class Cache<T> {
     const item = this.items.get(key);
     if (item) {
       this.items.delete(key);
+      // Update memoryUsage when an item is removed.
+      this.memoryUsage -= item.size;
       this.stats.keys = this.items.size;
       this.stats.size -= item.size;
       this.options.onEvict(key, item.value);
@@ -326,13 +343,16 @@ export class Cache<T> {
 
   public clear(onlyExpired: boolean = false): void {
     if (onlyExpired) {
-      for (const [key, item] of this.items.entries()) {
+      // Use a copy of the entries to avoid mutation issues during iteration.
+      for (const [key, item] of Array.from(this.items.entries())) {
         if (this.isExpired(item)) {
           this.delete(key);
         }
       }
     } else {
       this.items.clear();
+      // Reset memory usage when clearing all items.
+      this.memoryUsage = 0;
       this.resetStats();
       this.eventEmitter.emit('clear');
     }
@@ -388,7 +408,7 @@ export class Cache<T> {
 
   private cleanup(): void {
     const now = Date.now();
-    for (const [key, item] of this.items.entries()) {
+    for (const [key, item] of Array.from(this.items.entries())) {
       if (now > item.expires) {
         this.delete(key);
       }
@@ -444,7 +464,8 @@ export class Cache<T> {
     );
 
     for (let i = 0; i < entriesToRemove; i++) {
-      this.items.delete(entries[i][0]);
+      // Use the delete method to ensure proper updates.
+      this.delete(entries[i][0]);
     }
   }
 
@@ -463,7 +484,7 @@ export class Cache<T> {
 
   public async prefetch(key: string): Promise<void> {
     if (!this.items.has(key)) {
-      // Add placeholder item to mark as prefetched
+      // Add a placeholder item to mark as prefetched
       this.items.set(key, {
         value: null as unknown as T,
         expires: Date.now() + this.options.ttl * 1000,

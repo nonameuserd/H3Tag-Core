@@ -73,11 +73,16 @@ export class Performance {
       }
 
       // Using unique keys for cache metrics
-      const cacheKeys = ['cache_hit_rate', 'cache_size', 'cache_evictions', 'cache_memory_usage'];
+      const cacheKeys = [
+        'cache_hit_rate',
+        'cache_size',
+        'cache_evictions',
+        'cache_memory_usage',
+      ];
       cacheKeys.forEach((key) => {
         const now = Date.now();
         const existing = Performance.metrics.get(key);
-        
+
         // if metric exists, update its timestamp and log the new value; if not, initialize it.
         if (existing) {
           existing.startTime = now;

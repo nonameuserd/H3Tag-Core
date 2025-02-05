@@ -26,6 +26,7 @@ interface StorageConfig {
   retryDelay: number;
   maxConcurrentWrites: number;
   currency?: string;
+  maxFileSize: number;
 }
 
 export class FileAuditStorage implements IAuditStorage {
@@ -43,6 +44,7 @@ export class FileAuditStorage implements IAuditStorage {
     retryDelay: 1000,
     maxConcurrentWrites: 5,
     currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
+    maxFileSize: 1024 * 1024 * 100, // 100MB
   };
 
   constructor(config: Partial<StorageConfig> = {}) {
@@ -83,6 +85,18 @@ export class FileAuditStorage implements IAuditStorage {
   }
 
   public async writeAuditLog(filename: string, data: string): Promise<void> {
+    if (!filename || !data) {
+      throw new FileAuditStorageError(
+        'Invalid filename or data',
+        'INVALID_INPUT',
+      );
+    }
+    if (data.length > this.config.maxFileSize) {
+      throw new FileAuditStorageError(
+        'File size exceeds limit',
+        'FILE_SIZE_LIMIT',
+      );
+    }
     while (this.activeWrites >= this.config.maxConcurrentWrites) {
       await this.delay(100);
     }
@@ -112,6 +126,11 @@ export class FileAuditStorage implements IAuditStorage {
         }
         throw lastError || new Error('Write failed');
       });
+    } catch (error) {
+      throw new FileAuditStorageError(
+        `Write failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        'WRITE_FAILED',
+      );
     } finally {
       this.activeWrites--;
     }
@@ -149,7 +168,17 @@ export class FileAuditStorage implements IAuditStorage {
   }
 
   public async acquireLock(lockId: string): Promise<boolean> {
-    if (this.locks.has(lockId)) return false;
+    if (this.locks.has(lockId)) {
+      const timestamp = this.locks.get(lockId);
+      if (
+        typeof timestamp === 'number' &&
+        Date.now() - timestamp > this.lockTimeout
+      ) {
+        await this.releaseLock(lockId);
+      } else {
+        return false;
+      }
+    }
     this.locks.set(lockId, Date.now());
     return true;
   }
@@ -165,7 +194,7 @@ export class FileAuditStorage implements IAuditStorage {
 
     this.activeWrites++;
     try {
-      this.writeQueue = this.writeQueue.then(writeOperation);
+      this.writeQueue = this.writeQueue.then(writeOperation).catch(() => {});
       await this.writeQueue;
     } finally {
       this.activeWrites--;
@@ -173,7 +202,10 @@ export class FileAuditStorage implements IAuditStorage {
   }
 
   private getFilePath(filename: string): string {
-    return path.join(this.config.baseDir, filename);
+    const safeFilename = path
+      .normalize(filename)
+      .replace(/^(\.\.(\/|\\|$))+/g, '');
+    return path.join(this.config.baseDir, safeFilename);
   }
 
   private async compressData(data: string): Promise<Buffer> {
@@ -197,5 +229,6 @@ export class FileAuditStorage implements IAuditStorage {
     clearInterval(this.lockCleanupInterval);
     this.locks.clear();
     await this.writeQueue;
+    this.writeQueue = Promise.resolve(); // Reset the queue
   }
 }

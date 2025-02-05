@@ -5,7 +5,6 @@ import {
 } from '@h3tag-blockchain/crypto';
 import { Logger } from '@h3tag-blockchain/shared/dist/utils/logger';
 import { Keystore, EncryptedKeystore } from './keystore';
-import { EventEmitter } from 'events';
 import {
   Transaction,
   TransactionStatus,
@@ -48,7 +47,6 @@ export class Wallet {
   private isLocked = false;
   private readonly keystore: EncryptedKeystore;
   private lockMutex = new Mutex();
-  private readonly eventEmitter = new EventEmitter();
 
   private readonly state = {
     isInitialized: false,
@@ -57,6 +55,9 @@ export class Wallet {
   };
 
   private readonly utxoSet: UTXOSet;
+
+  // Add a typed property for the master HD key
+  private masterHDKey?: HDKey;
 
   private updateState(update: Partial<typeof this.state>): void {
     Object.assign(this.state, update);
@@ -67,7 +68,7 @@ export class Wallet {
     this.address = keystore.address;
     this.keystore = keystore;
     this.utxoSet = new UTXOSet();
-    // Add cleanup on process exit
+    // Cleanup on process exit
     process.on('exit', () => {
       this.secureCleanup();
     });
@@ -89,18 +90,11 @@ export class Wallet {
       );
     }
     try {
-      const keyPair = await HybridCrypto.generateKeyPair();
-      const address = await KeyManager.deriveAddress(keyPair.publicKey);
-      const keystore = await Keystore.encrypt(keyPair, password, address);
-
-      // Save to database
-      const walletDb = new WalletDatabase(databaseConfig.databases.wallet.path);
-      await walletDb.saveKeystore(address, keystore);
-
-      const wallet = new Wallet(keyPair, keystore);
-      wallet.eventEmitter.emit('created', { address });
+      // Generate a mnemonic to support HD wallet address derivation
+      const mnemonic = bip39.generateMnemonic(256); // 24 words
+      const wallet = await this.fromMnemonic(mnemonic, password);
       return wallet;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Wallet creation failed:', error);
       throw new WalletError(
         'Failed to create wallet',
@@ -123,48 +117,47 @@ export class Wallet {
 
       const keyPair = await Keystore.decrypt(keystore, password);
       const wallet = new Wallet(keyPair, keystore);
-      wallet.eventEmitter.emit('loaded', { address });
       return wallet;
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Wallet loading failed:', error);
       throw new WalletError(
-        'Failed to load wallet',
+        `Failed to load wallet: ${(error as Error).message}`,
         WalletErrorCode.INITIALIZATION_ERROR,
       );
     }
   }
 
   async lock(): Promise<void> {
-    await this.lockMutex.acquire();
+    const release = await this.lockMutex.acquire();
     try {
       if (this.isLocked) return;
       this.isLocked = true;
-      this.eventEmitter.emit('locked', { address: this.address });
     } finally {
-      this.lockMutex.release();
+      release();
     }
   }
 
   async unlock(password: string): Promise<void> {
-    if (!this.isLocked) return;
+    const release = await this.lockMutex.acquire();
     try {
+      if (!this.isLocked) return;
       await Keystore.decrypt(this.keystore, password);
       this.isLocked = false;
       this.updateState({
         lastActivity: Date.now(),
         failedAttempts: 0,
       });
-      this.eventEmitter.emit('unlocked', { address: this.address });
-    } catch (error: unknown) {
-      if (error instanceof Error) {
-        this.updateState({
-          failedAttempts: this.state.failedAttempts + 1,
-        });
-        throw new WalletError(
-          'Failed to unlock wallet',
-          WalletErrorCode.KEYSTORE_ERROR,
-        );
-      }
+    } catch (error) {
+      this.updateState({
+        failedAttempts: this.state.failedAttempts + 1,
+      });
+      Logger.error('Failed to unlock wallet:', error);
+      throw new WalletError(
+        'Failed to unlock wallet',
+        WalletErrorCode.KEYSTORE_ERROR,
+      );
+    } finally {
+      release();
     }
   }
 
@@ -182,8 +175,6 @@ export class Wallet {
 
       const txString = JSON.stringify(transaction);
       const signature = await HybridCrypto.sign(txString, this.keyPair);
-      // Clear sensitive data
-      txString.replace(/./g, '0');
       return signature;
     } catch (error) {
       Logger.error('Transaction signing failed:', error);
@@ -230,8 +221,24 @@ export class Wallet {
 
   async rotateKeys(password: string): Promise<void> {
     try {
-      await Keystore.rotateKey(this.address, password);
-      this.eventEmitter.emit('keysRotated', { address: this.address });
+      // Rotate the key in the keystore; this returns the updated encrypted keystore
+      const newKeystore = await Keystore.rotateKey(this.address, password);
+      // Decrypt the new keystore to obtain the updated key pair
+      const newKeyPair = await Keystore.decrypt(newKeystore, password);
+      
+      // Update in-memory key pair (properties can still be updated even if the binding is readonly)
+      this.keyPair.privateKey = newKeyPair.privateKey;
+      this.keyPair.publicKey = newKeyPair.publicKey;
+      
+      // Also update the keystore crypto section for future operations if needed.
+      // (Note: updating "this.keystore" directly is not allowed if it is declared as readonly,
+      // but you can update its properties.)
+      this.keystore.crypto = newKeystore.crypto;
+      this.keystore.createdAt = newKeystore.createdAt;
+      // Optionally update the mnemonic if it was part of the keystore (it should be preserved)
+      if (newKeystore.mnemonic) {
+        this.keystore.mnemonic = newKeystore.mnemonic;
+      }
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new WalletError(
@@ -288,7 +295,7 @@ export class Wallet {
       // Convert mnemonic to seed
       const seed = await bip39.mnemonicToSeed(mnemonic);
 
-      // Generate HD wallet
+      // Generate HD wallet from seed
       const hdKey = HDKey.fromMasterSeed(seed);
       const derived = hdKey.derive(this.DERIVATION_PATH);
 
@@ -299,16 +306,19 @@ export class Wallet {
         );
       }
 
-      // Convert to HybridKeyPair
+      // Generate HybridKeyPair using the derived private key
       const keyPair = await HybridCrypto.generateKeyPair(
         HashUtils.sha256(derived.privateKey.toString()),
       );
 
       const address = await KeyManager.deriveAddress(keyPair.publicKey);
       const keystore = await Keystore.encrypt(keyPair, password, address);
+      // Ensure mnemonic is stored in the keystore for future derivations.
+      keystore.mnemonic = mnemonic;
 
       const wallet = new Wallet(keyPair, keystore);
-      wallet.eventEmitter.emit('created', { address });
+      // Cache the master HD key on the wallet instance for efficient derivations.
+      wallet.masterHDKey = hdKey;
       return wallet;
     } catch (error) {
       Logger.error('Wallet creation failed:', error);
@@ -342,7 +352,6 @@ export class Wallet {
   }
 
   private cleanup(): void {
-    this.eventEmitter.removeAllListeners();
     this.secureCleanup();
   }
 
@@ -403,19 +412,11 @@ export class Wallet {
         outputs: [],
         verify: async () => await this.verify(),
         toHex: () => JSON.stringify(transaction),
-        getSize: () => transaction.getSize(),
+        getSize: () => Buffer.byteLength(JSON.stringify(transaction)),
       };
 
       // Sign the transaction
       const signature = await this.signTransaction(transaction, password);
-
-      // Emit event for tracking
-      this.eventEmitter.emit('transactionSent', {
-        txHash: signature,
-        from: this.address,
-        to: recipientAddress,
-        amount: amount,
-      });
 
       return signature;
     } catch (error) {
@@ -440,28 +441,60 @@ export class Wallet {
   }
 
   /**
-   * Get the current balance of the wallet
-   * @returns Promise<{ confirmed: bigint, unconfirmed: bigint }>
+   * Synchronizes the in-memory UTXO set with the database.
+   */
+  private async syncUtxos(): Promise<void> {
+    try {
+      // Create a WalletDatabase instance (consider caching this instance in production)
+      const walletDb = new WalletDatabase(databaseConfig.databases.wallet.path);
+      const utxos = await walletDb.getUtxos(this.address);
+      // Update the in-memory UTXO set with the latest UTXOs.
+      this.utxoSet.setUtxos(utxos);
+    } catch (error) {
+      Logger.error('Failed to synchronize UTXOs:', error);
+    }
+  }
+
+  /**
+   * Lists all unspent outputs after synchronizing with the database.
+   */
+  async listUnspent(): Promise<UTXO[]> {
+    if (this.isLocked) {
+      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
+    }
+    try {
+      // Keep the in-memory UTXO set in sync before listing
+      await this.syncUtxos();
+      return await this.utxoSet.listUnspent({
+        addresses: [this.address],
+        minConfirmations: 1,
+      });
+    } catch (error) {
+      Logger.error('Failed to list unspent outputs:', error);
+      throw new WalletError(
+        'Failed to list unspent outputs',
+        WalletErrorCode.TRANSACTION_ERROR,
+      );
+    }
+  }
+
+  /**
+   * Retrieves the current balance (confirmed and unconfirmed) using the synced UTXO set.
    */
   async getBalance(): Promise<{ confirmed: bigint; unconfirmed: bigint }> {
     if (this.isLocked) {
       throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
     }
-
     try {
-      // Initialize balance object
+      // Synchronize the UTXOs from the database into the in-memory set.
+      await this.syncUtxos();
+      // Assuming the UTXOSet has a method getAll() that returns an array of UTXOs.
+      const utxos = await this.utxoSet.getAll();
+      
       const balance = {
         confirmed: BigInt(0),
         unconfirmed: BigInt(0),
       };
-
-      // Get wallet database instance
-      const walletDb = new WalletDatabase(databaseConfig.databases.wallet.path);
-
-      // Get UTXOs for the address
-      const utxos = await walletDb.getUtxos(this.address);
-
-      // Calculate balances
       for (const utxo of utxos) {
         if (utxo.confirmations >= BLOCKCHAIN_CONSTANTS.TRANSACTION.REQUIRED) {
           balance.confirmed += BigInt(utxo.amount);
@@ -469,7 +502,6 @@ export class Wallet {
           balance.unconfirmed += BigInt(utxo.amount);
         }
       }
-
       return balance;
     } catch (error) {
       Logger.error('Failed to get wallet balance:', error);
@@ -487,6 +519,11 @@ export class Wallet {
   async getNewAddress(): Promise<string> {
     if (this.isLocked) {
       throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
+    }
+
+    // Add explicit check for mnemonic availability
+    if (!this.keystore.mnemonic) {
+      throw new WalletError('Mnemonic is not available for HD wallet derivation', WalletErrorCode.KEYSTORE_ERROR);
     }
 
     try {
@@ -516,13 +553,6 @@ export class Wallet {
 
       // Save the new address and index to database
       await walletDb.saveAddress(this.address, newAddress, nextIndex);
-
-      // Emit event for new address generation
-      this.eventEmitter.emit('addressGenerated', {
-        masterAddress: this.address,
-        newAddress: newAddress,
-        index: nextIndex,
-      });
 
       return newAddress;
     } catch (error) {
@@ -599,8 +629,6 @@ export class Wallet {
       const walletDb = new WalletDatabase(databaseConfig.databases.wallet.path);
       await walletDb.saveKeystore(address, keystore);
 
-      wallet.eventEmitter.emit('imported', { address });
-
       return wallet;
     } catch (error) {
       Logger.error('Failed to import private key:', error);
@@ -613,24 +641,5 @@ export class Wallet {
 
   getPublicKey(): string {
     return this.keyPair.publicKey as string;
-  }
-
-  async listUnspent(): Promise<UTXO[]> {
-    if (this.isLocked) {
-      throw new WalletError('Wallet is locked', WalletErrorCode.INVALID_STATE);
-    }
-
-    try {
-      return await this.utxoSet.listUnspent({
-        addresses: [this.address],
-        minConfirmations: 1,
-      });
-    } catch (error) {
-      Logger.error('Failed to list unspent outputs:', error);
-      throw new WalletError(
-        'Failed to list unspent outputs',
-        WalletErrorCode.TRANSACTION_ERROR,
-      );
-    }
   }
 }

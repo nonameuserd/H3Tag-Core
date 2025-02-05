@@ -127,13 +127,16 @@ export class AdaptiveGPUMemory {
     this.device = device;
     this.memoryPools.clear();
     this.memoryUsage.clear();
-    
+
     // Initialize with safer buffer sizes
     await this.createMemoryPool('hash', 64 * 1024 * 1024); // 64MB for hashes
     await this.createMemoryPool('nonce', 32 * 1024 * 1024); // 32MB for nonces
   }
 
-  private async createMemoryPool(type: string, initialSize: number): Promise<void> {
+  private async createMemoryPool(
+    type: string,
+    initialSize: number,
+  ): Promise<void> {
     if (initialSize <= 0) throw new Error('Invalid initial size');
     if (!this.device) throw new Error('GPU device not initialized');
 
@@ -273,7 +276,7 @@ export class AdaptiveGPUMemory {
   public async dispose(): Promise<void> {
     try {
       for (const pool of this.memoryPools.values()) {
-        pool.forEach(buffer => buffer.destroy());
+        pool.forEach((buffer) => buffer.destroy());
       }
       this.memoryPools.clear();
       this.memoryUsage.clear();

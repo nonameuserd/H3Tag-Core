@@ -75,7 +75,9 @@ export class UTXODatabase {
     }
   }
 
-  private batchWrite(batch: AbstractChainedBatch<string, string>): Promise<void> {
+  private batchWrite(
+    batch: AbstractChainedBatch<string, string>,
+  ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       batch.write((error: unknown) => {
         if (error instanceof Error) reject(error);
@@ -180,7 +182,10 @@ export class UTXODatabase {
       return JSON.parse(utxo) as UTXO;
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) return null;
-      Logger.error('Failed to get UTXO:', (error instanceof Error ? error.message : 'Unknown error'));
+      Logger.error(
+        'Failed to get UTXO:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw new Error('Failed to get UTXO');
     }
   }

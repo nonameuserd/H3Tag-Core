@@ -138,7 +138,11 @@ export class GPUMiner {
    * }
    */
 
-  async mine(block: Block, target: bigint, batchSize?: number): Promise<MiningResult> {
+  async mine(
+    block: Block,
+    target: bigint,
+    batchSize?: number,
+  ): Promise<MiningResult> {
     if (!this.device || !this.pipeline) {
       throw new Error('GPU not initialized');
     }
@@ -156,7 +160,10 @@ export class GPUMiner {
     // Initialize the storage buffer with:
     //  - data[0] = block header hash (computed from the block)
     //  - data[1] = sentinel value 0xffffffff indicating "not found"
-    const initialData = new Uint32Array([this.hashBlockHeader(block), 0xffffffff]);
+    const initialData = new Uint32Array([
+      this.hashBlockHeader(block),
+      0xffffffff,
+    ]);
     this.device.queue.writeBuffer(buffer, 0, initialData);
 
     // Create a target buffer, holding the mining target as a 32-bit unsigned integer.
@@ -192,7 +199,7 @@ export class GPUMiner {
     const maxWorkgroups = this.device.limits.maxComputeWorkgroupsPerDimension;
     const dispatchCount = Math.min(
       Math.ceil(this.MAX_NONCE / effectiveBatchSize),
-      maxWorkgroups
+      maxWorkgroups,
     );
     pass.dispatchWorkgroups(dispatchCount);
     pass.end();

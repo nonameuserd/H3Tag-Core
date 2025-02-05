@@ -426,7 +426,7 @@ export class MiningDatabase {
         this.cache.set(key, cached, { ttl: this.CACHE_TTL });
         return cached;
       }
-      
+
       const metricsString = await this.db.get(key);
       const metrics = JSON.parse(metricsString) as MiningMetrics;
       this.cache.set(key, metrics, { ttl: this.CACHE_TTL });
@@ -494,7 +494,10 @@ export class MiningDatabase {
       }
       return solutions;
     } catch (error: unknown) {
-      Logger.error('Failed to retrieve miner solutions:', error instanceof Error ? error.message : 'Unknown error');
+      Logger.error(
+        'Failed to retrieve miner solutions:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw error;
     }
   }

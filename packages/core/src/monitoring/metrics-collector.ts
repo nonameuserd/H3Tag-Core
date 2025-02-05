@@ -121,13 +121,15 @@ export class MetricsCollector {
     const timerKey = `${this.namespace}.${metric}`;
     const startTime = Date.now();
     this.timers.set(timerKey, startTime);
-    
+
     return () => {
       try {
         const currentTime = Date.now();
         const start = this.timers.get(timerKey);
         if (start === undefined) {
-          Logger.warn(`Timer for ${timerKey} not found. It might have already been stopped.`);
+          Logger.warn(
+            `Timer for ${timerKey} not found. It might have already been stopped.`,
+          );
           return 0;
         }
         const duration = currentTime - start;

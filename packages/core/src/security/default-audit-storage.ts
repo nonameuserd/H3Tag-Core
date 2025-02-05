@@ -4,7 +4,7 @@ import { IAuditStorage } from './audit';
 
 export class DefaultAuditStorage implements IAuditStorage {
   private logs: Map<string, string> = new Map();
-  private locks: Set<string> = new Set();
+  private locks: Map<string, NodeJS.Timeout> = new Map();
 
   async writeAuditLog(filename: string, data: string): Promise<void> {
     try {
@@ -18,7 +18,7 @@ export class DefaultAuditStorage implements IAuditStorage {
 
   async readAuditLog(filename: string): Promise<string> {
     const data = this.logs.get(filename);
-    if (!data) {
+    if (data === undefined) {
       Logger.warn(`Audit log not found: ${filename}`);
       return '';
     }
@@ -29,13 +29,29 @@ export class DefaultAuditStorage implements IAuditStorage {
     return Array.from(this.logs.keys());
   }
 
-  async acquireLock(lockId: string): Promise<boolean> {
+  async acquireLock(
+    lockId: string,
+    lockTimeout: number = 5000,
+  ): Promise<boolean> {
     if (this.locks.has(lockId)) return false;
-    this.locks.add(lockId);
+
+    const timer = setTimeout(() => {
+      if (this.locks.has(lockId)) {
+        Logger.warn(
+          `Lock ${lockId} auto-released after ${lockTimeout}ms timeout`,
+        );
+        this.locks.delete(lockId);
+      }
+    }, lockTimeout);
+    this.locks.set(lockId, timer);
     return true;
   }
 
   async releaseLock(lockId: string): Promise<void> {
-    this.locks.delete(lockId);
+    const timer = this.locks.get(lockId);
+    if (timer) {
+      clearTimeout(timer);
+      this.locks.delete(lockId);
+    }
   }
 }

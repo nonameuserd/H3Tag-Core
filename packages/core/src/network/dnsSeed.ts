@@ -8,6 +8,7 @@ import { EventEmitter } from 'events';
 import { Cache } from '../scaling/cache';
 import { MetricsCollector } from '../monitoring/metrics-collector';
 import { CircuitBreaker } from '../network/circuit-breaker';
+import net from 'net';
 
 export enum NetworkType {
   MAINNET = 'mainnet',
@@ -68,6 +69,7 @@ export class DNSSeeder extends EventEmitter {
   private readonly circuitBreaker: CircuitBreaker;
   private isRunning = false;
   private discoveryTimer?: NodeJS.Timeout;
+  private discoveryInProgress = false;
 
   constructor(
     private readonly configService: ConfigService,
@@ -167,25 +169,17 @@ export class DNSSeeder extends EventEmitter {
   }
 
   public async discoverPeers(): Promise<string[]> {
-    const release = await this.mutex.acquire();
-    try {
-      if (this.circuitBreaker.isOpen()) {
-        throw new DNSSeederError('Circuit breaker is open', 'CIRCUIT_OPEN');
-      }
-
-      const startTime = Date.now();
-      const peers = await this.resolvePeers(this.seedDomains);
-
-      this.metrics.histogram('discovery_time', Date.now() - startTime);
-      this.metrics.gauge('active_peers', peers.length);
-
-      return this.formatPeerUrls(peers);
-    } catch (error) {
-      this.circuitBreaker.recordFailure();
-      throw error;
-    } finally {
-      release();
+    if (this.circuitBreaker.isOpen()) {
+      throw new DNSSeederError('Circuit breaker is open', 'CIRCUIT_OPEN');
     }
+
+    const startTime = Date.now();
+    const peers = await this.resolvePeers(this.seedDomains);
+
+    this.metrics.histogram('discovery_time', Date.now() - startTime);
+    this.metrics.gauge('active_peers', peers.length);
+
+    return this.formatPeerUrls(peers);
   }
 
   private async resolvePeers(seeds: string[]): Promise<string[]> {
@@ -267,7 +261,7 @@ export class DNSSeeder extends EventEmitter {
 
   private rankPeers(peers: PeerResult[]): string[] {
     if (!this.config.seedRanking) {
-      return peers.slice(0, this.config.maxPeers).map(peer => peer.address);
+      return peers.slice(0, this.config.maxPeers).map((peer) => peer.address);
     }
 
     return peers
@@ -290,7 +284,7 @@ export class DNSSeeder extends EventEmitter {
       const hoursSinceLastSeen = (Date.now() - info.lastSeen) / 3600000;
       score -= Math.floor(hoursSinceLastSeen * 2);
     }
-    
+
     return Math.max(0, score);
   }
 
@@ -356,17 +350,7 @@ export class DNSSeeder extends EventEmitter {
   }
 
   private isValidIpAddress(ip: string): boolean {
-    const ipv4Regex = /^(\d{1,3}\.){3}\d{1,3}$/;
-    const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-
-    if (!ipv4Regex.test(ip) && !ipv6Regex.test(ip)) return false;
-
-    if (ipv4Regex.test(ip)) {
-      const parts = ip.split('.').map(Number);
-      return parts.every((part) => part >= 0 && part <= 255);
-    }
-
-    return true; // IPv6 format already validated by regex
+    return net.isIP(ip) !== 0;
   }
 
   public getActiveSeedCount(): number {
@@ -393,8 +377,7 @@ export class DNSSeeder extends EventEmitter {
 
   private validateSeeds(seeds: string[]): string[] {
     const domainRegex =
-      /^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/;
-
+      /^(?=.{1,253}$)(?:(?!\d+\.)[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
     return seeds.filter((seed) => {
       if (!seed || typeof seed !== 'string') {
         Logger.warn(`Invalid seed value: ${seed}`);
@@ -409,10 +392,17 @@ export class DNSSeeder extends EventEmitter {
   }
 
   private async startDiscovery(): Promise<void> {
+    if (this.discoveryInProgress) {
+      Logger.debug('Discovery is already in progress. Skipping this cycle.');
+      return;
+    }
+    this.discoveryInProgress = true;
     try {
       await this.discoverPeers();
     } catch (error) {
       Logger.error('Discovery failed:', error);
+    } finally {
+      this.discoveryInProgress = false;
     }
   }
 

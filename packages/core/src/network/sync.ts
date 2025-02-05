@@ -172,6 +172,13 @@ export class BlockchainSync {
   }
 
   public async startSync(): Promise<void> {
+    if (this.state === SyncState.SYNCING) {
+      return;
+    }
+
+    // Reset retryAttempts at the start of a new sync
+    this.retryAttempts = 0;
+
     this.syncStats = {
       startTime: Date.now(),
       endTime: 0,
@@ -179,10 +186,6 @@ export class BlockchainSync {
       votesProcessed: 0,
       failedAttempts: 0,
     };
-
-    if (this.state === SyncState.SYNCING) {
-      return;
-    }
 
     try {
       this.state = SyncState.SYNCING;
@@ -205,6 +208,8 @@ export class BlockchainSync {
       this.setupSyncTimeout();
       await this.synchronize(bestPeer);
 
+      // Reset retryAttempts on a successful sync
+      this.retryAttempts = 0;
       this.state = SyncState.SYNCED;
       this.clearSyncTimeout();
       this.eventEmitter.emit('sync_completed', {
@@ -217,7 +222,7 @@ export class BlockchainSync {
     } catch (error: unknown) {
       this.syncStats.failedAttempts++;
       this.syncStats.endTime = Date.now();
-      this.handleSyncError(error as Error);
+      await this.handleSyncError(error as Error);
     }
   }
 
@@ -324,23 +329,19 @@ export class BlockchainSync {
   }
 
   public async synchronize(peer: Peer): Promise<void> {
-    let syncTimeout: NodeJS.Timeout | undefined;
-    try {
-      syncTimeout = setTimeout(() => {
-        throw new SyncError('Sync timeout');
-      }, BlockchainSync.SYNC_TIMEOUT);
-
-      await this.syncHeaders(peer);
-      await this.syncBlocks(peer);
-      await this.verifyChain();
-    } catch (error) {
-      Logger.error('Synchronization failed:', error);
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new SyncError(`Sync failed: ${errorMessage}`);
-    } finally {
-      if (syncTimeout) clearTimeout(syncTimeout);
-    }
+    await Promise.race([
+      // Execute the sync steps sequentially
+      this.syncHeaders(peer)
+        .then(() => this.syncBlocks(peer))
+        .then(() => this.verifyChain()),
+      // Timeout promise that rejects after the defined timeout
+      new Promise<never>((_, reject) =>
+        setTimeout(
+          () => reject(new SyncError('Sync timeout')),
+          BlockchainSync.SYNC_TIMEOUT,
+        ),
+      ),
+    ]);
   }
 
   public async syncHeaders(peer: Peer): Promise<void> {
@@ -408,42 +409,31 @@ export class BlockchainSync {
   }
 
   private async syncBlocks(peer: Peer): Promise<void> {
-    // Process blocks in parallel batches
-    for (const [height] of this.headerSync.headers) {
-      const batch = new Set<number>();
+    const heights = Array.from(this.headerSync.headers.keys()).sort(
+      (a, b) => a - b,
+    );
+    const blocks: Block[] = [];
 
-      // Create batch of block requests
-      for (
-        let i = 0;
-        i < BlockchainSync.SYNC_PARAMETERS.BLOCKS_BATCH_SIZE;
-        i++
-      ) {
-        const nextHeight = height + i;
-        if (this.headerSync.headers.has(nextHeight)) {
-          batch.add(nextHeight);
-        }
-      }
-
-      await this.downloadBlockBatch(peer, batch);
+    // Download blocks in batches to avoid overwhelming the peer
+    for (
+      let i = 0;
+      i < heights.length;
+      i += BlockchainSync.SYNC_PARAMETERS.BLOCKS_BATCH_SIZE
+    ) {
+      const batchHeights = heights.slice(
+        i,
+        i + BlockchainSync.SYNC_PARAMETERS.BLOCKS_BATCH_SIZE,
+      );
+      const batchBlocks = await Promise.all(
+        batchHeights.map(async (height) => {
+          return await this.requestBlockWithRetry(peer, height);
+        }),
+      );
+      blocks.push(...batchBlocks);
     }
-  }
 
-  private async downloadBlockBatch(
-    peer: Peer,
-    heights: Set<number>,
-  ): Promise<void> {
-    const promises = Array.from(heights).map(async (height) => {
-      try {
-        const block = await this.requestBlockWithRetry(peer, height);
-        await this.validateAndProcessBlock(block);
-        this.syncStats.blocksProcessed++;
-      } catch (error) {
-        Logger.error(`Failed to download block at height ${height}:`, error);
-        throw error;
-      }
-    });
-
-    await Promise.all(promises);
+    // Process all downloaded blocks in parallel batches using the helper
+    await this.processBlocksInParallel(blocks);
   }
 
   private async validateAndProcessBlock(block: Block): Promise<void> {
@@ -471,14 +461,16 @@ export class BlockchainSync {
   }
 
   private async processBlocksInParallel(blocks: Block[]): Promise<void> {
-    // Process blocks in batches to control memory usage
+    // Process blocks in batches to control memory usage. Validate each block before processing.
     for (
       let i = 0;
       i < blocks.length;
       i += BlockchainSync.MAX_PARALLEL_BLOCKS
     ) {
       const batch = blocks.slice(i, i + BlockchainSync.MAX_PARALLEL_BLOCKS);
-      await Promise.all(batch.map((block) => this.processBlock(block)));
+      await Promise.all(
+        batch.map((block) => this.validateAndProcessBlock(block)),
+      );
     }
   }
 
@@ -656,16 +648,8 @@ export class BlockchainSync {
     }
   }
 
-  public on(event: string, listener: (...args: Error[]) => void): void {
+  public on(event: string, listener: (...args: unknown[]) => void): void {
     this.eventEmitter.on(event, listener);
-  }
-
-  private emitSyncComplete(): void {
-    this.eventEmitter.emit('sync_completed');
-  }
-
-  private emitSyncError(error: Error): void {
-    this.eventEmitter.emit('sync_error', error);
   }
 
   public off(event: string, listener: (...args: unknown[]) => void): void {
@@ -820,8 +804,15 @@ export class BlockchainSync {
   /**
    * Updates mempool and peers after initialization
    */
-  public updateDependencies(mempool?: Mempool, peers?: Map<string, Peer>): void {
+  public updateDependencies(
+    mempool?: Mempool,
+    peers?: Map<string, Peer>,
+  ): void {
     if (mempool) this.mempool = mempool;
-    if (peers) this.peers = peers;
+    if (peers) {
+      this.peers = peers;
+      // Ensure event listeners are added for the newly provided peers
+      peers.forEach((peer) => this.setupPeerListeners(peer));
+    }
   }
 }

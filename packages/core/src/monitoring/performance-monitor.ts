@@ -25,8 +25,10 @@ import { performance } from 'perf_hooks';
  * await monitor.end(markerId);
  */
 export class PerformanceMonitor {
-  private metrics: Map<string, { startTime: number; measurements: number[]; operation: string }> =
-    new Map();
+  private metrics: Map<
+    string,
+    { startTime: number; measurements: number[]; operation: string }
+  > = new Map();
   private readonly MAX_MEASUREMENTS = 1000;
   private readonly ALERT_THRESHOLD_MS = 5000;
   private readonly metricsClient: PerformanceMetrics;

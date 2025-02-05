@@ -261,6 +261,7 @@ export class ShardManager {
       const cachedTx = await this.cache.get(`tx:${hash}`);
       if (cachedTx) {
         this.metricsCollector?.increment('tx_cache_hit');
+        this.recordSuccess();
         return cachedTx;
       }
 
@@ -285,6 +286,8 @@ export class ShardManager {
         // Update shard metrics
         await this.updateShardMetrics(targetShardId);
       }
+
+      this.recordSuccess();
 
       return tx;
     } catch (error: unknown) {
@@ -311,13 +314,15 @@ export class ShardManager {
     const release = await this.mutex.acquire();
     try {
       for (const shard of this.shards.values()) {
-        const staleItems = Array.from(shard).filter(async (item) => {
+        for (const item of Array.from(shard)) {
           const lastAccess = await this.db.getLastAccess(item);
-          return (
-            Date.now() - lastAccess > BLOCKCHAIN_CONSTANTS.UTIL.STALE_THRESHOLD
-          );
-        });
-        staleItems.forEach((item) => shard.delete(item));
+          if (
+            Date.now() - lastAccess >
+            BLOCKCHAIN_CONSTANTS.UTIL.STALE_THRESHOLD
+          ) {
+            shard.delete(item);
+          }
+        }
       }
     } finally {
       release();
@@ -325,9 +330,20 @@ export class ShardManager {
   }
 
   private isCircuitBreakerOpen(): boolean {
-    const now = Date.now();
-    const elapsed = now - this.circuitBreaker.lastFailure;
-    return elapsed < this.circuitBreaker.resetTimeout;
+    if (this.circuitBreaker.failures >= this.circuitBreaker.threshold) {
+      const now = Date.now();
+      if (
+        now - this.circuitBreaker.lastFailure <
+        this.circuitBreaker.resetTimeout
+      ) {
+        return true;
+      } else {
+        // After the timeout, reset the failure counter.
+        this.circuitBreaker.failures = 0;
+        return false;
+      }
+    }
+    return false;
   }
 
   private recordFailure(): void {
@@ -335,10 +351,14 @@ export class ShardManager {
     this.circuitBreaker.lastFailure = Date.now();
   }
 
+  private recordSuccess(): void {
+    this.circuitBreaker.failures = 0;
+  }
+
   private async warmCache(): Promise<void> {
     const recentTransactions = await this.db.getRecentTransactions(100);
     for (const tx of recentTransactions) {
-      this.cache.set(`tx:${tx.id}`, tx, { ttl: 300000 });
+      await this.cache.set(`tx:${tx.id}`, tx, { ttl: 300000 });
     }
   }
 

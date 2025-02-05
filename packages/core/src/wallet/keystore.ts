@@ -9,12 +9,11 @@ import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 import crypto from 'crypto';
 import { KeystoreDatabase } from '../database/keystore-schema';
 import { KeyRotationMetadata } from './keystore-types';
-import { promisify } from 'util';
 import { scrypt as scryptCallback } from 'crypto';
+import { promisify } from 'util';
+const scrypt = promisify(scryptCallback);
 import { databaseConfig } from '../database/config.database';
 import * as bip39 from 'bip39';
-
-const scrypt = promisify(scryptCallback);
 
 export enum KeystoreErrorCode {
   ENCRYPTION_ERROR = 'ENCRYPTION_ERROR',
@@ -42,6 +41,7 @@ export interface EncryptedKeystore {
   version: number;
   address: string;
   mnemonic: string;
+  createdAt: number;
   crypto: {
     cipher: string;
     ciphertext: string;
@@ -179,10 +179,10 @@ export class Keystore {
 
       const serializedKeyPair = await this.secureSerialize(keyPair);
 
-      // Use IV in encryption
       const encrypted = await HybridCrypto.encrypt(
-        serializedKeyPair + iv.toString('base64'), // Include IV in the message
+        serializedKeyPair,
         derivedKeys.address,
+        iv.toString('base64'),
       );
 
       const mac = await this.calculateEnhancedMAC(derivedKeys, encrypted, salt);
@@ -191,6 +191,7 @@ export class Keystore {
         version: this.VERSION,
         address,
         mnemonic: bip39.generateMnemonic(256),
+        createdAt: Date.now(), // Recorded timestamp for key rotation purposes.
         crypto: {
           cipher: this.CIPHER,
           ciphertext: encrypted,
@@ -236,14 +237,11 @@ export class Keystore {
         keystore.crypto.kdfparams.salt,
       );
 
-      const decrypted = await HybridCrypto.decrypt(
+      const actualData = await HybridCrypto.decrypt(
         keystore.crypto.ciphertext,
         derivedKeys.address,
+        keystore.crypto.cipherparams.iv,
       );
-
-      // Extract IV and actual data from decrypted message
-      const iv = Buffer.from(keystore.crypto.cipherparams.iv, 'base64');
-      const actualData = decrypted.slice(0, -iv.length);
 
       return await this.secureDeserialize(actualData);
     } catch (error: unknown) {
@@ -287,13 +285,25 @@ export class Keystore {
     params: typeof Keystore.KDF_PARAMS,
   ): Promise<{ address: string; encryption: string }> {
     try {
-      const baseKey = await this.deriveKey(password, salt, params);
+      const scryptAsync = scrypt as unknown as (
+        password: string,
+        salt: Buffer,
+        length: number,
+        options: { N: number; r: number; p: number },
+      ) => Promise<Buffer>;
+
+      const baseKey = (await scryptAsync(password, salt, params.dklen, {
+        N: params.n,
+        r: params.r,
+        p: params.p,
+      })) as Buffer;
+
       if (!baseKey || baseKey.length < 32) {
         throw new KeystoreError('Invalid derived key', 'KDF_ERROR');
       }
       return {
-        address: baseKey,
-        encryption: HashUtils.sha3(baseKey),
+        address: baseKey.toString('hex'),
+        encryption: HashUtils.sha3(baseKey.toString('hex')),
       };
     } finally {
       this.secureCleanup(password);
@@ -307,9 +317,22 @@ export class Keystore {
     params: typeof Keystore.KDF_PARAMS,
   ): Promise<string> {
     try {
-      const derivedKey = (await scrypt(password, salt, params.dklen)) as Buffer;
+      // Pass scrypt options. Note that we're converting "n" to "N" as required by Node.
+      const derivedKey = (await (
+        scrypt as unknown as (
+          password: string,
+          salt: Buffer,
+          length: number,
+          options: { N: number; r: number; p: number },
+        ) => Promise<Buffer>
+      )(password, salt, params.dklen, {
+        N: params.n,
+        r: params.r,
+        p: params.p,
+      })) as Buffer;
 
-      return derivedKey.toString();
+      // Convert to 'hex' encoding for consistent usage.
+      return derivedKey.toString('hex');
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new KeystoreError(
@@ -383,15 +406,8 @@ export class Keystore {
       throw new KeystoreError('Invalid password format', 'INVALID_PASSWORD');
     }
 
-    // Use constant-time comparison for length check
     const passwordLength = Buffer.from(password).length;
-    if (
-      !crypto.timingSafeEqual(
-        Buffer.from([passwordLength]),
-        Buffer.from([this.MIN_PASSWORD_LENGTH]),
-      )
-    ) {
-      // Use generic error message to avoid length information leakage
+    if (passwordLength < this.MIN_PASSWORD_LENGTH) {
       throw new KeystoreError('Invalid password', 'INVALID_PASSWORD');
     }
   }
@@ -568,6 +584,9 @@ export class Keystore {
   private static secureCleanup(
     sensitiveData: Buffer | string | HybridKeyPair,
   ): void {
+    // BEST-EFFORT CLEANUP: Due to JavaScript limitations (e.g., immutability of strings),
+    // this cleanup is only a best‑effort approach. If stronger guarantees are required,
+    // consider using libraries that offer secure memory handling.
     if (Buffer.isBuffer(sensitiveData)) {
       sensitiveData.fill(0);
     } else if (typeof sensitiveData === 'string') {
@@ -618,7 +637,6 @@ export class Keystore {
     password: string,
   ): Promise<EncryptedKeystore> {
     try {
-      // Get existing keystore
       if (!this.database) {
         throw new KeystoreError('Database not initialized', 'DATABASE_ERROR');
       }
@@ -641,19 +659,21 @@ export class Keystore {
         throw error;
       }
 
-      // Store rotation metadata
-      const metadata = this.rotationMetadata.get(address) || {
+      // Update rotation metadata in-memory and persist it in the database.
+      const metadata: KeyRotationMetadata = this.rotationMetadata.get(
+        address,
+      ) || {
         lastRotation: Date.now(),
         rotationCount: 0,
         previousKeyHashes: [],
       };
-
       metadata.previousKeyHashes.push(
         await HashUtils.sha3(JSON.stringify(existingKeystore)),
       );
       metadata.lastRotation = Date.now();
       metadata.rotationCount++;
       this.rotationMetadata.set(address, metadata);
+      await this.database.storeRotationMetadata(address, metadata);
 
       Logger.info(`Key rotation completed for address: ${address}`);
       await this.database.store(address, newKeystore);
@@ -674,7 +694,8 @@ export class Keystore {
         throw new KeystoreError('Keystore not found', 'NOT_FOUND');
       }
 
-      const keyAge = Date.now() - keystore.version;
+      const creationTime = keystore.createdAt || 0;
+      const keyAge = Date.now() - creationTime;
       return keyAge >= this.MAX_KEY_AGE;
     } catch (error) {
       Logger.error('Key rotation check failed:', error);
@@ -694,7 +715,6 @@ export class Keystore {
           KeystoreErrorCode.DATABASE_ERROR,
         );
       }
-
       const keystore = await this.database.get(address);
       if (!keystore) {
         throw new KeystoreError(
@@ -702,13 +722,12 @@ export class Keystore {
           KeystoreErrorCode.NOT_FOUND,
         );
       }
-
+      const metadata = await this.database.getRotationMetadata(address);
       const backupData = {
         timestamp: Date.now(),
         keystore,
-        metadata: this.rotationMetadata.get(address),
+        metadata,
       };
-
       return JSON.stringify(backupData, null, 2);
     } catch (error) {
       Logger.error(`Backup failed for address: ${address}`, error);
@@ -729,15 +748,14 @@ export class Keystore {
       // Verify the keystore can be decrypted with the password
       await this.decrypt(keystore, password);
 
-      // Store the keystore and metadata
+      // Store the keystore and persist the rotation metadata if available
       if (this.database) {
         await this.database.store(keystore.address, keystore);
+        if (metadata) {
+          this.rotationMetadata.set(keystore.address, metadata);
+          await this.database.storeRotationMetadata(keystore.address, metadata);
+        }
       }
-
-      if (metadata) {
-        this.rotationMetadata.set(keystore.address, metadata);
-      }
-
       return keystore.address;
     } catch (error) {
       Logger.error('Restore failed:', error);

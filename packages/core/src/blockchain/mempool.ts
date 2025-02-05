@@ -378,9 +378,11 @@ export class Mempool {
 
   private cleanupInterval: NodeJS.Timeout | undefined;
 
-  private readonly mempoolStateCache: Map<string, string> = new Map();
+  // Change the type so that each cache entry includes its own timestamp.
+  private readonly mempoolStateCache: Map<string, { value: string; timestamp: number }> = new Map();
 
-  private readonly transactionMutexes = new Map<string, Mutex>();
+  // Updated transactionMutexes to include both the Mutex and its creation timestamp.
+  private readonly transactionMutexes = new Map<string, { mutex: Mutex; createdAt: number }>();
 
   private lastValidFee: number = Number(
     BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
@@ -459,7 +461,7 @@ export class Mempool {
         maxRequests: {
           default: 150,
           pow: 100,
-          qudraticVote: 100,
+          quadraticVote: 100,
         },
         windowMs: 60000,
         blockDuration: 1200000, // 20 minutes
@@ -506,22 +508,21 @@ export class Mempool {
       const votesInWindow = this.voteCounter.get(address) || 0;
 
       // Add PoW validation using consensus mechanism
-      const hasValidPoW = await this.consensus?.pow?.validateWork(
-        address,
-        BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_POW_CONTRIBUTION,
-      );
+      const baseDifficulty = BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY || 0;
+      const isValid = await this.consensus?.pow?.validateWork(address, baseDifficulty);
 
       // Check all requirements including PoW validation
       return (
-        accountAge >= BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_ACCOUNT_AGE &&
-        hasValidPoW &&
-        reputation >=
-          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.REPUTATION_THRESHOLD &&
-        currentHeight - lastVoteHeight >=
-          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS &&
-        votesInWindow <
-          BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW
-      ) || false;
+        (accountAge >= BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MIN_ACCOUNT_AGE &&
+          isValid &&
+          reputation >=
+            BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.REPUTATION_THRESHOLD &&
+          currentHeight - lastVoteHeight >=
+            BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.COOLDOWN_BLOCKS &&
+          votesInWindow <
+            BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW) ||
+        false
+      );
     } catch (error) {
       Logger.error('Error validating vote eligibility:', error);
       return false;
@@ -537,12 +538,15 @@ export class Mempool {
   public async addTransaction(transaction: Transaction): Promise<boolean> {
     // Ensure mutex exists
     if (!this.transactionMutexes.has(transaction.hash)) {
-      this.transactionMutexes.set(transaction.hash, new Mutex());
+      this.transactionMutexes.set(transaction.hash, {
+        mutex: new Mutex(),
+        createdAt: Date.now(),
+      });
     }
-    
+
     const mutex = this.transactionMutexes.get(transaction.hash)!;
-    const release = await mutex.acquire();
-    
+    const release = await mutex.mutex.acquire();
+
     try {
       const timeoutPromise = new Promise<boolean>((_, reject) => {
         setTimeout(
@@ -560,12 +564,12 @@ export class Mempool {
       if (result) {
         this.transactionMutexes.delete(transaction.hash);
       }
-      
+
       return result;
     } catch (error) {
       Logger.error('Transaction processing failed', {
         txId: transaction.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     } finally {
@@ -658,7 +662,10 @@ export class Mempool {
 
     // Check rate limits for the sender
     const currentVoteCount = this.voteCounter.get(sender) || 0;
-    if (currentVoteCount >= BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW) {
+    if (
+      currentVoteCount >=
+      BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW
+    ) {
       Logger.warn(`Vote rate limit exceeded for ${sender}`);
       return;
     }
@@ -677,17 +684,17 @@ export class Mempool {
       Logger.warn('No eligible UTXOs for voting', { sender });
       return;
     }
-    
+
     // Calculate voting power using quadratic voting logic once
     const votingPower = utxoSet.calculateVotingPower(votingUtxos);
     if (votingPower <= BigInt(0)) {
       Logger.warn('Invalid or insufficient voting power', { sender });
       return;
     }
-    
+
     // Update vote counter for rate limiting before proceeding
     this.voteCounter.set(sender, currentVoteCount + 1);
-    
+
     const voteTransaction: Transaction = {
       ...vote,
       voteData: {
@@ -708,7 +715,9 @@ export class Mempool {
           severity: AuditSeverity.INFO,
         });
       } else {
-        Logger.warn(`Failed to add vote transaction ${vote.id} for sender ${sender}`);
+        Logger.warn(
+          `Failed to add vote transaction ${vote.id} for sender ${sender}`,
+        );
       }
     } catch (error: unknown) {
       Logger.error('Error handling vote transaction:', error);
@@ -926,7 +935,7 @@ export class Mempool {
     const newFeeRate = this.calculateFeePerByte(newTx);
     let oldFeeRate = 0;
 
-    Array.from(conflicts).forEach(txId => {
+    Array.from(conflicts).forEach((txId) => {
       const oldTx = this.transactions.get(txId);
       if (oldTx) {
         oldFeeRate += this.calculateFeePerByte(oldTx);
@@ -936,7 +945,7 @@ export class Mempool {
     // Require higher fee rate for replacement
     if (newFeeRate > oldFeeRate * this.RBF_INCREMENT) {
       // Remove replaced transactions
-      Array.from(conflicts).forEach(txId => this.removeTransaction(txId));
+      Array.from(conflicts).forEach((txId) => this.removeTransaction(txId));
       return true;
     }
 
@@ -949,7 +958,7 @@ export class Mempool {
     const spentUTXOs = new Set<string>();
 
     // Check for conflicts in the new transaction
-    tx.inputs.forEach(input => {
+    tx.inputs.forEach((input) => {
       const utxoKey = `${input.txId}:${input.outputIndex}`;
       if (spentUTXOs.has(utxoKey)) {
         conflicts.add(tx.id); // Self-conflict
@@ -959,7 +968,11 @@ export class Mempool {
 
       // Check against existing mempool transactions
       Array.from(this.transactions.entries()).forEach(([txId, memTx]) => {
-        if (memTx.inputs.some(i => i.txId === input.txId && i.outputIndex === input.outputIndex)) {
+        if (
+          memTx.inputs.some(
+            (i) => i.txId === input.txId && i.outputIndex === input.outputIndex,
+          )
+        ) {
           conflicts.add(txId);
         }
       });
@@ -1009,16 +1022,19 @@ export class Mempool {
       const feePerByte = Number((feeBI * BigInt(1e8)) / sizeBI) / 1e8;
 
       // Ensure minimum fee rate
-      return Math.max(Number(feePerByte), Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE));
+      return Math.max(
+        Number(feePerByte),
+        Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE),
+      );
     } catch (error) {
       Logger.error('Fee calculation error', {
         txId: transaction.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
     }
   }
-  
+
   /**
    * Get transaction size in bytes
    */
@@ -1080,7 +1096,9 @@ export class Mempool {
       if (tx) {
         this.transactions.delete(txId);
         // Clean up from fee buckets
-        Array.from(this.feeRateBuckets.values()).forEach(txs => txs.delete(txId));
+        Array.from(this.feeRateBuckets.values()).forEach((txs) =>
+          txs.delete(txId),
+        );
         // Clean up ancestry maps
         this.ancestorMap.delete(txId);
         this.descendantMap.delete(txId);
@@ -1196,7 +1214,7 @@ export class Mempool {
       Logger.error('Transaction validation failed:', {
         error,
         txHash: transaction.hash,
-        stack: new Error().stack
+        stack: new Error().stack,
       });
       await this.auditManager.log(
         AuditEventType.TRANSACTION_VALIDATION_FAILED,
@@ -1234,12 +1252,12 @@ export class Mempool {
   ): Promise<boolean> {
     try {
       // 1. Check for double-spend within mempool
-      const hasDoubleSpend = tx.inputs.some(input => 
-        Array.from(this.transactions.values()).some(tx =>
-          tx.inputs.some(i => 
-            i.txId === input.txId && i.outputIndex === input.outputIndex
-          )
-        )
+      const hasDoubleSpend = tx.inputs.some((input) =>
+        Array.from(this.transactions.values()).some((tx) =>
+          tx.inputs.some(
+            (i) => i.txId === input.txId && i.outputIndex === input.outputIndex,
+          ),
+        ),
       );
 
       if (hasDoubleSpend) {
@@ -1250,18 +1268,20 @@ export class Mempool {
       }
 
       // 4. Validate UTXO availability
-      const utxoChecks = await Promise.all(tx.inputs.map(async input => {
-        const utxo = await utxoSet.get(input.txId, input.outputIndex);
-        if (!utxo || utxo.spent) {
-          Logger.warn('Invalid or spent UTXO', {
-            txId: tx.id,
-            utxoId: input.txId,
-            outputIndex: input.outputIndex,
-          });
-          return false;
-        }
-        return true;
-      }));
+      const utxoChecks = await Promise.all(
+        tx.inputs.map(async (input) => {
+          const utxo = await utxoSet.get(input.txId, input.outputIndex);
+          if (!utxo || utxo.spent) {
+            Logger.warn('Invalid or spent UTXO', {
+              txId: tx.id,
+              utxoId: input.txId,
+              outputIndex: input.outputIndex,
+            });
+            return false;
+          }
+          return true;
+        }),
+      );
 
       if (utxoChecks.includes(false)) return false;
 
@@ -1309,23 +1329,25 @@ export class Mempool {
       }
 
       // 1. Check for double-spend within mempool
-      const doubleSpendChecks = await Promise.all(transaction.inputs.map(async input => {
-        const isDoubleSpend = Array.from(this.transactions.values()).some(
-          (tx) =>
-            tx.inputs.some(
-              (i) =>
-                i.txId === input.txId && i.outputIndex === input.outputIndex,
-            ),
-        );
+      const doubleSpendChecks = await Promise.all(
+        transaction.inputs.map(async (input) => {
+          const isDoubleSpend = Array.from(this.transactions.values()).some(
+            (tx) =>
+              tx.inputs.some(
+                (i) =>
+                  i.txId === input.txId && i.outputIndex === input.outputIndex,
+              ),
+          );
 
-        if (isDoubleSpend) {
-          Logger.warn('Double-spend detected in mempool', {
-            txId: transaction.id,
-          });
-          return false;
-        }
-        return true;
-      }));
+          if (isDoubleSpend) {
+            Logger.warn('Double-spend detected in mempool', {
+              txId: transaction.id,
+            });
+            return false;
+          }
+          return true;
+        }),
+      );
 
       if (doubleSpendChecks.includes(false)) return false;
 
@@ -1352,17 +1374,19 @@ export class Mempool {
       }
 
       // 4. Validate UTXO availability
-      const utxoChecks = await Promise.all(transaction.inputs.map(async input => {
-        const utxo = await utxoSet.get(input.txId, input.outputIndex);
-        if (!utxo || utxo.spent) {
-          Logger.warn('UTXO not found or spent', {
-            txId: transaction.id,
-            inputTxId: input.txId,
-          });
-          return false;
-        }
-        return true;
-      }));
+      const utxoChecks = await Promise.all(
+        transaction.inputs.map(async (input) => {
+          const utxo = await utxoSet.get(input.txId, input.outputIndex);
+          if (!utxo || utxo.spent) {
+            Logger.warn('UTXO not found or spent', {
+              txId: transaction.id,
+              inputTxId: input.txId,
+            });
+            return false;
+          }
+          return true;
+        }),
+      );
 
       if (utxoChecks.includes(false)) return false;
 
@@ -1456,40 +1480,10 @@ export class Mempool {
     }
   }
 
-  public async dispose(): Promise<void> {
-    try {
+  public dispose(): void {
+    if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
-
-      // Clear all caches
-      this.cache.clear();
-      this.powCache.clear();
-      this.mempoolStateCache.clear();
-
-      // Clear all maps
-      this.transactions.clear();
-      this.feeRateBuckets.clear();
-      this.ancestorMap.clear();
-      this.descendantMap.clear();
-      this.consecutiveMisses.clear();
-      this.activeValidators.clear();
-
-      // Clear all mutexes
-      Array.from(this.transactionMutexes.values()).forEach(async mutex => {
-        try {
-          const release = await mutex.acquire();
-          release();
-        } catch (error) {
-          Logger.warn('Failed to clean up mutex:', error);
-        }
-      });
-      this.transactionMutexes.clear();
-
-      await this.consensus?.dispose();
-      await this.healthMonitor?.dispose();
-      await this.ddosProtection?.dispose();
-    } catch (error) {
-      Logger.error('Error during mempool disposal:', error);
-      throw error;
+      this.cleanupInterval = undefined;
     }
   }
 
@@ -1519,7 +1513,8 @@ export class Mempool {
 
       while (retryCount < maxRetries) {
         try {
-          const isValid = await this.consensus?.pow?.validateWork(address, 0);
+          const baseDifficulty = BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY || 0;
+          const isValid = await this.consensus?.pow?.validateWork(address, baseDifficulty);
           contribution = isValid ? 1 : 0;
           break;
         } catch (error) {
@@ -1564,10 +1559,12 @@ export class Mempool {
       const reputationData = new Map<string, number>();
       const validators = await this.blockchain.db.getValidators();
 
-      await Promise.all(validators.map(async validator => {
-        const reputation = await this.calculateValidatorReputation(validator);
-        reputationData.set(validator.address, reputation);
-      }));
+      await Promise.all(
+        validators.map(async (validator) => {
+          const reputation = await this.calculateValidatorReputation(validator);
+          reputationData.set(validator.address, reputation);
+        }),
+      );
 
       // Cache results for 5 minutes
       this.cache.set(cacheKey, reputationData, { ttl: 300000 });
@@ -1977,7 +1974,7 @@ export class Mempool {
       const validatorCount = await this.blockchain.db.getValidatorCount();
 
       const validatorPromises = Array.from({ length: validatorCount }, (_, i) =>
-        this.blockchain.db.getValidator(`validator_${i}`)
+        this.blockchain.db.getValidator(`validator_${i}`),
       );
 
       validators = (await Promise.all(validatorPromises)).filter(
@@ -1999,8 +1996,11 @@ export class Mempool {
       const cacheKey = 'mempool_state';
       const cachedState = this.mempoolStateCache.get(cacheKey);
 
-      if (cachedState !== currentTransactions) {
-        this.mempoolStateCache.set(cacheKey, currentTransactions);
+      if (cachedState?.value !== currentTransactions) {
+        this.mempoolStateCache.set(cacheKey, {
+          value: currentTransactions,
+          timestamp: Date.now(),
+        });
         this.lastChangeTimestamp = Date.now();
         return true;
       }
@@ -2052,12 +2052,13 @@ export class Mempool {
       );
 
       // Add existing inputs
-      await Promise.all(transaction.inputs.map(async existingInput => {
-        await txBuilder.addInput(
-          existingInput.txId,
-          existingInput.outputIndex,
-          existingInput.publicKey,
-          existingInput.amount,
+      await Promise.all(
+        transaction.inputs.map(async (existingInput) => {
+          await txBuilder.addInput(
+            existingInput.txId,
+            existingInput.outputIndex,
+            existingInput.publicKey,
+            existingInput.amount,
           );
         }),
       );
@@ -2065,10 +2066,10 @@ export class Mempool {
       // Add existing outputs
       await Promise.all(
         transaction.outputs.map(async (output) => {
-        await txBuilder.addOutput(
-          output.address,
-          output.amount,
-          output.confirmations,
+          await txBuilder.addOutput(
+            output.address,
+            output.amount,
+            output.confirmations,
           );
         }),
       );
@@ -2127,7 +2128,7 @@ export class Mempool {
       Logger.warn('Invalid transaction ID format');
       return false;
     }
-    
+
     // Validate output parameters
     if (
       !output?.address ||
@@ -2138,11 +2139,11 @@ export class Mempool {
       Logger.warn('Invalid output parameters');
       return false;
     }
-    
+
     // Use the existing per-transaction mutex
     const txMutex = this.getMutexForTransaction(txId);
     const release = await txMutex.acquire();
-    
+
     try {
       // Retrieve the existing transaction
       const transaction = this.transactions.get(txId);
@@ -2150,11 +2151,11 @@ export class Mempool {
         Logger.warn('Transaction not found for output addition', { txId });
         return false;
       }
-    
+
       // Build the updated transaction using the TransactionBuilder
       const txBuilder = new TransactionBuilder();
       txBuilder.type = transaction.type;
-    
+
       // Re-add existing inputs to builder
       await Promise.all(
         transaction.inputs.map(async (input) => {
@@ -2166,7 +2167,7 @@ export class Mempool {
           );
         }),
       );
-    
+
       // Re-add existing outputs to builder
       await Promise.all(
         transaction.outputs.map(async (existingOutput) => {
@@ -2177,33 +2178,33 @@ export class Mempool {
           );
         }),
       );
-    
+
       // Add the new output (the script will be generated in TransactionBuilder.addOutput)
       await txBuilder.addOutput(
         output.address,
         output.amount,
         output.confirmations,
       );
-    
+
       // Build the updated transaction
       const updatedTx = await txBuilder.build();
-    
+
       // Validate the updated transaction
       const isValid = await this.validateTransaction(
         updatedTx,
         await this.blockchain.getUTXOSet(),
         this.blockchain.getCurrentHeight(),
       );
-    
+
       if (!isValid) {
         Logger.warn('Updated transaction validation failed', { txId });
         return false;
       }
-    
+
       // Update the transaction in the mempool and await fee bucket update for proper synchronization
       this.transactions.set(txId, updatedTx);
       await this.updateFeeBuckets(updatedTx);
-    
+
       // Log success in audit
       await this.auditManager.log(AuditEventType.TRANSACTION_OUTPUT_ADDED, {
         txId,
@@ -2211,7 +2212,7 @@ export class Mempool {
         amount: output.amount.toString(),
         severity: AuditSeverity.INFO,
       });
-    
+
       return true;
     } catch (error) {
       Logger.error('Failed to add transaction output:', error);
@@ -2224,8 +2225,8 @@ export class Mempool {
   // Add cache cleanup
   private cleanupCache(): void {
     const now = Date.now();
-    Array.from(this.mempoolStateCache.entries()).forEach(([key]) => {
-      if (now - this.lastChangeTimestamp > this.maxTransactionAge) {
+    this.mempoolStateCache.forEach((entry, key) => {
+      if (now - entry.timestamp > this.maxTransactionAge) {
         this.mempoolStateCache.delete(key);
       }
     });
@@ -2266,7 +2267,7 @@ export class Mempool {
 
       // Input size with validation
       size += this.getVarIntSize(transaction.inputs.length);
-      transaction.inputs.forEach(input => {
+      transaction.inputs.forEach((input) => {
         size += SIZES.INPUT_BASE;
 
         // Script validation
@@ -2301,7 +2302,7 @@ export class Mempool {
 
       // Output size with validation
       size += this.getVarIntSize(transaction.outputs.length);
-      transaction.outputs.forEach(output => {
+      transaction.outputs.forEach((output) => {
         size += SIZES.OUTPUT_BASE;
 
         if (output.script) {
@@ -2318,7 +2319,7 @@ export class Mempool {
         size += SIZES.WITNESS_FLAG;
         size += this.getVarIntSize(transaction.witness.stack.length);
 
-        transaction.witness.stack.forEach(witnessData => {
+        transaction.witness.stack.forEach((witnessData) => {
           const witnessSize = Buffer.from(witnessData, 'hex').length;
           size += this.getVarIntSize(witnessSize) + witnessSize;
         });
@@ -2343,20 +2344,32 @@ export class Mempool {
     return 9;
   }
 
+  /**
+   * Retrieves a mutex for the given transaction, creating one if necessary.
+   * The returned mutex is scheduled for cleanup if no new activity occurs within maxTransactionAge.
+   */
   private getMutexForTransaction(txId: string): Mutex {
-    let mutex = this.transactionMutexes.get(txId);
-    if (!mutex) {
-      mutex = new Mutex();
-      this.transactionMutexes.set(txId, mutex);
+    let record = this.transactionMutexes.get(txId);
+    if (!record) {
+      // Create a new mutex record with the current timestamp.
+      record = {
+        mutex: new Mutex(),
+        createdAt: Date.now(),
+      };
+      this.transactionMutexes.set(txId, record);
 
-      // Cleanup mutex after transaction processed
+      // Schedule a cleanup check after maxTransactionAge milliseconds.
       setTimeout(() => {
-        if (!this.transactions.has(txId)) {
-          this.transactionMutexes.delete(txId);
+        // If the mutex record is older than maxTransactionAge and the transaction no longer exists in the mempool, remove it.
+        if (Date.now() - record!.createdAt > this.maxTransactionAge) {
+          if (!this.transactions.has(txId)) {
+            this.transactionMutexes.delete(txId);
+            Logger.debug(`Mutex for transaction ${txId} cleaned up after inactivity.`);
+          }
         }
       }, this.maxTransactionAge);
     }
-    return mutex;
+    return record.mutex;
   }
 
   private findFeeBucket(transaction: Transaction): Set<string> | undefined {
@@ -2368,7 +2381,7 @@ export class Mempool {
       // Find closest bucket within tolerance
       const RATE_TOLERANCE = 0.00001;
       const matchingBucket = Array.from(this.feeRateBuckets.entries()).find(
-        ([rate]) => Math.abs(rate - feeRate) < RATE_TOLERANCE
+        ([rate]) => Math.abs(rate - feeRate) < RATE_TOLERANCE,
       );
 
       if (matchingBucket) {
@@ -2439,7 +2452,7 @@ export class Mempool {
           if (currentBucket.size < MIN_BUCKET_SIZE) {
             const nextBucket = this.feeRateBuckets.get(nextRate)!;
             // Merge into next bucket
-            currentBucket.forEach(txId => nextBucket.add(txId));
+            currentBucket.forEach((txId) => nextBucket.add(txId));
             this.feeRateBuckets.delete(currentRate);
           }
         });
@@ -2499,14 +2512,16 @@ export class Mempool {
       const spentUTXOs = new Set<string>();
       const validationPromises = tx.inputs.map(async (input) => {
         const utxoKey = `${input.txId}:${input.outputIndex}`;
-        
+
         if (spentUTXOs.has(utxoKey)) {
-          throw new Error(`Double-spend detected within transaction: ${utxoKey}`);
+          throw new Error(
+            `Double-spend detected within transaction: ${utxoKey}`,
+          );
         }
 
         const [utxo, isSpentInMempool] = await Promise.all([
           this.blockchain.getUTXO(input.txId, input.outputIndex),
-          this.isUTXOSpentInMempool(input.txId, input.outputIndex)
+          this.isUTXOSpentInMempool(input.txId, input.outputIndex),
         ]);
 
         if (!utxo || utxo.spent || isSpentInMempool) {
@@ -2522,7 +2537,7 @@ export class Mempool {
     } catch (error) {
       Logger.error('Transaction input validation failed', {
         txId: tx.id,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     } finally {
@@ -2534,10 +2549,10 @@ export class Mempool {
     txId: string,
     outputIndex: number,
   ): Promise<boolean> {
-    return Array.from(this.transactions.values()).some(tx =>
-      tx.inputs.some(input =>
-        input.txId === txId && input.outputIndex === outputIndex
-      )
+    return Array.from(this.transactions.values()).some((tx) =>
+      tx.inputs.some(
+        (input) => input.txId === txId && input.outputIndex === outputIndex,
+      ),
     );
   }
 
@@ -2683,7 +2698,7 @@ export class Mempool {
       [TransactionType.REGULAR]: 0,
     };
 
-    Array.from(this.transactions.values()).forEach(tx => {
+    Array.from(this.transactions.values()).forEach((tx) => {
       distribution[tx.type] = (distribution[tx.type] || 0) + 1;
     });
 

@@ -30,7 +30,7 @@ interface RateLimitConfig {
   windowMs: number;
   maxRequests: {
     pow: number;
-    qudraticVote: number;
+    quadraticVote: number;
     default: number;
   };
   keyGenerator?: (req: Request) => string;
@@ -81,7 +81,7 @@ export class RateLimit {
     windowMs: 60000,
     maxRequests: {
       pow: 200,
-      qudraticVote: 100,
+      quadraticVote: 100,
       default: 50,
     },
     keyPrefix: 'rl:',
@@ -130,7 +130,7 @@ export class RateLimit {
     if (
       config.maxRequests &&
       (config.maxRequests.pow < 1 ||
-        config.maxRequests.qudraticVote < 1 ||
+        config.maxRequests.quadraticVote < 1 ||
         config.maxRequests.default < 1)
     ) {
       throw new RateLimitError(
@@ -144,8 +144,8 @@ export class RateLimit {
     this.metrics = {
       totalRequests: 0,
       blockedRequests: 0,
-      activeKeys: 0,
-      memoryUsage: 0,
+      activeKeys: this.limiter.size(),
+      memoryUsage: process.memoryUsage().heapUsed,
       currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
     };
   }
@@ -162,6 +162,9 @@ export class RateLimit {
 
       try {
         const key = this.config.keyGenerator?.(req) ?? '';
+        if (!key) {
+          throw new RateLimitError('Invalid rate limit key', 'INVALID_KEY');
+        }
         const info = await this.checkRateLimit(
           key,
           req.consensusType || 'default',
@@ -195,7 +198,16 @@ export class RateLimit {
         next();
       } catch (error) {
         Logger.error('Rate limit error:', error);
-        next(error);
+        if (error instanceof RateLimitError) {
+          res.status(400).json({
+            error: error.name,
+            message: error.message,
+            code: error.code,
+            currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
+          });
+        } else {
+          next(error);
+        }
       }
     };
   }
@@ -209,14 +221,22 @@ export class RateLimit {
 
     if (!info || now > info.resetTime) {
       info = {
-        limit: this.config.maxRequests[type as keyof typeof this.config.maxRequests],
+        limit:
+          this.config.maxRequests[type as keyof typeof this.config.maxRequests],
         current: 0,
-        remaining: this.config.maxRequests[type as keyof typeof this.config.maxRequests],
+        remaining:
+          this.config.maxRequests[type as keyof typeof this.config.maxRequests],
         resetTime: now + this.config.windowMs,
         blocked: false,
         lastRequest: now,
         currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
       };
+      if (this.limiter.size() >= (this.config.maxKeys ?? 100000)) {
+        const oldestKey = this.getOldestKey();
+        if (oldestKey) {
+          this.limiter.delete(oldestKey);
+        }
+      }
     }
 
     if (info.current >= info.limit) {
@@ -231,32 +251,50 @@ export class RateLimit {
     }
 
     this.limiter.set(key, info, {
-      priority: this.config.priorityLevels?.[type as keyof typeof this.config.priorityLevels] ?? 0,
+      priority:
+        this.config.priorityLevels?.[
+          type as keyof typeof this.config.priorityLevels
+        ] ?? 0,
     });
 
     return info;
   }
 
+  private getOldestKey(): string | undefined {
+    let oldestKey: string | undefined;
+    let oldestTimestamp = Date.now();
+
+    for (const [key, info] of this.limiter.entries()) {
+      if (info.lastRequest < oldestTimestamp) {
+        oldestKey = key;
+        oldestTimestamp = info.lastRequest;
+      }
+    }
+
+    return oldestKey;
+  }
+
   private async incrementCounter(key: string): Promise<void> {
     const info = this.limiter.get(key);
     if (info) {
-      info.current++;
-      info.remaining = Math.max(0, info.limit - info.current);
-      info.lastRequest = Date.now();
+      const newInfo = { ...info };
+      newInfo.current++;
+      newInfo.remaining = Math.max(0, newInfo.limit - newInfo.current);
+      newInfo.lastRequest = Date.now();
 
-      if (info.remaining === 0) {
-        info.blocked = true;
-        info.resetTime = Date.now() + (this.config.blockDuration ?? 0);
+      if (newInfo.remaining === 0) {
+        newInfo.blocked = true;
+        newInfo.resetTime = Date.now() + (this.config.blockDuration ?? 0);
         this.eventEmitter.emit('blocked', { key });
         await this.auditManager.logEvent({
           type: AuditEventType.SECURITY,
           severity: AuditSeverity.WARNING,
           source: 'rate_limit',
-          details: { key, requests: info.current },
+          details: { key, requests: newInfo.current },
         });
       }
 
-      this.limiter.set(key, info);
+      this.limiter.set(key, newInfo);
     }
   }
 
@@ -267,6 +305,14 @@ export class RateLimit {
 
     if (!ip) {
       throw new RateLimitError('Unable to determine client IP', 'INVALID_IP');
+    }
+
+    const isValidIP =
+      /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(
+        ip,
+      );
+    if (!isValidIP) {
+      throw new RateLimitError('Invalid IP address format', 'INVALID_IP');
     }
 
     return this.config.keyPrefix + ip.trim();

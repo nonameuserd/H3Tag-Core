@@ -293,7 +293,7 @@ export class HybridDirectConsensus {
 
     this.ddosProtection = new DDoSProtection(
       {
-        maxRequests: { default: 200, pow: 100, qudraticVote: 100 },
+        maxRequests: { default: 200, pow: 100, quadraticVote: 100 },
         windowMs: 60000,
         blockDuration: 600000,
       },
@@ -320,6 +320,7 @@ export class HybridDirectConsensus {
       new DirectVotingUtil(this.db, this.auditManager),
       this.blockchain.getNode(),
       this.blockchainSync as BlockchainSync,
+      this.mempool as Mempool,
     );
 
     await this.warmupCache();
@@ -355,7 +356,7 @@ export class HybridDirectConsensus {
         this._validateBlock(block),
         new Promise<boolean>((_, reject) => {
           timeoutId = setTimeout(() => {
-            reject(new BlockValidationError('Validation timeout exceeded'));
+            reject(new BlockValidationError(`Validation timeout exceeded for block ${block.hash} at height ${block.header.height}`));
           }, BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS);
         }),
       ]);
@@ -368,7 +369,18 @@ export class HybridDirectConsensus {
       }
       return result;
     } catch (error) {
-      Logger.error('Block validation failed:', error);
+      Logger.error(`Block validation failed for block ${block.hash} at height ${block.header.height}:`, error);
+      await this.auditManager.logEvent({
+        type: AuditEventType.VALIDATION_ERROR,
+        severity: AuditSeverity.ERROR,
+        source: block.header.miner,
+        details: {
+          blockHash: block.hash,
+          height: block.header.height,
+          error: (error as Error).message,
+          validators: block.validators.map((v) => v.address),
+        },
+      });
       await this.mempool?.handleValidationFailure(
         `block_validation:${block.header.height}`,
         block.validators.map((v) => v.address).join(','),
@@ -480,9 +492,9 @@ export class HybridDirectConsensus {
    * @returns Promise<boolean> True if block is a fork point
    */
   private async isForkPoint(block: Block): Promise<boolean> {
+    // If a block at this height already exists, then we have a fork if the new block's hash differs.
     const existingBlock = await this.db.getBlockByHeight(block.header.height);
-    // If there is no existing block, then treat it as not a fork point.
-    return existingBlock ? existingBlock.hash !== block.header.previousHash : false;
+    return existingBlock ? existingBlock.hash !== block.hash : false;
   }
 
   /**
@@ -495,12 +507,12 @@ export class HybridDirectConsensus {
     return this.forkResolutionLock.runExclusive(async () => {
       // Validate fork block
       if (block.header.height > this.blockchain.getCurrentHeight() + 1) {
-        throw new ConsensusError('Fork block height invalid');
+        throw new ConsensusError(`Fork block height invalid for block ${block.hash} at height ${block.header.height}`);
       }
 
       if (block.header.timestamp > Date.now() + 60000) {
         // 1 minute in future
-        throw new ConsensusError('Fork block timestamp invalid');
+        throw new ConsensusError(`Fork block timestamp invalid for block ${block.hash} at height ${block.header.height}`);
       }
 
       // Check DDoS protection
@@ -510,7 +522,7 @@ export class HybridDirectConsensus {
           block.header.miner,
         )
       ) {
-        throw new ConsensusError('Rate limit exceeded for fork resolution');
+        throw new ConsensusError(`Rate limit exceeded for fork resolution for block ${block.hash} at height ${block.header.height}`);
       }
 
       const forkTimer = Performance.startTimer('fork_resolution');
@@ -520,7 +532,7 @@ export class HybridDirectConsensus {
           this._handleChainFork(block),
           new Promise<string>((_, reject) => {
             setTimeout(() => {
-              reject(new ConsensusError('Fork resolution timeout exceeded'));
+              reject(new ConsensusError(`Fork resolution timeout exceeded for block ${block.hash} at height ${block.header.height}`));
             }, BLOCKCHAIN_CONSTANTS.MINING.FORK_RESOLUTION_TIMEOUT_MS);
           }),
         ]);
@@ -614,7 +626,7 @@ export class HybridDirectConsensus {
       const processingPromise = this._processBlock(block);
       const timeoutPromise = new Promise<Block>((_, reject) => {
         setTimeout(() => {
-          reject(new ConsensusError('Block processing timeout exceeded'));
+          reject(new ConsensusError(`Block processing timeout exceeded for block ${block.hash} at height ${block.header.height}`));
         }, BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS);
       });
       const result = await Promise.race([processingPromise, timeoutPromise]);
@@ -1001,7 +1013,7 @@ export class HybridDirectConsensus {
       // Base reward
       let reward = BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_REWARD;
 
-      // Adjust based on hybrid participation
+      // Correctly average the participation rate
       const votingRate = await this.directVoting?.getParticipationRate();
       const powRate = await this.pow.getParticipationRate();
       const hybridRate = (votingRate || 0 + powRate || 0) / 2;

@@ -291,16 +291,23 @@ export class Peer {
         reject(new Error('Connection timeout'));
       }, this.config.connectionTimeout);
 
-      this.ws!.on('open', () => {
+      this.ws!.once('open', () => {
         clearTimeout(timeout);
         this.state = PeerState.CONNECTED;
         this.eventEmitter.emit('connect');
         resolve();
-      })
-        .on('message', (data: WebSocket.Data) =>
-          this.handleIncomingMessage(data),
-        )
-        .on('error', (error: Error) => this.handleError(error))
+      });
+
+      // Listen once for error so we can reject immediately.
+      this.ws!.once('error', (error: Error) => {
+        clearTimeout(timeout);
+        this.handleError(error);
+        reject(error);
+      });
+
+      this.ws!.on('message', (data: WebSocket.Data) =>
+        this.handleIncomingMessage(data),
+      )
         .on('close', (code: number, reason: string) =>
           this.handleClose(code, reason),
         )
@@ -330,10 +337,19 @@ export class Peer {
       const message = this.parseMessage(data);
       if (!message) return;
 
+      // NEW: Check if the message is a response to a previous request.
+      const reqId = message.payload?.requestId;
+      if (reqId && this.pendingRequests.has(reqId)) {
+        const pending = this.pendingRequests.get(reqId)!;
+        clearTimeout(pending.timeout);
+        pending.resolve(message.payload);
+        this.pendingRequests.delete(reqId);
+        return; // Do not process this message further.
+      }
+
       this.lastMessageTime = Date.now();
       this.messagesReceived++;
       this.eventEmitter.emit('message', message);
-
       await this.processMessage(message);
     } catch (error) {
       Logger.error('Error handling incoming message:', error);
@@ -403,22 +419,26 @@ export class Peer {
       throw new Error('Peer not connected');
     }
 
-    const message: PeerMessage = {
-      type,
-      payload: payload,
-      version: this.version?.toString(),
-      checksum: await this.calculateChecksum(payload),
-    };
+    // Wrap the send operation in the circuit breaker.
+    // If too many send attempts fail, circuitBreaker.run() will short-circuit.
+    return this.circuitBreaker.run(async () => {
+      const message: PeerMessage = {
+        type,
+        payload,
+        version: this.version?.toString(),
+        checksum: await this.calculateChecksum(payload),
+      };
 
-    return new Promise((resolve, reject) => {
-      this.ws!.send(JSON.stringify(message), (error) => {
-        if (error) {
-          this.handleError(error);
-          reject(error);
-        } else {
-          this.updateSendMetrics(message);
-          resolve();
-        }
+      return new Promise((resolve, reject) => {
+        this.ws!.send(JSON.stringify(message), (error) => {
+          if (error) {
+            this.handleError(error);
+            reject(error);
+          } else {
+            this.updateSendMetrics(message);
+            resolve();
+          }
+        });
       });
     });
   }
@@ -441,7 +461,11 @@ export class Peer {
         reject,
         timeout: timeoutId,
       });
-      this.send(type, { ...payload, requestId }).catch(reject);
+      this.send(type, { ...payload, requestId }).catch((error) => {
+        clearTimeout(timeoutId);
+        this.pendingRequests.delete(requestId);
+        reject(error);
+      });
     });
   }
 
@@ -741,7 +765,9 @@ export class Peer {
     if (this.pingInterval) clearInterval(this.pingInterval);
     this.pingInterval = setInterval(async () => {
       try {
-        await this.send(PeerMessageType.PING, { timestamp: Date.now() });
+        // Record the ping send time.
+        this.lastPing = Date.now();
+        await this.send(PeerMessageType.PING, { timestamp: this.lastPing });
       } catch (error) {
         Logger.error('Ping failed:', error);
       }
@@ -758,7 +784,6 @@ export class Peer {
   private handlePong(): void {
     const rtt = Date.now() - this.lastPing;
     this.updateLatency(rtt);
-    this.lastPing = Date.now();
   }
 
   private async sendVersion(): Promise<void> {

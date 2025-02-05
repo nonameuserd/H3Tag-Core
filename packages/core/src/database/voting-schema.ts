@@ -50,14 +50,19 @@ export interface IVotingSchema {
   getTotalEligibleVoters(): Promise<number>;
   close(): Promise<void>;
   getVotesByAddress(address: string): Promise<Vote[]>;
-  storeVote(vote: Vote, tx?: { put: (key: string, value: string) => Promise<void> }): Promise<void>;
+  storeVote(
+    vote: Vote,
+    tx?: { put: (key: string, value: string) => Promise<void> },
+  ): Promise<void>;
   updateVotingPeriod(period: VotingPeriod): Promise<void>;
   getVotes(): Promise<Vote[]>;
   storePeriod(period: VotingPeriod): Promise<void>;
-  transaction<T>(fn: (tx: { 
-    execute: (fn: () => Promise<void>) => Promise<void>;
-    put: (key: string, value: string) => Promise<void>;
-  }) => Promise<T>): Promise<T>;
+  transaction<T>(
+    fn: (tx: {
+      execute: (fn: () => Promise<void>) => Promise<void>;
+      put: (key: string, value: string) => Promise<void>;
+    }) => Promise<T>,
+  ): Promise<T>;
 }
 
 export class VotingDatabase implements IVotingSchema {
@@ -377,7 +382,10 @@ export class VotingDatabase implements IVotingSchema {
       return JSON.parse(vote) as Vote;
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) return null;
-      Logger.error('Failed to get vote:', error instanceof Error ? error.message : 'Unknown error');
+      Logger.error(
+        'Failed to get vote:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw new Error('Failed to get vote');
     }
   }
@@ -526,10 +534,15 @@ export class VotingDatabase implements IVotingSchema {
    * @throws {VotingError} If vote is invalid or storage fails
    */
   @retry({ maxAttempts: 3, delay: 1000 })
-  async storeVote(vote: Vote, tx?: { put: (key: string, value: string) => Promise<void> }): Promise<void> {
+  async storeVote(
+    vote: Vote,
+    tx?: { put: (key: string, value: string) => Promise<void> },
+  ): Promise<void> {
     const key = `vote:${vote.periodId}:${vote.voteId}`;
     try {
-      const operation = tx ? tx.put(key, JSON.stringify(vote)) : this.db.put(key, JSON.stringify(vote));
+      const operation = tx
+        ? tx.put(key, JSON.stringify(vote))
+        : this.db.put(key, JSON.stringify(vote));
       await operation;
       this.cache.set(key, vote);
     } catch (error) {
@@ -615,10 +628,12 @@ export class VotingDatabase implements IVotingSchema {
     });
   }
 
-  async transaction<T>(fn: (tx: { 
-    execute: (fn: () => Promise<void>) => Promise<void>;
-    put: (key: string, value: string) => Promise<void>;
-  }) => Promise<T>): Promise<T> {
+  async transaction<T>(
+    fn: (tx: {
+      execute: (fn: () => Promise<void>) => Promise<void>;
+      put: (key: string, value: string) => Promise<void>;
+    }) => Promise<T>,
+  ): Promise<T> {
     return await this.mutex.runExclusive(async () => {
       const tx = {
         execute: async (fn: () => Promise<void>) => {
@@ -632,13 +647,15 @@ export class VotingDatabase implements IVotingSchema {
         },
         put: async (key: string, value: string) => {
           await this.db.put(key, value);
-        }
+        },
       };
       return await fn(tx);
     });
   }
 
-  private batchWrite(batch: AbstractChainedBatch<string, string>): Promise<void> {
+  private batchWrite(
+    batch: AbstractChainedBatch<string, string>,
+  ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       batch.write((error: unknown) => {
         if (error instanceof Error) reject(error);

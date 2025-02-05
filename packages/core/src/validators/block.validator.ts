@@ -160,9 +160,9 @@ export class BlockValidator {
     // Get dynamic size limit for this block
     const dynamicSizeLimit = await this.calculateDynamicBlockSize(block);
 
-    // Check block size against dynamic limit
+    // Compare the block size directly, without a redundant await.
     const blockSize = JSON.stringify(block).length;
-    if (blockSize > (await dynamicSizeLimit)) {
+    if (blockSize > dynamicSizeLimit) {
       throw new BlockValidationError(
         `${BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL} block size ${blockSize} exceeds dynamic limit ${dynamicSizeLimit}`,
         'EXCESS_SIZE',
@@ -215,10 +215,28 @@ export class BlockValidator {
     block: Block,
     utxoSet: UTXOSet,
   ): Promise<void> {
-    const txBatch = 100; // Process transactions in batches
+    // Ensure that the first transaction is a coinbase transaction.
+    if (!this.isCoinbaseTransaction(block.transactions[0])) {
+      throw new BlockValidationError(
+        'First transaction must be a coinbase transaction',
+        'INVALID_COINBASE_POSITION',
+      );
+    }
+    // Disallow multiple coinbase transactions.
+    for (let i = 1; i < block.transactions.length; i++) {
+      if (this.isCoinbaseTransaction(block.transactions[i])) {
+        throw new BlockValidationError(
+          'Multiple coinbase transactions detected',
+          'MULTIPLE_COINBASE',
+        );
+      }
+    }
 
+    // Process transactions in batches.
+    const txBatch = 100; // Process transactions in batches
     for (let i = 0; i < block.transactions.length; i += txBatch) {
       const batch = block.transactions.slice(i, i + txBatch);
+      // isFirstBatch is only used for the very first batch.
       await this.validateTransactionBatch(batch, utxoSet, i === 0);
     }
   }
@@ -276,7 +294,12 @@ export class BlockValidator {
   }
 
   private static async validateProofOfWork(block: Block): Promise<void> {
-    if (!block.header.nonce || !(await this.meetsHashTarget(block))) {
+    // Explicitly check for null or undefined for nonce.
+    if (
+      block.header.nonce === undefined ||
+      block.header.nonce === null ||
+      !(await this.meetsHashTarget(block))
+    ) {
       throw new BlockValidationError('Invalid proof of work', 'INVALID_POW');
     }
 
@@ -352,8 +375,8 @@ export class BlockValidator {
       );
     }
 
-    // Validate mining reward amount
-    if (tx.outputs[0].amount > this.calculateBlockReward()) {
+    // Ensure that the transaction output amount is compared as a BigInt.
+    if (BigInt(tx.outputs[0].amount) > this.calculateBlockReward()) {
       throw new BlockValidationError('Invalid mining reward', 'EXCESS_REWARD');
     }
   }
@@ -451,7 +474,9 @@ export class BlockValidator {
   }
 
   private static calculateDifficultyTarget(difficulty: number): bigint {
-    return BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET / BigInt(Math.floor(difficulty));
+    // Ensure difficulty is at least 1 to avoid division by zero.
+    const diff = Math.max(1, Math.floor(difficulty));
+    return BLOCKCHAIN_CONSTANTS.MINING.MAX_TARGET / BigInt(diff);
   }
 
   public static async calculateDynamicBlockSize(block: Block): Promise<number> {
@@ -467,7 +492,8 @@ export class BlockValidator {
       // Calculate network load factors
       const mempoolSize = mempool.getSize();
       const avgBlockTime = stats.getAverageBlockTime();
-      const propagationStats = stats.getBlockPropagationStats();
+      // Await propagation stats once and store result.
+      const propagationStatsObj = await stats.getBlockPropagationStats();
 
       // Network congestion factor (0.5 to 2.0)
       const congestionFactor = Math.min(
@@ -487,7 +513,7 @@ export class BlockValidator {
       // Propagation factor (0.7 to 1.3)
       const propagationFactor = Math.min(
         1.3,
-        Math.max(0.7, 1000 / (await propagationStats).median),
+        Math.max(0.7, 1000 / propagationStatsObj.median),
       );
 
       // Calculate target size with all factors

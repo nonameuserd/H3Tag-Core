@@ -131,9 +131,7 @@ export class MiningWorker {
   private startTime = 0; // Will be set at start of each mineRange call
   private hashesProcessed = 0n; // Change to BigInt for large numbers
 
-  constructor() {
- 
-  }
+  constructor() {}
 
   private async initialize(): Promise<void> {
     try {
@@ -233,7 +231,11 @@ export class MiningWorker {
         }
 
         // Optional GC with reduced frequency: only allow explicit GC if an env flag is set.
-        if (process.env.NODE_ENV !== 'production' && global.gc && Math.random() < 0.001) {
+        if (
+          process.env.NODE_ENV !== 'production' &&
+          global.gc &&
+          Math.random() < 0.001
+        ) {
           // 0.1% chance to GC (only if --expose-gc is used and not in production)
           global.gc();
         }

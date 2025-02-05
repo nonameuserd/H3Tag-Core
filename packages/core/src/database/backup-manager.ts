@@ -286,7 +286,7 @@ export class BackupManager {
       );
       await fs.rm(targetFile, { force: true }).catch(() => {});
       throw error;
-    } 
+    }
   }
 
   private async createChecksum(path: string): Promise<string> {

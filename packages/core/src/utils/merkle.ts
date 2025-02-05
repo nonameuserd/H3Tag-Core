@@ -17,18 +17,31 @@ export class MerkleTree {
   /**
    * Creates a Merkle root from an array of data
    * @param data Array of strings to create merkle tree from
+   * @param pruneLayers Boolean indicating whether to prune intermediate layers
    * @returns Root hash of the merkle tree
    */
-  async createRoot(data: string[]): Promise<string> {
+  async createRoot(
+    data: string[],
+    pruneLayers: boolean = false,
+  ): Promise<string> {
     try {
       if (!Array.isArray(data) || !data.length) {
         throw new Error('Invalid input: data must be non-empty array');
       }
 
+      // Validate each data item
+      for (const item of data) {
+        if (typeof item !== 'string' || item.length === 0) {
+          throw new Error(
+            'Invalid input: all data items must be non-empty strings',
+          );
+        }
+      }
+
       // Clear previous state
       this.clearState();
 
-      // Initialize leaves with hashed data
+      // Build leaves with hashed data
       this.leaves = await Promise.all(data.map((item) => this.hashData(item)));
       this.layers = [this.leaves];
 
@@ -37,8 +50,10 @@ export class MerkleTree {
         this.layers.unshift(await this.createLayer(this.layers[0]));
       }
 
-      // Add cleanup after root creation
-      this.cleanupLayers();
+      // Optionally prune intermediate layers if proofs are not needed
+      if (pruneLayers) {
+        this.cleanupLayers();
+      }
 
       return this.layers[0][0];
     } catch (error) {
@@ -71,7 +86,14 @@ export class MerkleTree {
   async generateProof(index: number): Promise<MerkleProof> {
     try {
       if (index < 0 || index >= this.leaves.length) {
-        throw new Error('Invalid leaf index');
+        throw new Error(
+          `Invalid leaf index: ${index}. Valid range: 0-${this.leaves.length - 1}`,
+        );
+      }
+
+      // Add validation for empty tree
+      if (this.leaves.length === 0) {
+        throw new Error('Cannot generate proof from empty tree');
       }
 
       const proof: MerkleProof = {
@@ -113,13 +135,24 @@ export class MerkleTree {
     root: string,
   ): Promise<boolean> {
     try {
-      if (
-        !proof ||
-        !root ||
-        !Array.isArray(proof.siblings) ||
-        proof.siblings.length === 0
-      ) {
+      if (!proof || !root || !Array.isArray(proof.siblings)) {
         return false;
+      }
+
+      // Validate data input
+      if (typeof data !== 'string' || data.length === 0) {
+        return false;
+      }
+
+      // Verify that the hashed data matches the provided proof hash
+      const dataHash = await this.hashData(data);
+      if (dataHash !== proof.hash) {
+        return false;
+      }
+
+      // If no siblings are provided, assume a single-element tree and check directly
+      if (proof.siblings.length === 0) {
+        return proof.hash === root;
       }
 
       let hash = proof.hash;
@@ -145,13 +178,22 @@ export class MerkleTree {
    * @returns Array of parent node hashes
    */
   private async createLayer(nodes: string[]): Promise<string[]> {
+    if (!Array.isArray(nodes) || nodes.length === 0) {
+      throw new Error('Invalid nodes array');
+    }
+
     const layer: string[] = [];
+    const promises: Promise<string>[] = [];
 
     for (let i = 0; i < nodes.length; i += 2) {
       const left = nodes[i];
       const right = i + 1 < nodes.length ? nodes[i + 1] : left;
-      layer.push(await this.hashPair(left, right));
+      promises.push(this.hashPair(left, right));
     }
+
+    // Process all pairs concurrently
+    const results = await Promise.all(promises);
+    layer.push(...results);
 
     return layer;
   }
@@ -174,7 +216,7 @@ export class MerkleTree {
 
     const key = `${left}:${right}`;
 
-    if (this.hashCache.has(key)) {
+    if (this.hashCache.size < this.maxCacheSize && this.hashCache.has(key)) {
       return this.hashCache.get(key)!;
     }
 
@@ -231,6 +273,7 @@ export class MerkleTree {
     this.leaves = [];
     this.layers = [];
     this.hashCache.clear();
+    this.rootCache.clear();
   }
 
   private cleanupLayers(): void {

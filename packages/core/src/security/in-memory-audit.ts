@@ -4,8 +4,22 @@ import { IAuditStorage } from './audit';
 export class InMemoryAuditStorage implements IAuditStorage {
   private auditLogs: Map<string, string> = new Map();
   private locks: Map<string, boolean> = new Map();
+  private readonly MAX_LOG_ENTRIES = 10000; // Add maximum capacity
 
   async writeAuditLog(filename: string, data: string): Promise<void> {
+    if (!filename || typeof filename !== 'string') {
+      throw new Error('Invalid filename');
+    }
+    if (!data || typeof data !== 'string') {
+      throw new Error('Invalid audit data');
+    }
+    // Add cleanup when reaching capacity
+    if (this.auditLogs.size >= this.MAX_LOG_ENTRIES) {
+      const oldestKey = this.auditLogs.keys().next().value;
+      if (oldestKey) {
+        this.auditLogs.delete(oldestKey);
+      }
+    }
     this.auditLogs.set(filename, data);
     Logger.debug(`Audit log written: ${filename}`);
   }
@@ -13,7 +27,9 @@ export class InMemoryAuditStorage implements IAuditStorage {
   async readAuditLog(filename: string): Promise<string> {
     const data = this.auditLogs.get(filename);
     if (!data) {
-      throw new Error(`Audit log not found: ${filename}`);
+      throw new Error(
+        `Audit log not found: ${filename}. Available logs: ${Array.from(this.auditLogs.keys()).join(', ')}`,
+      );
     }
     return data;
   }
@@ -23,11 +39,17 @@ export class InMemoryAuditStorage implements IAuditStorage {
   }
 
   async acquireLock(lockId: string): Promise<boolean> {
-    if (this.locks.get(lockId)) {
-      return false;
+    const MAX_ATTEMPTS = 10;
+    const RETRY_DELAY = 50;
+
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (!this.locks.get(lockId)) {
+        this.locks.set(lockId, true);
+        return true;
+      }
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
     }
-    this.locks.set(lockId, true);
-    return true;
+    return false;
   }
 
   async releaseLock(lockId: string): Promise<void> {

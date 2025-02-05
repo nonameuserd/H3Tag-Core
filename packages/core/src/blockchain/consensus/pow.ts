@@ -32,6 +32,8 @@ import { UTXOSet } from '../../models/utxo.model';
 import { RetryStrategy } from '../../utils/retry';
 import { Mutex } from 'async-mutex';
 import { IBlockchainData } from '../blockchain-stats';
+import { performance } from 'perf_hooks';
+import path from 'path';
 
 interface MiningResult {
   found: boolean;
@@ -429,7 +431,7 @@ export class ProofOfWork {
         maxRequests: {
           default: 50,
           pow: 100,
-          qudraticVote: 100,
+          quadraticVote: 100,
         },
         windowMs: 30000, // 30 seconds
         blockDuration: 900000, // 15 minutes
@@ -461,7 +463,8 @@ export class ProofOfWork {
         Array(this.NUM_WORKERS)
           .fill(0)
           .map(() => {
-            const worker = new Worker('./worker.js');
+            const workerPath = path.resolve(__dirname, 'worker.js');
+            const worker = new Worker(workerPath);
             return new Promise<Worker>((resolve, reject) => {
               worker.once('online', () => resolve(worker));
               worker.once('error', (error) => reject(error));
@@ -924,32 +927,28 @@ export class ProofOfWork {
    * @returns Promise<number> Next difficulty
    */
   private async calculateNextDifficulty(lastBlock: Block): Promise<number> {
-    if (
-      lastBlock.header.height %
-        BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL !==
-      0
-    ) {
+    if (lastBlock.header.height % BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL !== 0) {
       return lastBlock.header.difficulty;
     }
 
     const prevAdjustmentBlock = await this.getBlockByHeight(
-      lastBlock.header.height -
-        BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
+      lastBlock.header.height - BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
     );
 
     const timeExpected =
       BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIME_PER_BLOCK *
       BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL;
-    const timeActual =
-      lastBlock.header.timestamp - prevAdjustmentBlock.header.timestamp;
+    let timeActual = lastBlock.header.timestamp - prevAdjustmentBlock.header.timestamp;
 
-    // Adjust difficulty based on SHA3's faster processing
+    if (timeActual <= 0) {
+      timeActual = timeExpected;
+    }
+
     let adjustment = (timeExpected / timeActual) * 0.75; // 25% more conservative
-    adjustment = Math.max(0.25, Math.min(adjustment, 4.0)); // Limit adjustment range
+    adjustment = Math.max(0.25, Math.min(adjustment, 4.0));
 
     const newDifficulty = lastBlock.header.difficulty * adjustment;
 
-    // Ensure difficulty doesn't drop too low for security
     return Math.max(
       newDifficulty,
       BLOCKCHAIN_CONSTANTS.MINING.INITIAL_DIFFICULTY / 4,
@@ -1042,15 +1041,15 @@ export class ProofOfWork {
    */
   public calculateBlockHash(block: Block): string {
     const header = block.header;
-    const data =
-      header.version +
-      header.previousHash +
-      header.merkleRoot +
-      header.timestamp +
-      header.difficulty +
-      header.nonce;
 
-    // this can be replaced with a faster more secured hashing algorithm
+    const data = JSON.stringify({
+      version: header.version,
+      previousHash: header.previousHash,
+      merkleRoot: header.merkleRoot,
+      timestamp: header.timestamp,
+      difficulty: header.difficulty,
+      nonce: header.nonce,
+    });
     return createHash('sha3-256').update(data).digest('hex');
   }
 
@@ -2248,28 +2247,24 @@ export class ProofOfWork {
       // Create immutable copy of transactions
       const txSnapshot = [...transactions].map((tx) => ({ ...tx }));
 
-      // Sort by fee per byte
+      // Sort by fee per byte using a proper numerical division
       const sortedTxs = txSnapshot.sort((a, b) => {
         const aSize = JSON.stringify(a).length;
         const bSize = JSON.stringify(b).length;
-        return Number(b.fee / BigInt(bSize) - a.fee / BigInt(aSize));
+        const aFeePerByte = Number(a.fee) / aSize;
+        const bFeePerByte = Number(b.fee) / bSize;
+        return bFeePerByte - aFeePerByte;
       });
 
       // Track processed transactions to prevent duplicates
       const processedTxs = new Set<string>();
 
       for (const tx of sortedTxs) {
-        // Skip if already processed
         if (processedTxs.has(tx.hash)) continue;
-
         const txSize = JSON.stringify(tx).length;
-
-        // Check size limit
         if (currentSize + txSize > maxBlockSize) {
           continue;
         }
-
-        // Validate transaction
         try {
           if (await this.validateTemplateTransaction(tx)) {
             // Double-check transaction hasn't been included elsewhere
@@ -2280,10 +2275,7 @@ export class ProofOfWork {
             }
           }
         } catch (error) {
-          Logger.warn(
-            `Invalid transaction ${tx.hash} for block template:`,
-            error,
-          );
+          Logger.warn(`Invalid transaction ${tx.hash} for block template:`, error);
           continue;
         }
       }
@@ -2416,7 +2408,6 @@ export class ProofOfWork {
    */
   private async validateBlockHeader(block: Block): Promise<boolean> {
     try {
-      // Check version is within allowed range
       if (
         block.header.version < BLOCKCHAIN_CONSTANTS.MINING.MIN_VERSION ||
         block.header.version > BLOCKCHAIN_CONSTANTS.MINING.MAX_VERSION
@@ -2424,19 +2415,18 @@ export class ProofOfWork {
         return false;
       }
 
-      // Verify previous block exists and hash matches (await the async call)
-      const prevBlock = await this.blockchain.getBlockByHeight(block.header.height - 1);
-      if (!prevBlock || prevBlock.hash !== block.header.previousHash) {
-        return false;
+      // Only check previous block if not the genesis block.
+      if (block.header.height > 0) {
+        const prevBlock = await this.blockchain.getBlockByHeight(block.header.height - 1);
+        if (!prevBlock || prevBlock.hash !== block.header.previousHash) {
+          return false;
+        }
       }
 
-      // Check timestamp is within allowed range
       const now = Math.floor(Date.now() / 1000);
       if (block.header.timestamp < this.minTime || block.header.timestamp > now + 7200) {
         return false;
       }
-
-      // Verify difficulty matches expected difficulty
       const expectedDifficulty = await this.getNetworkDifficulty();
       if (block.header.difficulty !== expectedDifficulty) {
         return false;

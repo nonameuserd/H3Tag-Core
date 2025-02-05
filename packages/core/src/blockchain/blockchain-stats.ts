@@ -197,7 +197,10 @@ export interface IBlockchainData {
 
 export class BlockchainStats {
   private readonly blockchain: IBlockchainData;
-  private readonly statsCache = new Map<string, { value: unknown; timestamp: number }>();
+  private readonly statsCache = new Map<
+    string,
+    { value: unknown; timestamp: number }
+  >();
   private readonly maxCacheSize = 1000; // Prevent unlimited growth
   private metricsCollector?: MetricsCollector;
   private circuitBreaker = new Map<
@@ -226,7 +229,7 @@ export class BlockchainStats {
     this.initializeMetrics();
     this.startCacheCleanup();
     this.startCircuitBreakerSaving();
-    this.loadCircuitBreakerState().catch(error => {
+    this.loadCircuitBreakerState().catch((error) => {
       Logger.error('Failed to load circuit breaker state:', error);
     });
   }
@@ -240,12 +243,18 @@ export class BlockchainStats {
       'blockchain_stats_cache_size',
       () => this.statsCache.size,
     );
-    this.getMetricsCollector()?.gauge('blockchain_stats_last_update.voting_stats', 0);
+    this.getMetricsCollector()?.gauge(
+      'blockchain_stats_last_update.voting_stats',
+      0,
+    );
     this.getMetricsCollector()?.gauge(
       'blockchain_stats_last_update.consensus_health',
       0,
     );
-    this.getMetricsCollector()?.gauge('blockchain_stats_last_update.chain_stats', 0);
+    this.getMetricsCollector()?.gauge(
+      'blockchain_stats_last_update.chain_stats',
+      0,
+    );
   }
 
   /**
@@ -263,7 +272,7 @@ export class BlockchainStats {
       const startTime = performance.now();
       const cached = this.statsCache.get(key);
       const now = Date.now();
-      
+
       // Remove duplicates from the cacheQueue.
       const existingIndex = this.cacheQueue.indexOf(key);
       if (existingIndex !== -1) {
@@ -292,7 +301,10 @@ export class BlockchainStats {
         'blockchain_stats_calculation_time',
         performance.now() - startTime,
       );
-      this.getMetricsCollector()?.gauge(`blockchain_stats_last_update.${key}`, now);
+      this.getMetricsCollector()?.gauge(
+        `blockchain_stats_last_update.${key}`,
+        now,
+      );
       this.getMetricsCollector()?.gauge(
         'blockchain_stats_cache_size',
         this.statsCache.size,
@@ -301,10 +313,12 @@ export class BlockchainStats {
       this.cacheIndex.set(this.blockchain.getHeight(), key);
       return value;
     } catch (error: unknown) {
-      this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
-        stat: key,
-        error: (error as Error).name,
-      });
+      this.getMetricsCollector()
+        ?.counter('blockchain_stats_errors')
+        .inc({
+          stat: key,
+          error: (error as Error).name,
+        });
       throw error;
     } finally {
       release();
@@ -381,7 +395,10 @@ export class BlockchainStats {
   private async validateHeight(): Promise<number> {
     const height = this.blockchain.getHeight();
     if (height < 10) {
-      throw new BlockchainStatsError('Insufficient blockchain height', 'INSUFFICIENT_HEIGHT');
+      throw new BlockchainStatsError(
+        'Insufficient blockchain height',
+        'INSUFFICIENT_HEIGHT',
+      );
     }
     return height;
   }
@@ -407,7 +424,10 @@ export class BlockchainStats {
       try {
         const currentHeight = this.blockchain.getHeight();
         if (currentHeight < 1) {
-          throw new BlockchainStatsError('Invalid blockchain height', 'INVALID_HEIGHT');
+          throw new BlockchainStatsError(
+            'Invalid blockchain height',
+            'INVALID_HEIGHT',
+          );
         }
 
         const windowSize = BLOCKCHAIN_CONSTANTS.MINING.ORPHAN_WINDOW;
@@ -417,33 +437,43 @@ export class BlockchainStats {
         let orphanCount = 0;
 
         // Process in batches using array methods
-        const batchCount = Math.ceil((currentHeight - startHeight) / this.BATCH_SIZE);
+        const batchCount = Math.ceil(
+          (currentHeight - startHeight) / this.BATCH_SIZE,
+        );
         const batches = Array.from({ length: batchCount }, (_, i) => ({
           start: startHeight + i * this.BATCH_SIZE,
-          end: Math.min(startHeight + (i + 1) * this.BATCH_SIZE, currentHeight)
+          end: Math.min(startHeight + (i + 1) * this.BATCH_SIZE, currentHeight),
         }));
 
-        await Promise.all(batches.map(async ({ start, end }) => {
-          const blocks = await Promise.all(
-            Array.from({ length: end - start }, (_, idx) =>
-              this.blockchain.getBlockByHeight(start + idx)
-            )
-          );
+        await Promise.all(
+          batches.map(async ({ start, end }) => {
+            const blocks = await Promise.all(
+              Array.from({ length: end - start }, (_, idx) =>
+                this.blockchain.getBlockByHeight(start + idx),
+              ),
+            );
 
-          blocks.slice(0, -1).forEach((block, idx) => {
-            if (block && blocks[idx + 1] && blocks[idx + 1]?.header?.previousHash !== block?.hash) {
-              orphanCount++;
-            }
-          });
-        }));
+            blocks.slice(0, -1).forEach((block, idx) => {
+              if (
+                block &&
+                blocks[idx + 1] &&
+                blocks[idx + 1]?.header?.previousHash !== block?.hash
+              ) {
+                orphanCount++;
+              }
+            });
+          }),
+        );
 
         return orphanCount / windowSize;
       } catch (error) {
         Logger.error('Error calculating orphan rate:', error);
-        this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
-          method: 'getOrphanRate',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        this.getMetricsCollector()
+          ?.counter('blockchain_stats_errors')
+          .inc({
+            method: 'getOrphanRate',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
         return 0;
       }
     });
@@ -491,7 +521,10 @@ export class BlockchainStats {
       try {
         const currentHeight = this.blockchain.getHeight();
         if (currentHeight < 1) {
-          throw new BlockchainStatsError('Invalid blockchain height', 'INVALID_HEIGHT');
+          throw new BlockchainStatsError(
+            'Invalid blockchain height',
+            'INVALID_HEIGHT',
+          );
         }
 
         const blocks = Array.from({ length: 10 }, (_, i) =>
@@ -505,7 +538,10 @@ export class BlockchainStats {
 
         const times = blocks.map((b) => {
           if (!b?.header?.timestamp) {
-            throw new BlockchainStatsError('Invalid block timestamp', 'INVALID_TIMESTAMP');
+            throw new BlockchainStatsError(
+              'Invalid block timestamp',
+              'INVALID_TIMESTAMP',
+            );
           }
           return b.header.timestamp;
         });
@@ -529,10 +565,12 @@ export class BlockchainStats {
         return totalTimeDiff / validPairs;
       } catch (error) {
         Logger.error('Error calculating average block time:', error);
-        this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
-          method: 'getAverageBlockTime',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        this.getMetricsCollector()
+          ?.counter('blockchain_stats_errors')
+          .inc({
+            method: 'getAverageBlockTime',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
         return 600;
       }
     });
@@ -550,8 +588,10 @@ export class BlockchainStats {
       const currentHeight = await this.validateHeight();
       this.validateInput(
         BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
-        (v) => v > 0 && v <= (BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_WINDOW || 10000),
-        'Invalid propagation window size'
+        (v) =>
+          v > 0 &&
+          v <= (BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_WINDOW || 10000),
+        'Invalid propagation window size',
       );
 
       const batchSize = 100;
@@ -565,25 +605,31 @@ export class BlockchainStats {
       const batchCount = Math.ceil((currentHeight - startHeight) / batchSize);
       const batches = Array.from({ length: batchCount }, (_, i) => ({
         start: startHeight + i * batchSize,
-        end: Math.min(startHeight + (i + 1) * batchSize, currentHeight)
+        end: Math.min(startHeight + (i + 1) * batchSize, currentHeight),
       }));
 
-      await Promise.all(batches.map(async ({ start, end }) => {
-        const blocks = await Promise.all(
-          Array.from({ length: end - start }, (_, i) =>
-            this.blockchain.getBlockByHeight(start + i)
-          )
-        );
+      await Promise.all(
+        batches.map(async ({ start, end }) => {
+          const blocks = await Promise.all(
+            Array.from({ length: end - start }, (_, i) =>
+              this.blockchain.getBlockByHeight(start + i),
+            ),
+          );
 
-        blocks.forEach(block => {
-          if (block?.metadata?.receivedTimestamp) {
-            const time = block.metadata.receivedTimestamp - block.header.timestamp;
-            if (time > 0 && time < BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_TIME) {
-              propagationTimes.push(time);
+          blocks.forEach((block) => {
+            if (block?.metadata?.receivedTimestamp) {
+              const time =
+                block.metadata.receivedTimestamp - block.header.timestamp;
+              if (
+                time > 0 &&
+                time < BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_TIME
+              ) {
+                propagationTimes.push(time);
+              }
             }
-          }
-        });
-      }));
+          });
+        }),
+      );
 
       if (propagationTimes.length === 0) {
         return { average: 0, median: 0 };
@@ -604,7 +650,12 @@ export class BlockchainStats {
     return arr[k];
   }
 
-  private quickselect(arr: number[], left: number, right: number, k: number): void {
+  private quickselect(
+    arr: number[],
+    left: number,
+    right: number,
+    k: number,
+  ): void {
     while (left < right) {
       const pivotIndex = this.partition(arr, left, right);
       if (pivotIndex === k) {
@@ -644,18 +695,28 @@ export class BlockchainStats {
       try {
         const chain = this.blockchain.getState().chain;
         if (!chain || chain.length === 0) {
-          throw new BlockchainStatsError('Empty blockchain state', 'EMPTY_CHAIN');
+          throw new BlockchainStatsError(
+            'Empty blockchain state',
+            'EMPTY_CHAIN',
+          );
         }
 
-        const { totalTransactions, totalSize } = chain.reduce((acc, block) => {
-          if (!block) {
-            throw new BlockchainStatsError('Invalid block in chain', 'INVALID_BLOCK');
-          }
-          return {
-            totalTransactions: acc.totalTransactions + block.transactions.length,
-            totalSize: acc.totalSize + this.calculateBlockSize(block)
-          };
-        }, { totalTransactions: 0, totalSize: 0 });
+        const { totalTransactions, totalSize } = chain.reduce(
+          (acc, block) => {
+            if (!block) {
+              throw new BlockchainStatsError(
+                'Invalid block in chain',
+                'INVALID_BLOCK',
+              );
+            }
+            return {
+              totalTransactions:
+                acc.totalTransactions + block.transactions.length,
+              totalSize: acc.totalSize + this.calculateBlockSize(block),
+            };
+          },
+          { totalTransactions: 0, totalSize: 0 },
+        );
 
         const stats = {
           totalBlocks: chain.length,
@@ -665,21 +726,32 @@ export class BlockchainStats {
         };
 
         // Log successful stats calculation
-        this.getMetricsCollector()?.gauge('blockchain_stats_total_blocks', stats.totalBlocks);
-        this.getMetricsCollector()?.gauge('blockchain_stats_total_transactions', stats.totalTransactions);
-        this.getMetricsCollector()?.gauge('blockchain_stats_average_block_size', stats.averageBlockSize);
+        this.getMetricsCollector()?.gauge(
+          'blockchain_stats_total_blocks',
+          stats.totalBlocks,
+        );
+        this.getMetricsCollector()?.gauge(
+          'blockchain_stats_total_transactions',
+          stats.totalTransactions,
+        );
+        this.getMetricsCollector()?.gauge(
+          'blockchain_stats_average_block_size',
+          stats.averageBlockSize,
+        );
 
         return stats;
       } catch (error) {
         Logger.error('Failed to calculate chain stats:', error);
-        this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
-          method: 'getChainStats',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        this.getMetricsCollector()
+          ?.counter('blockchain_stats_errors')
+          .inc({
+            method: 'getChainStats',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
         throw new BlockchainStatsError(
           'Failed to calculate chain stats',
           'CHAIN_STATS_CALCULATION_FAILED',
-          { originalError: error }
+          { originalError: error },
         );
       }
     });
@@ -694,7 +766,7 @@ export class BlockchainStats {
     try {
       // Calculate header size
       const headerSize = Buffer.byteLength(JSON.stringify(block.header));
-      
+
       // Calculate transactions size
       const transactionsSize = block.transactions.reduce((sum, tx) => {
         return sum + (tx.hash ? Buffer.byteLength(tx.hash) : 0);
@@ -703,10 +775,12 @@ export class BlockchainStats {
       return headerSize + transactionsSize;
     } catch (error) {
       Logger.error('Error calculating block size:', error);
-      this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
-        method: 'calculateBlockSize',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      this.getMetricsCollector()
+        ?.counter('blockchain_stats_errors')
+        .inc({
+          method: 'calculateBlockSize',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       return 0;
     }
   }
@@ -732,17 +806,21 @@ export class BlockchainStats {
       }
 
       // Network hash rate = difficulty * 2^32 / blockTime
-      return Number((BigInt(difficulty) * BigInt(Math.pow(2, 32))) / BigInt(blockTime));
+      return Number(
+        (BigInt(difficulty) * BigInt(Math.pow(2, 32))) / BigInt(blockTime),
+      );
     } catch (error) {
       Logger.error('Failed to calculate network hash rate:', error);
-      this.getMetricsCollector()?.counter('blockchain_stats_errors').inc({
-        method: 'getNetworkHashRate',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      this.getMetricsCollector()
+        ?.counter('blockchain_stats_errors')
+        .inc({
+          method: 'getNetworkHashRate',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
       throw new BlockchainStatsError(
         'Failed to calculate network hash rate',
         'HASH_RATE_CALCULATION_FAILED',
-        { originalError: error }
+        { originalError: error },
       );
     }
   }
@@ -805,7 +883,10 @@ export class BlockchainStats {
       try {
         await this.saveCircuitBreakerState();
       } catch (stateError) {
-        Logger.error('Failed to save circuit breaker state after error:', stateError);
+        Logger.error(
+          'Failed to save circuit breaker state after error:',
+          stateError,
+        );
       }
       throw error;
     }
@@ -839,8 +920,11 @@ export class BlockchainStats {
     if (this.saveIntervalId) {
       clearInterval(this.saveIntervalId);
     }
-    this.saveCircuitBreakerState().catch(error => {
-      Logger.error('Failed to save circuit breaker state during cleanup:', error);
+    this.saveCircuitBreakerState().catch((error) => {
+      Logger.error(
+        'Failed to save circuit breaker state during cleanup:',
+        error,
+      );
     });
     this.statsCache.clear();
     this.circuitBreaker.clear();
@@ -899,23 +983,29 @@ export class BlockchainStats {
     try {
       const fs = await import('fs/promises');
       const path = await import('path');
-      
+
       const data = JSON.stringify({
         timestamp: Date.now(),
-        circuitBreaker: Array.from(this.circuitBreaker.entries())
+        circuitBreaker: Array.from(this.circuitBreaker.entries()),
       });
 
-      const storagePath = path.join(process.cwd(), 'data', 'circuit_breaker_state.json');
+      const storagePath = path.join(
+        process.cwd(),
+        'data',
+        'circuit_breaker_state.json',
+      );
       await fs.mkdir(path.dirname(storagePath), { recursive: true });
       await fs.writeFile(storagePath, data, 'utf8');
-      
+
       this.getMetricsCollector()?.gauge('circuit_breaker_state_saved', 1);
     } catch (error) {
       Logger.error('Failed to save circuit breaker state:', error);
-      this.getMetricsCollector()?.counter('circuit_breaker_errors').inc({
-        operation: 'save',
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
+      this.getMetricsCollector()
+        ?.counter('circuit_breaker_errors')
+        .inc({
+          operation: 'save',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
     }
   }
 
@@ -923,27 +1013,41 @@ export class BlockchainStats {
     try {
       const fs = await import('fs/promises');
       const path = await import('path');
-      
-      const storagePath = path.join(process.cwd(), 'data', 'circuit_breaker_state.json');
+
+      const storagePath = path.join(
+        process.cwd(),
+        'data',
+        'circuit_breaker_state.json',
+      );
       const data = await fs.readFile(storagePath, 'utf8');
       const parsed = JSON.parse(data);
 
       // Validate the loaded data
-      if (!parsed || !parsed.circuitBreaker || !Array.isArray(parsed.circuitBreaker)) {
+      if (
+        !parsed ||
+        !parsed.circuitBreaker ||
+        !Array.isArray(parsed.circuitBreaker)
+      ) {
         throw new Error('Invalid circuit breaker state format');
       }
 
       // Convert array back to Map
       this.circuitBreaker = new Map(parsed.circuitBreaker);
-      
+
       this.getMetricsCollector()?.gauge('circuit_breaker_state_loaded', 1);
     } catch (error) {
-      if (error instanceof Error && (error as unknown as { code?: string }).code !== 'ENOENT') { // Ignore file not found errors
+      if (
+        error instanceof Error &&
+        (error as unknown as { code?: string }).code !== 'ENOENT'
+      ) {
+        // Ignore file not found errors
         Logger.error('Failed to load circuit breaker state:', error);
-        this.getMetricsCollector()?.counter('circuit_breaker_errors').inc({
-          operation: 'load',
-          error: error instanceof Error ? error.message : 'Unknown error'
-        });
+        this.getMetricsCollector()
+          ?.counter('circuit_breaker_errors')
+          .inc({
+            operation: 'load',
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
       }
     }
   }

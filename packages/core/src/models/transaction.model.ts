@@ -215,6 +215,7 @@ export interface Transaction {
     nonce: string;
     difficulty: number;
     timestamp: number;
+    version?: string;
   };
   sender: string;
   recipient: string;
@@ -240,7 +241,6 @@ export interface Transaction {
   getSize(): number;
 }
 
-
 interface RawTransaction {
   id: string;
   status: TransactionStatus;
@@ -254,15 +254,15 @@ interface RawTransaction {
   sender: string;
   recipient: string;
   hash: string;
-  currency: { name: string; symbol: string; decimals: number; };
+  currency: { name: string; symbol: string; decimals: number };
   memo?: string;
   lockTime?: number;
-  powData?: { nonce: string; difficulty: number; timestamp: number; };
+  powData?: { nonce: string; difficulty: number; timestamp: number };
   nonce?: number;
-  voteData?: { proposal: string; vote: boolean; weight: number; };
+  voteData?: { proposal: string; vote: boolean; weight: number };
   blockHeight?: number;
   hasWitness?: boolean;
-  witness?: { stack: string[]; };
+  witness?: { stack: string[] };
 }
 
 /**
@@ -878,7 +878,10 @@ export class TransactionBuilder {
 
       if (tx.type === TransactionType.POW_REWARD) {
         if (
-          !(await TransactionBuilder.pow.validateReward(tx, tx.blockHeight || 0))
+          !(await TransactionBuilder.pow.validateReward(
+            tx,
+            tx.blockHeight || 0,
+          ))
         ) {
           Logger.warn('Invalid PoW', { txId: tx.hash });
           return false;
@@ -943,7 +946,9 @@ export class TransactionBuilder {
           input.outputIndex,
         );
         if (!utxo || utxo.spent) {
-          Logger.warn('UTXO already spent or does not exist', { txId: tx.hash });
+          Logger.warn('UTXO already spent or does not exist', {
+            txId: tx.hash,
+          });
           return false;
         }
       }
@@ -1004,7 +1009,9 @@ export class TransactionBuilder {
         }
         return newSum;
       } catch (error: unknown) {
-        throw new TransactionError(`Invalid amount format: ${(error as Error).message}`);
+        throw new TransactionError(
+          `Invalid amount format: ${(error as Error).message}`,
+        );
       }
     }, BigInt(0));
   }
@@ -1283,7 +1290,9 @@ export class TransactionBuilder {
         error,
         txId,
       });
-      throw new TransactionError(`Failed to get transaction: ${(error as Error).message}`);
+      throw new TransactionError(
+        `Failed to get transaction: ${(error as Error).message}`,
+      );
     } finally {
       release();
     }
@@ -1338,9 +1347,10 @@ export class TransactionBuilder {
       }
 
       // Use provided txData.id if available (and valid), otherwise calculate a new one.
-      const txId = txData.id && typeof txData.id === 'string' 
-        ? txData.id 
-        : await this.calculateTransactionHash();
+      const txId =
+        txData.id && typeof txData.id === 'string'
+          ? txData.id
+          : await this.calculateTransactionHash();
 
       // Build transaction object
       const tx: Transaction = {
@@ -1366,7 +1376,9 @@ export class TransactionBuilder {
 
       return tx;
     } catch (error: unknown) {
-      throw new TransactionError('Invalid transaction format: ' + (error as Error).message);
+      throw new TransactionError(
+        'Invalid transaction format: ' + (error as Error).message,
+      );
     }
   }
 
@@ -1474,7 +1486,9 @@ export class TransactionBuilder {
    * @returns Promise<Transaction> Decoded transaction
    * @throws TransactionError If decoding fails
    */
-  public static async decodeRawTransaction(rawTx: string): Promise<Transaction> {
+  public static async decodeRawTransaction(
+    rawTx: string,
+  ): Promise<Transaction> {
     try {
       if (!rawTx || typeof rawTx !== 'string') {
         throw new TransactionError('Invalid raw transaction format');
@@ -1484,7 +1498,9 @@ export class TransactionBuilder {
       try {
         txData = JSON.parse(rawTx);
       } catch (error: unknown) {
-        throw new TransactionError('Invalid transaction JSON format: ' + (error as Error).message);
+        throw new TransactionError(
+          'Invalid transaction JSON format: ' + (error as Error).message,
+        );
       }
 
       // Convert amounts back to BigInt
@@ -1543,7 +1559,9 @@ export class TransactionBuilder {
     } catch (error) {
       Logger.error('Failed to decode transaction:', error);
       throw new TransactionError(
-        error instanceof TransactionError ? error.message : 'Failed to decode transaction',
+        error instanceof TransactionError
+          ? error.message
+          : 'Failed to decode transaction',
       );
     }
   }
@@ -1643,7 +1661,9 @@ export class TransactionBuilder {
       // Allow a configurable range or document the expected signature length.
       const expectedSignatureLength = 128;
       if (!signature || signature.length !== expectedSignatureLength) {
-        throw new TransactionError('Invalid signature format (unexpected length)');
+        throw new TransactionError(
+          'Invalid signature format (unexpected length)',
+        );
       }
       if (!publicKey || publicKey.length !== 130) {
         throw new TransactionError('Invalid public key format');
@@ -1665,7 +1685,9 @@ export class TransactionBuilder {
     } catch (error) {
       Logger.error('Message verification failed:', error);
       throw new TransactionError(
-        error instanceof TransactionError ? error.message : 'Failed to verify message',
+        error instanceof TransactionError
+          ? error.message
+          : 'Failed to verify message',
       );
     }
   }
@@ -1789,8 +1811,11 @@ export class TransactionBuilder {
   private async getDynamicMinFee(txSize: number): Promise<bigint> {
     try {
       // Get base fee rate as a BigInt string, then convert to BigInt.
-      const baseFeeRateNumber = await TransactionBuilder.mempool.getMinFeeRate();
-      const minFeeFromSize = BigInt(Math.ceil(txSize * Number(baseFeeRateNumber)));
+      const baseFeeRateNumber =
+        await TransactionBuilder.mempool.getMinFeeRate();
+      const minFeeFromSize = BigInt(
+        Math.ceil(txSize * Number(baseFeeRateNumber)),
+      );
       const absoluteMinFee = BigInt(BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE);
       return minFeeFromSize < absoluteMinFee ? absoluteMinFee : minFeeFromSize;
     } catch (error) {
@@ -1807,9 +1832,14 @@ export class TransactionBuilder {
    */
   private async getDynamicMaxFee(txSize: number): Promise<bigint> {
     try {
-      const baseMaxFeeNumber = await TransactionBuilder.mempool.getBaseFeeRate();
-      const dynamicMaxFee = BigInt(Math.floor(txSize * Number(baseMaxFeeNumber)));
-      const maxFeeRate = BigInt(await TransactionBuilder.mempool.getMaxFeeRate());
+      const baseMaxFeeNumber =
+        await TransactionBuilder.mempool.getBaseFeeRate();
+      const dynamicMaxFee = BigInt(
+        Math.floor(txSize * Number(baseMaxFeeNumber)),
+      );
+      const maxFeeRate = BigInt(
+        await TransactionBuilder.mempool.getMaxFeeRate(),
+      );
       return dynamicMaxFee > maxFeeRate ? maxFeeRate : dynamicMaxFee;
     } catch (error) {
       Logger.warn('Failed to get dynamic max fee, using fallback:', error);
@@ -1825,24 +1855,28 @@ export class TransactionBuilder {
     try {
       // Calculate size of inputs
       const inputSize = tx.inputs.reduce((sum, input) => {
-        return sum + 
+        return (
+          sum +
           Buffer.from(input.txId).length +
           4 + // outputIndex (uint32)
           Buffer.from(input.signature).length +
           Buffer.from(input.publicKey).length +
-          Buffer.from(input.script).length;
+          Buffer.from(input.script).length
+        );
       }, 0);
 
       // Calculate size of outputs
       const outputSize = tx.outputs.reduce((sum, output) => {
-        return sum + 
+        return (
+          sum +
           Buffer.from(output.address).length +
           8 + // amount (uint64)
-          Buffer.from(output.script).length;
+          Buffer.from(output.script).length
+        );
       }, 0);
 
       // Base transaction size
-      const baseSize = 
+      const baseSize =
         4 + // version
         4 + // timestamp
         8 + // fee

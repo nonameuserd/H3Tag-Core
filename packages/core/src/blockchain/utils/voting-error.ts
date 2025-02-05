@@ -21,7 +21,8 @@ export type VotingErrorCode =
   | 'INVALID_PERIOD'
   | 'INVALID_VOTER'
   | 'COMMIT_FAILED'
-  | 'ROLLBACK_FAILED';
+  | 'ROLLBACK_FAILED'
+  | 'INVALID_VOTE_AMOUNT';
 
 export class VotingError extends Error {
   constructor(

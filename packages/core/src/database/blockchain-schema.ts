@@ -336,7 +336,9 @@ export class BlockchainSchema {
     return await this.mutex.runExclusive(async () => {
       const batch = this.db.batch();
       try {
-        const existingVoteData = await this.db.get(`vote:${periodId}:${vote.voter}`).catch(() => null);
+        const existingVoteData = await this.db
+          .get(`vote:${periodId}:${vote.voter}`)
+          .catch(() => null);
         if (existingVoteData) {
           throw new Error('Voter has already voted in this period');
         }
@@ -346,20 +348,26 @@ export class BlockchainSchema {
         }
 
         const voteId = `${periodId}:${vote.voter}`;
-        batch.put(`vote:${voteId}`, JSON.stringify({
-          ...vote,
-          timestamp: Date.now(),
-          version: '1.0',
-        }));
+        batch.put(
+          `vote:${voteId}`,
+          JSON.stringify({
+            ...vote,
+            timestamp: Date.now(),
+            version: '1.0',
+          }),
+        );
         // Process reward logic after fetching and validating period data
         const periodData = await this.db.get(`voting_period:${periodId}`);
         const period = JSON.parse(periodData);
         const reward = period.status === 'active' ? 100 : 50;
-        batch.put(`vote_incentive:${voteId}`, JSON.stringify({
-          reward,
-          timestamp: Date.now(),
-          processed: false,
-        }));
+        batch.put(
+          `vote_incentive:${voteId}`,
+          JSON.stringify({
+            reward,
+            timestamp: Date.now(),
+            processed: false,
+          }),
+        );
 
         await batch.write();
         return true;
@@ -553,7 +561,7 @@ export class BlockchainSchema {
   /**
    * Determine if a key should be deleted
    * @param key Key to check
-   * @param value Value of the key 
+   * @param value Value of the key
    * @param context Context object
    * @returns Promise<boolean> True if the key should be deleted
    */
@@ -741,8 +749,8 @@ export class BlockchainSchema {
    * @returns Promise<QueryResponse> Query results with metadata
    */
   async query(
-    sql: string, 
-    params: Array<string | number> = []
+    sql: string,
+    params: Array<string | number> = [],
   ): Promise<QueryResponse> {
     try {
       const results: QueryResult[] = [];
@@ -752,7 +760,7 @@ export class BlockchainSchema {
       for await (const [key, value] of this.db.iterator()) {
         try {
           const data = JSON.parse(value) as QueryResult;
-          
+
           // Simple filtering based on the first parameter
           if (params[0] && key.includes(String(params[0]))) {
             results.push(data);
@@ -766,7 +774,7 @@ export class BlockchainSchema {
       return {
         rows: results,
         count: results.length,
-        timestamp: startTime
+        timestamp: startTime,
       };
     } catch (error) {
       Logger.error('Database query failed:', error);
@@ -1418,7 +1426,10 @@ export class BlockchainSchema {
       }
       return blocks;
     } catch (error: unknown) {
-      Logger.error('Failed to get blocks from height:', error instanceof Error ? error.message : 'Unknown error');
+      Logger.error(
+        'Failed to get blocks from height:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return [];
     }
   }
@@ -1560,7 +1571,9 @@ export class BlockchainSchema {
       const cacheKey = `validator_uptime:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1598,7 +1611,9 @@ export class BlockchainSchema {
       const cacheKey = `vote_participation:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1635,7 +1650,9 @@ export class BlockchainSchema {
       const cacheKey = `block_production:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1663,7 +1680,8 @@ export class BlockchainSchema {
         }
       }
 
-      const production = expectedBlocks > 0 ? producedBlocks / expectedBlocks : 0;
+      const production =
+        expectedBlocks > 0 ? producedBlocks / expectedBlocks : 0;
       this.validatorMetricsCache.set(cacheKey, production, { ttl: 300000 });
       return production;
     } catch (error) {
@@ -1684,7 +1702,9 @@ export class BlockchainSchema {
       const cacheKey = `slashing_history:${address}`;
       const cached = this.slashingHistoryCache.get(cacheKey);
       if (cached !== undefined) {
-        this.slashingHistoryCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.slashingHistoryCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1772,7 +1792,7 @@ export class BlockchainSchema {
   private async getTokenHolderVotes(address: string): Promise<number> {
     // Get direct votes from token holders
     const validatorVotes = await this.getVotesForValidator(address);
-    const totalVotes = await this.votingDb?.getTotalVotes() || 0;
+    const totalVotes = (await this.votingDb?.getTotalVotes()) || 0;
     return validatorVotes / totalVotes;
   }
 
@@ -1800,7 +1820,9 @@ export class BlockchainSchema {
       const cacheKey = `validator_hashpower:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1839,7 +1861,9 @@ export class BlockchainSchema {
       const cacheKey = 'network_hashpower';
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1880,7 +1904,9 @@ export class BlockchainSchema {
       const cacheKey = `block_success:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1922,7 +1948,9 @@ export class BlockchainSchema {
       const cacheKey = `response_time:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -1972,7 +2000,9 @@ export class BlockchainSchema {
       const cacheKey = `validator_votes:${address}`;
       const cached = this.validatorMetricsCache.get(cacheKey);
       if (cached !== undefined) {
-        this.validatorMetricsCache.set(cacheKey, cached, { ttl: this.CACHE_TTL });
+        this.validatorMetricsCache.set(cacheKey, cached, {
+          ttl: this.CACHE_TTL,
+        });
         return cached;
       }
 
@@ -2371,7 +2401,10 @@ export class BlockchainSchema {
       }
       this.transaction = null;
     } catch (error: unknown) {
-      Logger.error('Failed to commit transaction:', error instanceof Error ? error.message : 'Unknown error');
+      Logger.error(
+        'Failed to commit transaction:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       await this.rollback();
       throw error;
     }
@@ -2473,7 +2506,10 @@ export class BlockchainSchema {
       if (this.metricsCollector) {
         this.metricsCollector.increment('shard_sync_failure');
       }
-      Logger.error(`Failed to sync shard ${shardId}:`, error instanceof Error ? error.message : 'Unknown error');
+      Logger.error(
+        `Failed to sync shard ${shardId}:`,
+        error instanceof Error ? error.message : 'Unknown error',
+      );
 
       if (this.auditManager) {
         this.auditManager.log(AuditEventType.SHARD_SYNC_FAILED, {
@@ -2839,7 +2875,7 @@ export class BlockchainSchema {
       const block = await this.db.get(`block:${hash}`);
       return block ? JSON.parse(block) : null;
     } catch (error: unknown) {
-        if (error instanceof Error && 'notFound' in error) return null;
+      if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to get block by hash:', error);
       throw error;
     }
@@ -3031,7 +3067,10 @@ export class BlockchainSchema {
       }
       return headers;
     } catch (error: unknown) {
-      Logger.error('Failed to get headers:', error instanceof Error ? error.message : 'Unknown error');
+      Logger.error(
+        'Failed to get headers:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return [];
     }
   }
@@ -3048,7 +3087,10 @@ export class BlockchainSchema {
       }
       return blocks;
     } catch (error: unknown) {
-      Logger.error('Failed to get blocks:', error instanceof Error ? error.message : 'Unknown error');
+      Logger.error(
+        'Failed to get blocks:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       return [];
     }
   }

@@ -97,7 +97,7 @@ export class MiningMetrics {
       // For any metric update that will be averaged later, push the current timestamp.
       // Here we assume that if any metric is updated it should use the same timestamp.
       // If individual timestamps are needed, consider separate arrays.
-      
+
       // Update hashRate if provided
       if (data.hashRate !== undefined && !isNaN(data.hashRate)) {
         this.metrics.hashRate.push(data.hashRate);
@@ -157,14 +157,21 @@ export class MiningMetrics {
         (key) => {
           if (key in this.metrics) {
             (this.metrics[
-              key as 'hashRate' | 'difficulty' | 'blockTimes' | 'tagVolume' | 'tagFees'
-            ] as number[]) = this.metrics[key as
-              | 'hashRate'
-              | 'difficulty'
-              | 'blockTimes'
-              | 'tagVolume'
-              | 'tagFees'
-            ].slice(startIdx);
+              key as
+                | 'hashRate'
+                | 'difficulty'
+                | 'blockTimes'
+                | 'tagVolume'
+                | 'tagFees'
+            ] as number[]) =
+              this.metrics[
+                key as
+                  | 'hashRate'
+                  | 'difficulty'
+                  | 'blockTimes'
+                  | 'tagVolume'
+                  | 'tagFees'
+              ].slice(startIdx);
           }
         },
       );

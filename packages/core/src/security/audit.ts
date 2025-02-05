@@ -154,6 +154,7 @@ export class AuditManager {
     eventsRemoved: 0,
   };
   private readonly auditorsConsensus: AuditorsConsensus;
+  private isSyncing = false;
 
   private static readonly DEFAULT_CONFIG: AuditConfig = {
     retentionPeriod: 90,
@@ -337,33 +338,44 @@ export class AuditManager {
 
   private async syncEvents(): Promise<void> {
     if (this.events.size === 0) return;
-
+    if (this.isSyncing) return; // Prevent concurrent sync attempts
+    this.isSyncing = true;
     const batch = Array.from(this.events.values()).slice(
       0,
       AuditManager.BATCH_SIZE,
     );
     let retryCount = 0;
+    try {
+      while (retryCount < AuditManager.MAX_RETRY_ATTEMPTS) {
+        try {
+          const compressed = await this.compressEvents(batch);
+          await this.storage.writeAuditLog(
+            `audit_${Date.now()}.log`,
+            compressed,
+          );
 
-    while (retryCount < AuditManager.MAX_RETRY_ATTEMPTS) {
-      try {
-        const compressed = await this.compressEvents(batch);
-        await this.storage.writeAuditLog(`audit_${Date.now()}.log`, compressed);
-
-        batch.forEach((event) => this.events.delete(event.id));
-        this.metrics.lastSync = Date.now();
-        this.eventEmitter.emit('sync_complete', batch.length);
-        return;
-      } catch (error) {
-        retryCount++;
-        if (retryCount === AuditManager.MAX_RETRY_ATTEMPTS) {
-          Logger.error('Max retry attempts reached for sync:', error);
-          this.eventEmitter.emit('sync_failed', error);
-          throw error;
+          // Remove events from both events map and eventCache after successful sync
+          batch.forEach((event) => {
+            this.events.delete(event.id);
+            this.eventCache.delete(event.id);
+          });
+          this.metrics.lastSync = Date.now();
+          this.eventEmitter.emit('sync_complete', batch.length);
+          return;
+        } catch (error) {
+          retryCount++;
+          if (retryCount === AuditManager.MAX_RETRY_ATTEMPTS) {
+            Logger.error('Max retry attempts reached for sync:', error);
+            this.eventEmitter.emit('sync_failed', error);
+            throw error;
+          }
+          await new Promise((resolve) =>
+            setTimeout(resolve, AuditManager.RETRY_DELAY),
+          );
         }
-        await new Promise((resolve) =>
-          setTimeout(resolve, AuditManager.RETRY_DELAY),
-        );
       }
+    } finally {
+      this.isSyncing = false;
     }
   }
 
@@ -472,8 +484,10 @@ export class AuditManager {
       ...data,
     };
 
+    // Generate a unique id for the log file to avoid collisions if multiple logs occur in the same millisecond
+    const uniqueId = await this.generateEventId();
     await this.storage.writeAuditLog(
-      `${eventType}_${Date.now()}.log`,
+      `${eventType}_${Date.now()}_${uniqueId}.log`,
       JSON.stringify(auditLog),
     );
   }
@@ -500,14 +514,15 @@ export class AuditManager {
 
   public async cleanup(): Promise<void> {
     const now = Date.now();
+    const retentionPeriodMs = this.config.retentionPeriod * 24 * 60 * 60 * 1000;
     const oldEvents = Array.from(this.events.values()).filter(
-      (event) => now - event.timestamp > AuditManager.MAX_EVENT_AGE,
+      (event) => now - event.timestamp > retentionPeriodMs,
     );
 
     for (const event of oldEvents) {
       this.events.delete(event.id);
+      this.eventCache.delete(event.id);
     }
-
     this.metrics.eventsRemoved += oldEvents.length;
     this.eventEmitter.emit('cleanup_complete', oldEvents.length);
   }

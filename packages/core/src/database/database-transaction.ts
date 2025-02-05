@@ -183,7 +183,9 @@ export class DatabaseTransaction {
     try {
       await this.batchWrite(this.batch);
       this.committed = true;
-      Logger.debug(`Transaction committed with ${this.operations.length} operations`);
+      Logger.debug(
+        `Transaction committed with ${this.operations.length} operations`,
+      );
     } catch (error: unknown) {
       Logger.error('Transaction commit failed:', error);
       await this.rollback();
@@ -198,7 +200,9 @@ export class DatabaseTransaction {
     if (this.committed || this.rolledBack) return;
 
     try {
-      const uniqueKeys = Array.from(new Set(this.operations.map(op => op.key)));
+      const uniqueKeys = Array.from(
+        new Set(this.operations.map((op) => op.key)),
+      );
       const keyStates = await Promise.all(
         uniqueKeys.map(async (key) => {
           try {
@@ -210,7 +214,7 @@ export class DatabaseTransaction {
             }
             throw err;
           }
-        })
+        }),
       );
 
       const reverseBatch = this.db.db.batch();
@@ -224,7 +228,9 @@ export class DatabaseTransaction {
 
       await this.batchWrite(reverseBatch);
       this.rolledBack = true;
-      Logger.debug(`Transaction rolled back ${this.operations.length} operations`);
+      Logger.debug(
+        `Transaction rolled back ${this.operations.length} operations`,
+      );
     } catch (error) {
       Logger.error('Transaction rollback failed:', error);
       throw new Error(

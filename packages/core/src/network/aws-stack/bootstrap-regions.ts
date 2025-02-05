@@ -56,9 +56,7 @@ regions.forEach((region: string) => {
 
 const failedCount = regions.length - successCount;
 console.log('[Bootstrap] Bootstrap process completed.');
-console.log(
-  `[Bootstrap] Successfully bootstrapped: ${successCount} regions`,
-);
+console.log(`[Bootstrap] Successfully bootstrapped: ${successCount} regions`);
 if (failedCount > 0) {
   console.log(`[Bootstrap] Failed to bootstrap: ${failedCount} regions`);
   process.exit(1);
