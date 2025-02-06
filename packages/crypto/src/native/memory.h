@@ -49,6 +49,13 @@ namespace quantum
             {
                 throw MemoryError("Zero-sized buffer requested");
             }
+
+            // Check for multiplication overflow: size_ * sizeof(T)
+            if (size_ > std::numeric_limits<size_t>::max() / sizeof(T))
+            {
+                throw MemoryError("Requested buffer size is too large");
+            }
+
             data_ = static_cast<T *>(OPENSSL_secure_malloc(size_ * sizeof(T)));
             if (!data_)
             {
@@ -114,7 +121,10 @@ namespace quantum
         // Secure zeroing
         void clear()
         {
-            secureZero(data_, size_ * sizeof(T));
+            if (data_ && size_ > 0)
+            {
+                secureZero(data_, size_ * sizeof(T));
+            }
         }
 
     private:
@@ -146,15 +156,50 @@ namespace quantum
         // Convert buffer to Base64 string
         std::string toBase64() const
         {
-            BIO *bio, *b64;
-            BUF_MEM *bufferPtr;
-            b64 = BIO_new(BIO_f_base64());
-            bio = BIO_new(BIO_s_mem());
-            bio = BIO_push(b64, bio);
+            BIO *b64 = BIO_new(BIO_f_base64());
+            if (!b64)
+            {
+                throw MemoryError("Failed to create base64 BIO");
+            }
+
+            BIO *mem = BIO_new(BIO_s_mem());
+            if (!mem)
+            {
+                BIO_free(b64);
+                throw MemoryError("Failed to create memory BIO");
+            }
+
+            // Push the memory BIO to the base64 filter
+            BIO *bio = BIO_push(b64, mem);
+            if (!bio)
+            {
+                BIO_free_all(b64);
+                throw MemoryError("BIO_push failed");
+            }
             BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
-            BIO_write(bio, data(), size());
-            BIO_flush(bio);
+
+            // Ensure that all bytes get written
+            if (BIO_write(bio, data(), size()) <= 0)
+            {
+                BIO_free_all(bio);
+                throw MemoryError("BIO_write failed");
+            }
+
+            // Flush the BIO chain
+            if (BIO_flush(bio) != 1)
+            {
+                BIO_free_all(bio);
+                throw MemoryError("BIO_flush failed");
+            }
+
+            BUF_MEM *bufferPtr = nullptr;
             BIO_get_mem_ptr(bio, &bufferPtr);
+            if (!bufferPtr || !bufferPtr->data)
+            {
+                BIO_free_all(bio);
+                throw MemoryError("BIO_get_mem_ptr failed");
+            }
+
             std::string base64_str(bufferPtr->data, bufferPtr->length);
             BIO_free_all(bio);
             return base64_str;
@@ -163,19 +208,37 @@ namespace quantum
         // Create Buffer from Base64 string
         static Buffer fromBase64(const std::string &base64)
         {
-            BIO *bio, *b64;
             int decodeLen = base64.length();
             std::vector<uint8_t> buffer(decodeLen);
-            b64 = BIO_new(BIO_f_base64());
-            bio = BIO_new_mem_buf(base64.data(), decodeLen);
-            bio = BIO_push(b64, bio);
-            BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL);
-            int length = BIO_read(bio, buffer.data(), decodeLen);
-            BIO_free_all(bio);
+
+            BIO *b64 = BIO_new(BIO_f_base64());
+            if (!b64)
+            {
+                throw MemoryError("Failed to create base64 BIO");
+            }
+
+            BIO *bio = BIO_new_mem_buf(base64.data(), decodeLen);
+            if (!bio)
+            {
+                BIO_free(b64);
+                throw MemoryError("Failed to create memory BIO");
+            }
+
+            BIO *chain = BIO_push(b64, bio);
+            if (!chain)
+            {
+                BIO_free_all(b64);
+                throw MemoryError("BIO_push failed");
+            }
+            BIO_set_flags(chain, BIO_FLAGS_BASE64_NO_NL);
+
+            int length = BIO_read(chain, buffer.data(), decodeLen);
             if (length < 0)
             {
+                BIO_free_all(chain);
                 throw MemoryError("Base64 decoding failed");
             }
+            BIO_free_all(chain);
             return Buffer(buffer.data(), length);
         }
 

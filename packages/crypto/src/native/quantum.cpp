@@ -8,6 +8,9 @@
 #include "entropy_pool.h"
 #include <oqs/oqs.h>
 
+// Option (a): Define the default security parameters.
+const quantum::SecurityParams quantum::SecurityParams::DEFAULT = {256, 256, true};
+
 namespace quantum
 {
 
@@ -19,10 +22,13 @@ namespace quantum
         std::unique_ptr<OQS_KEM, decltype(&OQS_KEM_free)> kyber;
         SecurityMonitor monitor;
         EntropyPool entropy;
+        // Store security parameters
+        SecurityParams securityParams;
 
-        Implementation()
+        Implementation(const SecurityParams &params)
             : dilithium(OQS_SIG_new(OQS_SIG_alg_dilithium_5), OQS_SIG_free),
-              kyber(OQS_KEM_new(OQS_KEM_alg_kyber_1024), OQS_KEM_free)
+              kyber(OQS_KEM_new(OQS_KEM_alg_kyber_1024), OQS_KEM_free),
+              securityParams(params)
         {
             if (!dilithium || !kyber)
             {
@@ -30,15 +36,7 @@ namespace quantum
             }
         }
 
-        ~Implementation()
-        {
-            // unique_ptr automatically frees resources
-            /*
-            This is empty because std::unique_ptr handles the
-            deallocation of its managed objects automatically.
-            This ensures that all resources are properly freed without manual intervention.
-            */
-        }
+        ~Implementation() = default;
     };
 
     // Destructor implementation for QuantumCrypto
@@ -47,13 +45,15 @@ namespace quantum
     // Singleton access
     QuantumCrypto &QuantumCrypto::getInstance(const SecurityParams &params)
     {
-        static QuantumCrypto instance;
+        // Note: In this singleton design, the first call "wins". Subsequent calls with
+        // different parameters will be ignored.
+        static QuantumCrypto instance(params);
         return instance;
     }
 
     // Private constructor
-    QuantumCrypto::QuantumCrypto()
-        : pImpl(std::make_unique<Implementation>())
+    QuantumCrypto::QuantumCrypto(const SecurityParams &params)
+        : pImpl(std::make_unique<Implementation>(params))
     {
         initializeSecurityMonitor();
     }
@@ -70,9 +70,6 @@ namespace quantum
 
             SecureBuffer<uint8_t> publicKey(pImpl->dilithium->length_public_key);
             SecureBuffer<uint8_t> privateKey(pImpl->dilithium->length_secret_key);
-            SecureBuffer<uint8_t> entropyBytes(32);
-            std::vector<uint8_t> temp = pImpl->entropy.getBytes(32);
-            std::memcpy(entropyBytes.data(), temp.data(), 32);
 
             int status = OQS_SIG_keypair(
                 pImpl->dilithium.get(),

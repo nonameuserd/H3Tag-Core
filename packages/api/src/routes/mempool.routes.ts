@@ -72,7 +72,8 @@ const controller = new MempoolController(service);
  *         description: Server error
  */
 router.get('/info', (req, res, next) => {
-  controller.getMempoolInfo()
+  controller
+    .getMempoolInfo()
     .then((result) => res.json(result))
     .catch(next);
 });
@@ -107,7 +108,13 @@ router.get('/info', (req, res, next) => {
  *         description: Server error
  */
 router.get('/raw', (req, res, next) => {
-  controller.getRawMempool()
+  const queryVerbose = req.query.verbose;
+  const verbose =
+    typeof queryVerbose === 'string'
+      ? queryVerbose.toLowerCase() === 'true'
+      : Boolean(queryVerbose);
+  controller
+    .getRawMempool(verbose)
     .then((result) => res.json(result))
     .catch(next);
 });
@@ -138,7 +145,8 @@ router.get('/raw', (req, res, next) => {
  *         description: Server error
  */
 router.get('/entry/:txid', (req, res, next) => {
-  controller.getMempoolEntry(req.params.txid)
+  controller
+    .getMempoolEntry(req.params.txid)
     .then((result) => res.json(result))
     .catch(next);
 });

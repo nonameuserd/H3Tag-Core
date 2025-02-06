@@ -88,7 +88,7 @@ export class HashUtils {
     try {
       // Serialize input data
       const content = JSON.stringify(data);
-      const contentBuffer = Buffer.from(new TextEncoder().encode(content));
+      const contentBuffer = Buffer.from(content, 'utf8');
 
       // Generate classical hash
       const classicHash = createHash('sha256').update(content).digest('hex');
@@ -99,8 +99,15 @@ export class HashUtils {
         Kyber.hash(contentBuffer),
       ]);
 
-      // Combine all hashes using SHA3
-      return this.sha3(classicHash + dilithiumHash + kyberHash);
+      // Combine all hashes using a structured approach
+      const combined = JSON.stringify({
+        classic: classicHash,
+        dilithium: dilithiumHash,
+        kyber: kyberHash,
+      });
+
+      // Return SHA3 hash of the structured combined value
+      return this.sha3(combined);
     } catch (error) {
       throw new Error(
         `Hybrid hash calculation failed: ${
@@ -144,25 +151,34 @@ export class HashUtils {
   /**
    * Generate hybrid hash
    */
-  public static hybridHash(data: string): string {
+  public static async hybridHash(data: string): Promise<string> {
     try {
       const dataBuffer = Buffer.from(data);
-      const hash =
-        this.doubleSha256(dataBuffer.toString('hex')) +
-        Dilithium.hash(dataBuffer) +
-        Kyber.hash(dataBuffer);
-      return this.ripemd160(hash);
+      const [dilithiumHash, kyberHash] = await Promise.all([
+        Dilithium.hash(dataBuffer),
+        Kyber.hash(dataBuffer),
+      ]);
+
+      // Combine hash components using a structured object to avoid ambiguity
+      const combined = JSON.stringify({
+        classical: this.doubleSha256(dataBuffer.toString('hex')),
+        dilithium: dilithiumHash,
+        kyber: kyberHash,
+      });
+
+      // Return RIPEMD160 hash of the structured combined value
+      return this.ripemd160(combined);
     } catch (error) {
       throw new Error(
         `Hybrid hash calculation failed: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`,
+        }`
       );
     }
   }
 
   /**
-   * Encode Buffer to Base58
+   * Encodes the given Buffer into a Base58 string.
    */
   public static toBase58(data: Buffer): string {
     try {
@@ -171,22 +187,22 @@ export class HashUtils {
       throw new Error(
         `Base58 encoding failed: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`,
+        }`
       );
     }
   }
 
   /**
-   * Decode from Base58
+   * Decodes a Base58 string back into a Buffer.
    */
-  public static fromBase58(str: string): Buffer {
+  public static fromBase58(data: string): Buffer {
     try {
-      return Buffer.from(bs58.decode(str));
-    } catch (error: unknown) {
+      return Buffer.from(bs58.decode(data));
+    } catch (error) {
       throw new Error(
         `Base58 decoding failed: ${
           error instanceof Error ? error.message : 'Unknown error'
-        }`,
+        }`
       );
     }
   }

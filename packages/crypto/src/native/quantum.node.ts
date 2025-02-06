@@ -132,8 +132,8 @@ class QuantumNative {
     const start = performance.now();
 
     try {
-      // Validate entropy if provided
-      if (entropy && !(entropy instanceof Buffer)) {
+      // Validate entropy using Buffer.isBuffer for reliability
+      if (entropy && !Buffer.isBuffer(entropy)) {
         throw new QuantumError('Entropy must be a Buffer');
       }
 
@@ -179,18 +179,18 @@ class QuantumNative {
       if (!result?.publicKey || !result?.privateKey) {
         throw new QuantumError('Invalid Kyber key pair generated');
       }
-
       Logger.debug(
         `Kyber key pair generated in ${performance.now() - start}ms`,
       );
       return result;
     } catch (error) {
       Logger.error('Failed to generate Kyber key pair:', error);
+      this.clearHealthChecks();
       throw new QuantumError(
         error instanceof Error ? error.message : 'Kyber key generation failed',
       );
     }
-  }
+  } 
 
   public async dilithiumSign(
     message: Buffer,

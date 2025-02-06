@@ -10,7 +10,7 @@ class EntropyPool
 {
 public:
     EntropyPool();
-    ~EntropyPool() = default;
+    ~EntropyPool();
 
     std::vector<uint8_t> getBytes(size_t length);
     bool hasGoodQuality() const;

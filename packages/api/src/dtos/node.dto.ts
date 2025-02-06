@@ -1,43 +1,64 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsString, IsNumber } from 'class-validator';
+
+export enum NetworkType {
+  MAINNET = 'MAINNET',
+  TESTNET = 'TESTNET',
+}
+
+export enum NodeType {
+  FULL = 'full',
+  LIGHT = 'light',
+  ARCHIVE = 'archive',
+}
 
 export class CreateNodeDto {
   @ApiProperty({
-    enum: ['MAINNET', 'TESTNET'],
+    enum: NetworkType,
     description: 'Network type for the node',
   })
-  networkType: 'MAINNET' | 'TESTNET' | undefined;
+  @IsEnum(NetworkType)
+  networkType: NetworkType = NetworkType.MAINNET;
 
   @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   region?: string;
 
   @ApiProperty({
-    enum: ['full', 'light', 'archive'],
+    enum: NodeType,
     required: false,
   })
-  nodeType?: 'full' | 'light' | 'archive';
+  @IsOptional()
+  @IsEnum(NodeType)
+  nodeType?: NodeType;
 
   @ApiProperty({ required: false, default: 3000 })
+  @IsOptional()
+  @IsNumber()
   port?: number;
 
   @ApiProperty({ required: false, default: 'localhost' })
+  @IsOptional()
+  @IsString()
   host?: string;
 }
 
 export class NodeResponseDto {
   @ApiProperty()
-  nodeId: string | undefined;
+  nodeId: string = '';
 
   @ApiProperty({ enum: ['running', 'stopped'] })
-  status: 'running' | 'stopped' | undefined;
+  status: 'running' | 'stopped' = 'running';
 
   @ApiProperty()
-  endpoint: string | undefined;
+  endpoint: string = '';
 
   @ApiProperty()
-  networkType: string | undefined;
+  networkType: string = '';
 
   @ApiProperty()
-  peerCount: number | undefined;
+  peerCount: number = 0;
 
   @ApiProperty({ required: false })
   region?: string;
@@ -45,19 +66,19 @@ export class NodeResponseDto {
 
 export class NodeStatusDto {
   @ApiProperty()
-  nodeId: string | undefined;
+  nodeId: string = '';
 
   @ApiProperty({ enum: ['running', 'stopped'] })
-  status: 'running' | 'stopped' | undefined;
+  status: 'running' | 'stopped' = 'running';
 
   @ApiProperty()
-  peerCount: number | undefined;
+  peerCount: number = 0;
 
   @ApiProperty({ type: [String] })
-  bannedPeers: string[] | undefined;
+  bannedPeers: string[] = [];
 
   @ApiProperty()
-  address: string | undefined;
+  address: string = '';
 }
 
 export class PeerDiscoveryResponseDto {
@@ -65,13 +86,13 @@ export class PeerDiscoveryResponseDto {
     description: 'Number of new peers discovered',
     example: 5,
   })
-  discoveredPeers: number | undefined;
+  discoveredPeers: number = 0;
 
   @ApiProperty({
     description: 'Total number of connected peers',
     example: 12,
   })
-  totalPeers: number | undefined;
+  totalPeers: number = 0;
 
   @ApiProperty({
     description: 'Current peer count vs minimum required peers',
@@ -80,12 +101,13 @@ export class PeerDiscoveryResponseDto {
       minimum: 8,
     },
   })
-  peerMetrics:
-    | {
-        current: number | undefined;
-        minimum: number | undefined;
-      }
-    | undefined;
+  peerMetrics: {
+    current: number;
+    minimum: number;
+  } = {
+    current: 0,
+    minimum: 0,
+  };
 }
 
 export class ConnectPeerDto {
@@ -93,7 +115,8 @@ export class ConnectPeerDto {
     description: 'Peer address to connect to',
     example: '127.0.0.1:8333',
   })
-  address: string | undefined;
+  @IsString()
+  address: string = '';
 }
 
 export class PeerConnectionResponseDto {
@@ -101,29 +124,29 @@ export class PeerConnectionResponseDto {
     description: 'Connection status',
     example: 'connected',
   })
-  status: string | undefined;
+  status: string = '';
 
   @ApiProperty({
     description: 'Connected peer address',
     example: '127.0.0.1:8333',
   })
-  address: string | undefined;
+  address: string = '';
 
   @ApiProperty({
     description: 'Peer version',
     example: '1.0.0',
   })
-  version: string | undefined;
+  version: string = '';
 
   @ApiProperty({
     description: 'Peer height',
     example: 780000,
   })
-  height: number | undefined;
+  height: number = 0;
 
   @ApiProperty({
     description: 'Connection timestamp',
     example: '2024-03-21T15:30:00Z',
   })
-  connectedAt: string | undefined;
+  connectedAt: string = '';
 }

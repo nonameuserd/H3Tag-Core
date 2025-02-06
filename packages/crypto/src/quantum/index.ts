@@ -16,18 +16,21 @@ export class QuantumCrypto {
   public static readonly nativeQuantum = nativeQuantum;
   public static healthCheckInterval: NodeJS.Timeout;
 
+  // New guard variable to avoid overlapping health checks
+  private static isHealthCheckRunning = false;
+
   static async initialize(): Promise<void> {
     try {
       if (this.isModuleInitialized) return;
 
-      this.isModuleInitialized = true;
+      // Schedule health checks and only then mark as initialized.
       this.initializeHealthChecks();
+      this.isModuleInitialized = true;
+
       Logger.info('Quantum cryptography module initialized');
     } catch (error) {
       Logger.error('Failed to initialize quantum module:', error);
-      throw new QuantumError(
-        'Quantum cryptography module initialization failed',
-      );
+      throw new QuantumError('Quantum cryptography module initialization failed');
     }
   }
 
@@ -44,36 +47,34 @@ export class QuantumCrypto {
     );
   }
 
-  public static async performHealthCheck(): Promise<void> {
+  static async performHealthCheck(): Promise<void> {
+    if (this.isHealthCheckRunning) {
+      Logger.warn('Skipping health check: previous health check still in progress.');
+      return;
+    }
+    this.isHealthCheckRunning = true;
     try {
       const start = performance.now();
 
       // Test key generation
       const testKeyPair = await this.generateKeyPair();
       const testMessage = Buffer.from('health_check');
-      const testSignature = await this.sign(
-        testMessage,
-        testKeyPair.privateKey,
-      );
-      const verifyResult = await this.verify(
-        testMessage,
-        testSignature,
-        testKeyPair.publicKey,
-      );
+      const testSignature = await this.sign(testMessage, testKeyPair.privateKey);
+      const verifyResult = await this.verify(testMessage, testSignature, testKeyPair.publicKey);
 
       const duration = performance.now() - start;
       Logger.debug(`Quantum health check completed in ${duration}ms`);
 
       if (!verifyResult) {
-        Logger.error(
-          'Quantum health check failed: signature verification failed',
-        );
+        Logger.error('Quantum health check failed: signature verification failed');
         throw new QuantumError('Health check failed');
       }
 
       Logger.info('Quantum health check passed');
     } catch (error) {
       Logger.error('Quantum health check failed:', error);
+    } finally {
+      this.isHealthCheckRunning = false;
     }
   }
 
@@ -83,6 +84,9 @@ export class QuantumCrypto {
     }
     this.isModuleInitialized = false;
     Logger.info('Quantum cryptography module shut down');
+
+    // Optionally, if nativeQuantum exposes a shutdown or cleanup method, call it here.
+    // await this.nativeQuantum.shutdown();
   }
 
   static isInitialized(): boolean {
@@ -92,12 +96,10 @@ export class QuantumCrypto {
   static async generateKeyPair(entropy?: Buffer): Promise<QuantumKeyPair> {
     try {
       this.checkInitialization();
-      const keyPair =
-        await this.nativeQuantum.generateDilithiumKeyPair(entropy);
+      const keyPair = await this.nativeQuantum.generateDilithiumKeyPair(entropy);
       if (!keyPair?.publicKey || !keyPair?.privateKey) {
         throw new QuantumError('Invalid key pair generated');
       }
-
       return keyPair;
     } catch (error) {
       Logger.error('Failed to generate key pair:', error);
@@ -115,10 +117,7 @@ export class QuantumCrypto {
         throw new QuantumError('Invalid input parameters');
       }
 
-      const signature = await this.nativeQuantum.dilithiumSign(
-        message,
-        privateKey,
-      );
+      const signature = await this.nativeQuantum.dilithiumSign(message, privateKey);
 
       if (!Buffer.isBuffer(signature)) {
         throw new QuantumError('Invalid signature generated');
@@ -166,7 +165,7 @@ export class QuantumCrypto {
     try {
       this.checkInitialization();
       await this.nativeQuantum.setSecurityLevel(level);
-      Logger.info('Security level set to:', level);
+      Logger.info(`Security level set to: ${level}`);
     } catch (error) {
       Logger.error('Failed to set security level:', error);
       throw new QuantumError('Failed to set security level');
@@ -208,7 +207,7 @@ export class QuantumCrypto {
 
   public static async kyberHash(data: Buffer): Promise<Buffer> {
     try {
-      return await Kyber.hash(data);
+      return Buffer.from(await Kyber.hash(data), 'base64');
     } catch (error) {
       Logger.error('Kyber hashing failed:', error);
       throw new Error(
@@ -227,8 +226,13 @@ export class QuantumCrypto {
       // Check initialization
       this.checkInitialization();
 
-      // Generate hashes in parallel with timeout
-      const [dilithiumHash, kyberHash] = await Promise.all([
+      // Define a timeout (e.g., 5000ms) for the hashing process
+      const timeoutMs = 5000;
+      const timeoutPromise = new Promise<Buffer[]>((_resolve, reject) =>
+        setTimeout(() => reject(new QuantumError('Native hashing timed out')), timeoutMs)
+      );
+
+      const hashPromises = Promise.all([
         this.nativeQuantum.dilithiumHash(data).catch((error) => {
           throw new QuantumError(`Dilithium hash failed: ${error.message}`);
         }),
@@ -236,6 +240,8 @@ export class QuantumCrypto {
           throw new QuantumError(`Kyber hash failed: ${error.message}`);
         }),
       ]);
+
+      const [dilithiumHash, kyberHash] = await Promise.race([hashPromises, timeoutPromise]);
 
       // Validate hash outputs
       if (!Buffer.isBuffer(dilithiumHash) || !Buffer.isBuffer(kyberHash)) {

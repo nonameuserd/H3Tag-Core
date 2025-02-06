@@ -5,20 +5,22 @@ export class CreatePeerDto {
     description: 'Peer node address',
     example: 'localhost:3000',
   })
-  address: string | undefined;
+  address: string = '';
 
   @ApiProperty({
     description: 'Peer node public key',
     example: 'base64_encoded_public_key',
+    required: false,
   })
-  publicKey: string | undefined;
+  publicKey?: string;
 
   @ApiProperty({
     description: 'Network type of the peer',
     enum: ['MAINNET', 'TESTNET'],
     example: 'MAINNET',
+    required: false,
   })
-  networkType: string | undefined;
+  networkType?: string;
 }
 
 export class PeerResponseDto {

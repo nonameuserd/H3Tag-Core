@@ -26,16 +26,20 @@ export declare class KeyManager {
     /**
      * Serialize a key pair to string
      */
-    static serializeKeyPair(keyPair: HybridKeyPair): string;
+    static serializeKeyPair(keyPair: HybridKeyPair): Promise<string>;
     /**
      * Deserialize a key pair from string
      */
-    static deserializeKeyPair(serialized: string): HybridKeyPair;
+    static deserializeKeyPair(serialized: string): Promise<HybridKeyPair>;
     static generateKeyPair(entropy?: string): Promise<HybridKeyPair>;
     static rotateKeyPair(oldKeyPair: HybridKeyPair): Promise<HybridKeyPair>;
     static deriveAddress(publicKey: string | (() => Promise<string>)): Promise<string>;
     private static determineAddressType;
     private static getVersionByte;
+    /**
+     * Shuts down the key manager.
+     * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, use it.
+     */
     static shutdown(): Promise<void>;
     /**
      * Convert address to public key hash

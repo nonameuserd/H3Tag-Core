@@ -6,6 +6,27 @@ import routes from './routes';
 
 const app = express();
 
+// Apply global middleware (parsing, security headers, etc.)
+applyMiddleware(app);
+
+// Determine environment
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Adjust swagger API paths for production (compiled .js) vs. development (source .ts)
+const swaggerApis = isProduction
+  ? [
+      './dist/routes/*.js',
+      './dist/controllers/*.js',
+      './dist/dtos/*.js',
+      './dist/services/*.js',
+    ]
+  : [
+      './src/routes/*.ts',
+      './src/controllers/*.ts',
+      './src/dtos/*.ts',
+      './src/services/*.ts',
+    ];
+
 // Swagger configuration
 const swaggerOptions = {
   definition: {
@@ -49,37 +70,50 @@ const swaggerOptions = {
       },
     ],
   },
-  apis: [
-    './src/routes/*.ts',
-    './src/controllers/*.ts',
-    './src/dtos/*.ts',
-    './src/services/*.ts',
-  ],
+  apis: swaggerApis,
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Apply middleware
-applyMiddleware(app);
+// Only expose Swagger documentation if not in production,
+// or when explicitly enabled with the ENABLE_SWAGGER environment variable.
+if (!isProduction || process.env.ENABLE_SWAGGER === 'true') {
+  // Swagger UI setup
+  app.use(
+    '/api-docs',
+    swaggerUi.serve as unknown as express.RequestHandler,
+    swaggerUi.setup(swaggerSpec, {
+      explorer: true,
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: 'H3TAG Blockchain Node API Documentation',
+    }) as unknown as express.RequestHandler
+  );
 
-// Swagger UI setup
-app.use(
-  '/api-docs',
-  swaggerUi.serve as unknown as express.RequestHandler,
-  swaggerUi.setup(swaggerSpec, {
-    explorer: true,
-    customCss: '.swagger-ui .topbar { display: none }',
-    customSiteTitle: 'H3TAG Blockchain Node API Documentation',
-  }) as unknown as express.RequestHandler
-);
+  // API Documentation JSON endpoint
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpec);
+  });
+}
 
-// API Documentation JSON endpoint
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpec);
-});
-
-// Routes
+// API Routes
 app.use('/api/v1', routes);
+
+// Global error handling middleware (in case applyMiddleware doesn't catch everything)
+app.use(
+  (
+    err: any,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    console.error(err);
+    res.status(err.status || 500).json({
+      error: {
+        message: err.message || 'Internal Server Error',
+      },
+    });
+  }
+);
 
 export default app;

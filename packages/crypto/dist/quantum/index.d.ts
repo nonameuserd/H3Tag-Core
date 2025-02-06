@@ -28,6 +28,7 @@ export declare class QuantumCrypto {
         setSecurityLevel(level: SecurityLevel): Promise<void>;
     };
     static healthCheckInterval: NodeJS.Timeout;
+    private static isHealthCheckRunning;
     static initialize(): Promise<void>;
     static checkInitialization(): void;
     static initializeHealthChecks(): void;

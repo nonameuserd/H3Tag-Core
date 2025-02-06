@@ -20,6 +20,7 @@ import {
 } from '../dtos/mempool.dto';
 import { Logger } from '@h3tag-blockchain/shared';
 import { MempoolService } from '../services/mempool.service';
+
 @ApiTags('Mempool')
 @Controller('mempool')
 export class MempoolController {
@@ -36,13 +37,15 @@ export class MempoolController {
     try {
       return await this.mempoolService.getMempoolInfo();
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        Logger.error('Failed to get mempool info:', error);
-        throw new HttpException(
-          `Failed to get mempool info: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
+      const err =
+        error instanceof Error
+          ? error
+          : new Error('Unknown error occurred during getMempoolInfo');
+      Logger.error('Failed to get mempool info:', err);
+      throw new HttpException(
+        `Failed to get mempool info: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -55,18 +58,25 @@ export class MempoolController {
     type: RawMempoolEntryDto,
   })
   async getRawMempool(
-    @Query('verbose') verbose = false,
+    @Query('verbose') verbose: any = false,
   ): Promise<Record<string, RawMempoolEntryDto> | string[] | undefined> {
     try {
-      return await this.mempoolService.getRawMempool(verbose);
+      // Convert verbose to a boolean if necessary (handling string values)
+      const isVerbose =
+        typeof verbose === 'string'
+          ? verbose.toLowerCase() === 'true'
+          : Boolean(verbose);
+      return await this.mempoolService.getRawMempool(isVerbose);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        Logger.error('Failed to get raw mempool:', error);
-        throw new HttpException(
-          `Failed to get raw mempool: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
+      const err =
+        error instanceof Error
+          ? error
+          : new Error('Unknown error occurred during getRawMempool');
+      Logger.error('Failed to get raw mempool:', err);
+      throw new HttpException(
+        `Failed to get raw mempool: ${err.message}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -88,15 +98,17 @@ export class MempoolController {
     try {
       return await this.mempoolService.getMempoolEntry(txid);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        Logger.error('Failed to get mempool entry:', error);
-        throw new HttpException(
-          error.message,
-          error.message.includes('not found')
-            ? HttpStatus.NOT_FOUND
-            : HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
+      const err =
+        error instanceof Error
+          ? error
+          : new Error('Unknown error occurred during getMempoolEntry');
+      Logger.error('Failed to get mempool entry:', err);
+      throw new HttpException(
+        err.message,
+        err.message.includes('not found')
+          ? HttpStatus.NOT_FOUND
+          : HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 }

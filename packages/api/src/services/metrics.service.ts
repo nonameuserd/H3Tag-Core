@@ -17,12 +17,18 @@ export class MetricsService {
     this.metrics = MiningMetrics.getInstance();
   }
 
+  // Ensure the time window is valid; if not, default to 3600000ms (1 hour)
+  private sanitizeTimeWindow(timeWindow: number): number {
+    return Number.isFinite(timeWindow) ? timeWindow : 3600000;
+  }
+
   /**
    * Get blockchain metrics over specified time window
    * @param {number} timeWindow - Time window in milliseconds (default: 1 hour)
    * @returns {Object} Metrics data including averages and current values
    */
   getMetrics(timeWindow: number = 3600000): MetricsResponseDto {
+    timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return {
         averageTAGFees: this.metrics.getAverageTAGFees(timeWindow),
@@ -47,6 +53,7 @@ export class MetricsService {
    * @returns {number} Average TAG fees
    */
   getAverageTAGFeesMetrics(timeWindow: number = 3600000): number {
+    timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return this.metrics.getAverageTAGFees(timeWindow);
     } catch (error) {
@@ -61,6 +68,7 @@ export class MetricsService {
    * @returns {number} Average TAG volume
    */
   getAverageTAGVolumeMetrics(timeWindow: number = 3600000): number {
+    timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return this.metrics.getAverageTAGVolume(timeWindow);
     } catch (error) {
@@ -75,6 +83,7 @@ export class MetricsService {
    * @returns {number} Average hash rate
    */
   getAverageHashRateMetrics(timeWindow: number = 3600000): number {
+    timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return this.metrics.getAverageHashRate(timeWindow);
     } catch (error) {

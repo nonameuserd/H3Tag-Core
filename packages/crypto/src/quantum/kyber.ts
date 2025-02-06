@@ -3,9 +3,11 @@ import { Logger } from '@h3tag-blockchain/shared';
 import { SecurityLevel } from '../native/types';
 
 export class KyberError extends Error {
-  constructor(message: string) {
+  public cause?: Error;
+  constructor(message: string, cause?: Error) {
     super(message);
     this.name = 'KyberError';
+    this.cause = cause;
   }
 }
 
@@ -27,20 +29,35 @@ export class Kyber {
   public static readonly SHARED_SECRET_SIZE = 32;
   public static readonly DEFAULT_SECURITY_LEVEL = SecurityLevel.HIGH;
 
+  private static initializationPromise: Promise<void> | null = null;
+
   public static async initialize(): Promise<void> {
     if (this.isInitialized) return;
-    try {
-      await QuantumCrypto.initialize();
-      await QuantumCrypto.setSecurityLevel(this.DEFAULT_SECURITY_LEVEL);
-      this.isInitialized = true;
-      Logger.info(
-        'Kyber initialized with security level:',
-        this.DEFAULT_SECURITY_LEVEL,
-      );
-    } catch (error) {
-      Logger.error('Kyber initialization failed:', error);
-      throw new KyberError('Initialization failed');
+    if (this.initializationPromise !== null) {
+      return this.initializationPromise;
     }
+
+    this.initializationPromise = (async () => {
+      try {
+        await QuantumCrypto.initialize();
+        await QuantumCrypto.setSecurityLevel(this.DEFAULT_SECURITY_LEVEL);
+        this.isInitialized = true;
+        Logger.info(
+          'Kyber initialized with security level:',
+          this.DEFAULT_SECURITY_LEVEL,
+        );
+      } catch (error) {
+        Logger.error('Kyber initialization failed:', error);
+        throw new KyberError(
+          'Initialization failed',
+          error instanceof Error ? error : undefined,
+        );
+      } finally {
+        this.initializationPromise = null;
+      }
+    })();
+
+    return this.initializationPromise;
   }
 
   public static async generateKeyPair(): Promise<KyberKeyPair> {
@@ -73,6 +90,7 @@ export class Kyber {
       Logger.error('Kyber key generation failed:', error);
       throw new KyberError(
         error instanceof Error ? error.message : 'Key generation failed',
+        error instanceof Error ? error : undefined,
       );
     }
   }
@@ -85,6 +103,10 @@ export class Kyber {
     try {
       if (!publicKey) {
         throw new KyberError('Missing public key');
+      }
+
+      if (!this.isValidBase64(publicKey)) {
+        throw new KyberError('Invalid public key: not a valid Base64 string');
       }
 
       const publicKeyBuffer = Buffer.from(publicKey, 'base64');
@@ -118,6 +140,7 @@ export class Kyber {
       Logger.error('Kyber encapsulation failed:', error);
       throw new KyberError(
         error instanceof Error ? error.message : 'Encapsulation failed',
+        error instanceof Error ? error : undefined,
       );
     }
   }
@@ -131,6 +154,16 @@ export class Kyber {
     try {
       if (!ciphertext || !privateKey) {
         throw new KyberError('Missing required parameters');
+      }
+
+      if (!this.isValidBase64(ciphertext)) {
+        throw new KyberError('Invalid ciphertext: not a valid Base64 string');
+      }
+
+      if (!this.isValidBase64(privateKey)) {
+        throw new KyberError(
+          'Invalid private key: not a valid Base64 string',
+        );
       }
 
       const ciphertextBuffer = Buffer.from(ciphertext, 'base64');
@@ -158,6 +191,7 @@ export class Kyber {
       Logger.error('Kyber decapsulation failed:', error);
       throw new KyberError(
         error instanceof Error ? error.message : 'Decapsulation failed',
+        error instanceof Error ? error : undefined,
       );
     }
   }
@@ -191,20 +225,37 @@ export class Kyber {
 
   public static async shutdown(): Promise<void> {
     if (!this.isInitialized) return;
+
+    try {
+      if (QuantumCrypto.nativeQuantum.shutdown) {
+        await QuantumCrypto.nativeQuantum.shutdown();
+      }
+    } catch (error) {
+      Logger.error('Kyber native shutdown failed:', error);
+    }
+
     this.isInitialized = false;
     Logger.info('Kyber shut down');
   }
 
-  static async hash(data: Buffer): Promise<Buffer> {
+  public static async hash(data: Buffer): Promise<string> {
     if (!this.isInitialized) await this.initialize();
 
     try {
-      return await QuantumCrypto.nativeQuantum.kyberHash(data);
+      const hashBuffer = await QuantumCrypto.nativeQuantum.kyberHash(data);
+      return hashBuffer.toString('base64');
     } catch (error) {
       Logger.error('Kyber hashing failed:', error);
       throw new KyberError(
         error instanceof Error ? error.message : 'Hashing failed',
+        error instanceof Error ? error : undefined,
       );
     }
   }
+
+  private static isValidBase64(str: string): boolean {
+    const base64regex =
+      /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+    return base64regex.test(str);
+  } 
 }

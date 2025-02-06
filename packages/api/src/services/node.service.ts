@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import {
   Node,
   Blockchain,
@@ -354,10 +354,8 @@ export class NodeService {
       // Start the node
       await node.start();
 
-      // Generate unique node ID
-      const nodeId = `node-${Date.now()}-${Math.random()
-        .toString(36)
-        .substr(2, 9)}`;
+      // Generate a unique node id using substring (avoiding deprecated substr)
+      const nodeId = `node-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 
       // Store node instance
       this.nodes.set(nodeId, node);
@@ -371,6 +369,7 @@ export class NodeService {
         region: params.region,
       };
     } catch (error: unknown) {
+      Logger.error('Failed to create node:', error);
       throw new Error(
         `Failed to create node: ${
           error instanceof Error ? error.message : 'Unknown error'
@@ -404,7 +403,7 @@ export class NodeService {
   async getNodeStatus(nodeId: string): Promise<NodeStatusDto> {
     const node = this.nodes.get(nodeId);
     if (!node) {
-      throw new Error('Node not found');
+      throw new NotFoundException('Node not found');
     }
 
     return {
@@ -475,7 +474,7 @@ export class NodeService {
   async getActiveValidators(nodeId: string): Promise<{ address: string }[]> {
     const node = this.nodes.get(nodeId);
     if (!node) {
-      throw new Error('Node not found');
+      throw new NotFoundException('Node not found');
     }
     return node.getActiveValidators();
   }
@@ -484,7 +483,7 @@ export class NodeService {
     try {
       const node = this.nodes.get(nodeId);
       if (!node) {
-        throw new Error('Node not found');
+        throw new NotFoundException('Node not found');
       }
 
       // Initial peer count
@@ -517,7 +516,7 @@ export class NodeService {
     try {
       const node = this.nodes.get(nodeId);
       if (!node) {
-        throw new Error('Node not found');
+        throw new NotFoundException('Node not found');
       }
 
       // Connect to peer

@@ -102,7 +102,7 @@ export class BlockchainController {
 
       return {
         ...block,
-        timestamp: Date.now(),
+        timestamp: block.timestamp,
         height: block.height,
         hash: block.hash,
         previousHash: block.previousHash,
@@ -126,6 +126,7 @@ export class BlockchainController {
           HttpStatus.NOT_FOUND,
         );
       }
+      throw new HttpException(`Failed to get block: ${error}`, HttpStatus.NOT_FOUND);
     }
   }
 

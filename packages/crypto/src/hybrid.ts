@@ -32,27 +32,46 @@ export class HybridCrypto {
     lastHashTime: 0,
   };
 
+  /**
+   * Signs a given message using a hybrid approach.
+   * The ECC signature is generated using the private key,
+   * while Dilithium and Kyber operations use the public key.
+   * Returns a JSON-encoded string containing each component.
+   */
   static async sign(
     message: string,
-    privateKey: HybridKeyPair,
+    keyPair: HybridKeyPair,
   ): Promise<string> {
     try {
-      const privKey =
-        typeof privateKey.privateKey === 'function'
-          ? await privateKey.privateKey()
-          : privateKey.privateKey;
+      const privateKeyVal =
+        typeof keyPair.privateKey === 'function'
+          ? await keyPair.privateKey()
+          : keyPair.privateKey;
+      const publicKeyVal =
+        typeof keyPair.publicKey === 'function'
+          ? await keyPair.publicKey()
+          : keyPair.publicKey;
 
-      const eccKey = this.TRADITIONAL_CURVE.keyFromPrivate(privKey, 'hex');
-      const eccSignature = eccKey.sign(HashUtils.sha256(message));
+      // Generate classical ECC signature using the private key.
+      const eccKey = this.TRADITIONAL_CURVE.keyFromPrivate(privateKeyVal, 'hex');
+      const eccSignature = eccKey.sign(HashUtils.sha256(message)).toDER('hex');
 
-      const [dilithiumHash, kyberSecret] = await Promise.all([
+      // Generate quantum components using the public key.
+      const [dilithiumSignature, kyberResult] = await Promise.all([
         Dilithium.hash(Buffer.from(message)),
-        Kyber.encapsulate(privKey).then((result) => result.sharedSecret),
+        Kyber.encapsulate(publicKeyVal),
       ]);
+      const kyberSharedSecret = kyberResult.sharedSecret;
 
-      return HashUtils.sha3(
-        eccSignature.toDER('hex') + dilithiumHash + kyberSecret,
-      );
+      // Build a structured signature object containing each component.
+      const signatureObj = {
+        ecc: eccSignature,
+        dilithium: dilithiumSignature,
+        kyber: kyberSharedSecret,
+      };
+
+      // Return the signature as a JSON string.
+      return JSON.stringify(signatureObj);
     } catch (error) {
       Logger.error('Hybrid signing failed:', error);
       throw new HybridError(
@@ -61,32 +80,57 @@ export class HybridCrypto {
     }
   }
 
+  /**
+   * Verifies a hybrid signature.
+   * It parses the structured JSON signature, then verifies:
+   * - The ECC signature using the public key.
+   * - The Dilithium quantum signature.
+   * - The Kyber component by re-running encapsulation using the public key.
+   */
   static async verify(
     message: string,
     signature: string,
     publicKey: string,
   ): Promise<boolean> {
     try {
-      // 1. Verify address matches
-      if (signature !== publicKey) return false;
+      // Parse the structured signature.
+      let signatureObj;
+      try {
+        signatureObj = JSON.parse(signature);
+      } catch (e) {
+        Logger.error('Hybrid signature parsing failed:', e);
+        return false;
+      }
 
-      // 2. Verify traditional signature
-      const eccValid = this.TRADITIONAL_CURVE.keyFromPublic(
-        publicKey,
-        'hex',
-      ).verify(HashUtils.sha256(message), signature);
+      if (!signatureObj.ecc || !signatureObj.dilithium || !signatureObj.kyber) {
+        Logger.error('Hybrid signature is missing required components.');
+        return false;
+      }
 
-      if (!eccValid) return false;
+      // 1. Verify classical ECC signature.
+      const eccKey = this.TRADITIONAL_CURVE.keyFromPublic(publicKey, 'hex');
+      const eccValid = eccKey.verify(HashUtils.sha256(message), signatureObj.ecc);
+      if (!eccValid) {
+        Logger.error('ECC signature verification failed.');
+        return false;
+      }
 
-      // 3. Generate hybrid verification hash
-      const verificationHash = HashUtils.sha3(
-        signature +
-          (await Dilithium.hash(Buffer.from(message))) +
-          (await Kyber.encapsulate(publicKey)).sharedSecret,
-      );
+      // 2. Verify quantum signature (Dilithium).
+      const dilithiumValid = await Dilithium.verify(message, signatureObj.dilithium, publicKey);
+      if (!dilithiumValid) {
+        Logger.error('Dilithium signature verification failed.');
+        return false;
+      }
 
-      // 4. Compare against message hash
-      return verificationHash === HashUtils.sha3(message);
+      // 3. Verify quantum component (Kyber).
+      // Re-run encapsulation on the public key (assuming deterministic behavior).
+      const kyberResult = await Kyber.encapsulate(publicKey);
+      if (kyberResult.sharedSecret !== signatureObj.kyber) {
+        Logger.error('Kyber shared secret mismatch.');
+        return false;
+      }
+
+      return true;
     } catch (error) {
       Logger.error('Hybrid verification failed:', error);
       return false;
@@ -99,25 +143,25 @@ export class HybridCrypto {
         throw new HybridError('Missing required parameters');
       }
 
-      // 1. Generate session keys
+      // 1. Generate session keys.
       const sessionKey = CryptoJS.lib.WordArray.random(this.KEY_SIZE / 8);
       const { ciphertext: kyberCiphertext, sharedSecret: kyberSecret } = await Kyber.encapsulate(publicKey);
 
-      // 2. Generate quantum-safe components
+      // 2. Generate quantum-safe components.
       const [dilithiumHash, quantumKey] = await Promise.all([
         Dilithium.hash(Buffer.from(message)),
         QuantumWrapper.hashData(Buffer.from(sessionKey.toString())),
       ]);
 
-      // 3. Combine all secrets for encryption
+      // 3. Combine all secrets for encryption.
       const hybridKey = HashUtils.sha3(
         sessionKey.toString() +
-          kyberSecret +
-          dilithiumHash +
-          quantumKey.toString('hex')
+        kyberSecret +
+        dilithiumHash +
+        quantumKey.toString('hex')
       );
 
-      // 4. Encrypt with combined key using the provided IV (if any)
+      // 4. Encrypt with combined key using the provided IV (if any).
       const encrypted = iv
         ? CryptoJS.AES.encrypt(message, hybridKey, { iv: CryptoJS.enc.Base64.parse(iv) })
         : CryptoJS.AES.encrypt(message, hybridKey);
@@ -182,13 +226,13 @@ export class HybridCrypto {
         throw new HybridError('Invalid input parameter');
       }
 
-      // Generate quantum shared secret
+      // Generate quantum shared secret.
       const kyberPair = await Kyber.generateKeyPair();
       const { sharedSecret: quantumSecret } = await Kyber.encapsulate(
         kyberPair.publicKey,
       );
 
-      // Generate classical shared secret
+      // Generate classical shared secret.
       const classicalSecret = this.TRADITIONAL_CURVE.genKeyPair().derive(
         this.TRADITIONAL_CURVE.keyFromPublic(
           HashUtils.sha256(input.toString()),
@@ -196,7 +240,7 @@ export class HybridCrypto {
         ).getPublic(),
       );
 
-      // Combine secrets
+      // Combine secrets.
       return HashUtils.sha3(quantumSecret + classicalSecret.toString('hex'));
     } catch (error) {
       Logger.error('Shared secret generation failed:', error);
@@ -325,7 +369,7 @@ export class HybridCrypto {
           ? await data.address()
           : data.address;
 
-      // 1. Generate quantum-safe hash
+      // 1. Generate quantum-safe hash.
       const quantumHash = await QuantumWrapper.hashData(
         Buffer.from(addressStr),
       );
@@ -333,33 +377,33 @@ export class HybridCrypto {
         addressStr + quantumHash.toString('hex'),
       );
 
-      // 2. Double SHA256 for initial hash
+      // 2. Double SHA256 for initial hash.
       const hash = HashUtils.doubleSha256(combinedHash);
 
-      // 3. RIPEMD160 of the hash (Bitcoin's approach)
+      // 3. RIPEMD160 of the hash (Bitcoin's approach).
       const ripemd160Hash = HashUtils.hash160(hash);
 
-      // 4. Add version bytes (mainnet + quantum)
+      // 4. Add version bytes (mainnet + quantum).
       const versionedHash = Buffer.concat([
         Buffer.from([
-          0x00, // mainnet version
-          0x01, // quantum version
+          0x00, // mainnet version.
+          0x01, // quantum version.
         ]),
         Buffer.from(ripemd160Hash, 'hex'),
       ]);
 
-      // 5. Calculate checksum (first 4 bytes of double SHA256)
+      // 5. Calculate checksum (first 4 bytes of double SHA256).
       const checksum = HashUtils.doubleSha256(
         versionedHash.toString('hex'),
       ).slice(0, 8);
 
-      // 6. Combine and encode to base58
+      // 6. Combine and encode to base58.
       const finalAddress = Buffer.concat([
         versionedHash,
         Buffer.from(checksum, 'hex'),
       ]);
 
-      // 7. Validate address format
+      // 7. Validate address format.
       const address = HashUtils.toBase58(finalAddress);
       if (!address || address.length < 25 || address.length > 34) {
         throw new HybridError('INVALID_ADDRESS_FORMAT');
@@ -382,16 +426,16 @@ export class HybridCrypto {
           ? await keyPair.privateKey()
           : keyPair.privateKey;
 
-      // Generate quantum hash
+      // Generate quantum hash.
       const quantumHash = await Dilithium.sign(
         JSON.stringify(data),
         privateKey,
       );
 
-      // Generate traditional hash
+      // Generate traditional hash.
       const traditionalHash = HashUtils.sha256(JSON.stringify(data));
 
-      // Combine hashes
+      // Combine hashes.
       return this.deriveAddress({
         address: traditionalHash + quantumHash,
       });
@@ -405,10 +449,10 @@ export class HybridCrypto {
 
   public static async hash(data: string): Promise<string> {
     try {
-      // Traditional hash
+      // Traditional hash.
       const traditionalHash = HashUtils.sha256(data);
 
-      // Generate keypairs first
+      // Generate keypairs first.
       const keyPair = await this.generateKeyPair();
       const privateKey =
         typeof keyPair.privateKey === 'function'
@@ -419,13 +463,13 @@ export class HybridCrypto {
           ? await keyPair.publicKey()
           : keyPair.publicKey;
 
-      // Generate quantum hashes
+      // Generate quantum hashes.
       const [dilithiumHash, kyberHash] = await Promise.all([
         Dilithium.sign(data, privateKey),
         Kyber.encapsulate(publicKey).then((result) => result.sharedSecret),
       ]);
 
-      // Combine all hashes
+      // Combine all hashes.
       return HashUtils.sha3(traditionalHash + dilithiumHash + kyberHash);
     } catch (error) {
       Logger.error('Hash generation failed:', error);

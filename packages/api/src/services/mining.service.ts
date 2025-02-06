@@ -1,13 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { MiningInfoDto } from '../dtos/mining.dto';
+import { MiningInfoDto, BlockTemplateDto, SubmitBlockDto } from '../dtos/mining.dto';
 import { BlockchainService } from './blockchain.service';
 import { Logger } from '@h3tag-blockchain/shared';
 import { TransactionResponseDto } from '../dtos/transaction.dto';
-import { AuditManager, Transaction } from '@h3tag-blockchain/core';
-import { BlockTemplateDto } from '../dtos/mining.dto';
+import { AuditManager, Transaction, BlockBuilder } from '@h3tag-blockchain/core';
 import { ProofOfWork } from '@h3tag-blockchain/core';
-import { SubmitBlockDto } from '../dtos/mining.dto';
-import { BlockBuilder } from '@h3tag-blockchain/core';
 import { Mempool } from '@h3tag-blockchain/core';
 import { MerkleTree } from '@h3tag-blockchain/core';
 
@@ -92,7 +89,7 @@ export class MiningService {
     try {
       const blockchain = this.blockchainService.getBlockchain();
       const pow = blockchain.getConsensus().pow;
-      return pow.getNetworkHashPS();
+      return await pow.getNetworkHashPS();
     } catch (error) {
       Logger.error('Failed to get network hash rate:', error);
       throw error;
@@ -124,27 +121,32 @@ export class MiningService {
    *         description: Failed to generate block template
    */
   async getBlockTemplate(minerAddress: string): Promise<BlockTemplateDto> {
-    const blockchain = this.blockchainService.getBlockchain();
-    const pow = blockchain.getConsensus().pow;
-    const template = await pow.getBlockTemplate(minerAddress);
+    try {
+      const blockchain = this.blockchainService.getBlockchain();
+      const pow = blockchain.getConsensus().pow;
+      const template = await pow.getBlockTemplate(minerAddress);
 
-    return {
-      version: template.version,
-      height: template.height,
-      previousHash: template.previousHash,
-      timestamp: template.timestamp,
-      difficulty: template.difficulty,
-      transactions: template.transactions.map((tx) =>
-        this.mapTransactionToDto(tx),
-      ),
-      merkleRoot: template.merkleRoot,
-      target: template.target,
-      minTime: template.minTime,
-      maxTime: template.maxTime,
-      maxVersion: template.maxVersion,
-      minVersion: template.minVersion,
-      defaultVersion: template.defaultVersion,
-    };
+      return {
+        version: template.version,
+        height: template.height,
+        previousHash: template.previousHash,
+        timestamp: template.timestamp,
+        difficulty: template.difficulty,
+        transactions: template.transactions.map((tx) =>
+          this.mapTransactionToDto(tx),
+        ),
+        merkleRoot: template.merkleRoot,
+        target: template.target,
+        minTime: template.minTime,
+        maxTime: template.maxTime,
+        maxVersion: template.maxVersion,
+        minVersion: template.minVersion,
+        defaultVersion: template.defaultVersion,
+      };
+    } catch (error) {
+      Logger.error('Failed to get block template:', error);
+      throw error;
+    }
   }
 
   /**
@@ -180,29 +182,36 @@ export class MiningService {
   }
 
   async submitBlock(submitBlockDto: SubmitBlockDto): Promise<string> {
-    const blockBuilder = new BlockBuilder(
-      submitBlockDto.header?.previousHash || '',
-      submitBlockDto.header?.difficulty || 0,
-      this.auditManager,
-    );
+    try {
+      const { header, transactions, minerKeyPair } = submitBlockDto;
+      // Initialize the block builder using header values
+      const blockBuilder = new BlockBuilder(
+        header?.previousHash || '',
+        header?.difficulty || 0,
+        this.auditManager,
+      )
+        .setVersion(header?.version || 0)
+        .setPreviousHash(header?.previousHash || '')
+        .setMerkleRoot(header?.merkleRoot || '')
+        .setTimestamp(header?.timestamp || 0)
+        .setDifficulty(header?.difficulty || 0)
+        .setNonce(header?.nonce || 0);
 
-    const block = await (
-      await blockBuilder
-        .setVersion(submitBlockDto.header?.version || 0)
-        .setPreviousHash(submitBlockDto.header?.previousHash || '')
-        .setMerkleRoot(submitBlockDto.header?.merkleRoot || '')
-        .setTimestamp(submitBlockDto.header?.timestamp || 0)
-        .setDifficulty(submitBlockDto.header?.difficulty || 0)
-        .setNonce(submitBlockDto.header?.nonce || 0)
-        .setTransactions(submitBlockDto.transactions || [])
-    ).build(submitBlockDto.minerKeyPair);
+      // Await the asynchronous setTransactions call.
+      await blockBuilder.setTransactions(transactions || []);
 
-    // Submit block to PoW consensus
-    const success = await this.pow.submitBlock(block);
-    if (!success) {
-      throw new Error('Block submission failed');
+      const block = await blockBuilder.build(minerKeyPair);
+
+      // Submit block to PoW consensus
+      const success = await this.pow.submitBlock(block);
+      if (!success) {
+        throw new Error('Block submission failed');
+      }
+
+      return block.hash;
+    } catch (error) {
+      Logger.error('Failed to submit block:', error);
+      throw error;
     }
-
-    return block.hash;
   }
 }

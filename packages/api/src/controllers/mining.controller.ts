@@ -9,12 +9,9 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { MiningService } from '../services/mining.service';
-import { MiningInfoDto } from '../dtos/mining.dto';
+import { MiningInfoDto, BlockTemplateRequestDto, BlockTemplateDto, SubmitBlockDto } from '../dtos/mining.dto';
 import { Logger } from '@h3tag-blockchain/shared';
 import { validate } from 'class-validator';
-import { BlockTemplateRequestDto } from '../dtos/mining.dto';
-import { BlockTemplateDto } from '../dtos/mining.dto';
-import { SubmitBlockDto } from '../dtos/mining.dto';
 
 @ApiTags('Mining')
 @Controller('mining')
@@ -28,7 +25,7 @@ export class MiningController {
     description: 'Mining information retrieved successfully',
     type: MiningInfoDto,
   })
-  async getMiningInfo(): Promise<MiningInfoDto | undefined> {
+  async getMiningInfo(): Promise<MiningInfoDto> {
     try {
       return await this.miningService.getMiningInfo();
     } catch (error: unknown) {
@@ -39,6 +36,10 @@ export class MiningController {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+      throw new HttpException(
+        'Failed to get mining info due to an unexpected error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -53,7 +54,7 @@ export class MiningController {
       },
     },
   })
-  async getNetworkHashPS(): Promise<{ hashPS: number } | undefined> {
+  async getNetworkHashPS(): Promise<{ hashPS: number }> {
     try {
       const hashPS = await this.miningService.getNetworkHashPS();
       return { hashPS };
@@ -65,6 +66,10 @@ export class MiningController {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+      throw new HttpException(
+        'Failed to get network hash rate due to an unexpected error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -83,18 +88,34 @@ export class MiningController {
       throw new BadRequestException({
         status: 'error',
         message: 'Invalid request',
-        errors: errors.map((error) => Object.values(error.constraints || {})),
+        errors: errors.map((error) =>
+          Object.values(error.constraints || {}),
+        ),
       });
     }
 
-    const template = await this.miningService.getBlockTemplate(
-      request.minerAddress,
-    );
+    try {
+      const template = await this.miningService.getBlockTemplate(
+        request.minerAddress,
+      );
 
-    return {
-      status: 'success',
-      data: template,
-    };
+      return {
+        status: 'success',
+        data: template,
+      };
+    } catch (error: unknown) {
+      if (error instanceof Error) {
+        Logger.error('Failed to get block template:', error);
+        throw new HttpException(
+          `Failed to get block template: ${error.message}`,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
+      throw new HttpException(
+        'Failed to get block template due to an unexpected error',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   @Post('submit-block')
@@ -112,7 +133,7 @@ export class MiningController {
   @ApiResponse({ status: 400, description: 'Invalid block data' })
   async submitBlock(
     @Body() submitBlockDto: SubmitBlockDto,
-  ): Promise<{ status: string; blockHash: string } | undefined> {
+  ): Promise<{ status: string; blockHash: string }> {
     try {
       const blockHash = await this.miningService.submitBlock(submitBlockDto);
       return {
@@ -122,11 +143,16 @@ export class MiningController {
     } catch (error: unknown) {
       if (error instanceof Error) {
         Logger.error('Failed to submit block:', error);
+        // Depending on the nature of the failure, BAD_REQUEST or INTERNAL_SERVER_ERROR could be used.
         throw new HttpException(
           `Failed to submit block: ${error.message}`,
           HttpStatus.BAD_REQUEST,
         );
       }
+      throw new HttpException(
+        'Failed to submit block due to an unexpected error',
+        HttpStatus.BAD_REQUEST,
+      );
     }
   }
 }

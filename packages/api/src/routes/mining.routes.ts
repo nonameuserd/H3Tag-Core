@@ -50,26 +50,7 @@ const controller = new MiningController(service);
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 blocks:
- *                   type: number
- *                   description: Current block height
- *                 difficulty:
- *                   type: number
- *                   description: Current network difficulty
- *                 networkHashrate:
- *                   type: number
- *                   description: Network hashrate in H/s
- *                 reward:
- *                   type: number
- *                   description: Current block reward
- *                 chainWork:
- *                   type: string
- *                   description: Total chain work in hex
- *                 isNetworkMining:
- *                   type: boolean
- *                   description: Whether the network is currently mining
+ *               $ref: '#/components/schemas/MiningInfoDto'
  *       500:
  *         description: Server error
  */
@@ -108,7 +89,7 @@ router.get('/hashps', (req, res, next) => {
 
 /**
  * @swagger
- * /mining/template:
+ * /api/v1/mining/template:
  *   post:
  *     summary: Get a block template for mining
  *     tags: [Mining]
@@ -144,6 +125,43 @@ router.get('/hashps', (req, res, next) => {
  */
 router.post('/template', (req, res, next) => {
   controller.getBlockTemplate(req.body)
+    .then((result) => res.json(result))
+    .catch(next);
+});
+
+/**
+ * @swagger
+ * /api/v1/mining/submit-block:
+ *   post:
+ *     summary: Submit a mined block
+ *     tags: [Mining]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/SubmitBlockDto'
+ *     responses:
+ *       201:
+ *         description: Block submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 blockHash:
+ *                   type: string
+ *       400:
+ *         description: Invalid block data
+ *       500:
+ *         description: Server error
+ */
+router.post('/submit-block', (req, res, next) => {
+  controller.submitBlock(req.body)
     .then((result) => res.json(result))
     .catch(next);
 });

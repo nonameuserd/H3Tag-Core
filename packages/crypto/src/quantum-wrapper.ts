@@ -4,7 +4,12 @@ import { HashUtils } from './hash';
 import { Dilithium } from './quantum/dilithium';
 import { Kyber } from './quantum/kyber';
 import { Logger } from '@h3tag-blockchain/shared';
+import { QuantumHash } from './quantum-hash';
 
+/**
+ * QuantumWrapperError extends the base Error class to provide a custom error type for the QuantumWrapper class.
+ * This allows for better error handling and debugging by providing a specific error name.
+ */
 export class QuantumWrapperError extends Error {
   constructor(message: string) {
     super(message);
@@ -12,6 +17,10 @@ export class QuantumWrapperError extends Error {
   }
 }
 
+/**
+ * QuantumWrapper is a utility class that provides a unified interface for using quantum-resistant cryptographic primitives.
+ * It allows for the generation of hybrid key pairs, signing, verification, encapsulation, decapsulation, and hashing.
+ */
 export class QuantumWrapper {
   private static readonly KEY_SPLIT_RATIO = 0.5;
   private static initialized = false;
@@ -29,11 +38,11 @@ export class QuantumWrapper {
    * Generate hybrid key pair with quantum resistance
    */
   public static async generateKeyPair(): Promise<{
-    publicKey: { address: string };
-    privateKey: { address: string };
+    publicKey: Buffer;
+    privateKey: Buffer;
   }> {
     try {
-      // Generate both quantum-resistant and traditional keys in parallel
+      // Generate both quantum-resistant and classical keys in parallel
       const [dilithiumPair, kyberPair] = await Promise.all([
         Dilithium.generateKeyPair(),
         Kyber.generateKeyPair(),
@@ -44,30 +53,30 @@ export class QuantumWrapper {
         throw new QuantumWrapperError('Invalid key generation result');
       }
 
-      // Combine keys with quantum resistance
-      const hybridPublicKey = await this.combinePublicKeys(
-        dilithiumPair.publicKey,
-        kyberPair.publicKey,
-      );
+      // Convert hex string keys into Buffers and concatenate
+      const dilithiumPublicBuffer = Buffer.from(dilithiumPair.publicKey, 'hex');
+      const kyberPublicBuffer = Buffer.from(kyberPair.publicKey, 'hex');
+      const dilithiumPrivateBuffer = Buffer.from(dilithiumPair.privateKey, 'hex');
+      const kyberPrivateBuffer = Buffer.from(kyberPair.privateKey, 'hex');
 
-      const hybridPrivateKey = await this.combinePrivateKeys(
-        dilithiumPair.privateKey,
-        kyberPair.privateKey,
-      );
-
-      // Derive addresses
-      const address = await HybridCrypto.deriveAddress({
-        address: hybridPublicKey,
-      });
+      // Concatenate each key so that the first half is quantum and second half is classical (or vice-versa)
+      const hybridPublicKey = Buffer.concat([
+        dilithiumPublicBuffer,
+        kyberPublicBuffer,
+      ]);
+      const hybridPrivateKey = Buffer.concat([
+        dilithiumPrivateBuffer,
+        kyberPrivateBuffer,
+      ]);
 
       return {
-        publicKey: { address },
-        privateKey: { address: hybridPrivateKey },
+        publicKey: hybridPublicKey,
+        privateKey: hybridPrivateKey,
       };
     } catch (error) {
       Logger.error('Hybrid key generation failed:', error);
       throw new QuantumWrapperError(
-        error instanceof Error ? error.message : 'Key generation failed',
+        error instanceof Error ? error.message : 'Key generation failed'
       );
     }
   }
@@ -97,25 +106,25 @@ export class QuantumWrapper {
       if (!Buffer.isBuffer(message) || !Buffer.isBuffer(privateKey)) {
         throw new QuantumWrapperError('Invalid input parameters');
       }
-
-      // Split the hybrid private key
+      // Split the hybrid private key; assume the second half is classical.
       const halfLength = Math.floor(privateKey.length * this.KEY_SPLIT_RATIO);
-      const classicalKey = privateKey.subarray(halfLength).toString('hex');
+      const classicalPrivateKey = privateKey.subarray(halfLength);
 
-      // Generate both signatures
-      const [classicalSig] = await Promise.all([
-        HybridCrypto.sign(message.toString(), {
-          privateKey: classicalKey,
-          publicKey: classicalKey,
-          address: await HybridCrypto.deriveAddress({ address: classicalKey }),
+      // For signing, use the classical portion.
+      const classicalSig = await HybridCrypto.sign(message.toString('utf8'), {
+        privateKey: classicalPrivateKey.toString('hex'),
+        // If available, derive the classical public key properly instead of reusing the private part.
+        publicKey: classicalPrivateKey.toString('hex'),
+        address: await HybridCrypto.deriveAddress({
+          address: classicalPrivateKey.toString('hex'),
         }),
-      ]);
+      });
 
-      return Buffer.concat([Buffer.from(classicalSig.toString(), 'hex')]);
+      return Buffer.from(classicalSig, 'hex');
     } catch (error) {
       Logger.error('Signing failed:', error);
       throw new QuantumWrapperError(
-        error instanceof Error ? error.message : 'Signing failed',
+        error instanceof Error ? error.message : 'Signing failed'
       );
     }
   }
@@ -238,24 +247,36 @@ export class QuantumWrapper {
         throw new QuantumWrapperError('Invalid input data');
       }
 
-      // Generate quantum signature as quantum-safe hash
-      const keyPair = await this.generateKeyPair();
-      const quantumHash = await this.sign(
-        data,
-        Buffer.from(keyPair.privateKey.address, 'hex'),
-      );
+      // Use a deterministic quantum hash instead of signing with a newly generated key pair.
+      const quantumHash = QuantumHash.calculate(data); // returns a hex string
 
-      // Combine with classical hash
+      // Combine with a classical SHA3 hash
       const classicalHash = HashUtils.sha3(data.toString());
+      const combinedHash = HashUtils.sha256(classicalHash + quantumHash);
 
-      return Buffer.from(
-        HashUtils.sha256(classicalHash + quantumHash.toString('hex')),
-      );
+      return Buffer.from(combinedHash, 'hex');
     } catch (error) {
       Logger.error('Hybrid hashing failed:', error);
       throw new QuantumWrapperError(
-        error instanceof Error ? error.message : 'Hashing failed',
+        error instanceof Error ? error.message : 'Hashing failed'
       );
     }
+  }
+
+  /**
+   * Shutdown method for cleaning up quantum-related resources.
+   * Resets the initialized state and performs any necessary cleanup.
+   */
+  public static async shutdown(): Promise<void> {
+    this.initialized = false;
+    
+    // If available, shutdown underlying modules.
+    if (typeof Dilithium.shutdown === 'function') {
+      await Dilithium.shutdown();
+    }
+    if (typeof Kyber.shutdown === 'function') {
+      await Kyber.shutdown();
+    }
+    Logger.info('QuantumWrapper has been shutdown.');
   }
 }

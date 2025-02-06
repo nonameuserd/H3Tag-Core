@@ -1,8 +1,12 @@
 #include "security_monitor.h"
 #include <mutex>
 #include <chrono>
-#include <thread>
 #include <atomic>
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <ctime>
+#include <fstream>
 
 struct SecurityMonitor::Implementation
 {
@@ -20,7 +24,25 @@ SecurityMonitor::SecurityMonitor()
 void SecurityMonitor::logFailure(const std::string &operation, const std::string &error)
 {
     std::lock_guard<std::mutex> lock(pImpl->mutex);
-    // Log to monitoring system (implementation specific)
+    // Get current timestamp
+    auto now = std::chrono::system_clock::now();
+    auto now_time_t = std::chrono::system_clock::to_time_t(now);
+
+    // Format the log message
+    std::stringstream logMessage;
+    logMessage << "[" << std::put_time(std::localtime(&now_time_t), "%Y-%m-%d %H:%M:%S") << "] "
+               << "Security Failure - Operation: " << operation
+               << ", Error: " << error << "\n";
+
+    // Output to standard error (can be redirected to a file)
+    std::cerr << logMessage.str();
+
+    // Write to a log file
+    std::ofstream logFile("security_errors.log", std::ios::app);
+    if (logFile.is_open())
+    {
+        logFile << logMessage.str();
+    }
 }
 
 bool SecurityMonitor::isSecurityLevelMaintained() const

@@ -1,4 +1,4 @@
-import { Express } from 'express';
+import { Express, RequestHandler } from 'express';
 import express from 'express';
 import {
   rateLimiter,
@@ -11,7 +11,6 @@ import {
   timeout,
 } from './index';
 import cors from 'cors';
-import { RequestHandler } from 'express';
 
 export const applyMiddleware = (app: Express) => {
   // Basic middleware
@@ -21,7 +20,7 @@ export const applyMiddleware = (app: Express) => {
 
   // Security middleware
   app.use(securityHeaders);
-  app.use(rateLimiter);
+  app.use(rateLimiter() as unknown as RequestHandler);
 
   // Custom middleware
   app.use(requestLogger);

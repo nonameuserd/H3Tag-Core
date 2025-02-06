@@ -33,7 +33,9 @@ class KeyManager {
             if (entropy && entropy.length < this.MIN_ENTROPY_LENGTH) {
                 throw new KeyError('Insufficient entropy length');
             }
-            // Generate quantum-resistant keys in parallel
+            // Generate quantum-resistant keys in parallel.
+            // NOTE: These keys are currently only used for verification.
+            // If you intend to incorporate them into the final key pair, then combine their properties accordingly.
             const [dilithiumKeys, kyberKeys] = await Promise.all([
                 dilithium_1.Dilithium.generateKeyPair(),
                 kyber_1.Kyber.generateKeyPair(),
@@ -49,7 +51,8 @@ class KeyManager {
                 publicKey: traditionalEntropy,
                 privateKey: traditionalEntropy,
             };
-            if (!this.validateKeyPair(keyPair)) {
+            // Await the asynchronous validation.
+            if (!(await this.validateKeyPair(keyPair))) {
                 throw new KeyError('Generated invalid key pair');
             }
             return keyPair;
@@ -83,9 +86,9 @@ class KeyManager {
     /**
      * Serialize a key pair to string
      */
-    static serializeKeyPair(keyPair) {
+    static async serializeKeyPair(keyPair) {
         try {
-            if (!this.validateKeyPair(keyPair)) {
+            if (!(await this.validateKeyPair(keyPair))) {
                 throw new KeyError('Invalid key pair');
             }
             return JSON.stringify(keyPair);
@@ -98,10 +101,10 @@ class KeyManager {
     /**
      * Deserialize a key pair from string
      */
-    static deserializeKeyPair(serialized) {
+    static async deserializeKeyPair(serialized) {
         try {
             const keyPair = JSON.parse(serialized);
-            if (!this.validateKeyPair(keyPair)) {
+            if (!(await this.validateKeyPair(keyPair))) {
                 throw new KeyError('Invalid key pair format');
             }
             return keyPair;
@@ -121,6 +124,8 @@ class KeyManager {
     }
     static async rotateKeyPair(oldKeyPair) {
         const newKeyPair = await this.generateKeyPair();
+        // If key rotation is intended to preserve the same address (e.g. for continuity), then this is acceptable.
+        // Otherwise, derive a new address from the new key components.
         newKeyPair.address = oldKeyPair.address;
         return newKeyPair;
     }
@@ -129,7 +134,7 @@ class KeyManager {
             const pubKey = typeof publicKey === 'function' ? await publicKey() : publicKey;
             const quantumKeys = await quantum_wrapper_1.QuantumWrapper.generateKeyPair();
             const combined = await hybrid_1.HybridCrypto.deriveAddress({
-                address: pubKey + quantumKeys.publicKey.address,
+                address: pubKey + quantumKeys.publicKey.toString('hex'),
             });
             const hash = await quantum_wrapper_1.QuantumWrapper.hashData(Buffer.from(combined));
             const ripemd160Hash = hash_1.HashUtils.ripemd160(hash_1.HashUtils.sha256(hash.toString('hex')));
@@ -197,9 +202,17 @@ class KeyManager {
                 throw new KeyError('Invalid address type');
         }
     }
+    /**
+     * Shuts down the key manager.
+     * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, use it.
+     */
     static async shutdown() {
         this.initialized = false;
-        await quantum_wrapper_1.QuantumWrapper.initialize(); // Reset quantum wrapper
+        // If QuantumWrapper provides a `shutdown` or `reset` method, use that.
+        if (quantum_wrapper_1.QuantumWrapper.shutdown) {
+            await quantum_wrapper_1.QuantumWrapper.shutdown();
+        }
+        // Otherwise, consider whether reinitializing is appropriate.
     }
     /**
      * Convert address to public key hash

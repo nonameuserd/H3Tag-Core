@@ -12,7 +12,12 @@ export const rateLimiter = () =>
   });
 
 // Error handling middleware
-export const errorHandler = (err: Error, req: Request, res: Response) => {
+export const errorHandler = (
+  err: Error,
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   Logger.error('Unhandled error:', err);
   res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
     error: 'Internal server error',
@@ -24,12 +29,12 @@ export const errorHandler = (err: Error, req: Request, res: Response) => {
 export const requestLogger = (
   req: Request,
   res: Response,
-  next: NextFunction,
+  next: NextFunction
 ) => {
   const start = Date.now();
   res.on('finish', () => {
     Logger.info(
-      `${req.method} ${req.url} ${res.statusCode} - ${Date.now() - start}ms`,
+      `${req.method} ${req.url} ${res.statusCode} - ${Date.now() - start}ms`
     );
   });
   next();
@@ -58,10 +63,10 @@ export const corsOptions = {
 export const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ['\'self\''],
-      scriptSrc: ['\'self\'', '\'unsafe-inline\''],
-      styleSrc: ['\'self\'', '\'unsafe-inline\''],
-      imgSrc: ['\'self\'', 'data:', 'https:'],
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:', 'https:'],
     },
   },
   crossOriginEmbedderPolicy: true,

@@ -39,7 +39,9 @@ export class KeyManager {
         throw new KeyError('Insufficient entropy length');
       }
 
-      // Generate quantum-resistant keys in parallel
+      // Generate quantum-resistant keys in parallel.
+      // NOTE: These keys are currently only used for verification.
+      // If you intend to incorporate them into the final key pair, then combine their properties accordingly.
       const [dilithiumKeys, kyberKeys] = await Promise.all([
         Dilithium.generateKeyPair(),
         Kyber.generateKeyPair(),
@@ -60,7 +62,8 @@ export class KeyManager {
         privateKey: traditionalEntropy,
       };
 
-      if (!this.validateKeyPair(keyPair)) {
+      // Await the asynchronous validation.
+      if (!(await this.validateKeyPair(keyPair))) {
         throw new KeyError('Generated invalid key pair');
       }
 
@@ -104,9 +107,9 @@ export class KeyManager {
   /**
    * Serialize a key pair to string
    */
-  static serializeKeyPair(keyPair: HybridKeyPair): string {
+  static async serializeKeyPair(keyPair: HybridKeyPair): Promise<string> {
     try {
-      if (!this.validateKeyPair(keyPair)) {
+      if (!(await this.validateKeyPair(keyPair))) {
         throw new KeyError('Invalid key pair');
       }
       return JSON.stringify(keyPair);
@@ -121,10 +124,10 @@ export class KeyManager {
   /**
    * Deserialize a key pair from string
    */
-  static deserializeKeyPair(serialized: string): HybridKeyPair {
+  static async deserializeKeyPair(serialized: string): Promise<HybridKeyPair> {
     try {
       const keyPair = JSON.parse(serialized) as HybridKeyPair;
-      if (!this.validateKeyPair(keyPair)) {
+      if (!(await this.validateKeyPair(keyPair))) {
         throw new KeyError('Invalid key pair format');
       }
       return keyPair;
@@ -149,6 +152,8 @@ export class KeyManager {
     oldKeyPair: HybridKeyPair,
   ): Promise<HybridKeyPair> {
     const newKeyPair = await this.generateKeyPair();
+    // If key rotation is intended to preserve the same address (e.g. for continuity), then this is acceptable.
+    // Otherwise, derive a new address from the new key components.
     newKeyPair.address = oldKeyPair.address;
     return newKeyPair;
   }
@@ -162,7 +167,7 @@ export class KeyManager {
       const quantumKeys = await QuantumWrapper.generateKeyPair();
 
       const combined = await HybridCrypto.deriveAddress({
-        address: pubKey + quantumKeys.publicKey.address,
+        address: pubKey + quantumKeys.publicKey.toString('hex'),
       });
 
       const hash = await QuantumWrapper.hashData(Buffer.from(combined));
@@ -241,9 +246,17 @@ export class KeyManager {
     }
   }
 
+  /**
+   * Shuts down the key manager.
+   * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, use it.
+   */
   static async shutdown(): Promise<void> {
     this.initialized = false;
-    await QuantumWrapper.initialize(); // Reset quantum wrapper
+    // If QuantumWrapper provides a `shutdown` or `reset` method, use that.
+    if (QuantumWrapper.shutdown) {
+      await QuantumWrapper.shutdown();
+    }
+    // Otherwise, consider whether reinitializing is appropriate.
   }
 
   /**

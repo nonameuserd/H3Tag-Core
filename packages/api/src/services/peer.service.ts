@@ -91,7 +91,7 @@ export class PeerService {
       // Get peer info after successful connection
       const peerInfo = await peer.getInfo();
 
-      // Store peer instance
+      // Store peer instance keyed by its unique peer id
       this.peers.set(peer.getId(), peer);
 
       return {
@@ -102,11 +102,16 @@ export class PeerService {
         lastSeen: new Date(peerInfo.lastSeen).toISOString(),
         latency: peerInfo.latency,
         height: peerInfo.height,
-        services: peerInfo.services.reduce((acc, service) => acc | service, 0),
+        // Ensure that peerInfo.services is an array before reducing it
+        services: Array.isArray(peerInfo.services)
+          ? peerInfo.services.reduce((acc, service) => acc | service, 0)
+          : peerInfo.services || 1,
       };
     } catch (error: unknown) {
       Logger.error('Failed to add peer:', error);
-      throw new Error(`Failed to add peer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to add peer: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -365,8 +370,8 @@ export class PeerService {
    */
   async setBan(setBanDto: SetBanDto): Promise<void> {
     const { ip, command, banTime, reason } = setBanDto;
-    const peer = this.peers.get(ip || '');
-
+    // Find the peer by comparing the provided IP with the beginning of the peer's stored address (which is in the form "ip:port")
+    const peer = Array.from(this.peers.values()).find(p => p.getAddress().startsWith(ip || ''));
     if (!peer) {
       throw new Error('Peer not found');
     }
@@ -398,8 +403,8 @@ export class PeerService {
    *         description: Peer not found or not banned
    */
   async getBanInfo(ip: string): Promise<BanInfoDto> {
-    const peer = this.peers.get(ip);
-
+    // Locate the peer whose address starts with the given IP
+    const peer = Array.from(this.peers.values()).find(p => p.getAddress().startsWith(ip));
     if (!peer) {
       throw new Error('Peer not found');
     }

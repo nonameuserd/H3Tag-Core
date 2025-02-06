@@ -15,7 +15,20 @@ export declare class HybridCrypto {
     private static readonly KEY_SIZE;
     static readonly TRADITIONAL_CURVE: EC;
     private static metrics;
-    static sign(message: string, privateKey: HybridKeyPair): Promise<string>;
+    /**
+     * Signs a given message using a hybrid approach.
+     * The ECC signature is generated using the private key,
+     * while Dilithium and Kyber operations use the public key.
+     * Returns a JSON-encoded string containing each component.
+     */
+    static sign(message: string, keyPair: HybridKeyPair): Promise<string>;
+    /**
+     * Verifies a hybrid signature.
+     * It parses the structured JSON signature, then verifies:
+     * - The ECC signature using the public key.
+     * - The Dilithium quantum signature.
+     * - The Kyber component by re-running encapsulation using the public key.
+     */
     static verify(message: string, signature: string, publicKey: string): Promise<boolean>;
     static encrypt(message: string, publicKey: string, iv?: string): Promise<string>;
     static decrypt(encryptedData: string, privateKey: string, iv?: string): Promise<string>;

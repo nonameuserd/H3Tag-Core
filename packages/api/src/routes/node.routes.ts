@@ -46,7 +46,7 @@ router.post('/testnet', async (req, res) => {
     const result = await nodeController.createTestnetNode(req.body);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -77,7 +77,7 @@ router.post('/mainnet', async (req, res) => {
     const result = await nodeController.createMainnetNode(req.body);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -108,7 +108,7 @@ router.get('/:nodeId/status', async (req, res) => {
     const result = await nodeController.getNodeStatus(req.params.nodeId);
     res.json(result);
   } catch (error: unknown) {
-    res.status(404).json({ error: (error as Error).message });
+    res.status(404).json({ error: 'Node not found' });
   }
 });
 
@@ -144,7 +144,7 @@ router.post('/:nodeId/stop', async (req, res) => {
     const result = await nodeController.stopNode(req.params.nodeId);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -180,7 +180,7 @@ router.get('/:nodeId/validators', async (req, res) => {
     const result = await nodeController.getActiveValidators(req.params.nodeId);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: (error as Error).message });
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
@@ -213,11 +213,11 @@ router.post('/:nodeId/discover-peers', async (req, res) => {
   try {
     const result = await nodeController.discoverPeers(req.params.nodeId);
     res.json(result);
-  } catch (error) {
+  } catch (error: unknown) {
     if ((error as Error).message.includes('not found')) {
-      res.status(404).json({ error: (error as Error).message });
+      res.status(404).json({ error: 'Node not found' });
     } else {
-      res.status(500).json({ error: (error as Error).message });
+      res.status(500).json({ error: 'Internal server error' });
     }
   }
 });
@@ -255,16 +255,13 @@ router.post('/:nodeId/discover-peers', async (req, res) => {
  */
 router.post('/:nodeId/connect-peer', async (req, res) => {
   try {
-    const result = await nodeController.connectToPeer(
-      req.params.nodeId,
-      req.body,
-    );
+    const result = await nodeController.connectToPeer(req.params.nodeId, req.body);
     res.json(result);
   } catch (error: unknown) {
     if ((error as Error).message.includes('not found')) {
-      res.status(404).json({ error: (error as Error).message });
+      res.status(404).json({ error: 'Node not found' });
     } else {
-      res.status(400).json({ error: (error as Error).message });
+      res.status(400).json({ error: 'Failed to connect to peer' });
     }
   }
 });

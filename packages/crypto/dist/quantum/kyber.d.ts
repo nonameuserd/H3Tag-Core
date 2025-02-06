@@ -2,7 +2,8 @@
 /// <reference types="node" />
 import { SecurityLevel } from '../native/types';
 export declare class KyberError extends Error {
-    constructor(message: string);
+    cause?: Error;
+    constructor(message: string, cause?: Error);
 }
 export interface KyberKeyPair {
     publicKey: string;
@@ -19,6 +20,7 @@ export declare class Kyber {
     static readonly CIPHERTEXT_SIZE = 1088;
     static readonly SHARED_SECRET_SIZE = 32;
     static readonly DEFAULT_SECURITY_LEVEL = SecurityLevel.HIGH;
+    private static initializationPromise;
     static initialize(): Promise<void>;
     static generateKeyPair(): Promise<KyberKeyPair>;
     static encapsulate(publicKey: string): Promise<KyberEncapsulation>;
@@ -27,5 +29,6 @@ export declare class Kyber {
     static isValidPrivateKey(privateKey: string): boolean;
     static isValidCiphertext(ciphertext: string): boolean;
     static shutdown(): Promise<void>;
-    static hash(data: Buffer): Promise<Buffer>;
+    static hash(data: Buffer): Promise<string>;
+    private static isValidBase64;
 }

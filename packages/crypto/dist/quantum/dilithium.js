@@ -15,16 +15,25 @@ class Dilithium {
     static async initialize() {
         if (this.initialized)
             return;
-        try {
-            await _1.QuantumCrypto.initialize();
-            await _1.QuantumCrypto.nativeQuantum.setSecurityLevel(this.DEFAULT_SECURITY_LEVEL);
-            this.initialized = true;
-            shared_1.Logger.info('Dilithium initialized with security level:', this.DEFAULT_SECURITY_LEVEL);
+        if (this.initPromise) {
+            return await this.initPromise;
         }
-        catch (error) {
-            shared_1.Logger.error('Dilithium initialization failed:', error);
-            throw new DilithiumError('Initialization failed');
-        }
+        this.initPromise = (async () => {
+            try {
+                await _1.QuantumCrypto.initialize();
+                await _1.QuantumCrypto.nativeQuantum.setSecurityLevel(this.DEFAULT_SECURITY_LEVEL);
+                this.initialized = true;
+                shared_1.Logger.info('Dilithium initialized with security level:', this.DEFAULT_SECURITY_LEVEL);
+            }
+            catch (error) {
+                shared_1.Logger.error('Dilithium initialization failed:', error);
+                throw new DilithiumError('Initialization failed');
+            }
+            finally {
+                this.initPromise = null;
+            }
+        })();
+        return await this.initPromise;
     }
     static async generateKeyPair(entropy) {
         if (!this.initialized)
@@ -51,13 +60,13 @@ class Dilithium {
             if (!message || !privateKey) {
                 throw new DilithiumError('Missing message or private key');
             }
-            const privateKeyBuffer = Buffer.from(privateKey, 'base64');
-            const messageBuffer = Buffer.from(message);
             if (!this.isValidPrivateKey(privateKey)) {
                 throw new DilithiumError('Invalid private key format');
             }
+            const privateKeyBuffer = Buffer.from(privateKey, 'base64');
+            const messageBuffer = Buffer.from(message, 'utf8');
             const signature = await _1.QuantumCrypto.nativeQuantum.dilithiumSign(messageBuffer, privateKeyBuffer);
-            if (signature.length !== this.SIGNATURE_SIZE) {
+            if (!(signature instanceof Buffer) || signature.length !== this.SIGNATURE_SIZE) {
                 throw new DilithiumError('Invalid signature generated');
             }
             return signature.toString('base64');
@@ -77,7 +86,7 @@ class Dilithium {
             if (!this.isValidPublicKey(publicKey)) {
                 throw new DilithiumError('Invalid public key format');
             }
-            const messageBuffer = Buffer.from(message);
+            const messageBuffer = Buffer.from(message, 'utf8');
             const signatureBuffer = Buffer.from(signature, 'base64');
             const publicKeyBuffer = Buffer.from(publicKey, 'base64');
             return await _1.QuantumCrypto.nativeQuantum.dilithiumVerify(messageBuffer, signatureBuffer, publicKeyBuffer);
@@ -126,6 +135,7 @@ class Dilithium {
 }
 exports.Dilithium = Dilithium;
 Dilithium.initialized = false;
+Dilithium.initPromise = null;
 Dilithium.KEY_SIZE = 2528;
 Dilithium.SIGNATURE_SIZE = 3293;
 Dilithium.DEFAULT_SECURITY_LEVEL = types_1.SecurityLevel.HIGH;

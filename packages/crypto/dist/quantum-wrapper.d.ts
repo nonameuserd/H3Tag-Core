@@ -1,9 +1,17 @@
 /// <reference types="node" />
 /// <reference types="node" />
 import { KyberEncapsulation } from './native/types';
+/**
+ * QuantumWrapperError extends the base Error class to provide a custom error type for the QuantumWrapper class.
+ * This allows for better error handling and debugging by providing a specific error name.
+ */
 export declare class QuantumWrapperError extends Error {
     constructor(message: string);
 }
+/**
+ * QuantumWrapper is a utility class that provides a unified interface for using quantum-resistant cryptographic primitives.
+ * It allows for the generation of hybrid key pairs, signing, verification, encapsulation, decapsulation, and hashing.
+ */
 export declare class QuantumWrapper {
     private static readonly KEY_SPLIT_RATIO;
     private static initialized;
@@ -12,12 +20,8 @@ export declare class QuantumWrapper {
      * Generate hybrid key pair with quantum resistance
      */
     static generateKeyPair(): Promise<{
-        publicKey: {
-            address: string;
-        };
-        privateKey: {
-            address: string;
-        };
+        publicKey: Buffer;
+        privateKey: Buffer;
     }>;
     private static combinePublicKeys;
     private static combinePrivateKeys;
@@ -41,4 +45,9 @@ export declare class QuantumWrapper {
      * Hybrid hash function
      */
     static hashData(data: Buffer): Promise<Buffer>;
+    /**
+     * Shutdown method for cleaning up quantum-related resources.
+     * Resets the initialized state and performs any necessary cleanup.
+     */
+    static shutdown(): Promise<void>;
 }

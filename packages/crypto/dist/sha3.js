@@ -13,9 +13,16 @@ class WasmSHA3 {
         });
     }
     static hash(data) {
+        if (!this.wasmInstance) {
+            throw new Error('Wasm module is not initialized. Please call WasmSHA3.initialize() before hashing.');
+        }
         const { hash_sha3_256, memory } = this.wasmInstance.exports;
         const ptr = hash_sha3_256(data);
-        return new Uint8Array(memory.buffer, ptr, 32);
+        const hashView = new Uint8Array(memory.buffer, ptr, 32);
+        const result = new Uint8Array(32);
+        result.set(hashView);
+        return result;
     }
 }
 exports.WasmSHA3 = WasmSHA3;
+WasmSHA3.wasmInstance = null;

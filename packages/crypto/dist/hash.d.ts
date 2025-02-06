@@ -36,13 +36,13 @@ export declare class HashUtils {
     /**
      * Generate hybrid hash
      */
-    static hybridHash(data: string): string;
+    static hybridHash(data: string): Promise<string>;
     /**
-     * Encode Buffer to Base58
+     * Encodes the given Buffer into a Base58 string.
      */
     static toBase58(data: Buffer): string;
     /**
-     * Decode from Base58
+     * Decodes a Base58 string back into a Buffer.
      */
-    static fromBase58(str: string): Buffer;
+    static fromBase58(data: string): Buffer;
 }

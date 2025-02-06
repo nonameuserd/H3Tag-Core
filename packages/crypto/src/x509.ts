@@ -29,16 +29,16 @@ export class OCSPRequest {
       // Start TBSRequest sequence
       writer.startSequence(Ber.Sequence);
 
-      // Version
+      // Version (OCSP version is typically 0)
       writer.writeInt(0, Ber.Integer);
 
       // RequestList
       writer.startSequence();
       writer.startSequence(); // CertID
 
-      // Hash Algorithm
+      // Hash Algorithm – SHA-256 OID
       writer.startSequence();
-      writer.writeOID('2.16.840.1.101.3.4.2.1', Ber.OID); // SHA-256
+      writer.writeOID('2.16.840.1.101.3.4.2.1', Ber.OID);
       writer.writeNull();
       writer.endSequence();
 
@@ -51,12 +51,13 @@ export class OCSPRequest {
       writer.writeBuffer(keyHash, Ber.OctetString);
 
       // Serial Number
-      writer.writeInt(parseInt(this.certificate.serialNumber), Ber.Integer);
+      // <-- FIX: using radix 16 since serialNumber is usually a hexadecimal string.
+      writer.writeInt(parseInt(this.certificate.serialNumber, 16), Ber.Integer);
 
       writer.endSequence(); // End CertID
       writer.endSequence(); // End RequestList
 
-      // Request Extensions
+      // Request Extensions – using context-specific tag 2
       writer.startSequence(Ber.Context | Ber.Constructor | 2);
       writer.startSequence();
       writer.writeOID('1.3.6.1.5.5.7.48.1.2', Ber.OID); // OCSP Nonce
@@ -75,21 +76,27 @@ export class OCSPRequest {
   }
 
   private async hashIssuerName(): Promise<Buffer> {
+    // Note: Converting the subject string may need normalization (if required by your spec)
     const dilithiumHash = await QuantumCrypto.dilithiumHash(
-      Buffer.from(this.issuerCert.subject),
+      Buffer.from(this.issuerCert.subject)
     );
     const kyberHash = await QuantumCrypto.kyberHash(
-      Buffer.from(this.issuerCert.subject),
+      Buffer.from(this.issuerCert.subject)
     );
     return Buffer.concat([dilithiumHash, kyberHash]);
   }
 
   private async hashIssuerKey(): Promise<Buffer> {
+    // <-- FIX: Export the public key as DER using spki so that the binary data is consistent
+    const publicKeyDer = this.issuerCert.publicKey.export({
+      type: 'spki',
+      format: 'der',
+    });
     const dilithiumHash = await QuantumCrypto.dilithiumHash(
-      Buffer.from(this.issuerCert.publicKey.export()),
+      publicKeyDer
     );
     const kyberHash = await QuantumCrypto.kyberHash(
-      Buffer.from(this.issuerCert.publicKey.export()),
+      publicKeyDer
     );
     return Buffer.concat([dilithiumHash, kyberHash]);
   }
@@ -111,6 +118,20 @@ export class OCSPResponse {
     this.parse();
   }
 
+  /**
+   * Helper method to read an octet string from the BerReader and ensure
+   * that we return a Buffer.
+   */
+  private readOctetStringAsBuffer(reader: BerReader): Buffer {
+    const raw = reader.readString(Ber.OctetString);
+    if (typeof raw === 'string') {
+      return Buffer.from(raw, 'binary');
+    } else if (Buffer.isBuffer(raw)) {
+      return raw;
+    }
+    throw new Error('Unable to read octet string as Buffer.');
+  }
+
   private parse(): void {
     try {
       const reader = new BerReader(this.responseData);
@@ -121,23 +142,26 @@ export class OCSPResponse {
 
       if (this.responseStatus === 'successful') {
         reader.readSequence();
-        const responseBytes = reader.readString(Ber.OctetString);
+        const responseBuffer = this.readOctetStringAsBuffer(reader);
 
-        if (responseBytes) {
-          const basicReader = new BerReader(Buffer.from(responseBytes));
+        if (responseBuffer) {
+          // Now responseBuffer is guaranteed to be a Buffer.
+          const basicReader = new BerReader(responseBuffer);
           basicReader.readSequence();
 
-          // Read tbsResponseData
-          const tbsReader = new BerReader(
-            Buffer.from(basicReader.readString(Ber.OctetString) || ''),
-          );
+          // Read tbsResponseData (basic OCSP response)
+          const tbsData = basicReader.readString(Ber.OctetString) || '';
+          const tbsReader = new BerReader(Buffer.from(tbsData, 'binary'));
           tbsReader.readSequence();
 
-          // Skip version
+          // Skip version if present
           tbsReader.readInt();
 
-          // Read dates
-          this.producedAt = new Date(tbsReader.readString() || '');
+          // Safe parsing for producedAt date
+          const producedAtStr = tbsReader.readString();
+          if (producedAtStr) {
+            this.producedAt = new Date(producedAtStr);
+          }
 
           // Read single response
           tbsReader.readSequence();
@@ -147,13 +171,25 @@ export class OCSPResponse {
             this.certStatus = 'good';
           } else if (certStatus === 1) {
             this.certStatus = 'revoked';
-            this.revocationTime = new Date(tbsReader.readString() || '');
+            const revocationStr = tbsReader.readString();
+            if (revocationStr) {
+              this.revocationTime = new Date(revocationStr);
+            }
           } else {
             this.certStatus = 'unknown';
           }
 
-          this.thisUpdate = new Date(tbsReader.readString() || '');
-          this.nextUpdate = new Date(tbsReader.readString() || '');
+          // Safe parsing for thisUpdate date
+          const thisUpdateStr = tbsReader.readString();
+          if (thisUpdateStr) {
+            this.thisUpdate = new Date(thisUpdateStr);
+          }
+
+          // Safe parsing for nextUpdate date (optional field)
+          const nextUpdateStr = tbsReader.readString();
+          if (nextUpdateStr) {
+            this.nextUpdate = new Date(nextUpdateStr);
+          }
         }
       }
     } catch (error) {
@@ -212,19 +248,32 @@ export class X509CRL {
       // Skip version
       reader.readInt();
 
-      // Read issuer
+      // Read issuer (note: this may be a complex structure; adjust if you need a parsed DN)
       this.issuer = reader.readString() || '';
 
-      // Read dates
-      this.lastUpdate = new Date(reader.readString() || '');
-      this.nextUpdate = new Date(reader.readString() || '');
+      // Read dates with safe parsing
+      const lastUpdateStr = reader.readString() || '';
+      if (lastUpdateStr) {
+        this.lastUpdate = new Date(lastUpdateStr);
+      }
+      const nextUpdateStr = reader.readString() || '';
+      if (nextUpdateStr) {
+        this.nextUpdate = new Date(nextUpdateStr);
+      }
 
-      // Read revoked certificates
+      // Read revoked certificates sequence
       reader.readSequence();
       while (reader.remain > 0) {
         reader.readSequence();
         const serialNumber = reader.readString() || '';
-        const revocationDate = new Date(reader.readString() || '');
+        const revocationStr = reader.readString() || '';
+        let revocationDate: Date;
+        if (revocationStr) {
+          revocationDate = new Date(revocationStr);
+        } else {
+          // If revocation date is missing, log an error or skip; here we throw an error.
+          throw new Error('Missing revocation date in CRL entry.');
+        }
 
         this.revokedCertificates.set(serialNumber, {
           serialNumber,

@@ -16,6 +16,22 @@ import { MetricsService } from '../services/metrics.service';
 export function setupMetricsRoutes(router: Router): void {
   const metricsController = new MetricsController(new MetricsService());
 
+  // Helper function to validate and extract the timeWindow parameter.
+  function getValidatedTimeWindow(req: any, res: any): number | null {
+    const param = req.query.timeWindow;
+    if (param !== undefined) {
+      const parsed = Number(param);
+      if (isNaN(parsed) || parsed < 0) {
+        res
+          .status(400)
+          .json({ message: 'Invalid timeWindow parameter, must be a non-negative number.' });
+        return null;
+      }
+      return parsed;
+    }
+    return 3600000;
+  }
+
   /**
    * @swagger
    * /metrics:
@@ -47,9 +63,9 @@ export function setupMetricsRoutes(router: Router): void {
    */
   router.get('/metrics', (req, res) => {
     try {
-      const timeWindow = req.query.timeWindow
-        ? Number(req.query.timeWindow)
-        : undefined;
+      const timeWindow = getValidatedTimeWindow(req, res);
+      if (timeWindow === null) return;
+      // Pass the query as an object since MetricsController expects a MetricsQueryDto-like object.
       const metrics = metricsController.getMetrics({ timeWindow });
       res.json(metrics);
     } catch (error: unknown) {
@@ -76,12 +92,9 @@ export function setupMetricsRoutes(router: Router): void {
    */
   router.get('/metrics/average-tag-fees', (req, res) => {
     try {
-      const timeWindow = req.query.timeWindow
-        ? Number(req.query.timeWindow)
-        : undefined;
-      const averageTAGFees = metricsController.getAverageTAGFeesMetrics({
-        timeWindow,
-      });
+      const timeWindow = getValidatedTimeWindow(req, res);
+      if (timeWindow === null) return;
+      const averageTAGFees = metricsController.getAverageTAGFeesMetrics({ timeWindow });
       res.json({ averageTAGFees });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -107,12 +120,9 @@ export function setupMetricsRoutes(router: Router): void {
    */
   router.get('/metrics/average-tag-volume', (req, res) => {
     try {
-      const timeWindow = req.query.timeWindow
-        ? Number(req.query.timeWindow)
-        : undefined;
-      const averageTAGVolume = metricsController.getAverageTAGVolumeMetrics({
-        timeWindow,
-      });
+      const timeWindow = getValidatedTimeWindow(req, res);
+      if (timeWindow === null) return;
+      const averageTAGVolume = metricsController.getAverageTAGVolumeMetrics({ timeWindow });
       res.json({ averageTAGVolume });
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -138,12 +148,9 @@ export function setupMetricsRoutes(router: Router): void {
    */
   router.get('/metrics/average-hash-rate', (req, res) => {
     try {
-      const timeWindow = req.query.timeWindow
-        ? Number(req.query.timeWindow)
-        : undefined;
-      const averageHashRate = metricsController.getAverageHashRateMetrics({
-        timeWindow,
-      });
+      const timeWindow = getValidatedTimeWindow(req, res);
+      if (timeWindow === null) return;
+      const averageHashRate = metricsController.getAverageHashRateMetrics({ timeWindow });
       res.json({ averageHashRate });
     } catch (error: unknown) {
       if (error instanceof Error) {

@@ -106,8 +106,8 @@ class QuantumNative {
         this.checkInitialization();
         const start = perf_hooks_1.performance.now();
         try {
-            // Validate entropy if provided
-            if (entropy && !(entropy instanceof Buffer)) {
+            // Validate entropy using Buffer.isBuffer for reliability
+            if (entropy && !Buffer.isBuffer(entropy)) {
                 throw new QuantumError('Entropy must be a Buffer');
             }
             // Call native implementation with entropy if provided
@@ -147,6 +147,7 @@ class QuantumNative {
         }
         catch (error) {
             shared_1.Logger.error('Failed to generate Kyber key pair:', error);
+            this.clearHealthChecks();
             throw new QuantumError(error instanceof Error ? error.message : 'Kyber key generation failed');
         }
     }

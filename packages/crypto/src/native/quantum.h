@@ -81,9 +81,8 @@ namespace quantum
         void checkForSideChannels() const;
 
     private:
-        // Private constructor for singleton
-        QuantumCrypto();
-
+        // Private constructor accepts security parameters (optional improvement)
+        explicit QuantumCrypto(const SecurityParams &params = SecurityParams::DEFAULT);
         // PIMPL idiom
         struct Implementation;
         std::unique_ptr<Implementation> pImpl;

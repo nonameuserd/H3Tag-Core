@@ -325,7 +325,7 @@ export class BlockchainService {
       const networkHashrate = await this.stats.getNetworkHashRate();
 
       return {
-        blocks: this.blockchain.getCurrentHeight(),
+        blocks: await this.blockchain.getCurrentHeight(),
         bestBlockHash: currentBlock?.hash || '',
         difficulty: stats.difficulty,
         medianTime: await this.stats.getMedianTime(),

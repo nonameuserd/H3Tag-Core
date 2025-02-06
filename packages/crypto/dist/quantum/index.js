@@ -34,8 +34,9 @@ class QuantumCrypto {
         try {
             if (this.isModuleInitialized)
                 return;
-            this.isModuleInitialized = true;
+            // Schedule health checks and only then mark as initialized.
             this.initializeHealthChecks();
+            this.isModuleInitialized = true;
             shared_1.Logger.info('Quantum cryptography module initialized');
         }
         catch (error) {
@@ -52,6 +53,11 @@ class QuantumCrypto {
         this.healthCheckInterval = setInterval(() => this.performHealthCheck(), 60000);
     }
     static async performHealthCheck() {
+        if (this.isHealthCheckRunning) {
+            shared_1.Logger.warn('Skipping health check: previous health check still in progress.');
+            return;
+        }
+        this.isHealthCheckRunning = true;
         try {
             const start = perf_hooks_1.performance.now();
             // Test key generation
@@ -70,6 +76,9 @@ class QuantumCrypto {
         catch (error) {
             shared_1.Logger.error('Quantum health check failed:', error);
         }
+        finally {
+            this.isHealthCheckRunning = false;
+        }
     }
     static async shutdown() {
         if (this.healthCheckInterval) {
@@ -77,6 +86,8 @@ class QuantumCrypto {
         }
         this.isModuleInitialized = false;
         shared_1.Logger.info('Quantum cryptography module shut down');
+        // Optionally, if nativeQuantum exposes a shutdown or cleanup method, call it here.
+        // await this.nativeQuantum.shutdown();
     }
     static isInitialized() {
         return this.isModuleInitialized;
@@ -131,7 +142,7 @@ class QuantumCrypto {
         try {
             this.checkInitialization();
             await this.nativeQuantum.setSecurityLevel(level);
-            shared_1.Logger.info('Security level set to:', level);
+            shared_1.Logger.info(`Security level set to: ${level}`);
         }
         catch (error) {
             shared_1.Logger.error('Failed to set security level:', error);
@@ -166,7 +177,7 @@ class QuantumCrypto {
     }
     static async kyberHash(data) {
         try {
-            return await kyber_1.Kyber.hash(data);
+            return Buffer.from(await kyber_1.Kyber.hash(data), 'base64');
         }
         catch (error) {
             shared_1.Logger.error('Kyber hashing failed:', error);
@@ -181,8 +192,10 @@ class QuantumCrypto {
             }
             // Check initialization
             this.checkInitialization();
-            // Generate hashes in parallel with timeout
-            const [dilithiumHash, kyberHash] = await Promise.all([
+            // Define a timeout (e.g., 5000ms) for the hashing process
+            const timeoutMs = 5000;
+            const timeoutPromise = new Promise((_resolve, reject) => setTimeout(() => reject(new QuantumError('Native hashing timed out')), timeoutMs));
+            const hashPromises = Promise.all([
                 this.nativeQuantum.dilithiumHash(data).catch((error) => {
                     throw new QuantumError(`Dilithium hash failed: ${error.message}`);
                 }),
@@ -190,6 +203,7 @@ class QuantumCrypto {
                     throw new QuantumError(`Kyber hash failed: ${error.message}`);
                 }),
             ]);
+            const [dilithiumHash, kyberHash] = await Promise.race([hashPromises, timeoutPromise]);
             // Validate hash outputs
             if (!Buffer.isBuffer(dilithiumHash) || !Buffer.isBuffer(kyberHash)) {
                 throw new QuantumError('Invalid hash output from native module');
@@ -205,5 +219,7 @@ class QuantumCrypto {
 exports.QuantumCrypto = QuantumCrypto;
 QuantumCrypto.isModuleInitialized = false;
 QuantumCrypto.nativeQuantum = quantum_node_1.default;
+// New guard variable to avoid overlapping health checks
+QuantumCrypto.isHealthCheckRunning = false;
 __exportStar(require("./dilithium"), exports);
 __exportStar(require("./kyber"), exports);

@@ -16,6 +16,7 @@ import {
   PeerDiscoveryResponseDto,
   ConnectPeerDto,
   PeerConnectionResponseDto,
+  NetworkType,
 } from '../dtos/node.dto';
 
 @ApiTags('Nodes')
@@ -42,11 +43,11 @@ export class NodeController {
   })
   async createTestnetNode(
     @Body() createNodeDto: CreateNodeDto,
-  ): Promise<NodeResponseDto | undefined> {
+  ): Promise<NodeResponseDto> {
     try {
       return await this.nodeService.createNode({
         ...createNodeDto,
-        networkType: 'TESTNET',
+        networkType: NetworkType.TESTNET,
         port: createNodeDto.port || 4000,
       });
     } catch (error: unknown) {
@@ -56,6 +57,10 @@ export class NodeController {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+      throw new HttpException(
+        'Failed to create TESTNET node',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -78,11 +83,11 @@ export class NodeController {
   })
   async createMainnetNode(
     @Body() createNodeDto: CreateNodeDto,
-  ): Promise<NodeResponseDto | undefined> {
+  ): Promise<NodeResponseDto> {
     try {
       return await this.nodeService.createNode({
         ...createNodeDto,
-        networkType: 'MAINNET',
+        networkType: NetworkType.MAINNET,
         port: createNodeDto.port || 3000,
       });
     } catch (error: unknown) {
@@ -92,6 +97,10 @@ export class NodeController {
           HttpStatus.INTERNAL_SERVER_ERROR,
         );
       }
+      throw new HttpException(
+        'Failed to create MAINNET node',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -113,16 +122,20 @@ export class NodeController {
   })
   async getNodeStatus(
     @Param('nodeId') nodeId: string,
-  ): Promise<NodeStatusDto | undefined> {
+  ): Promise<NodeStatusDto> {
     try {
       return await this.nodeService.getNodeStatus(nodeId);
     } catch (error: unknown) {
-      if (error instanceof Error) {
+      if (error instanceof Error && error.message.includes('not found')) {
         throw new HttpException(
           `Node not found: ${error.message}`,
           HttpStatus.NOT_FOUND,
         );
       }
+      throw new HttpException(
+        `Failed to get node status: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -139,13 +152,8 @@ export class NodeController {
     schema: {
       type: 'object',
       properties: {
-        status: {
-          type: 'string',
-          example: 'stopped',
-        },
-        nodeId: {
-          type: 'string',
-        },
+        status: { type: 'string', example: 'stopped' },
+        nodeId: { type: 'string' },
       },
     },
   })
@@ -159,7 +167,7 @@ export class NodeController {
   })
   async stopNode(
     @Param('nodeId') nodeId: string,
-  ): Promise<{ status: string; nodeId: string } | undefined> {
+  ): Promise<{ status: string; nodeId: string }> {
     try {
       const success = await this.nodeService.stopNode(nodeId);
       if (success) {
@@ -167,12 +175,16 @@ export class NodeController {
       }
       throw new Error('Node not found');
     } catch (error: unknown) {
-      if (error instanceof Error) {
+      if (error instanceof Error && error.message.includes('not found')) {
         throw new HttpException(
-          `Failed to stop node: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
+          `Node not found: ${error.message}`,
+          HttpStatus.NOT_FOUND,
         );
       }
+      throw new HttpException(
+        `Failed to stop node: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -186,18 +198,6 @@ export class NodeController {
   @ApiResponse({
     status: 200,
     description: 'Active validators retrieved successfully',
-    schema: {
-      type: 'array',
-      items: {
-        type: 'object',
-        properties: {
-          address: {
-            type: 'string',
-            description: 'Validator address',
-          },
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 404,
@@ -211,12 +211,10 @@ export class NodeController {
     try {
       return await this.nodeService.getActiveValidators(nodeId);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw new HttpException(
-          `Failed to get validators: ${error.message}`,
-          HttpStatus.INTERNAL_SERVER_ERROR,
-        );
-      }
+      throw new HttpException(
+        `Failed to get validators: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -242,20 +240,17 @@ export class NodeController {
   })
   async discoverPeers(
     @Param('nodeId') nodeId: string,
-  ): Promise<PeerDiscoveryResponseDto | undefined> {
+  ): Promise<PeerDiscoveryResponseDto> {
     try {
       return await this.nodeService.discoverPeers(nodeId);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw new HttpException(
-          error.message.includes('not found')
-            ? 'Node not found'
-            : `Failed to discover peers: ${error.message}`,
-          error.message.includes('not found')
-            ? HttpStatus.NOT_FOUND
-            : HttpStatus.INTERNAL_SERVER_ERROR,
-        );
+      if (error instanceof Error && error.message.includes('not found')) {
+        throw new HttpException('Node not found', HttpStatus.NOT_FOUND);
       }
+      throw new HttpException(
+        `Failed to discover peers: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
   }
 
@@ -282,12 +277,9 @@ export class NodeController {
   async connectToPeer(
     @Param('nodeId') nodeId: string,
     @Body() connectPeerDto: ConnectPeerDto,
-  ): Promise<PeerConnectionResponseDto | undefined> {
+  ): Promise<PeerConnectionResponseDto> {
     try {
-      return await this.nodeService.connectToPeer(
-        nodeId,
-        connectPeerDto.address || '',
-      );
+      return await this.nodeService.connectToPeer(nodeId, connectPeerDto.address);
     } catch (error: unknown) {
       if (error instanceof Error) {
         if (error.message.includes('not found')) {
@@ -298,6 +290,7 @@ export class NodeController {
           HttpStatus.BAD_REQUEST,
         );
       }
+      throw new HttpException('Failed to connect to peer', HttpStatus.BAD_REQUEST);
     }
   }
 }
