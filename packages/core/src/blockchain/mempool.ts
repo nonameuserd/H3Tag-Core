@@ -2179,7 +2179,6 @@ export class Mempool {
         }),
       );
 
-      // Add the new output (the script will be generated in TransactionBuilder.addOutput)
       await txBuilder.addOutput(
         output.address,
         output.amount,

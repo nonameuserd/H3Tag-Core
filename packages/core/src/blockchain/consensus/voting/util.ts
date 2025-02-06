@@ -149,8 +149,13 @@ export class DirectVotingUtil {
     return this.voteMutex.runExclusive(async () => {
       const periodSnapshot = { ...period };
       
-      if (Date.now() < periodSnapshot.endTime && periodSnapshot.status === 'active') {
-        throw new Error('Voting period still active');
+      if (periodSnapshot.status !== 'active' && 
+          periodSnapshot.status !== 'completed') {
+        throw new Error('Invalid voting period status');
+      }
+
+      if (!validators || validators.length === 0) {
+        throw new Error('No validators provided');
       }
 
       const BATCH_SIZE = 1000; // Adjust based on performance testing
@@ -196,29 +201,39 @@ export class DirectVotingUtil {
    * @returns Promise<VoteTally> Tally of votes
    */
   private async tallyVotes(votes: Vote[]): Promise<VoteTally> {
-    const tally: VoteTally = {
-      approved: 0n,
-      rejected: 0n,
-      totalVotes: votes.length,
-      uniqueVoters: new Set(votes.map((v) => v.voter)).size,
-      participationRate: 0,
-      timestamp: Date.now(),
-    };
+    try {
+      const tally: VoteTally = {
+        approved: 0n,
+        rejected: 0n,
+        totalVotes: votes.length,
+        uniqueVoters: new Set(votes.map((v) => v.voter)).size,
+        participationRate: 0,
+        timestamp: Date.now(),
+      };
 
-    // single loop for counting
-    for (const vote of votes) {
-      if (vote.approve) {
-        tally.approved++;
-      } else {
-        tally.rejected++;
+      // Add validation for votes array
+      if (!votes || !Array.isArray(votes)) {
+        throw new Error('Invalid votes array');
       }
+
+      // single loop for counting
+      for (const vote of votes) {
+        if (vote.approve) {
+          tally.approved++;
+        } else {
+          tally.rejected++;
+        }
+      }
+
+      // Calculate participation rate
+      const total = tally.approved + tally.rejected;
+      tally.participationRate = total > 0 ? Number(tally.approved * 10000n / total) / 10000 : 0;
+
+      return tally;
+    } catch (error) {
+      Logger.error('Tallying votes failed:', error);
+      throw error;
     }
-
-    // Calculate participation rate
-    const total = tally.approved + tally.rejected;
-    tally.participationRate = total > 0 ? Number(tally.approved * 10000n / total) / 10000 : 0;
-
-    return tally;
   }
 
   /**
@@ -333,13 +348,17 @@ export class DirectVotingUtil {
       }
     }
 
-    // DDoS protection check
+    // DDoS protection
     if (!this.ddosProtection.checkRequest(`vote_verify:${vote.voter}`, vote.voter)) {
-      this.auditManager.logEvent({
+      await this.auditManager.logEvent({
         type: AuditEventType.SECURITY,
         severity: AuditSeverity.WARNING,
         source: 'ddos_protection',
-        details: { voter: vote.voter }
+        details: { 
+          voter: vote.voter,
+          timestamp: Date.now(),
+          requestType: 'vote_verify'
+        }
       });
       throw new Error('Rate limit exceeded');
     }
@@ -394,7 +413,13 @@ export class DirectVotingUtil {
    */
   public async dispose(): Promise<void> {
     try {
+      // Add max listeners check and cleanup
+      this.eventEmitter.setMaxListeners(0);
       this.eventEmitter.removeAllListeners();
+      
+      // Clear cache
+      this.voteCache.clear();
+      
       await this.backupManager.cleanup();
       
       // Clean up metrics collector
