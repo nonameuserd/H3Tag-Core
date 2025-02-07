@@ -18,6 +18,12 @@ jobs:
       with:
         python-version: '3.x'
 
+    - name: Create directory for Python symlink
+      run: mkdir -p /github/workspace/packages/core/build/node_gyp_bins
+
+    - name: Create Python symlink
+      run: ln -s $(which python3) /github/workspace/packages/core/build/node_gyp_bins/python3
+
     - name: Install dependencies
       run: |
         python3 -m venv venv
@@ -26,6 +32,4 @@ jobs:
 
     - name: Build project
       run: |
-        mkdir -p /github/workspace/packages/core/build/node_gyp_bins
-        ln -s $(which python3) /github/workspace/packages/core/build/node_gyp_bins/python3
-        # Add your build commands here
+        
