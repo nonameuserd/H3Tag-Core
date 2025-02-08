@@ -234,9 +234,7 @@ interface ExtendedMetrics {
   participationRate: number;
   pow: {
     averageHashRate: number;
-    // ... any other pow metrics
   };
-  // ... any other properties you expect
 }
 
 export class Blockchain {
@@ -248,7 +246,7 @@ export class Blockchain {
   private peers: Map<string, Peer> = new Map();
   private genesisBlock: Block = this.createGenesisBlock();
   private totalSupply: number = 0;
-  private config: BlockchainConfig = this.initializeConfig();
+  private config: BlockchainConfig;
   public db: BlockchainSchema = new BlockchainSchema();
   private shardManager: ShardManager = new ShardManager(
     {
@@ -283,7 +281,6 @@ export class Blockchain {
   private readonly healthMonitor: HealthMonitor;
   private readonly transactionCache = new Cache<Transaction>();
   private readonly firstTxCache = new Cache<{ blockHeight: number }>();
-  private readonly hybridCrypto: typeof HybridCrypto;
   private merkleTree: MerkleTree;
   private readonly spentTxTracker = new Map<string, Set<number>>();
   private readonly txLock = new Mutex();
@@ -343,6 +340,7 @@ export class Blockchain {
    * @param config Optional blockchain configuration parameters
    */
   constructor(config?: BlockchainConfig) {
+    this.config = this.initializeConfig(config);
     this.metrics = new MetricsCollector('blockchain', 60000);
     this.errorMonitor = new ErrorMonitor();
     this.auditManager = new AuditManager();
@@ -357,8 +355,6 @@ export class Blockchain {
         maxTagConcentration: 0.8,
       },
     });
-    this.initializeAsync(config);
-    this.hybridCrypto = HybridCrypto;
 
     // Initialize caches with appropriate options
     this.blockCache = new Cache<Block>({
@@ -383,11 +379,24 @@ export class Blockchain {
       compression: true,
     });
 
-    // Set up periodic maintenance tasks
-    setInterval(() => this.cleanupMempool(), 60000); // Clean mempool every minute
-    setInterval(() => this.updatePeerScores(), 300000); // Update peer scores every 5 minutes
+    // Initialize rate limiter BEFORE setting up any intervals that reference it.
+    this.rateLimiter = new RateLimit(
+      {
+        windowMs: 60000,
+        maxRequests: {
+          pow: 200,
+          quadraticVote: 100,
+          default: 50,
+        },
+      },
+      this.auditManager,
+    );
 
-    // Initialize rate limiter cleanup
+    // Set up periodic maintenance tasks
+    setInterval(() => this.cleanupMempool(), 60000);            // Clean mempool every minute
+    setInterval(() => this.updatePeerScores(), 300000);           // Update peer scores every 5 minutes
+
+    // Cleanup rate limiter keys using the now-initialized rateLimiter
     setInterval(() => {
       const now = Date.now();
       const keys = this.rateLimiter.getActiveKeys();
@@ -419,18 +428,6 @@ export class Blockchain {
     this.peerManager.eventEmitter.on(
       'peer_violation',
       this.handlePeerViolation.bind(this),
-    );
-
-    this.rateLimiter = new RateLimit(
-      {
-        windowMs: 60000,
-        maxRequests: {
-          pow: 200,
-          quadraticVote: 100,
-          default: 50,
-        },
-      },
-      this.auditManager,
     );
 
     // Initialize error monitoring
@@ -609,7 +606,7 @@ export class Blockchain {
         this.db,
       );
 
-      // Initialize consensus with 4-year voting period
+      // Initialize consensus with voting period
       this.consensus = new HybridDirectConsensus(this);
 
       // Initialize other components
@@ -682,8 +679,9 @@ export class Blockchain {
         previousHash: '0'.repeat(64),
         merkleRoot: '',
         validatorMerkleRoot: '',
+        votesMerkleRoot: '',
         timestamp,
-        difficulty: 1,
+        difficulty: 2,
         nonce: 0,
         height: 0,
         miner: '0'.repeat(40),
@@ -1114,22 +1112,17 @@ export class Blockchain {
    */
   public getBlockchainStats(): BlockchainStats {
     return new BlockchainStats({
-      getConsensusMetrics: this.getConsensusMetrics as () => Promise<{
-        powHashrate: number;
-        activeVoters: number;
-        participation: number;
-        currentParticipation: number;
-      }>,
-      getCurrentHeight: this.getCurrentHeight,
-      getLatestBlock: this.getLatestBlock,
-      getTransaction: this.getTransaction,
-      getCurrencyDetails: this.getCurrencyDetails,
-      calculateBlockReward: this.calculateBlockReward,
-      getConfirmedUtxos: this.getConfirmedUtxos,
-      getHeight: this.getHeight,
-      getBlockByHeight: this.getBlockByHeight,
-      getCurrentDifficulty: this.getCurrentDifficulty,
-      getState: this.getState,
+      getConsensusMetrics: this.getConsensusMetrics.bind(this), // CHANGED: bound
+      getCurrentHeight: this.getCurrentHeight.bind(this),       // CHANGED: bound
+      getLatestBlock: this.getLatestBlock.bind(this),           // CHANGED: bound
+      getTransaction: this.getTransaction.bind(this),           // CHANGED: bound
+      getCurrencyDetails: this.getCurrencyDetails.bind(this),   // CHANGED: bound
+      calculateBlockReward: this.calculateBlockReward.bind(this), // CHANGED: bound
+      getConfirmedUtxos: this.getConfirmedUtxos.bind(this),       // CHANGED: bound
+      getHeight: this.getHeight.bind(this),                     // CHANGED: bound
+      getBlockByHeight: this.getBlockByHeight.bind(this),         // CHANGED: bound
+      getCurrentDifficulty: this.getCurrentDifficulty.bind(this), // CHANGED: bound
+      getState: this.getState.bind(this),                       // CHANGED: bound
     });
   }
 
@@ -1189,9 +1182,11 @@ export class Blockchain {
     // Calculate merkle root for transactions
     const merkleRoot = await this.calculateMerkleRoot(transactions);
 
+    // Use the current dynamic difficulty instead of a fixed constant.
+    const currentDifficulty = this.getCurrentDifficulty();
     const blockBuilder = new BlockBuilder(
       previousBlock ? previousBlock.hash : '',
-      BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY,
+      currentDifficulty, // CHANGED: from BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY
       this.auditManager,
     );
 
@@ -1319,8 +1314,8 @@ export class Blockchain {
         name: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
         symbol: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL,
         decimals: BLOCKCHAIN_CONSTANTS.CURRENCY.DECIMALS,
-        initialSupply: BigInt(BLOCKCHAIN_CONSTANTS.CURRENCY.INITIAL_SUPPLY),
-        maxSupply: BigInt(BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY),
+        initialSupply: (BLOCKCHAIN_CONSTANTS.CURRENCY.INITIAL_SUPPLY),
+        maxSupply: (BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY),
         units: {
           MACRO: BigInt(BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MACRO),
           MICRO: BigInt(BLOCKCHAIN_CONSTANTS.CURRENCY.UNITS.MICRO),
@@ -1414,6 +1409,7 @@ export class Blockchain {
         propagationWindow: BLOCKCHAIN_CONSTANTS.MINING.PROPAGATION_WINDOW,
         targetTimespan: BLOCKCHAIN_CONSTANTS.MINING.TARGET_TIMESPAN,
         targetBlockTime: BLOCKCHAIN_CONSTANTS.MINING.TARGET_BLOCK_TIME,
+        maxPropagationWindow: BLOCKCHAIN_CONSTANTS.MINING.MAX_PROPAGATION_WINDOW,
       },
       consensus: config?.consensus || {
         baseDifficulty: BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_DIFFICULTY,
@@ -1532,11 +1528,15 @@ export class Blockchain {
           maxMemoryUsage:
             BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_MEMORY_USAGE,
           minSize: BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_SIZE,
+          maxSize: BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE,
         },
         minInputAge: BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_INPUT_AGE,
         minTxVersion: BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_TX_VERSION,
         processingTimeout: BLOCKCHAIN_CONSTANTS.TRANSACTION.PROCESSING_TIMEOUT,
         required: BLOCKCHAIN_CONSTANTS.TRANSACTION.REQUIRED,
+        maxBlockSize: BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_BLOCK_SIZE,
+        maxTxSize: BLOCKCHAIN_CONSTANTS.TRANSACTION.MAX_TX_SIZE,
+        minFee: BLOCKCHAIN_CONSTANTS.TRANSACTION.MIN_FEE,
       },
       validator: {
         minBlockProduction: BLOCKCHAIN_CONSTANTS.VALIDATOR.MIN_BLOCK_PRODUCTION,
@@ -1869,18 +1869,13 @@ export class Blockchain {
    */
   public async validateTransactionAmount(tx: Transaction): Promise<boolean> {
     try {
-      // Fix: Use BigInt for all calculations
+      // Use BigInt for all calculations
       const totalInput = await this.calculateInputAmount(tx.inputs);
       const totalOutput = tx.outputs.reduce(
         (sum, out) => sum + BigInt(out.amount),
         0n,
       );
       const fee = BigInt(this.calculateTransactionFee(tx));
-
-      // Check for overflow
-      if (totalInput > BigInt(Number.MAX_SAFE_INTEGER)) {
-        return false;
-      }
 
       return totalInput >= totalOutput + fee;
     } catch {
@@ -2198,6 +2193,12 @@ export class Blockchain {
    */
   private async updatePeerScores(): Promise<void> {
     try {
+      // Safety check: ensure peerManager is instantiated before proceeding.
+      if (!this.peerManager) {
+        Logger.warn('Peer manager is not initialized. Skipping peer score update.');
+        return;
+      }
+      
       for (const peer of this.peers.values()) {
         // Get peer metrics
         const blockHeight = await peer.getBlockHeight();

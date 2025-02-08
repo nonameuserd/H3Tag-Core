@@ -87,10 +87,10 @@ import { databaseConfig } from './config.database';
  */
 
 export class KeystoreDatabase {
-  private db: Level;
+  private db: Level<string, unknown>;
 
   constructor(dbPath: string) {
-    this.db = new Level(`${dbPath}/keystore`, {
+    this.db = new Level<string, unknown>(`${dbPath}/keystore`, {
       valueEncoding: 'json',
       ...databaseConfig.options,
     });
@@ -110,19 +110,16 @@ export class KeystoreDatabase {
     if (!address) throw new Error('Address is required');
     if (!keystore) throw new Error('Keystore is required');
 
-    await this.db.put(`keystore:${address}`, JSON.stringify(keystore));
+    await this.db.put(`keystore:${address}`, keystore);
   }
 
   async get(address: string): Promise<EncryptedKeystore | null> {
     if (!address) throw new Error('Address is required');
 
     try {
-      const value = await this.db.get<string>(`keystore:${address}`, {
-        valueEncoding: 'json',
-      });
-      return JSON.parse(value) as EncryptedKeystore;
+      return (await this.db.get(`keystore:${address}`)) as EncryptedKeystore;
     } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return null;
+      if ((error as { notFound?: boolean })?.notFound) return null;
       throw error;
     }
   }
@@ -133,7 +130,7 @@ export class KeystoreDatabase {
     metadata: KeyRotationMetadata,
   ): Promise<void> {
     if (!address) throw new Error('Address is required for rotation metadata');
-    await this.db.put(`rotationMetadata:${address}`, JSON.stringify(metadata));
+    await this.db.put(`rotationMetadata:${address}`, metadata);
   }
 
   // New method to retrieve rotation metadata
@@ -142,10 +139,9 @@ export class KeystoreDatabase {
   ): Promise<KeyRotationMetadata | null> {
     if (!address) throw new Error('Address is required for rotation metadata');
     try {
-      const value = await this.db.get(`rotationMetadata:${address}`);
-      return JSON.parse(value) as KeyRotationMetadata;
+      return (await this.db.get(`rotationMetadata:${address}`)) as KeyRotationMetadata;
     } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return null;
+      if ((error as { notFound?: boolean })?.notFound) return null;
       throw error;
     }
   }

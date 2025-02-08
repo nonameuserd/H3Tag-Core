@@ -286,6 +286,9 @@ export class NetworkStats {
 
       this.peers.delete(peerId);
       this.peerLatencies.delete(peerId);
+      // Clean up additional maps to remove stale data
+      this.peerScores.delete(peerId);
+      this.lastSeen.delete(peerId);
 
       // Emit peer removed event
       this.eventEmitter.emit('peer_removed', {
@@ -501,33 +504,24 @@ export class NetworkStats {
     event: string,
     ...args: unknown[]
   ): void {
-    try {
-      if (!NetworkStats.VALID_EVENTS.has(event)) {
-        throw new NetworkError(
+    if (!NetworkStats.VALID_EVENTS.has(event)) {
+      Logger.error(
+        new NetworkError(
           'Invalid event type',
           NetworkErrorCode.MESSAGE_VALIDATION_FAILED,
-        );
-      }
-
-      const eventName = `peer_${event}`;
-      const listener = () => {
-        this.eventEmitter.emit(eventName, {
-          peerId,
-          args,
-          timestamp: Date.now(),
-          eventId: `${peerId}_${event}_${Date.now()}`,
-          peerCount: this.peers.size,
-        });
-      };
-
-      this.eventEmitter.once(eventName, listener);
-      const peer = this.peers.get(peerId);
-      if (peer) {
-        peer.eventEmitter.on(event, listener);
-      }
-    } catch (error) {
-      Logger.error('Failed to handle peer event:', error);
+        ),
+      );
+      return;
     }
+
+    const eventName = `peer_${event}`;
+    this.eventEmitter.emit(eventName, {
+      peerId,
+      args,
+      timestamp: Date.now(),
+      eventId: `${peerId}_${event}_${Date.now()}`,
+      peerCount: this.peers.size,
+    });
   }
 
   public getVotingStats(): {

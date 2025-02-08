@@ -190,7 +190,7 @@ export class NetworkInfoDto {
 
   @ApiProperty({
     description: 'List of local addresses',
-    example: ['192.168.1.1:8333', '10.0.0.1:8333'],
+    example: ['192.168.1.1:2333', '10.0.0.1:2333'],
   })
   localAddresses: string[] | undefined;
 }

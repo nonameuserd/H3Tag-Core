@@ -41,7 +41,11 @@ export class NetworkError extends Error {
 
     Object.setPrototypeOf(this, NetworkError.prototype);
 
-    Error.captureStackTrace(this, NetworkError);
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, NetworkError);
+    } else {
+      this.stack = (new Error(message)).stack;
+    }
   }
 
   public toJSON(): Record<string, unknown> {

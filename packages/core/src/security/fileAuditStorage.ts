@@ -32,7 +32,6 @@ interface StorageConfig {
 export class FileAuditStorage implements IAuditStorage {
   private readonly config: StorageConfig;
   private locks = new Map<string, number>();
-  private writeQueue: Promise<void> = Promise.resolve();
   private activeWrites = 0;
   private readonly lockTimeout = 30000; // 30 seconds
   private lockCleanupInterval: NodeJS.Timeout | undefined;
@@ -91,49 +90,36 @@ export class FileAuditStorage implements IAuditStorage {
         'INVALID_INPUT',
       );
     }
-    if (data.length > this.config.maxFileSize) {
+    if (Buffer.from(data).byteLength > this.config.maxFileSize) {
       throw new FileAuditStorageError(
         'File size exceeds limit',
         'FILE_SIZE_LIMIT',
       );
     }
-    while (this.activeWrites >= this.config.maxConcurrentWrites) {
-      await this.delay(100);
-    }
 
-    this.activeWrites++;
-    try {
-      await this.queueWrite(async () => {
-        const filePath = this.getFilePath(filename);
-        let attempt = 0;
-        let lastError: Error | null = null;
+    await this.queueWrite(async () => {
+      const filePath = this.getFilePath(filename);
+      let attempt = 0;
+      let lastError: Error | null = null;
 
-        while (attempt < this.config.maxRetries) {
-          try {
-            const compressedData = this.config.compression
-              ? await this.compressData(data)
-              : Buffer.from(data);
+      while (attempt < this.config.maxRetries) {
+        try {
+          const compressedData = this.config.compression
+            ? await this.compressData(data)
+            : Buffer.from(data);
 
-            await fs.writeFile(filePath, compressedData);
-            return;
-          } catch (error: unknown) {
-            lastError = error as Error;
-            attempt++;
-            if (attempt < this.config.maxRetries) {
-              await this.delay(this.config.retryDelay * attempt); // Exponential backoff
-            }
+          await fs.writeFile(filePath, compressedData);
+          return;
+        } catch (error: unknown) {
+          lastError = error as Error;
+          attempt++;
+          if (attempt < this.config.maxRetries) {
+            await this.delay(this.config.retryDelay * attempt); // Exponential backoff
           }
         }
-        throw lastError || new Error('Write failed');
-      });
-    } catch (error) {
-      throw new FileAuditStorageError(
-        `Write failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        'WRITE_FAILED',
-      );
-    } finally {
-      this.activeWrites--;
-    }
+      }
+      throw lastError || new Error('Write failed');
+    });
   }
 
   public async readAuditLog(filename: string): Promise<string> {
@@ -191,11 +177,9 @@ export class FileAuditStorage implements IAuditStorage {
     while (this.activeWrites >= this.config.maxConcurrentWrites) {
       await this.delay(100);
     }
-
     this.activeWrites++;
     try {
-      this.writeQueue = this.writeQueue.then(writeOperation).catch(() => {});
-      await this.writeQueue;
+      await writeOperation();
     } finally {
       this.activeWrites--;
     }
@@ -228,7 +212,9 @@ export class FileAuditStorage implements IAuditStorage {
   public async dispose(): Promise<void> {
     clearInterval(this.lockCleanupInterval);
     this.locks.clear();
-    await this.writeQueue;
-    this.writeQueue = Promise.resolve(); // Reset the queue
+    // Wait until no active writes remain
+    while (this.activeWrites > 0) {
+      await this.delay(100);
+    }
   }
 }

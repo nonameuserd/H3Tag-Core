@@ -38,6 +38,7 @@ export interface MiningConfig {
   maxBlockTime: number;
   maxDifficulty: number;
   targetTimePerBlock: number;
+  maxPropagationWindow: number;
   difficulty: number;
   minHashrate: number;
   minPowNodes: number;
@@ -163,6 +164,7 @@ export interface TransactionConfig {
   maxInputs: number;
   maxOutputs: number;
   maxTimeDrift: number;
+  minFee: bigint;
   amountLimits: {
     min: bigint;
     max: bigint;
@@ -172,6 +174,7 @@ export interface TransactionConfig {
     highCongestionThreshold: number;
     maxMb: number;
     minFeeRate: bigint;
+    maxSize: number;
     feeRateMultiplier: number;
     evictionInterval: number;
     cleanupInterval: number;
@@ -189,6 +192,8 @@ export interface TransactionConfig {
   maxTxVersion: number;
   required: number;
   maxMessageAge: number;
+  maxBlockSize: number;
+  maxTxSize: number;
 }
 
 export interface ValidatorConfig {
@@ -238,12 +243,12 @@ export const defaultConfig: BlockchainConfig = {
     name: 'H3TAG',
     symbol: 'TAG',
     decimals: 8,
-    initialSupply: BigInt(21000000),
-    maxSupply: BigInt(696900000),
+    initialSupply: 0,
+    maxSupply: 696900000,
     units: {
       MACRO: 1n,
-      MICRO: 1000000n,
-      MILLI: 1000000000n,
+      MICRO: 1000n,
+      MILLI: 1000000n,
       TAG: 1000000000000n,
     },
   },
@@ -254,7 +259,7 @@ export const defaultConfig: BlockchainConfig = {
       DEVNET: 'devnet',
     },
     port: {
-      MAINNET: 8333,
+      MAINNET: 2333,
       TESTNET: 10001,
       DEVNET: 10002,
     },
@@ -289,14 +294,15 @@ export const defaultConfig: BlockchainConfig = {
     blocksPerYear: 52560,
     initialReward: BigInt(5000000000),
     minReward: BigInt(546),
-    halvingInterval: 210000,
+    halvingInterval: 105000,
     maxHalvings: 69,
-    blockTime: 600000,
-    maxBlockTime: 600000,
+    blockTime: 300000,
+    maxBlockTime: 300000,
     maxDifficulty: 1000000,
-    targetTimePerBlock: 600000,
+    targetTimePerBlock: 300000,
     difficulty: 7,
     minHashrate: 1000000,
+    maxPropagationWindow: 10000,
     minPowNodes: 3,
     maxForkDepth: 100,
     emergencyPowThreshold: 0.85,
@@ -314,7 +320,7 @@ export const defaultConfig: BlockchainConfig = {
     propagationWindow: 50,
     maxPropagationTime: 30000,
     targetTimespan: 14 * 24 * 60 * 60,
-    targetBlockTime: 600,
+    targetBlockTime: 300,
     adjustmentInterval: 2016,
     maxAdjustmentFactor: 0.25,
     voteInfluence: 0.4,
@@ -326,7 +332,7 @@ export const defaultConfig: BlockchainConfig = {
     minBlockSize: 1024,
     maxTransactions: 10000,
     minBlocksMined: 100,
-    blockReward: 50n * 10n ** 8n,
+    blockReward: BigInt(5000000000),
     maxTxSize: 1048576,
     minFeePerByte: 1n,
     autoMine: process.env.AUTO_MINE === 'true' || false,
@@ -339,7 +345,7 @@ export const defaultConfig: BlockchainConfig = {
     minPowHashRate: 1000000,
     minVoterCount: 1000,
     minPeriodLength: 1000,
-    votingPeriod: 210240,
+    votingPeriod: 105120,
     minParticipation: 0.1,
     votePowerCap: 0.05,
     votingDayPeriod: 690 * 24 * 60 * 60 * 1000,
@@ -351,20 +357,20 @@ export const defaultConfig: BlockchainConfig = {
     baseReward: 100n * 10n ** 18n,
     minReward: 10n * 10n ** 18n,
     maxSafeReward: 1000000n * 10n ** 18n,
-    halvingInterval: 210000,
+    halvingInterval: 105000,
     baseDifficulty: 1n,
     maxForkLength: 100,
     validatorWeight: 100,
   },
   votingConstants: {
-    votingPeriodBlocks: 210240,
-    votingPeriodMs: 126144000000,
+    votingPeriodBlocks: 105120,
+    votingPeriodMs: 63072000000,
     periodCheckInterval: 60000,
     minPowWork: 10000,
     cooldownBlocks: 100,
     maxVotesPerPeriod: 100000,
     maxVotesPerWindow: 5,
-    minAccountAge: 20160,
+    minAccountAge: 10080,
     minPeerCount: 3,
     voteEncryptionVersion: '1.0',
     maxVoteSizeBytes: 1024 * 100,
@@ -408,6 +414,7 @@ export const defaultConfig: BlockchainConfig = {
     staleThreshold: 7 * 24 * 60 * 60 * 1000,
   },
   transaction: {
+    minFee: BigInt(1),
     currentVersion: 1,
     maxInputs: 1000,
     maxOutputs: 1000,
@@ -418,8 +425,9 @@ export const defaultConfig: BlockchainConfig = {
       decimals: 8,
     },
     mempool: {
+      maxSize: 300000, // 300K transactions
       highCongestionThreshold: 50000,
-      maxMb: 300,
+      maxMb: 300, // 300MB total size
       minFeeRate: BigInt(1),
       feeRateMultiplier: 1.5,
       evictionInterval: 600000,
@@ -438,6 +446,8 @@ export const defaultConfig: BlockchainConfig = {
     maxTxVersion: 1,
     required: 6,
     maxMessageAge: 300000,
+    maxBlockSize: 2097152, // Changed from 1 MB to 2 MB (increased capacity)
+    maxTxSize: 2097152, // Align with MAX_BLOCK_SIZE
   },
   validator: {
     minValidatorUptime: 0.97,

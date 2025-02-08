@@ -18,7 +18,7 @@ interface VersionResponse {
 }
 
 async function main() {
-  const PORT = process.env.SEED_PORT ? parseInt(process.env.SEED_PORT) : 8333;
+  const PORT = process.env.SEED_PORT ? parseInt(process.env.SEED_PORT) : 2333;
 
   try {
     if (!process.env.AWS_REGION) {
@@ -61,8 +61,9 @@ export class SeedServer {
   private route53: Route53;
   private readonly merkleTree: MerkleTree;
   private isShuttingDown: boolean = false;
+  private readonly httpAgent: Agent;
 
-  constructor(port: number = 8333) {
+  constructor(port: number = 2333) {
     if (port <= 0 || port > 65535) {
       throw new Error('Invalid port number');
     }
@@ -103,6 +104,15 @@ export class SeedServer {
       },
       maxAttempts: 3,
       retryMode: 'adaptive',
+    });
+
+    this.httpAgent = new Agent({
+      connect: {
+        rejectUnauthorized: process.env.NODE_ENV === 'production',
+        timeout: 5000,
+        keepAlive: true,
+        keepAliveInitialDelay: 1000,
+      },
     });
 
     this.merkleTree = new MerkleTree();
@@ -156,21 +166,12 @@ export class SeedServer {
   ): Promise<boolean> {
     if (this.isShuttingDown) return false;
 
-    const agent = new Agent({
-      connect: {
-        rejectUnauthorized: process.env.NODE_ENV === 'production',
-        timeout: 5000,
-        keepAlive: true,
-        keepAliveInitialDelay: 1000,
-      },
-    });
-
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
 
-      const response = await fetch(`https://${address}/version`, {
-        dispatcher: agent,
+      const response = await fetch(`https://${address}:${this.port}/version`, {
+        dispatcher: this.httpAgent,
         signal: controller.signal,
         headers: {
           'User-Agent': 'H3Tag-Seed-Server/1.0',
@@ -213,8 +214,6 @@ export class SeedServer {
       });
 
       return false;
-    } finally {
-      agent.close();
     }
   }
 
@@ -291,6 +290,8 @@ export class SeedServer {
     } catch (err) {
       Logger.warn('Error while destroying AWS SDK clients', err);
     }
+
+    this.httpAgent.close();
 
     this.knownNodes.clear();
     Logger.info('Seed server shut down successfully');

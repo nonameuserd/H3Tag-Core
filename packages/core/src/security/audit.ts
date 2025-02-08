@@ -186,8 +186,6 @@ export class AuditManager {
       maxSize: this.config.maxEvents,
       compression: true,
     });
-
-    this.initialize();
   }
 
   private validateConfig(config: AuditConfig): void {
@@ -416,7 +414,8 @@ export class AuditManager {
   }
 
   private async calculateEventHash(event: AuditEvent): Promise<string> {
-    const { ...eventWithoutHash } = event;
+    const { hash: _ignored, ...eventWithoutHash } = event;
+    void _ignored; // Mark _ignored as used to suppress the linter warning
     const data = Buffer.from(JSON.stringify(eventWithoutHash));
     return HybridCrypto.generateSharedSecret(data);
   }

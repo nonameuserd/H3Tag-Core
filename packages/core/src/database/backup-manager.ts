@@ -290,22 +290,24 @@ export class BackupManager {
   }
 
   private async createChecksum(path: string): Promise<string> {
-    const files = await fs.readdir(path);
+    const files = (await fs.readdir(path)).filter(file => file !== 'metadata.json');
     const hash = createHash('sha256');
 
     for (const file of files.sort()) {
-      // Sort for consistency
       const filePath = join(path, file);
       const stats = await fs.stat(filePath);
 
       if (!stats.isFile()) continue;
 
-      await pipeline(createReadStream(filePath), async function* (source) {
-        for await (const chunk of source) {
-          hash.update(chunk);
-          yield chunk;
-        }
-      });
+      await pipeline(
+        createReadStream(filePath),
+        async function* (source) {
+          for await (const chunk of source) {
+            hash.update(chunk);
+            yield chunk;
+          }
+        },
+      );
     }
 
     return hash.digest('hex');

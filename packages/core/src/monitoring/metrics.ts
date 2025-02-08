@@ -56,12 +56,11 @@ export class MiningMetrics {
   public blacklistedPeers: number = 0;
   private static instance: MiningMetrics;
   private metrics: {
-    hashRate: number[];
-    difficulty: number[];
-    blockTimes: number[];
-    timestamps: bigint[];
-    tagVolume: number[];
-    tagFees: number[];
+    hashRate: { timestamp: bigint, value: number }[];
+    difficulty: { timestamp: bigint, value: number }[];
+    blockTimes: { timestamp: bigint, value: number }[];
+    tagVolume: { timestamp: bigint, value: number }[];
+    tagFees: { timestamp: bigint, value: number }[];
   };
   private readonly mutex = new Mutex();
 
@@ -70,7 +69,6 @@ export class MiningMetrics {
       hashRate: [],
       difficulty: [],
       blockTimes: [],
-      timestamps: [],
       tagVolume: [],
       tagFees: [],
     };
@@ -94,39 +92,26 @@ export class MiningMetrics {
     try {
       const now = Date.now();
       const currentTimestamp = BigInt(now);
-      // For any metric update that will be averaged later, push the current timestamp.
-      // Here we assume that if any metric is updated it should use the same timestamp.
-      // If individual timestamps are needed, consider separate arrays.
 
-      // Update hashRate if provided
       if (data.hashRate !== undefined && !isNaN(data.hashRate)) {
-        this.metrics.hashRate.push(data.hashRate);
-        this.metrics.timestamps.push(currentTimestamp);
-        this.hashRate = data.hashRate; // current value update
+        this.metrics.hashRate.push({ value: data.hashRate, timestamp: currentTimestamp });
+        this.hashRate = data.hashRate;
       }
-      // Update difficulty if provided (and record its timestamp for consistency)
       if (data.difficulty !== undefined && !isNaN(data.difficulty)) {
-        this.metrics.difficulty.push(data.difficulty);
-        this.metrics.timestamps.push(currentTimestamp);
+        this.metrics.difficulty.push({ value: data.difficulty, timestamp: currentTimestamp });
         this.difficulty = data.difficulty;
       }
-      // Update blockTime if provided (and record its timestamp)
       if (data.blockTime !== undefined && !isNaN(data.blockTime)) {
         this.lastBlockTime = now;
-        this.metrics.blockTimes.push(data.blockTime);
-        this.metrics.timestamps.push(currentTimestamp);
+        this.metrics.blockTimes.push({ value: data.blockTime, timestamp: currentTimestamp });
         this.blockTime = data.blockTime;
       }
-      // Update tagVolume if provided
       if (data.tagVolume !== undefined && !isNaN(data.tagVolume)) {
-        this.metrics.tagVolume.push(data.tagVolume);
-        this.metrics.timestamps.push(currentTimestamp);
+        this.metrics.tagVolume.push({ value: data.tagVolume, timestamp: currentTimestamp });
         this.tagVolume = data.tagVolume;
       }
-      // Update tagFees if provided
       if (data.tagFees !== undefined && !isNaN(data.tagFees)) {
-        this.metrics.tagFees.push(data.tagFees);
-        this.metrics.timestamps.push(currentTimestamp);
+        this.metrics.tagFees.push({ value: data.tagFees, timestamp: currentTimestamp });
         this.tagFees = data.tagFees;
       }
 
@@ -137,45 +122,12 @@ export class MiningMetrics {
   }
 
   private cleanupOldMetrics(now: number): void {
-    const cutoff = now - 24 * 60 * 60 * 1000; // 24 hours in ms
-    const startIdx = this.metrics.timestamps.findIndex(
-      (t) => Number(t) > cutoff,
-    );
-
-    if (startIdx === -1) {
-      // Clear all arrays if no data is newer than the cutoff
-      this.metrics.timestamps = [];
-      this.metrics.hashRate = [];
-      this.metrics.difficulty = [];
-      this.metrics.blockTimes = [];
-      this.metrics.tagVolume = [];
-      this.metrics.tagFees = [];
-    } else if (startIdx > 0) {
-      this.metrics.timestamps = this.metrics.timestamps.slice(startIdx);
-      // Ensure all related metric arrays are sliced to maintain index alignment
-      ['hashRate', 'difficulty', 'blockTimes', 'tagVolume', 'tagFees'].forEach(
-        (key) => {
-          if (key in this.metrics) {
-            (this.metrics[
-              key as
-                | 'hashRate'
-                | 'difficulty'
-                | 'blockTimes'
-                | 'tagVolume'
-                | 'tagFees'
-            ] as number[]) =
-              this.metrics[
-                key as
-                  | 'hashRate'
-                  | 'difficulty'
-                  | 'blockTimes'
-                  | 'tagVolume'
-                  | 'tagFees'
-              ].slice(startIdx);
-          }
-        },
-      );
-    }
+    const cutoff = BigInt(now - 24 * 60 * 60 * 1000); // 24 hours in ms as bigint
+    this.metrics.hashRate = this.metrics.hashRate.filter(m => m.timestamp > cutoff);
+    this.metrics.difficulty = this.metrics.difficulty.filter(m => m.timestamp > cutoff);
+    this.metrics.blockTimes = this.metrics.blockTimes.filter(m => m.timestamp > cutoff);
+    this.metrics.tagVolume = this.metrics.tagVolume.filter(m => m.timestamp > cutoff);
+    this.metrics.tagFees = this.metrics.tagFees.filter(m => m.timestamp > cutoff);
   }
 
   /**
@@ -185,20 +137,10 @@ export class MiningMetrics {
    */
   public getAverageHashRate(timeWindow: number = 3600000): number {
     try {
-      if (!this.metrics.hashRate.length || !this.metrics.timestamps.length) {
-        return 0;
-      }
-
-      const cutoff = Date.now() - timeWindow;
-      const startIdx = this.metrics.timestamps.findIndex(
-        (t) => Number(t) > cutoff,
-      );
-
-      if (startIdx === -1) return 0;
-
-      const recentHashes = this.metrics.hashRate.slice(startIdx);
-      return recentHashes.length > 0
-        ? recentHashes.reduce((a, b) => a + b, 0) / recentHashes.length
+      const cutoff = BigInt(Date.now() - timeWindow);
+      const recentData = this.metrics.hashRate.filter(m => m.timestamp > cutoff);
+      return recentData.length > 0
+        ? recentData.reduce((sum, m) => sum + m.value, 0) / recentData.length
         : 0;
     } catch (error) {
       Logger.error('Error calculating average hash rate:', error);
@@ -213,34 +155,15 @@ export class MiningMetrics {
    */
   getAverageTAGVolume(timeWindow: number = 3600000): number {
     try {
-      if (!this.metrics.tagVolume.length || !this.metrics.timestamps.length) {
-        Logger.debug('No TAG volume data available for averaging');
-        return 0;
-      }
-
-      const cutoff = Date.now() - timeWindow;
-      const startIdx = this.metrics.timestamps.findIndex(
-        (t) => Number(t) > cutoff,
-      );
-      if (startIdx === -1) {
+      const cutoff = BigInt(Date.now() - timeWindow);
+      const recentData = this.metrics.tagVolume.filter(m => m.timestamp > cutoff);
+      if (recentData.length === 0) {
         Logger.debug('No TAG volume data within specified timeWindow');
         return 0;
       }
-
-      let sum = 0;
-      let count = 0;
-      for (let i = startIdx; i < this.metrics.tagVolume.length; i++) {
-        const volume = this.metrics.tagVolume[i];
-        if (typeof volume === 'number' && !isNaN(volume)) {
-          sum += volume;
-          count++;
-        }
-      }
-
-      const average = count > 0 ? Number((sum / count).toFixed(8)) : 0;
-      Logger.debug(
-        `Calculated average TAG volume: ${average} over ${timeWindow}ms`,
-      );
+      const sum = recentData.reduce((acc, m) => acc + m.value, 0);
+      const average = Number((sum / recentData.length).toFixed(8));
+      Logger.debug(`Calculated average TAG volume: ${average} over ${timeWindow}ms`);
       return average;
     } catch (error) {
       Logger.error('Error calculating average TAG volume:', error);
@@ -255,34 +178,15 @@ export class MiningMetrics {
    */
   getAverageTAGFees(timeWindow: number = 3600000): number {
     try {
-      if (!this.metrics.tagFees.length || !this.metrics.timestamps.length) {
-        Logger.debug('No TAG fee data available for averaging');
-        return 0;
-      }
-
-      const cutoff = Date.now() - timeWindow;
-      const startIdx = this.metrics.timestamps.findIndex(
-        (t) => Number(t) > cutoff,
-      );
-      if (startIdx === -1) {
+      const cutoff = BigInt(Date.now() - timeWindow);
+      const recentData = this.metrics.tagFees.filter(m => m.timestamp > cutoff);
+      if (recentData.length === 0) {
         Logger.debug('No TAG fee data within specified timeWindow');
         return 0;
       }
-
-      let sum = 0;
-      let count = 0;
-      for (let i = startIdx; i < this.metrics.tagFees.length; i++) {
-        const fee = this.metrics.tagFees[i];
-        if (typeof fee === 'number' && !isNaN(fee)) {
-          sum += fee;
-          count++;
-        }
-      }
-
-      const average = count > 0 ? Number((sum / count).toFixed(8)) : 0;
-      Logger.debug(
-        `Calculated average TAG fees: ${average} over ${timeWindow}ms`,
-      );
+      const sum = recentData.reduce((acc, m) => acc + m.value, 0);
+      const average = Number((sum / recentData.length).toFixed(8));
+      Logger.debug(`Calculated average TAG fees: ${average} over ${timeWindow}ms`);
       return average;
     } catch (error) {
       Logger.error('Error calculating average TAG fees:', error);

@@ -34,10 +34,10 @@ import { AbstractChainedBatch } from 'abstract-leveldown';
  */
 
 export class UTXODatabase {
-  private readonly db: Level;
+  private readonly db: Level<string, UTXO | string>;
   private readonly mutex: Mutex;
   private readonly cache: Cache<UTXO>;
-  private batch: AbstractChainedBatch<string, string> | null = null;
+  private batch: AbstractChainedBatch<string, UTXO | string> | null = null;
   private readonly CACHE_TTL = 300000; // 5 minutes
   private initialized = false;
   private transactionInProgress = false;
@@ -45,7 +45,7 @@ export class UTXODatabase {
   constructor(dbPath: string) {
     if (!dbPath) throw new Error('Database path is required');
 
-    this.db = new Level(`${dbPath}/utxo`, {
+    this.db = new Level<string, UTXO | string>(`${dbPath}/utxo`, {
       valueEncoding: 'json',
       ...databaseConfig.options,
     });
@@ -76,7 +76,7 @@ export class UTXODatabase {
   }
 
   private batchWrite(
-    batch: AbstractChainedBatch<string, string>,
+    batch: AbstractChainedBatch<string, UTXO | string>,
   ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       batch.write((error: unknown) => {
@@ -120,7 +120,7 @@ export class UTXODatabase {
 
         const batch = this.batch || this.db.batch();
 
-        batch.put(key, JSON.stringify(utxo));
+        batch.put(key, utxo);
         batch.put(
           `address:${utxo.address}:${utxo.txId}:${utxo.outputIndex}`,
           key,
@@ -173,13 +173,13 @@ export class UTXODatabase {
     }
 
     try {
-      const utxo = await this.db.get<string>(key, {
+      const utxo = (await this.db.get(key, {
         valueEncoding: 'json',
-      });
+      })) as UTXO;
       if (!utxo) return null;
 
-      this.cache.set(key, JSON.parse(utxo) as UTXO, { ttl: this.CACHE_TTL });
-      return JSON.parse(utxo) as UTXO;
+      this.cache.set(key, utxo, { ttl: this.CACHE_TTL });
+      return utxo;
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) return null;
       Logger.error(

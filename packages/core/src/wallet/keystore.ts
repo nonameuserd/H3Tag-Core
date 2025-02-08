@@ -307,7 +307,6 @@ export class Keystore {
       };
     } finally {
       this.secureCleanup(password);
-      this.secureCleanup(salt);
     }
   }
 
@@ -370,8 +369,8 @@ export class Keystore {
 
     if (
       !crypto.timingSafeEqual(
-        Buffer.from(calculatedMac),
-        Buffer.from(storedMac),
+        Buffer.from(calculatedMac, 'hex'),
+        Buffer.from(storedMac, 'hex'),
       )
     ) {
       throw new KeystoreError(
@@ -518,13 +517,13 @@ export class Keystore {
     // KDF params validation
     this.validateKDFParams(keystore.crypto.kdfparams, keystore);
 
-    // MAC validation
+    // MAC validation: Expecting MAC to be a hex string.
     if (
       !keystore.crypto.mac ||
       typeof keystore.crypto.mac !== 'string' ||
-      !this.isValidBase64(keystore.crypto.mac)
+      !/^[0-9a-fA-F]+$/.test(keystore.crypto.mac)
     ) {
-      throw new KeystoreError('Invalid MAC', 'INVALID_MAC_FORMAT');
+      throw new KeystoreError('Invalid MAC format', 'INVALID_MAC_FORMAT');
     }
   }
 

@@ -15,6 +15,8 @@ export class CircuitBreaker {
   private monitorInterval: NodeJS.Timeout;
   // Track when the circuit entered the half-open state.
   private halfOpenStart: number = 0;
+  // NEW: Flag to ensure only one trial call in half-open state.
+  private trialCallInProgress: boolean = false;
 
   constructor(config: CircuitBreakerConfig) {
     this.config = {
@@ -158,14 +160,26 @@ export class CircuitBreaker {
 
   /**
    * Wraps an async action in the circuit breaker.
-   * If the circuit is open (and not half-open), immediately throws an error.
+   * If the circuit is open, immediately throws an error.
+   * In half-open, only one trial call is allowed concurrently.
    * On success, resets failures; on failure, records the failure.
    */
   public async run<T>(action: () => Promise<T>): Promise<T> {
-    // Prevent running the action if the breaker is open.
-    if (this.isOpen() && this.state !== 'half-open') {
+    // Simplify check: if the breaker is open, throw immediately.
+    if (this.state === 'open') {
       throw new Error('Circuit breaker is open');
     }
+
+    // NEW: In half-open state, allow only one trial call.
+    let trialCallStarted = false;
+    if (this.state === 'half-open') {
+      if (this.trialCallInProgress) {
+        throw new Error('Circuit breaker trial call already in progress');
+      }
+      this.trialCallInProgress = true;
+      trialCallStarted = true;
+    }
+    
     try {
       const result = await action();
       this.onSuccess();
@@ -173,6 +187,11 @@ export class CircuitBreaker {
     } catch (error) {
       this.onFailure();
       throw error;
+    } finally {
+      // NEW: Clear the trial call flag if it was set.
+      if (trialCallStarted) {
+        this.trialCallInProgress = false;
+      }
     }
   }
 }

@@ -16,8 +16,8 @@ export interface CurrencyConstantsInterface {
   name: string;
   symbol: string;
   decimals: number;
-  initialSupply: bigint;
-  maxSupply: bigint;
+  initialSupply: number;
+  maxSupply: number;
   units: {
     MACRO: bigint;
     MICRO: bigint;

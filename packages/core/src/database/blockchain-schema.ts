@@ -258,14 +258,16 @@ export class BlockchainSchema {
   private transactionStartTime: number | null = null;
   private transactionLocks = new Map<string, Mutex>();
   private readonly CACHE_TTL = 3600; // 1 hour
+  private _transactionLockRelease: (() => void) | undefined;
   /**
    * Constructor for Database
    * @param dbPath Path to the database
    */
   constructor(dbPath: string = './data/blockchain') {
     this.dbPath = dbPath;
+
+    // Remove valueEncoding so that we work with string values and preserve manual JSON (de)serialization.
     this.db = new Level(dbPath, {
-      valueEncoding: 'json',
       ...databaseConfig.options,
     });
     this.mutex = new Mutex();
@@ -2620,20 +2622,23 @@ export class BlockchainSchema {
   }
 
   public async startTransaction(): Promise<void> {
-    await this.transactionLock.acquire();
+    // Save the release function to allow later unlocking.
+    this._transactionLockRelease = await this.transactionLock.acquire();
     try {
       if (this.transaction) {
         throw new Error('Transaction already in progress');
       }
-
       this.transaction = this.db.batch();
       this.transactionOperations = [];
       this.transactionStartTime = Date.now();
-
       // Start transaction timeout monitor
       this.startTransactionMonitor();
     } catch (error) {
-      this.transactionLock.release();
+      // In case of error, release the lock immediately.
+      if (this._transactionLockRelease) {
+        this._transactionLockRelease();
+      }      
+      this._transactionLockRelease = undefined;
       throw error;
     }
   }
@@ -2659,27 +2664,33 @@ export class BlockchainSchema {
 
     try {
       await this.mutex.runExclusive(async () => {
-        if (this.transaction) {
-          await this.transaction.write((error) => {
+        // Wrap the batch write in a Promise to catch errors.
+        await new Promise<void>((resolve, reject) => {
+          this.transaction!.write((error) => {
             if (error) {
               Logger.error('Transaction write failed:', error);
-              throw new Error(`Transaction write failed: ${error.message}`);
+              return reject(new Error(`Transaction write failed: ${error.message}`));
             }
+            resolve();
           });
-        }
-        await this.persistOperations(this.transactionOperations);
-
-        // Only clear after successful persistence
-        this.transaction = null;
-        this.transactionOperations = [];
+        });
       });
+      await this.persistOperations(this.transactionOperations);
+
+      // Only clear after successful persistence
+      this.transaction = null;
+      this.transactionOperations = [];
     } catch (error: unknown) {
       await this.rollbackTransaction();
       throw new Error(
-        `Transaction commit failed: ${
-          error instanceof Error ? error.message : 'Unknown error'
-        }`,
+        `Transaction commit failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+    } finally {
+      // Release the transaction lock whether commit succeeded or not.
+      if (this._transactionLockRelease) {
+        this._transactionLockRelease();
+      }
+      this._transactionLockRelease = undefined;
     }
   }
 
@@ -2698,8 +2709,14 @@ export class BlockchainSchema {
     } catch (error: unknown) {
       Logger.error('Transaction rollback failed:', error);
       throw new Error(
-        `Rollback failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Rollback failed: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+    } finally {
+      // Always release the transaction lock.
+      if (this._transactionLockRelease) {
+        this._transactionLockRelease();
+      }
+      this._transactionLockRelease = undefined;
     }
   }
 
@@ -3058,7 +3075,7 @@ export class BlockchainSchema {
   ): Promise<BlockHeader[]> {
     try {
       const headers = [];
-      for await (const [value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `header:${locator[0]}`,
         lte: `header:${hashStop}`,
         limit: 1000,
@@ -3067,10 +3084,7 @@ export class BlockchainSchema {
       }
       return headers;
     } catch (error: unknown) {
-      Logger.error(
-        'Failed to get headers:',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
+      Logger.error('Failed to get headers:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     }
   }
@@ -3078,7 +3092,7 @@ export class BlockchainSchema {
   async getBlocks(locator: string[], hashStop: string): Promise<Block[]> {
     try {
       const blocks = [];
-      for await (const [value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: `block:${locator[0]}`,
         lte: `block:${hashStop}`,
         limit: 1000,
@@ -3087,10 +3101,7 @@ export class BlockchainSchema {
       }
       return blocks;
     } catch (error: unknown) {
-      Logger.error(
-        'Failed to get blocks:',
-        error instanceof Error ? error.message : 'Unknown error',
-      );
+      Logger.error('Failed to get blocks:', error instanceof Error ? error.message : 'Unknown error');
       return [];
     }
   }

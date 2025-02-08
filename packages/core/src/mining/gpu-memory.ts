@@ -218,32 +218,34 @@ export class AdaptiveGPUMemory {
     const pool = this.memoryPools.get(type);
     if (!pool) throw new Error(`No memory pool found for type: ${type}`);
 
-    // Calculate total allocated usage across all buffers
-    const totalUsage = Array.from(this.bufferUsageMap.values()).reduce(
-      (sum, usage) => sum + usage,
-      0,
-    );
-    const gpuMemory = this.device.limits.maxBufferSize || 0;
-    if (totalUsage + size > gpuMemory * this.MAX_MEMORY_USAGE) {
-      throw new Error('GPU memory limit exceeded');
+    // Sum usage only for buffers in this pool.
+    const poolUsage = pool.reduce((sum, buffer) => {
+      return sum + (this.bufferUsageMap.get(buffer) || 0);
+    }, 0);
+    const poolCapacity = this.getPoolSize(type);
+    if (poolUsage + size > poolCapacity * this.MAX_MEMORY_USAGE) {
+      throw new Error('GPU memory limit exceeded for pool ' + type);
     }
 
-    // Find the first buffer with enough free space
+    // Only reuse buffers that are completely free (usage === 0)
+    // to avoid partially shared buffers.
     for (const buffer of pool) {
-      const bufferUsage = this.bufferUsageMap.get(buffer) || 0;
-      if (buffer.size - bufferUsage >= size) {
-        this.bufferUsageMap.set(buffer, bufferUsage + size);
+      const allocated = this.bufferUsageMap.get(buffer) || 0;
+      if (allocated === 0 && buffer.size >= size) {
+        this.bufferUsageMap.set(buffer, size);
         return buffer;
       }
     }
 
-    // Create a new buffer if no suitable buffer is found
+    // No free buffer available; create a dedicated new GPUBuffer
     const newBuffer = this.device.createBuffer({
-      size: Math.max(size, this.getPoolSize(type)),
+      size: size,
       usage:
         GPUBufferUsage.STORAGE |
         GPUBufferUsage.COPY_SRC |
         GPUBufferUsage.COPY_DST,
+      mappedAtCreation: false,
+      label: `pool-${type}-new`,
     });
 
     if (!newBuffer) {
@@ -257,14 +259,18 @@ export class AdaptiveGPUMemory {
   async releaseMemory(type: string, buffer: GPUBuffer): Promise<void> {
     if (!buffer || !type) return;
 
-    const usage = this.bufferUsageMap.get(buffer) || 0;
+    const allocated = this.bufferUsageMap.get(buffer) || 0;
     const currentUsage = this.memoryUsage.get(type) || 0;
 
-    this.memoryUsage.set(type, Math.max(0, currentUsage - usage));
+    // Deduct the allocated size from the pool's usage.
+    this.memoryUsage.set(type, Math.max(0, currentUsage - allocated));
+
+    // Remove the tracking for this buffer.
     this.bufferUsageMap.delete(buffer);
 
-    await this.device?.queue.onSubmittedWorkDone();
+    // Destroy the buffer – safe because we never share a buffer between allocations.
     buffer.destroy();
+    await this.device?.queue.onSubmittedWorkDone();
   }
 
   private getPoolSize(type: string): number {

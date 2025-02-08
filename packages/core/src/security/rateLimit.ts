@@ -250,11 +250,11 @@ export class RateLimit {
       });
     }
 
+    // Convert the type to match priorityLevels key naming
+    const priorityKey =
+      type === 'quadraticVote' ? 'quadratic_vote' : type;
     this.limiter.set(key, info, {
-      priority:
-        this.config.priorityLevels?.[
-          type as keyof typeof this.config.priorityLevels
-        ] ?? 0,
+      priority: this.config.priorityLevels?.[priorityKey] ?? 0,
     });
 
     return info;

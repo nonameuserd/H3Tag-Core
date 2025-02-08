@@ -45,6 +45,18 @@ export declare class HybridCrypto {
         address: string | (() => Promise<string>);
     }): Promise<string>;
     static calculateHybridHash(data: Buffer): Promise<string>;
+    /**
+     * Hashes a given string using a hybrid approach.
+     * The function generates keypairs first, then hashes the data using:
+     * - Dilithium quantum signature
+     * - Kyber encapsulation
+     * - SHA-256 hash of the data
+     *
+     * The function returns the SHA-3 hash of the combined hashes.
+     *
+     * @param data - The string to hash
+     * @returns A Promise<string> containing the hybrid hash
+     */
     static hash(data: string): Promise<string>;
     static generateRandomBytes(length: number): Promise<Buffer>;
     static generateTraditionalKeys(): Promise<{

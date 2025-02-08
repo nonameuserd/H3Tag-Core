@@ -14,7 +14,7 @@ interface CacheOptions<T> {
   ttl?: number;
   maxSize?: number;
   checkPeriod?: number;
-  onEvict?: (key: string, value: T) => void;
+  onEvict?: (key: string, value: T | undefined) => void;
   serialize?: (value: T) => string;
   deserialize?: (value: string) => T;
   maxMemory?: number;
@@ -43,7 +43,7 @@ interface CacheStats {
 }
 
 interface CacheItem<T> {
-  value: T;
+  value?: T;
   expires: number;
   lastAccessed: number;
   size: number;
@@ -163,6 +163,7 @@ export class Cache<T> {
           finalValue = compressedValue.toString('base64');
           size = compressedValue.length;
           compressed = true;
+          value = undefined as unknown as T;
         }
       }
 
@@ -221,9 +222,12 @@ export class Cache<T> {
     }
 
     try {
-      if (item.compressed) {
+      if (item.compressed && item.value === undefined) {
+        // Lazy decompress on first access
         const decompressed = gunzipSync(Buffer.from(item.serialized, 'base64'));
         item.value = this.options.deserialize(decompressed.toString());
+        // Mark as decompressed so that subsequent gets use the stored value
+        item.compressed = false;
       }
     } catch (error) {
       Logger.error(
@@ -367,15 +371,15 @@ export class Cache<T> {
   }
 
   public values(): T[] {
-    return Array.from(this.items.values())
-      .filter((item) => !this.isExpired(item))
-      .map((item) => item.value);
+    return this.keys()
+      .map((key) => this.get(key))
+      .filter((v): v is T => v !== undefined);
   }
 
   public entries(): [string, T][] {
-    return Array.from(this.items.entries())
-      .filter(([, item]) => !this.isExpired(item))
-      .map(([key, item]) => [key, item.value]);
+    return this.keys()
+      .map((key) => [key, this.get(key)] as [string, T])
+      .filter(([, value]) => value !== undefined);
   }
 
   public size(): number {
@@ -454,7 +458,9 @@ export class Cache<T> {
   }
 
   public getAll(): T[] {
-    return Array.from(this.items.values()).map((item) => item.value);
+    return this.keys()
+      .map((key) => this.get(key))
+      .filter((v): v is T => v !== undefined);
   }
 
   public prune(percentage: number): void {

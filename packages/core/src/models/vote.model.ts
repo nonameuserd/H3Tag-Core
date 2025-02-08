@@ -139,11 +139,7 @@ export interface VotingPeriod {
  * Utility to convert a Map to a Record (plain object)
  */
 export function mapToRecord<T>(map: Map<string, T>): Record<string, T> {
-  const result: Record<string, T> = {};
-  map.forEach((value, key) => {
-    result[key] = value;
-  });
-  return result;
+  return Object.fromEntries(map.entries());
 }
 
 /**

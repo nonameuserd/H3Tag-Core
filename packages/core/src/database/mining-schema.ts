@@ -315,9 +315,9 @@ export class MiningDatabase {
       await this.db.put(key, JSON.stringify(metrics));
       this.cache.set(key, metrics);
 
-      // Store time-series data for analytics
+      // Updated: Store the full metrics object for time-series data (not just blockHeight)
       const timeKey = `metrics:time:${metrics.timestamp}`;
-      await this.db.put(timeKey, JSON.stringify(metrics.blockHeight));
+      await this.db.put(timeKey, JSON.stringify(metrics));
 
       Logger.debug('Mining metrics stored successfully', {
         blockHeight: metrics.blockHeight,
@@ -332,7 +332,7 @@ export class MiningDatabase {
   @retry({ maxAttempts: 3, delay: 1000 })
   async storeConsensusVote(vote: ConsensusVote): Promise<void> {
     return await this.mutex.runExclusive(async () => {
-      const key = `vote:${vote.blockHash}:${vote.voterAddress}`;
+      const key = `consensus_vote:${vote.blockHash}:${vote.voterAddress}`;
       try {
         // Validate vote
         if (!this.validateConsensusVote(vote)) {
@@ -345,8 +345,8 @@ export class MiningDatabase {
         // Store main record
         batch.put(key, JSON.stringify(vote));
 
-        // Index by timestamp for time-based queries
-        batch.put(`vote:time:${vote.timestamp}`, key);
+        // Update: Use the same prefix for the timestamp index as well
+        batch.put(`consensus_vote:time:${vote.timestamp}`, key);
         opCount++;
         if (opCount > this.BATCH_SIZE) {
           throw new Error('Batch size exceeds allowed limit');

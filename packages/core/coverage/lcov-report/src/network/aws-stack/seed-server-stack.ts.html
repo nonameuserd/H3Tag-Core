@@ -1361,7 +1361,7 @@ interface SeedServerStackProps extends cdk.StackProps {
     // Inbound rules
 <span class="cstat-no" title="statement not covered" >    securityGroup.addIngressRule(</span>
       ec2.Peer.anyIpv4(),
-      ec2.Port.tcp(8333),
+      ec2.Port.tcp(2333),
       'Allow blockchain network traffic',
     );
 &nbsp;
@@ -1403,7 +1403,7 @@ interface SeedServerStackProps extends cdk.StackProps {
     // Allow IPv6 support
 <span class="cstat-no" title="statement not covered" >    securityGroup.addIngressRule(</span>
       ec2.Peer.anyIpv6(),
-      ec2.Port.tcp(8333),
+      ec2.Port.tcp(2333),
       'Allow blockchain network traffic IPv6',
     );
 &nbsp;
@@ -1460,7 +1460,7 @@ interface SeedServerStackProps extends cdk.StackProps {
     // 8. Enhanced health check configuration
 <span class="cstat-no" title="statement not covered" >    new route53.CfnHealthCheck(this, 'SeedHealthCheck', {</span>
       healthCheckConfig: {
-        port: 8333,
+        port: 2333,
         type: 'TCP_AND_HTTP',
         resourcePath: '/health',
         fullyQualifiedDomainName: `seed.${props.domainName}`,
@@ -1542,7 +1542,7 @@ interface SeedServerStackProps extends cdk.StackProps {
         network: {
           type: 'MAINNET',
           port: {
-            MAINNET: 8333,
+            MAINNET: 2333,
             TESTNET: 10001,
             DEVNET: 10002,
           },

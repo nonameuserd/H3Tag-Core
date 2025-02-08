@@ -80,13 +80,12 @@ export class ShardManager {
         this.shards.set(i, new Set());
         this.shardMetrics.set(i, this.createInitialMetrics());
       }
-
-      // Create PoW shards
-      for (let i = this.config.votingShards; i < this.config.shardCount; i++) {
+      // Create PoW shards using the powShards field
+      const powShardCount = this.config.powShards;
+      for (let i = this.config.votingShards; i < this.config.votingShards + powShardCount; i++) {
         this.shards.set(i, new Set());
         this.shardMetrics.set(i, this.createInitialMetrics());
       }
-
       await this.auditManager.log(AuditEventType.SHARD_INITIALIZED, {
         shardCount: this.config.shardCount,
         votingShards: this.config.votingShards,
@@ -101,8 +100,13 @@ export class ShardManager {
    * Get shard for transaction
    */
   private getShardForTransaction(tx: Transaction): number {
-    const hash = BigInt(`0x${tx.id}`);
-    return Number(hash % BigInt(this.config.shardCount));
+    try {
+      const hash = BigInt(`0x${tx.id}`);
+      return Number(hash % BigInt(this.config.shardCount));
+    } catch (error) {
+      Logger.error('Invalid transaction id format, cannot convert to BigInt:', tx.id, error);
+      throw new Error('Invalid transaction id format');
+    }
   }
 
   /**
@@ -154,27 +158,34 @@ export class ShardManager {
         return;
       }
 
-      // Create new shards
+      // Create new shard; newShardId is chosen as the current number of shards
       const newShardId = this.shards.size;
       this.shards.set(newShardId, new Set());
 
-      // Redistribute data
+      // Updated redistribution: recalculate shard assignment using an adjusted approach.
       const items = Array.from(shard);
       for (const item of items) {
-        if (BigInt(`0x${item}`) % BigInt(2) === BigInt(0)) {
-          shard.delete(item);
-          this.shards.get(newShardId)?.add(item);
+        try {
+          // Calculate a new shard assignment given the new number of shards.
+          const newAssignment = Number(BigInt(`0x${item}`) % BigInt(newShardId + 1));
+          if (newAssignment !== shardId) {
+            shard.delete(item);
+            this.shards.get(newShardId)?.add(item);
+          }
+        } catch (error) {
+          // Log and skip problematic transaction IDs.
+          Logger.error('Failed to reassign transaction during resharding:', item, error);
         }
       }
 
-      // Update metrics
+      // Update metrics for both shards
       await this.updateShardMetrics(shardId);
       await this.updateShardMetrics(newShardId);
 
       await this.auditManager.log(AuditEventType.SHARD_RESHARD, {
         originalShard: shardId,
         newShard: newShardId,
-        itemsRedistributed: items.length / 2,
+        itemsRedistributed: items.length,
       });
 
       await this.db.commit();

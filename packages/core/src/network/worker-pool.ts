@@ -47,11 +47,9 @@ export class WorkerPool {
     }
   }
 
-  // In createWorker(), add a timeout while waiting for the worker to come online,
-  // in order to reduce the possibility of hanging indefinitely if the worker fails to start.
+  // Updated createWorker() to terminate workers that time out.
   private async createWorker(): Promise<Worker> {
-    const worker = new Worker(this.scriptPath, this.workerOptions) as Worker &
-      EventEmitter;
+    const worker = new Worker(this.scriptPath, this.workerOptions) as Worker & EventEmitter;
 
     const metrics: WorkerMetrics = {
       tasksProcessed: 0,
@@ -77,19 +75,30 @@ export class WorkerPool {
 
     this.workers.set(worker, metrics);
 
-    // Wait for the worker to be online with a timeout.
+    // Wait for the worker to be online with a timeout to prevent resource leaks.
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Worker online event timeout'));
-      }, 5000); // 5 seconds
-      worker.once('online', () => {
+      const onOnline = () => {
         clearTimeout(timeout);
         resolve();
-      });
+      };
+
+      // Set a 5-second timeout to wait for the worker to come online.
+      const timeout = setTimeout(() => {
+        worker.off('online', onOnline);  // Clean up the event listener.
+        // Terminate the worker if it fails to come online to avoid resource leak.
+        worker.terminate().then(() => {
+          reject(new Error('Worker online event timeout, worker terminated.'));
+        }).catch((terminationError) => {
+          reject(new Error('Worker online event timeout and failed to terminate worker: ' + terminationError));
+        });
+      }, 5000); // 5 seconds
+
+      worker.once('online', onOnline);
     });
 
     return worker;
   }
+
   private async handleWorkerError(worker: Worker): Promise<void> {
     const metrics = this.workers.get(worker);
     if (metrics && metrics.errors > 3) {

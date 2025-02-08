@@ -5,9 +5,8 @@
  * @module PeerModel
  */
 
-import { BlockHeader } from './block.model';
+import { Block, BlockHeader } from './block.model';
 
-import { Block } from './block.model';
 import { Transaction } from './transaction.model';
 import { Vote } from './vote.model';
 

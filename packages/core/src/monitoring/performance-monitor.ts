@@ -58,7 +58,8 @@ export class PerformanceMonitor {
       throw new Error('Operation name is required');
     }
 
-    const markerId = `${this.context}_${operation}_${Date.now()}`;
+    const markerId =
+      `${this.context}_${operation}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     this.metrics.set(markerId, {
       startTime: performance.now(),
       measurements: [],
@@ -182,11 +183,13 @@ export class PerformanceMonitor {
 
     for (const [, data] of this.metrics.entries()) {
       if (!operation || data.operation === operation) {
+        // Compute stats once instead of three times
+        const stats = this.calculateStats(data.measurements);
         metricsResult[data.operation] = {
           current: performance.now() - data.startTime,
-          average: this.calculateStats(data.measurements).average,
-          p95: this.calculateStats(data.measurements).p95,
-          p99: this.calculateStats(data.measurements).p99,
+          average: stats.average,
+          p95: stats.p95,
+          p99: stats.p99,
         };
       }
     }

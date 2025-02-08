@@ -246,13 +246,12 @@ export class UTXOSet {
    * Add a UTXO to the set
    */
   async add(utxo: UTXO): Promise<void> {
+    const release = await this.mutex.acquire();
     try {
-      await this.mutex.waitForUnlock();
       // Check rate limit
       if (!this.checkRateLimit()) {
         throw new UTXOError('Rate limit exceeded');
       }
-
       // Enforce size limits
       this.enforceSetLimits();
 
@@ -278,7 +277,7 @@ export class UTXOSet {
       this.utxos.set(this.getUtxoKey(utxo), signedUtxo);
       this.eventEmitter.emit('utxo_added', signedUtxo);
     } finally {
-      this.mutex.release();
+      release();
     }
   }
 
@@ -318,8 +317,9 @@ export class UTXOSet {
       let sum = BigInt(0);
       const result: UTXO[] = [];
 
+      // Use a comparator that properly compares BigInts
       const addressUtxos = this.getByAddress(address).sort((a, b) =>
-        Number(b.amount - a.amount),
+        a.amount > b.amount ? -1 : a.amount < b.amount ? 1 : 0
       );
 
       for (const utxo of addressUtxos) {
@@ -645,6 +645,7 @@ export class UTXOSet {
   }
 
   public async applyBlock(block: Block): Promise<void> {
+    const release = await this.mutex.acquire();
     try {
       // Remove spent UTXOs
       for (const tx of block.transactions) {
@@ -666,12 +667,12 @@ export class UTXOSet {
 
       // Add UTXOs in batch
       await Promise.all(newUtxos.map((utxo) => this.addUTXO(utxo)));
-
-      // Clean cache after block application
       this.cleanExpiredCache();
     } catch (error) {
       Logger.error('Failed to apply block to UTXO set:', error);
       throw error;
+    } finally {
+      release();
     }
   }
 
@@ -812,7 +813,7 @@ export class UTXOSet {
 
   async get(txId: string, outputIndex: number): Promise<UTXO | null> {
     const key = `${txId}:${outputIndex}`;
-    return this.utxos.get(key) || null;
+    return this.utxos.get(key) ?? null;
   }
 
   async set(txId: string, outputIndex: number, utxo: UTXO): Promise<void> {
@@ -960,12 +961,9 @@ export class UTXOSet {
   }
 
   public async revertTransaction(tx: Transaction): Promise<void> {
-    const release = await this.mutex.acquire();
     try {
-      // Start atomic operation
       await this.db.startTransaction();
 
-      // Track changes for rollback
       const changes: { type: 'unspend' | 'remove'; utxo: UTXO }[] = [];
 
       // Unspend inputs
@@ -975,7 +973,7 @@ export class UTXOSet {
           changes.push({ type: 'unspend', utxo: { ...utxo } });
           utxo.spent = false;
           await this.set(input.txId, input.outputIndex, utxo);
-          this.removeFromIndex(utxo); // Update indexes
+          this.removeFromIndex(utxo);
         }
       }
 
@@ -987,7 +985,7 @@ export class UTXOSet {
           amount: tx.outputs[i].amount,
           address: tx.outputs[i].address,
           script: tx.outputs[i].script,
-          timestamp: tx.timestamp, // Use tx timestamp instead of current time
+          timestamp: tx.timestamp,
           spent: false,
           currency: {
             name: BLOCKCHAIN_CONSTANTS.CURRENCY.NAME,
@@ -1008,7 +1006,6 @@ export class UTXOSet {
       // Commit changes
       await this.db.commitTransaction();
 
-      // Emit events
       this.eventEmitter.emit('transaction_reverted', {
         txId: tx.id,
         timestamp: Date.now(),
@@ -1021,7 +1018,6 @@ export class UTXOSet {
         outputCount: tx.outputs.length,
       });
     } catch (error) {
-      // Rollback on failure
       await this.db.rollbackTransaction();
 
       Logger.error('Failed to revert transaction:', {
@@ -1035,8 +1031,7 @@ export class UTXOSet {
         }`,
       );
     } finally {
-      release();
-      this.cleanupCache(); // Cleanup any cached data
+      this.cleanupCache();
     }
   }
 
@@ -1350,25 +1345,21 @@ export class UTXOSet {
 
   /**
    * Check if a UTXO is considered safe to spend
-   * @param utxo UTXO to check
-   * @returns boolean indicating if UTXO is safe
    */
   private isUtxoSafe(utxo: UTXO): boolean {
     try {
-      // Check if UTXO has required confirmations
-      if (!utxo.blockHeight) return false;
+      // Use explicit check to allow blockHeight === 0 as valid
+      if (utxo.blockHeight === undefined || utxo.blockHeight === null) return false;
 
       const confirmations = this.getHeight() - utxo.blockHeight + 1;
       if (confirmations < BLOCKCHAIN_CONSTANTS.MIN_SAFE_CONFIRMATIONS) {
         return false;
       }
 
-      // Check if UTXO has valid signature
       if (!utxo.signature || !utxo.publicKey) {
         return false;
       }
 
-      // Check if UTXO amount is within safe limits
       if (
         utxo.amount <= BigInt(0) ||
         utxo.amount > BigInt(BLOCKCHAIN_CONSTANTS.MAX_SAFE_UTXO_AMOUNT)
@@ -1376,7 +1367,6 @@ export class UTXOSet {
         return false;
       }
 
-      // Check if UTXO script is standard
       if (!this.isStandardScript(utxo.script)) {
         return false;
       }
@@ -1429,16 +1419,14 @@ export class UTXOSet {
   ): Promise<TxOutInfo | null> {
     const release = await this.mutex.acquire();
     try {
-      // Get the UTXO
       const utxo = await this.get(txId, n);
 
-      // Return null if UTXO doesn't exist or is spent
       if (!utxo || utxo.spent) {
         return null;
       }
 
-      // If not including mempool and UTXO is not confirmed, return null
-      if (!includeMempool && !utxo.blockHeight) {
+      // Use explicit check for undefined blockHeight (0 is valid)
+      if (!includeMempool && utxo.blockHeight === undefined) {
         return null;
       }
 

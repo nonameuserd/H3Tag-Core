@@ -1,4 +1,3 @@
-import { EventEmitter } from 'events';
 import { Logger } from '@h3tag-blockchain/shared';
 import { Block, BlockHeader } from '../models/block.model';
 import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
@@ -16,7 +15,6 @@ import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
  *
  * @property {Map<string, number>} metrics - Storage for collected metrics
  * @property {Map<string, number>} timers - Active metric timers
- * @property {EventEmitter} eventEmitter - Event emitter for metric updates
  * @property {string} namespace - Metrics namespace identifier
  * @property {NodeJS.Timeout} flushInterval - Timer for periodic metric flushing
  *
@@ -29,7 +27,6 @@ import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
 export class MetricsCollector {
   private metrics: Map<string, number>;
   private timers: Map<string, number>;
-  private readonly eventEmitter: EventEmitter;
   private readonly namespace: string;
   private flushInterval: NodeJS.Timeout | null;
   private readonly FLUSH_INTERVAL_MS = 60000; // 1 minute default
@@ -49,7 +46,6 @@ export class MetricsCollector {
     this.namespace = namespace;
     this.metrics = new Map();
     this.timers = new Map();
-    this.eventEmitter = new EventEmitter();
 
     // Validate flush interval to be at least 1 second.
     if (flushIntervalMs < 1000) {
@@ -174,6 +170,12 @@ export class MetricsCollector {
    * @private
    */
   private async flush(): Promise<void> {
+    // Prevent overlapping flushes
+    if (this.isFlushing) {
+      Logger.info('Flush already in progress, skipping this interval');
+      return;
+    }
+    this.isFlushing = true;
     try {
       if (this.metrics.size > 0) {
         Logger.info('Flushing metrics:', Array.from(this.metrics.entries()));
@@ -181,6 +183,8 @@ export class MetricsCollector {
       }
     } catch (error) {
       Logger.error('Error during flushing metrics:', error);
+    } finally {
+      this.isFlushing = false;
     }
   }
 
@@ -215,7 +219,6 @@ export class MetricsCollector {
       if (this.flushInterval) {
         clearInterval(this.flushInterval);
       }
-      this.eventEmitter.removeAllListeners();
       this.metrics.clear();
       this.timers.clear();
     } catch (error) {
@@ -259,6 +262,9 @@ export class MetricsCollector {
   }
 
   private calculateTransactionSize(tx: Transaction): number {
+    // NOTE: This method treats version and lockTime as varInt.
+    // If your blockchain protocol uses fixed sizes for these fields,
+    // update the calculation accordingly.
     return (
       this.calculateVarIntSize(tx.version) +
       this.calculateVarIntSize(tx.inputs.length) +
@@ -366,7 +372,8 @@ export class MetricsCollector {
   }
 
   /**
-   * Cleans up metrics collector resources
+   * Cleans up metrics data.
+   * NOTE: This does NOT clear the flush interval. Use dispose() to release all resources.
    */
   cleanup(): void {
     this.metrics.clear();

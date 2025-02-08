@@ -107,3 +107,9 @@ export const databaseConfig: DatabaseConfig = {
     sync: true, // Set to true for stronger durability guarantees
   },
 };
+
+if (!databaseConfig.regions.find(region => region.name === databaseConfig.defaultRegion)) {
+  throw new Error(
+    `Default region "${databaseConfig.defaultRegion}" is not defined in regions configuration.`
+  );
+}

@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 
 const regions =
   process.env.AWS_REGIONS?.split(',')
-    .map((region) => region.trim())
+    .map((region) => region.trim().toLowerCase())
     .filter(Boolean) || [];
 const account = process.env.CDK_DEFAULT_ACCOUNT?.trim();
 
@@ -20,7 +20,7 @@ if (regions.length === 0) {
   process.exit(1);
 }
 
-const AWS_REGION_REGEX = /^[a-z]{2}-[a-z]+-\d{1}$/;
+const AWS_REGION_REGEX = /^[a-z]{2}-[a-z]+-\d+$/;
 const invalidRegions = regions.filter(
   (region) => !AWS_REGION_REGEX.test(region),
 );

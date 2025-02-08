@@ -187,18 +187,21 @@ export class DNSSeeder extends EventEmitter {
     const promises: Promise<void>[] = [];
 
     for (const seed of seeds) {
-      if (this.activeSeeds.has(seed)) continue;
-
       promises.push(
         (async () => {
-          const release = await this.mutex.acquire();
-          try {
-            this.activeSeeds.add(seed);
-            const startTime = Date.now();
+          let shouldProceed = false;
+          await this.mutex.runExclusive(() => {
+            if (!this.activeSeeds.has(seed)) {
+              this.activeSeeds.add(seed);
+              shouldProceed = true;
+            }
+          });
+          if (!shouldProceed) return;
 
+          try {
+            const startTime = Date.now();
             const addresses = await this.resolveWithRetry(seed);
             const latency = Date.now() - startTime;
-
             this.updateSeedMetrics(seed, addresses.length, latency);
             addresses.forEach((addr) => {
               peerResults.push({ address: addr, seed });
@@ -206,8 +209,9 @@ export class DNSSeeder extends EventEmitter {
           } catch (error: unknown) {
             this.handleSeedFailure(seed, error as Error);
           } finally {
-            this.activeSeeds.delete(seed);
-            release();
+            await this.mutex.runExclusive(() => {
+              this.activeSeeds.delete(seed);
+            });
           }
         })(),
       );
@@ -221,38 +225,40 @@ export class DNSSeeder extends EventEmitter {
     seed: string,
     retryCount = 0,
   ): Promise<string[]> {
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(
+    const dnsPromise = new Promise<string[]>((resolve, reject) => {
+      const timer = setTimeout(
         () => reject(new DNSSeederError('DNS timeout', 'DNS_TIMEOUT')),
         this.config.timeout,
       );
+
+      Promise.all([
+        this.resolve4Async(seed),
+        this.resolve6Async(seed).catch(() => []),
+        this.lookupAsync(seed)
+          .then((result) => [result.address])
+          .catch(() => []),
+      ])
+        .then((results) => {
+          clearTimeout(timer);
+          const [ipv4Addresses, ipv6Addresses, lookupResult] = results;
+          const uniqueAddresses = new Set([
+            ...ipv4Addresses,
+            ...ipv6Addresses,
+            ...lookupResult,
+          ]);
+          resolve(Array.from(uniqueAddresses));
+        })
+        .catch((err) => {
+          clearTimeout(timer);
+          reject(err);
+        });
     });
 
     try {
-      const results = await Promise.race([
-        Promise.all([
-          this.resolve4Async(seed),
-          this.resolve6Async(seed).catch(() => []),
-          this.lookupAsync(seed)
-            .then((result) => [result.address])
-            .catch(() => []),
-        ]),
-        timeoutPromise,
-      ]);
-
-      const [ipv4Addresses, ipv6Addresses, lookupResult] = results;
-      const uniqueAddresses = new Set([
-        ...ipv4Addresses,
-        ...ipv6Addresses,
-        ...lookupResult,
-      ]);
-
-      return Array.from(uniqueAddresses);
+      return await dnsPromise;
     } catch (error) {
       if (retryCount < this.config.maxRetries) {
-        await new Promise((resolve) =>
-          setTimeout(resolve, this.config.retryDelay),
-        );
+        await new Promise((resolve) => setTimeout(resolve, this.config.retryDelay));
         return this.resolveWithRetry(seed, retryCount + 1);
       }
       throw error;
@@ -328,7 +334,7 @@ export class DNSSeeder extends EventEmitter {
     this.metrics.increment(`seed_failures_${seed}`);
   }
 
-  private handleCacheEviction(key: string, value: SeedInfo): void {
+  private handleCacheEviction(key: string, value: SeedInfo | undefined): void {
     this.metrics.increment('cache_evictions');
     Logger.debug(`Evicted seed ${key} from cache`, value);
   }

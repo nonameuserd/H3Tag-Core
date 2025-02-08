@@ -119,9 +119,7 @@ export class NodeVerifier {
       nodeInfo.tagInfo.minedBlocks >= this.MIN_POW_BLOCKS &&
       nodeInfo.tagInfo.voteParticipation >= this.MIN_PARTICIPATION_RATE &&
       nodeInfo.tagInfo.currency === BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL &&
-      (nodeInfo.tagInfo.votingPower
-        ? BigInt(nodeInfo.tagInfo.votingPower) >= minimumVotingPower
-        : false)
+      BigInt(nodeInfo.tagInfo.votingPower ?? 0) >= minimumVotingPower
     );
   }
 
@@ -132,6 +130,9 @@ export class NodeVerifier {
         timestamp: nodeInfo.timestamp,
         address: nodeInfo.address,
         tagInfo: nodeInfo.tagInfo,
+        height: nodeInfo.height,
+        peers: nodeInfo.peers,
+        isMiner: nodeInfo.isMiner,
       });
 
       const isValid = await HybridCrypto.verify(
@@ -163,9 +164,7 @@ export class NodeVerifier {
   private static validateTimestamp(timestamp: number): void {
     const now = Date.now();
     const drift = Math.abs(now - timestamp);
-    const maxDrift = this.MAX_TIMESTAMP_DRIFT;
-
-    if (drift > maxDrift || timestamp > now + maxDrift) {
+    if (drift > this.MAX_TIMESTAMP_DRIFT) {
       throw new VerificationError(
         `Node timestamp is too far from current time: ${drift}ms`,
       );

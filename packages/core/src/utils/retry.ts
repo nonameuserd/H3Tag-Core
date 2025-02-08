@@ -76,13 +76,15 @@ export class RetryStrategy {
     successes: 0,
     failures: 0,
     lastAttempt: 0,
-    averageDelay: 0,
+    averageDelay: 0, // average delay in milliseconds between retries
   };
 
   constructor(private config: RetryConfig) {}
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     let attempts = 0;
+    let totalDelay = 0;     // Sum of all delays applied
+    let delayCount = 0;     // Number of delay occurrences
 
     while (attempts < this.config.maxAttempts) {
       try {
@@ -90,6 +92,10 @@ export class RetryStrategy {
         this.stats.lastAttempt = Date.now();
         const result = await fn();
         this.stats.successes++;
+        // Update the averageDelay based on the delays that have occurred
+        if (delayCount > 0) {
+          this.stats.averageDelay = Math.floor(totalDelay / delayCount);
+        }
         return result;
       } catch (error) {
         // Immediately abort if the error is marked as non-retryable.
@@ -102,11 +108,19 @@ export class RetryStrategy {
 
         if (attempts === this.config.maxAttempts) {
           this.stats.failures++;
+          // Update averageDelay on final failure if delays were recorded
+          if (delayCount > 0) {
+            this.stats.averageDelay = Math.floor(totalDelay / delayCount);
+          }
           throw error;
         }
+        // Calculate delay for current attempt
+        const delayValue = calculateDelay(attempts, this.config);
+        totalDelay += delayValue;
+        delayCount++;
         // Wait before retrying.
         await new Promise((resolve) =>
-          setTimeout(resolve, calculateDelay(attempts, this.config)),
+          setTimeout(resolve, delayValue),
         );
       }
     }

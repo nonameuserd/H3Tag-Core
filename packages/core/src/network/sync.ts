@@ -292,28 +292,34 @@ export class BlockchainSync {
       return undefined;
     }
 
-    // Add timeout to peer validation
-    const validPeers = await Promise.race([
-      Promise.all(
-        connectedPeers.map(async (peer) => ({
+    // Wrap each peer validation with its own timeout
+    const validPeersPromises = connectedPeers.map(async (peer) =>
+      Promise.race([
+        (async () => ({
           peer,
           isValid: await this.validatePeerBeforeSync(peer).catch(() => false),
-        })),
-      ),
-      new Promise<never>((_, reject) =>
-        setTimeout(
-          () => reject(new Error('Peer validation timeout')),
-          BlockchainSync.SYNC_TIMEOUTS.PEER_SELECTION,
+        }))(),
+        new Promise<{ peer: Peer; isValid: boolean }>((_, reject) =>
+          setTimeout(
+            () => reject(new Error('Peer validation timeout')),
+            BlockchainSync.SYNC_TIMEOUTS.PEER_SELECTION,
+          ),
         ),
-      ),
-    ]);
+      ]),
+    );
 
-    const validConnectedPeers = validPeers
-      .filter(({ isValid }) => isValid)
-      .map(({ peer }) => peer);
+    // Use allSettled to capture results even if some validations time out
+    const results = await Promise.allSettled(validPeersPromises);
+    const validPeers = results
+      .filter(
+        (result): result is PromiseFulfilledResult<{ peer: Peer; isValid: boolean }> =>
+          result.status === 'fulfilled',
+      )
+      .map((result) => result.value)
+      .filter(({ isValid }) => isValid);
 
     const peersWithInfo = await Promise.all(
-      validConnectedPeers.map(async (peer) => ({
+      validPeers.map(async ({ peer }) => ({
         peer,
         info: await peer.getInfo(),
       })),
@@ -401,6 +407,7 @@ export class BlockchainSync {
             error,
           );
           await this.handleSyncError(error as Error);
+          throw error;
         }
       }
     } finally {
@@ -634,11 +641,11 @@ export class BlockchainSync {
 
   private async validatePeerBeforeSync(peer: Peer): Promise<boolean> {
     try {
-      const peerInfo = peer.getInfo();
+      const info = await peer.getInfo();
       const localHeight = this.blockchain.getHeight();
 
-      if ((await peerInfo).height <= localHeight) return false;
-      if (!(await peer.validatePeerCurrency(await peerInfo))) return false;
+      if (info.height <= localHeight) return false;
+      if (!(await peer.validatePeerCurrency(info))) return false;
       if (peer.getAverageBandwidth() < 1000000) return false; // 1MB/s minimum
 
       return true;
@@ -811,8 +818,13 @@ export class BlockchainSync {
     if (mempool) this.mempool = mempool;
     if (peers) {
       this.peers = peers;
-      // Ensure event listeners are added for the newly provided peers
-      peers.forEach((peer) => this.setupPeerListeners(peer));
+      peers.forEach((peer) => {
+        const extendedPeer = peer as Peer & { _syncListenersAdded?: boolean };
+        if (!extendedPeer._syncListenersAdded) {
+          this.setupPeerListeners(peer);
+          extendedPeer._syncListenersAdded = true;
+        }
+      });
     }
   }
 }

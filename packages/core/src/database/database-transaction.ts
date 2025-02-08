@@ -18,6 +18,7 @@ import { AbstractChainedBatch } from 'abstract-leveldown';
  * @property {Array<{ type: 'put' | 'del'; key: string; value?: string }>} operations - Pending operations
  * @property {boolean} committed - Transaction commit status
  * @property {boolean} rolledBack - Transaction rollback status
+ * @property {Map<string, string | null>} originalStates - Map to capture original values before first modification
  *
  * @example
  * const tx = new DatabaseTransaction(db);
@@ -154,24 +155,49 @@ export class DatabaseTransaction {
   }> = [];
   private committed = false;
   private rolledBack = false;
+  private originalStates: Map<string, string | null> = new Map();
 
   constructor(private readonly db: BlockchainSchema) {
     this.batch = db.db.batch();
   }
 
-  put(key: string, value: string): void {
+  public async put(key: string, value: string): Promise<void> {
     this.validateTransactionState();
-    if (!key || !value) {
+    if (!key || value === undefined || value === null) {
       throw new Error('Key and value must be provided');
+    }
+    if (!this.originalStates.has(key)) {
+      try {
+        const originalValue = await this.db.db.get(key);
+        this.originalStates.set(key, originalValue);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          this.originalStates.set(key, null);
+        } else {
+          throw error;
+        }
+      }
     }
     this.operations.push({ type: 'put', key, value });
     this.batch.put(key, value);
   }
 
-  delete(key: string): void {
+  public async delete(key: string): Promise<void> {
     this.validateTransactionState();
     if (!key) {
       throw new Error('Key must be provided');
+    }
+    if (!this.originalStates.has(key)) {
+      try {
+        const originalValue = await this.db.db.get(key);
+        this.originalStates.set(key, originalValue);
+      } catch (error: unknown) {
+        if (error instanceof Error) {
+          this.originalStates.set(key, null);
+        } else {
+          throw error;
+        }
+      }
     }
     this.operations.push({ type: 'del', key });
     this.batch.del(key);
@@ -200,29 +226,12 @@ export class DatabaseTransaction {
     if (this.committed || this.rolledBack) return;
 
     try {
-      const uniqueKeys = Array.from(
-        new Set(this.operations.map((op) => op.key)),
-      );
-      const keyStates = await Promise.all(
-        uniqueKeys.map(async (key) => {
-          try {
-            const value = await this.db.db.get(key);
-            return { key, value };
-          } catch (err: unknown) {
-            if (err instanceof Error) {
-              return { key, value: null };
-            }
-            throw err;
-          }
-        }),
-      );
-
       const reverseBatch = this.db.db.batch();
-      for (const { key, value } of keyStates) {
-        if (value === null) {
+      for (const [key, originalValue] of this.originalStates.entries()) {
+        if (originalValue === null) {
           reverseBatch.del(key);
         } else {
-          reverseBatch.put(key, value);
+          reverseBatch.put(key, originalValue);
         }
       }
 

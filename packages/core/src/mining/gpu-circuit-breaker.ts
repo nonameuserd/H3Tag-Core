@@ -177,11 +177,12 @@ export class GPUCircuitBreaker {
     // Use saturating increment to prevent overflow
     if (this.failures < Number.MAX_SAFE_INTEGER) {
       this.failures++;
-      this.lastFailure = Date.now();
     } else {
       // If at max value, saturate at the threshold.
       this.failures = this.threshold;
     }
+    // Always update lastFailure to ensure the timing is current
+    this.lastFailure = Date.now();
   }
 
   /**

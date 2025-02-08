@@ -25,10 +25,10 @@ import { Logger } from '@h3tag-blockchain/shared';
 export interface HealthMonitorConfig {
   interval: number;
   thresholds: {
-    minPowHashrate?: number;
-    minPowNodes?: number;
-    minTagDistribution?: number;
-    maxTagConcentration?: number;
+    minPowHashrate: number;
+    minPowNodes: number;
+    minTagDistribution: number;
+    maxTagConcentration: number;
   };
 }
 
@@ -131,10 +131,10 @@ export class HealthMonitor {
 
       const thresholds = this.config.thresholds;
       const isHealthy =
-        (health.powNodeCount || 0) >= (thresholds.minPowNodes || 0) &&
-        (health.networkHashrate || 0) >= (thresholds.minPowHashrate || 0) &&
-        (health.tagHolderCount || 0) >= (thresholds.minTagDistribution || 0) &&
-        (health.tagDistribution || 0) <= (thresholds.maxTagConcentration || 1);
+        (health.powNodeCount ?? 0) >= thresholds.minPowNodes &&
+        (health.networkHashrate ?? 0) >= thresholds.minPowHashrate &&
+        (health.tagHolderCount ?? 0) >= thresholds.minTagDistribution &&
+        (health.tagDistribution ?? 0) <= thresholds.maxTagConcentration;
 
       health.isHealthy = isHealthy;
       return health;

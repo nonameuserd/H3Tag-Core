@@ -208,15 +208,19 @@ export class PerformanceMetrics {
         if (!context || key.startsWith(context)) {
           if (metric.count === 0 || metric.lastUpdated < cutoff) continue;
 
+          // Filter out only durations within the last 24 hours
           const recentDurations = metric.durations.filter(
             (_, i) => metric.timestamps[i] > cutoff,
           );
 
           if (recentDurations.length === 0) continue;
 
+          // Fix: Recalculate the average based solely on recent (filtered) durations
+          const recentTotal = recentDurations.reduce((sum, d) => sum + d, 0);
+
           result[key] = {
             ...metric,
-            average: metric.totalDuration / metric.count,
+            average: recentTotal / recentDurations.length,
             last24Hours: recentDurations,
             lastUpdated: metric.lastUpdated,
           };

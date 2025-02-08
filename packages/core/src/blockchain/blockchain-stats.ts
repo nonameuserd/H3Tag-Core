@@ -349,10 +349,14 @@ export class BlockchainStats {
     promise: Promise<T>,
     timeoutMs: number = 5000,
   ): Promise<T> {
+    let timer: NodeJS.Timeout;
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('Operation timed out')), timeoutMs);
+      timer = setTimeout(() => reject(new Error('Operation timed out')), timeoutMs);
     });
-    return Promise.race([promise, timeoutPromise]);
+    return Promise.race([
+      promise.finally(() => clearTimeout(timer)),
+      timeoutPromise,
+    ]);
   }
 
   /**
@@ -465,7 +469,7 @@ export class BlockchainStats {
           }),
         );
 
-        return orphanCount / windowSize;
+        return (orphanCount / windowSize) * 100;
       } catch (error) {
         Logger.error('Error calculating orphan rate:', error);
         this.getMetricsCollector()
@@ -601,7 +605,7 @@ export class BlockchainStats {
       );
       const propagationTimes: number[] = [];
 
-      // Process blocks in batches using array methods
+      // Process blocks in batches
       const batchCount = Math.ceil((currentHeight - startHeight) / batchSize);
       const batches = Array.from({ length: batchCount }, (_, i) => ({
         start: startHeight + i * batchSize,
@@ -645,40 +649,16 @@ export class BlockchainStats {
 
   private quickselectMedian(arr: number[]): number {
     if (arr.length === 0) return 0;
-    const k = Math.floor(arr.length / 2);
-    this.quickselect(arr, 0, arr.length - 1, k);
-    return arr[k];
-  }
-
-  private quickselect(
-    arr: number[],
-    left: number,
-    right: number,
-    k: number,
-  ): void {
-    while (left < right) {
-      const pivotIndex = this.partition(arr, left, right);
-      if (pivotIndex === k) {
-        return;
-      } else if (pivotIndex < k) {
-        left = pivotIndex + 1;
-      } else {
-        right = pivotIndex - 1;
-      }
+    // Create a sorted copy of the array
+    const sorted = [...arr].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2 === 0) {
+      // For even-length arrays, average the two middle values
+      return (sorted[mid - 1] + sorted[mid]) / 2;
+    } else {
+      // For odd-length arrays, return the middle element
+      return sorted[mid];
     }
-  }
-
-  private partition(arr: number[], left: number, right: number): number {
-    const pivot = arr[right];
-    let i = left;
-    for (let j = left; j < right; j++) {
-      if (arr[j] < pivot) {
-        [arr[i], arr[j]] = [arr[j], arr[i]];
-        i++;
-      }
-    }
-    [arr[i], arr[right]] = [arr[right], arr[i]];
-    return i;
   }
 
   /**
@@ -931,7 +911,6 @@ export class BlockchainStats {
     this.cacheQueue.length = 0;
     this.cacheIndex.clear();
     this.metricsCollector?.cleanup();
-    this.cacheMutex.cancel(); // Ensure no pending operations.
   }
 
   /**

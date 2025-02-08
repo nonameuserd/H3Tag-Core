@@ -100,7 +100,20 @@ export class Node {
 
     this.config = {
       ...Node.DEFAULT_CONFIG,
-      ...ConfigService.getInstance(),
+      networkType:
+        this.configService.get('NETWORK_TYPE') || Node.DEFAULT_CONFIG.networkType,
+      port: this.configService.get('NODE_PORT') || Node.DEFAULT_CONFIG.port,
+      maxPeers: this.configService.get('MAX_PEERS') || Node.DEFAULT_CONFIG.maxPeers,
+      minPeers: this.configService.get('MIN_PEERS') || Node.DEFAULT_CONFIG.minPeers,
+      connectionTimeout:
+        this.configService.get('CONNECTION_TIMEOUT') || Node.DEFAULT_CONFIG.connectionTimeout,
+      syncInterval: this.configService.get('SYNC_INTERVAL') || Node.DEFAULT_CONFIG.syncInterval,
+      banTime: this.configService.get('BAN_TIME') || Node.DEFAULT_CONFIG.banTime,
+      maxBanScore: this.configService.get('MAX_BAN_SCORE') || Node.DEFAULT_CONFIG.maxBanScore,
+      pruneInterval: this.configService.get('PRUNE_INTERVAL') || Node.DEFAULT_CONFIG.pruneInterval,
+      maxOrphans: this.configService.get('MAX_ORPHANS') || Node.DEFAULT_CONFIG.maxOrphans,
+      maxReorg: this.configService.get('MAX_REORG') || Node.DEFAULT_CONFIG.maxReorg,
+      services: this.configService.get('SERVICES') || Node.DEFAULT_CONFIG.services,
     };
 
     this.peers = new Map();
@@ -284,7 +297,7 @@ export class Node {
           address,
           version: nodeInfo.version,
         });
-        tempPeer.disconnect();
+        await tempPeer.disconnect();
         return;
       }
 
@@ -539,7 +552,8 @@ export class Node {
 
   // Public Methods
   public getAddress(): string {
-    return this.configService.get('NODE_ADDRESS');
+    // Provide a default value if NODE_ADDRESS isn't set (e.g., 'localhost')
+    return this.configService.get('NODE_ADDRESS') || 'localhost';
   }
 
   public getPeerCount(): number {
@@ -562,13 +576,12 @@ export class Node {
   }
 
   public async broadcastTransaction(tx: Transaction): Promise<void> {
-    if (this.peers.size === 0) {
-      throw new Error(
-        'No connected peers available to broadcast the transaction',
-      );
+    const connectedPeers = Array.from(this.peers.values()).filter(peer => peer.isConnected());
+    if (connectedPeers.length === 0) {
+      throw new Error('No connected peers available to broadcast the transaction');
     }
 
-    const promises = Array.from(this.peers.values()).map((peer) =>
+    const promises = connectedPeers.map(peer =>
       peer.send(PeerMessageType.TX, { transaction: tx }),
     );
     await Promise.allSettled(promises);
@@ -720,6 +733,15 @@ export class Node {
   }
 
   private async handleOrphanBlock(block: Block): Promise<void> {
+    // Enforce maximum orphans limit
+    if (this.orphanBlocks.size >= this.config.maxOrphans) {
+      // Evict the oldest orphan block (using the first inserted key)
+      const oldestKey = this.orphanBlocks.keys().next().value;
+      if (oldestKey) {
+        this.orphanBlocks.delete(oldestKey);
+        Logger.warn('Max orphan block limit reached; evicting oldest orphan.', { evictedKey: oldestKey });
+      }
+    }
     const orphanKey = `${block.header.previousHash}:${block.hash}`;
     this.orphanBlocks.set(orphanKey, block);
     Logger.debug('Added orphan block:', {

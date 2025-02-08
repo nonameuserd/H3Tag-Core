@@ -28,6 +28,7 @@ export class Performance {
     string,
     {
       startTime: number;
+      lastUpdated?: number;
       count: number;
       total: number;
       min: number;
@@ -181,8 +182,10 @@ export class Performance {
     }
 
     try {
+      // If there's no aggregated metric for this label, create one with both startTime and lastUpdated set to Date.now()
       const current = this.metrics.get(label) || {
         startTime: Date.now(),
+        lastUpdated: Date.now(),
         count: 0,
         total: 0,
         min: Infinity,
@@ -195,6 +198,8 @@ export class Performance {
       current.min = Math.min(current.min, duration);
       current.max = Math.max(current.max, duration);
       current.avg = current.total / current.count;
+      // Update lastUpdated on every new metric record
+      current.lastUpdated = Date.now();
 
       this.metrics.set(label, current);
     } catch (error) {
@@ -207,7 +212,9 @@ export class Performance {
 
     try {
       for (const [key, metric] of Performance.metrics.entries()) {
-        if (metric.startTime && metric.startTime < cutoff) {
+        // Use lastUpdated if available, otherwise fallback to startTime
+        const lastTime = metric.lastUpdated ?? metric.startTime;
+        if (lastTime < cutoff) {
           Performance.metrics.delete(key);
         }
       }

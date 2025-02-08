@@ -69,6 +69,7 @@ export interface BlockHeader {
   nonce: number;
   miner: string;
   validatorMerkleRoot: string;
+  votesMerkleRoot: string;
   totalTAG: number;
   blockReward: number;
   fees: number;
@@ -185,6 +186,7 @@ export class BlockBuilder {
       nonce: 0,
       miner: '',
       validatorMerkleRoot: '',
+      votesMerkleRoot: '',
       totalTAG: 0,
       blockReward: 0,
       fees: 0,
@@ -400,6 +402,7 @@ export class BlockBuilder {
         nonce: this.header.nonce,
         miner: this.header.miner,
         validatorMerkleRoot: this.header.validatorMerkleRoot,
+        votesMerkleRoot: this.header.votesMerkleRoot,
         totalTAG: this.header.totalTAG,
         blockReward: this.header.blockReward,
         fees: this.header.fees,
@@ -444,6 +447,11 @@ export class BlockBuilder {
           await this.merkleTree.createRoot(validatorHashes);
       }
 
+      if (!this.header.votesMerkleRoot && this.votes.length > 0) {
+        const voteHashes = this.votes.map((v) => v.voteId);
+        this.header.votesMerkleRoot = await this.merkleTree.createRoot(voteHashes);
+      }
+
       // Calculate final block hash
       const hash = await this.calculateHash();
       this.header.hash = hash;
@@ -455,12 +463,13 @@ export class BlockBuilder {
       );
       this.header.fees = totalFees;
 
-      // Sign the block before finalizing
-      const headerString = JSON.stringify(this.header);
-      this.header.signature = await HybridCrypto.sign(
-        headerString,
-        minerKeyPair,
-      );
+      // NEW: Set the miner's public key in the header (needed for signature verification)
+      this.header.publicKey = typeof minerKeyPair.publicKey === 'string'
+        ? minerKeyPair.publicKey
+        : await minerKeyPair.publicKey();
+      
+      // Updated code:
+      this.header.signature = await HybridCrypto.sign(hash, minerKeyPair);
 
       // Build final block object with all components
       const block: Block = {

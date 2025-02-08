@@ -95,6 +95,15 @@ export class DirectVotingUtil {
     const startVotingHeight = await this.db.getVotingStartHeight();
     const endVotingHeight = await this.db.getVotingEndHeight();
 
+    // Validate that start/end voting heights were retrieved successfully.
+    if (startVotingHeight == null || endVotingHeight == null) {
+      Logger.error('Voting start or end height is undefined', {
+        startVotingHeight,
+        endVotingHeight,
+      });
+      throw new Error('Voting start/end height undefined');
+    }
+
     const forkDepth = currentHeight - forkHeight;
 
     if (forkDepth > BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH) {
@@ -158,7 +167,7 @@ export class DirectVotingUtil {
         throw new Error('No validators provided');
       }
 
-      const BATCH_SIZE = 1000; // Adjust based on performance testing
+      const BATCH_SIZE = 1000;
       let offset = 0;
       const validVotes: Vote[] = [];
 
@@ -172,7 +181,6 @@ export class DirectVotingUtil {
 
         if (votesBatch.length === 0) break;
 
-        // Map each vote to a promise that returns the vote if valid or null otherwise.
         const batchResults = await Promise.allSettled(
           votesBatch.map((vote) =>
             this.verifyVote(vote as Vote, validatorMap).then((isValid) => (isValid ? vote : null)),
@@ -202,32 +210,39 @@ export class DirectVotingUtil {
    */
   private async tallyVotes(votes: Vote[]): Promise<VoteTally> {
     try {
-      const tally: VoteTally = {
-        approved: 0n,
-        rejected: 0n,
-        totalVotes: votes.length,
-        uniqueVoters: new Set(votes.map((v) => v.voter)).size,
-        participationRate: 0,
-        timestamp: Date.now(),
-      };
+      // Initialize counters for valid votes only
+      let approved = 0n;
+      let rejected = 0n;
+      let validCount = 0;
 
-      // Add validation for votes array
+      // Validate that votes is an array (just in case)
       if (!votes || !Array.isArray(votes)) {
         throw new Error('Invalid votes array');
       }
 
-      // single loop for counting
+      // Loop through votes and only count those with a valid "approve" flag
       for (const vote of votes) {
+        if (typeof vote.approve !== 'boolean') {
+          Logger.warn(`Vote ${vote.voteId} missing a valid 'approve' property, skipping in tally.`);
+          continue; // Skip vote if approve is not set as a boolean
+        }
+        validCount++;
         if (vote.approve) {
-          tally.approved++;
+          approved++;
         } else {
-          tally.rejected++;
+          rejected++;
         }
       }
 
-      // Calculate participation rate
-      const total = tally.approved + tally.rejected;
-      tally.participationRate = total > 0 ? Number(tally.approved * 10000n / total) / 10000 : 0;
+      const tally: VoteTally = {
+        approved,
+        rejected,
+        totalVotes: validCount,
+        uniqueVoters: new Set(votes.filter(v => typeof v.approve === 'boolean').map((v) => v.voter)).size,
+        // Use precise division (without BigInt division rounding) for participation rate.
+        participationRate: validCount > 0 ? Number(approved) / validCount : 0,
+        timestamp: Date.now(),
+      };
 
       return tally;
     } catch (error) {
@@ -335,7 +350,8 @@ export class DirectVotingUtil {
     vote: Vote,
     validatorMap: Map<string, Validator>,
   ): Promise<boolean> {
-    const cacheKey = `${vote.voter}:${vote.timestamp}`;
+    // Update cache key to include vote.signature for additional uniqueness.
+    const cacheKey = `${vote.voter}:${vote.timestamp}:${vote.signature}`;
     const now = Date.now();
 
     // Check cache first and evict expired entry
@@ -348,7 +364,7 @@ export class DirectVotingUtil {
       }
     }
 
-    // DDoS protection
+    // DDoS protection check
     if (!this.ddosProtection.checkRequest(`vote_verify:${vote.voter}`, vote.voter)) {
       await this.auditManager.logEvent({
         type: AuditEventType.SECURITY,
@@ -356,7 +372,7 @@ export class DirectVotingUtil {
         source: 'ddos_protection',
         details: { 
           voter: vote.voter,
-          timestamp: Date.now(),
+          timestamp: now,
           requestType: 'vote_verify'
         }
       });
@@ -373,7 +389,7 @@ export class DirectVotingUtil {
       return false;
     });
 
-    // Cache the result along with current timestamp
+    // Cache the result along with the current timestamp
     this.voteCache.set(cacheKey, { value: result, timestamp: now });
     return result;
   }

@@ -77,7 +77,6 @@ export class VotingDatabase implements IVotingSchema {
     if (!dbPath) throw new Error('Database path is required');
 
     this.db = new Level(`${dbPath}/voting`, {
-      valueEncoding: 'json',
       createIfMissing: true,
       compression: true,
     });
@@ -171,11 +170,13 @@ export class VotingDatabase implements IVotingSchema {
 
         const batch = this.db.batch();
 
-        // Store main record
+        // Store main record using manual JSON.stringify
         batch.put(key, JSON.stringify(vote));
 
-        // Index by period
+        // Index by period (existing)
         batch.put(`period_vote:${vote.periodId}:${vote.voterAddress}`, key);
+        // NEW: Add secondary index by voter address for voter-based queries
+        batch.put(`voter_vote:${vote.voterAddress}:${vote.periodId}`, key);
 
         await this.batchWrite(batch);
         this.cache.set(key, vote, { ttl: this.CACHE_TTL });
@@ -265,25 +266,20 @@ export class VotingDatabase implements IVotingSchema {
    */
   async getLatestVote(voterAddress: string): Promise<Vote | null> {
     try {
-      for await (const [, value] of this.db.iterator({
-        gte: `vote:${voterAddress}:`,
-        lte: `vote:${voterAddress}:\xFF`,
+      // Use the secondary index keyed by voter address
+      for await (const [, mainVoteKey] of this.db.iterator({
+        gte: `voter_vote:${voterAddress}:`,
+        lte: `voter_vote:${voterAddress}:\xFF`,
         reverse: true,
         limit: 1,
       })) {
-        try {
-          return JSON.parse(value);
-        } catch (error) {
-          if (error instanceof SyntaxError) {
-            Logger.error('Invalid JSON in vote:', error);
-            continue;
-          }
-          throw error;
-        }
+        // Retrieve the actual vote using the main key
+        const voteStr = await this.db.get(mainVoteKey);
+        return JSON.parse(voteStr) as Vote;
       }
       return null;
     } catch (error) {
-      Logger.error('Failed to get latest vote:', error);
+      Logger.error('Failed to get latest vote by voter index:', error);
       return null;
     }
   }
@@ -302,15 +298,17 @@ export class VotingDatabase implements IVotingSchema {
   async getVotesByVoter(voterAddress: string): Promise<Vote[]> {
     const votes: Vote[] = [];
     try {
-      for await (const [, value] of this.db.iterator({
-        gte: `vote:${voterAddress}:`,
-        lte: `vote:${voterAddress}:\xFF`,
+      // Iterate over the voter index instead of the main vote key prefix
+      for await (const [, mainVoteKey] of this.db.iterator({
+        gte: `voter_vote:${voterAddress}:`,
+        lte: `voter_vote:${voterAddress}:\xFF`,
       })) {
-        votes.push(JSON.parse(value));
+        const voteStr = await this.db.get(mainVoteKey);
+        votes.push(JSON.parse(voteStr) as Vote);
       }
       return votes;
     } catch (error) {
-      Logger.error('Failed to get votes by voter:', error);
+      Logger.error('Failed to get votes by voter (via voter index):', error);
       return [];
     }
   }
@@ -455,42 +453,18 @@ export class VotingDatabase implements IVotingSchema {
 
     return await this.mutex.runExclusive(async () => {
       const votes: Vote[] = [];
-      const processedKeys = new Set<string>();
-
       try {
-        let batch: Vote[] = [];
-
-        for await (const [key, value] of this.db.iterator({
-          gte: `vote:${address}:`,
-          lte: `vote:${address}:\xFF`,
-          limit: this.BATCH_SIZE,
+        // Use the secondary index for voter address lookups
+        for await (const [, mainVoteKey] of this.db.iterator({
+          gte: `voter_vote:${address}:`,
+          lte: `voter_vote:${address}:\xFF`,
         })) {
-          if (processedKeys.has(key)) continue;
-
-          try {
-            const vote = this.safeParse<Vote>(value);
-            if (vote && this.validateVote(vote)) {
-              batch.push(vote);
-              processedKeys.add(key);
-            }
-
-            if (batch.length >= this.BATCH_SIZE) {
-              votes.push(...batch);
-              batch = [];
-            }
-          } catch (parseError) {
-            Logger.error('Failed to parse vote:', parseError);
-            continue;
-          }
+          const voteStr = await this.db.get(mainVoteKey);
+          votes.push(JSON.parse(voteStr) as Vote);
         }
-
-        if (batch.length > 0) {
-          votes.push(...batch);
-        }
-
         return votes;
       } catch (error) {
-        Logger.error('Failed to get votes by address:', error);
+        Logger.error('Failed to get votes by address (via voter index):', error);
         throw new VotingError('RETRIEVAL_FAILED', 'Failed to retrieve votes');
       }
     });
@@ -583,7 +557,7 @@ export class VotingDatabase implements IVotingSchema {
   async getVotes(): Promise<Vote[]> {
     const votes: Vote[] = [];
     try {
-      for await (const [value] of this.db.iterator({
+      for await (const [, value] of this.db.iterator({
         gte: 'vote:',
         lte: 'vote:\xFF',
         limit: 1000,
@@ -635,21 +609,24 @@ export class VotingDatabase implements IVotingSchema {
     }) => Promise<T>,
   ): Promise<T> {
     return await this.mutex.runExclusive(async () => {
+      const batch = this.db.batch();
+      
       const tx = {
-        execute: async (fn: () => Promise<void>) => {
+        execute: async (op: () => Promise<void>) => {
           try {
-            await fn();
-            await this.batchWrite(this.db.batch());
+            await op();
           } catch (error) {
             this.cache.clear();
             throw error;
           }
         },
         put: async (key: string, value: string) => {
-          await this.db.put(key, value);
+          batch.put(key, value);
         },
       };
-      return await fn(tx);
+      const result = await fn(tx);
+      await this.batchWrite(batch);
+      return result;
     });
   }
 

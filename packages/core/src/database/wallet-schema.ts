@@ -33,18 +33,24 @@ import { UTXO, UTXOSet } from '../models/utxo.model';
  * const stored = await walletDb.getKeystore(address);
  */
 
+// Define an interface for Level DB errors that may have a "notFound" property
+interface LevelNotFoundError extends Error {
+  notFound?: boolean;
+}
+
 export class WalletDatabase {
-  private db: Level;
+  private db: Level<string, string | EncryptedKeystore>;
   private cache: Cache<EncryptedKeystore>;
   private mutex: Mutex;
   private readonly CACHE_TTL = 3600; // 1 hour
   private isInitialized = false;
   private utxoSet: UTXOSet;
+  private initializationPromise: Promise<void>;
 
   constructor(dbPath: string) {
     if (!dbPath) throw new Error('Database path is required');
 
-    this.db = new Level(`${dbPath}/wallet`, {
+    this.db = new Level<string, string | EncryptedKeystore>(`${dbPath}/wallet`, {
       valueEncoding: 'json',
       ...databaseConfig.options,
     });
@@ -59,7 +65,7 @@ export class WalletDatabase {
       priorityLevels: { active: 2, default: 1 },
     });
 
-    this.initialize().catch((err) => {
+    this.initializationPromise = this.initialize().catch((err) => {
       Logger.error('Failed to initialize wallet database:', err);
       throw err;
     });
@@ -76,12 +82,19 @@ export class WalletDatabase {
     }
   }
 
+  private async ensureInitialized(): Promise<void> {
+    await this.initializationPromise;
+    if (!this.isInitialized) {
+      throw new Error('Database not initialized');
+    }
+  }
+
   @retry({ maxAttempts: 3, delay: 1000 })
   async saveKeystore(
     address: string,
     keystore: EncryptedKeystore,
   ): Promise<void> {
-    if (!this.isInitialized) throw new Error('Database not initialized');
+    await this.ensureInitialized();
     if (!address || !keystore)
       throw new Error('Address and keystore are required');
 
@@ -95,7 +108,7 @@ export class WalletDatabase {
         }
 
         const batch = this.db.batch();
-        batch.put(key, JSON.stringify(keystore));
+        batch.put(key, keystore);
         batch.put(`address:${address}`, key);
         await batch.write();
 
@@ -126,7 +139,7 @@ export class WalletDatabase {
    * const keystore = await walletDb.getKeystore('0x...');
    */
   async getKeystore(address: string): Promise<EncryptedKeystore | null> {
-    if (!this.isInitialized) throw new Error('Database not initialized');
+    await this.ensureInitialized();
     if (!address) throw new Error('Address is required');
 
     const key = `keystore:${address}`;
@@ -138,25 +151,13 @@ export class WalletDatabase {
         return cached;
       }
 
-      const data = await this.db.get(key);
-      const keystore = this.safeParse<EncryptedKeystore>(data);
-      if (!keystore) return null;
-
+      const keystore = await this.db.get(key) as EncryptedKeystore;
       this.cache.set(key, keystore, { ttl: this.CACHE_TTL });
       return keystore;
     } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return null;
+      if (error instanceof Error && (error as LevelNotFoundError).notFound) return null;
       Logger.error('Failed to retrieve keystore:', { error, address });
       throw new Error('Failed to retrieve keystore');
-    }
-  }
-
-  private safeParse<T>(value: string): T | null {
-    try {
-      return JSON.parse(value) as T;
-    } catch (error) {
-      Logger.error('Failed to parse stored value:', error);
-      return null;
     }
   }
 
@@ -266,13 +267,17 @@ export class WalletDatabase {
    * const index = await walletDb.getAddressIndex('0x...');
    */
   async getAddressIndex(address: string): Promise<number> {
+    await this.ensureInitialized();
     try {
       const key = `addressIndex:${address}`;
       const data = await this.db.get(key);
-      return parseInt(data) || 0;
+      return parseInt(data as string) || 0;
     } catch (error: unknown) {
-      if (error instanceof Error && 'notFound' in error) return 0;
-      Logger.error('Failed to get address index:', error instanceof Error ? error.message : 'Unknown error');
+      if (error instanceof Error && (error as LevelNotFoundError).notFound) return 0;
+      Logger.error(
+        'Failed to get address index:',
+        error instanceof Error ? error.message : 'Unknown error',
+      );
       throw error;
     }
   }

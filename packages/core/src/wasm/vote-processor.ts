@@ -125,16 +125,16 @@ export class WasmVoteProcessor {
     votes.forEach((vote, index) => {
       const { voterBytes } = voteByteArrays[index];
 
-      // Write balance as 8-byte BigInt.
-      view.setBigInt64(offset, BigInt(vote.balance));
+      // Write balance as 8-byte BigInt in little-endian order.
+      view.setBigInt64(offset, BigInt(vote.balance), true);
       offset += 8;
 
-      // Write approved as a 4-byte integer.
-      view.setInt32(offset, vote.approved);
+      // Write approved as a 4-byte integer in little-endian order.
+      view.setInt32(offset, vote.approved, true);
       offset += 4;
 
-      // Write the length of the voter string in bytes.
-      view.setInt32(offset, voterBytes.length);
+      // Write the length of the voter string in bytes in little-endian order.
+      view.setInt32(offset, voterBytes.length, true);
       offset += 4;
 
       // Write voter string bytes.

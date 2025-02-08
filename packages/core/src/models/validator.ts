@@ -103,15 +103,19 @@ export class ValidatorSet {
     }
 
     try {
-      const validatorData = this.serializeValidator(validator);
-      const validators = Array.from(this.validators.values()).map((v) =>
+      // Create updated aggregation of validators, replacing any existing instance of the same validator.
+      const newSerializedValidator = this.serializeValidator(validator);
+      const tempValidators = new Map(this.validators);
+      tempValidators.set(validator.id, validator);
+      const validatorsArray = Array.from(tempValidators.values()).map((v) =>
         this.serializeValidator(v),
       );
-      validators.push(validatorData);
+      // Identify the index of the newly added (or updated) validator
+      const index = validatorsArray.findIndex((v) => v === newSerializedValidator);
 
-      // Calculate and store merkle root
-      const merkleRoot = await this.merkleTree.createRoot(validators);
-      const proof = await this.merkleTree.generateProof(validators.length - 1);
+      // Calculate and store merkle root using the updated validatorsArray
+      const merkleRoot = await this.merkleTree.createRoot(validatorsArray);
+      const proof = await this.merkleTree.generateProof(index);
 
       // Add timestamp check for last active
       if (validator.lastActive < Date.now() - 24 * 60 * 60 * 1000) {
@@ -232,9 +236,15 @@ export class ValidatorSet {
       validationData: validator.validationData,
       powHashRate: validator.powHashRate,
     };
-    // Compute a SHA-256 hash of the signable data to safeguard against manipulation of other fields.
+    // Sort keys to ensure deterministic serialization (like in serializeValidatorForSignature)
+    const sortedKeys = Object.keys(signableData).sort();
+    const sortedData: Record<string, unknown> = {};
+    for (const key of sortedKeys) {
+      sortedData[key] = (signableData as Record<string, unknown>)[key];
+    }
+    // Compute a SHA-256 hash of the sorted signable data to safeguard against manipulation of other fields.
     const fullDataHash = createHash('sha256')
-      .update(JSON.stringify(signableData))
+      .update(JSON.stringify(sortedData))
       .digest('hex');
     return `${baseStr}:${fullDataHash}`;
   }

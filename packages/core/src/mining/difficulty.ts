@@ -141,8 +141,8 @@ export class DifficultyAdjuster {
   ): Promise<number> {
     let adjustment = this.calculatePOWAdjustment(blockTimes, hashRate);
 
-    // Add hash rate adjustment
-    const hashRateAdjustment = this.calculateHashRateAdjustment(hashRate);
+    // Add hash rate adjustment and await its async result
+    const hashRateAdjustment = await this.calculateHashRateAdjustment(hashRate);
     adjustment = adjustment * hashRateAdjustment;
 
     // Apply voting influence
@@ -178,7 +178,7 @@ export class DifficultyAdjuster {
     return 1 + participationWeight * approvalWeight * this.ADJUSTMENT_FACTOR;
   }
 
-  private calculateHashRateAdjustment(currentHashRate: number): number {
+  private async calculateHashRateAdjustment(currentHashRate: number): Promise<number> {
     // Add current hash rate to history
     this.hashRateHistory.push(BigInt(currentHashRate));
     if (this.hashRateHistory.length > this.HASH_RATE_WINDOW) {
@@ -200,12 +200,13 @@ export class DifficultyAdjuster {
     const adjustment =
       1 + this.sigmoid(hashRateChange) * this.MAX_HASH_RATE_ADJUSTMENT;
 
-    const networkFactor = this.calculateNetworkHealthFactor();
+    // Await the network health factor since the method is async
+    const networkFactor = await this.calculateNetworkHealthFactor();
 
     return Math.max(
       1 - this.MAX_HASH_RATE_ADJUSTMENT,
       Math.min(
-        Number(adjustment) * Number(networkFactor),
+        adjustment * networkFactor,
         1 + this.MAX_HASH_RATE_ADJUSTMENT,
       ),
     );

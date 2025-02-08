@@ -58,6 +58,22 @@ export class BlockValidator {
     VALIDATION_WEIGHT_THRESHOLD: 0.66, // 66% of validators required
   };
 
+  private static blockchain: {
+    getCurrentHeight(): number;
+    getLatestBlock(): Block | null;
+    getMempool(): Mempool;
+    getBlockchainStats(): BlockchainStats;
+  } | null = null;
+
+  public static setBlockchain(chain: {
+    getCurrentHeight(): number;
+    getLatestBlock(): Block | null;
+    getMempool(): Mempool;
+    getBlockchainStats(): BlockchainStats;
+  }): void {
+    this.blockchain = chain;
+  }
+
   @retry({
     maxAttempts: 3,
     delay: 1000,
@@ -68,6 +84,11 @@ export class BlockValidator {
     previousBlock: Block | null,
     utxoSet: UTXOSet,
   ): Promise<boolean> {
+    // Ensure blockchain dependency is provided
+    if (!this.blockchain) {
+      Logger.error('Blockchain interface not set.');    
+      throw new BlockValidationError('Blockchain interface not set', 'NO_BLOCKCHAIN_INTERFACE');
+    }
     try {
       await Promise.race([
         this.performValidation(block, previousBlock, utxoSet),
@@ -302,15 +323,20 @@ export class BlockValidator {
     ) {
       throw new BlockValidationError('Invalid proof of work', 'INVALID_POW');
     }
-
-    // Add quantum security validation
-    await this.calculateBlockHash(block);
   }
 
   private static async validateVotes(block: Block): Promise<void> {
-    const votes = (block.votes || []).map((vote) =>
-      typeof vote === 'string' ? JSON.parse(vote) : vote,
-    ) as Vote[];
+    const votes = (block.votes || []).map((vote) => {
+      if (typeof vote === 'string') {
+        try {
+          return JSON.parse(vote);
+        } catch {
+          Logger.error('Invalid vote JSON format', { vote });
+          throw new BlockValidationError('Invalid vote JSON format', 'INVALID_VOTE_JSON');
+        }
+      }
+      return vote;
+    }) as Vote[];
 
     if (!(await this.validateVoteSignatures(votes))) {
       throw new BlockValidationError(
@@ -399,7 +425,8 @@ export class BlockValidator {
       if (!utxo) {
         throw new BlockValidationError('UTXO not found', 'INVALID_UTXO_REF');
       }
-      if (utxo.amount !== input.amount) {
+      // Explicit conversion to BigInt for a reliable comparison
+      if (BigInt(utxo.amount) !== BigInt(input.amount)) {
         throw new BlockValidationError('Amount mismatch', 'AMOUNT_MISMATCH');
       }
     }
@@ -441,22 +468,6 @@ export class BlockValidator {
     }
   }
 
-  private static blockchain: {
-    getCurrentHeight(): number;
-    getLatestBlock(): Block | null;
-    getMempool(): Mempool;
-    getBlockchainStats(): BlockchainStats;
-  } | null = null;
-
-  public static setBlockchain(chain: {
-    getCurrentHeight(): number;
-    getLatestBlock(): Block | null;
-    getMempool(): Mempool;
-    getBlockchainStats(): BlockchainStats;
-  }): void {
-    this.blockchain = chain;
-  }
-
   private static async meetsHashTarget(block: Block): Promise<boolean> {
     const blockHash = await this.calculateBlockHash(block);
     const target = this.calculateDifficultyTarget(block.header.difficulty);
@@ -481,6 +492,9 @@ export class BlockValidator {
 
   public static async calculateDynamicBlockSize(block: Block): Promise<number> {
     try {
+      // Use the candidate block to compute its size (for diagnostic purposes)
+      const currentBlockSize = this.calculateBlockSize(block);
+      Logger.debug(`Current block calculated size: ${currentBlockSize}`);
       // Get network metrics
       const mempool = this.blockchain?.getMempool();
       const stats = this.blockchain?.getBlockchainStats();
@@ -516,13 +530,13 @@ export class BlockValidator {
         Math.max(0.7, 1000 / propagationStatsObj.median),
       );
 
-      // Calculate target size with all factors
-      const currentSize = JSON.stringify(block).length;
-      const adjustedSize =
-        currentSize * congestionFactor * blockTimeFactor * propagationFactor;
-
-      // Apply min/max bounds and smoothing
+      // Use previous block size as baseline instead of the current block size.
       const previousSize = this.getPreviousBlockSize();
+      // Previously: const currentSize = JSON.stringify(block).length;
+      // Adjusted size now based on previous size:
+      const adjustedSize =
+        previousSize * congestionFactor * blockTimeFactor * propagationFactor;
+
       const maxChange =
         previousSize * (this.BLOCK_CONSTANTS.ADJUSTMENT_FACTOR - 1);
 

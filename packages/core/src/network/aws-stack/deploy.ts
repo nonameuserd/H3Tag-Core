@@ -12,7 +12,7 @@ interface DeployConfig {
 
 function validateConfig(): DeployConfig {
   const regions = process.env.AWS_REGIONS?.split(',')
-    .map((region) => region.trim())
+    .map((region) => region.trim().toLowerCase())
     .filter(Boolean);
   const domainName = process.env.DOMAIN_NAME?.trim();
   const account = process.env.CDK_DEFAULT_ACCOUNT?.trim();
@@ -29,7 +29,7 @@ function validateConfig(): DeployConfig {
   }
 
   // Validate region format
-  const AWS_REGION_REGEX = /^[a-z]{2}-[a-z]+-\d{1}$/;
+  const AWS_REGION_REGEX = /^[a-z]{2}-[a-z]+-\d+$/;
   const invalidRegions = regions.filter(
     (region) => !AWS_REGION_REGEX.test(region),
   );

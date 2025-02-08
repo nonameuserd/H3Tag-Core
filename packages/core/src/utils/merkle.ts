@@ -110,8 +110,11 @@ export class MerkleTree {
 
         if (siblingIndex < layer.length) {
           proof.siblings.push(layer[siblingIndex]);
+        } else {
+          // If no sibling is found (odd count), duplicate the current node
+          proof.siblings.push(layer[currentIndex]);
         }
-
+        
         currentIndex = Math.floor(currentIndex / 2);
       }
 
@@ -216,14 +219,14 @@ export class MerkleTree {
 
     const key = `${left}:${right}`;
 
-    if (this.hashCache.size < this.maxCacheSize && this.hashCache.has(key)) {
+    // Return cached hash if it exists regardless of cache size
+    if (this.hashCache.has(key)) {
       return this.hashCache.get(key)!;
     }
 
     const combined = `${left}${right}`;
     const hash = await HybridCrypto.hash(combined);
 
-    // Only cache if we haven't exceeded the limit
     if (this.hashCache.size < this.maxCacheSize) {
       this.hashCache.set(key, hash);
     }
@@ -242,7 +245,9 @@ export class MerkleTree {
     }
 
     const hash = await HybridCrypto.hash(data);
-    this.hashCache.set(data, hash);
+    if (this.hashCache.size < this.maxCacheSize) {
+      this.hashCache.set(data, hash);
+    }
     return hash;
   }
 

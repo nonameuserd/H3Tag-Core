@@ -26,15 +26,15 @@ export class NodeInitializer {
     };
 
     return {
-      main: { path: `${basePath}/main`, options: defaultOptions },
-      mining: { path: `${basePath}/mining`, options: defaultOptions },
-      keystore: { path: `${basePath}/keystore`, options: defaultOptions },
-      utxo: { path: `${basePath}/utxo`, options: defaultOptions },
-      wallet: { path: `${basePath}/wallet`, options: defaultOptions },
-      voting: { path: `${basePath}/voting`, options: defaultOptions },
+      main: { path: `${basePath}/main`, options: { ...defaultOptions } },
+      mining: { path: `${basePath}/mining`, options: { ...defaultOptions } },
+      keystore: { path: `${basePath}/keystore`, options: { ...defaultOptions } },
+      utxo: { path: `${basePath}/utxo`, options: { ...defaultOptions } },
+      wallet: { path: `${basePath}/wallet`, options: { ...defaultOptions } },
+      voting: { path: `${basePath}/voting`, options: { ...defaultOptions } },
       votingShard: {
         path: `${basePath}/voting-shard`,
-        options: defaultOptions,
+        options: { ...defaultOptions },
       },
     };
   }
@@ -241,10 +241,32 @@ export class NodeInitializer {
           // Cleanup handling.
           const cleanup = async () => {
             clearInterval(healthCheckInterval);
-            await workerPool.shutdown();
-            await mainDb.close();
-            await miningDb.close();
-            // ... close other resources ...
+            try {
+              await workerPool.shutdown();
+            } catch (wpError) {
+              Logger.error('Error during worker pool shutdown:', wpError);
+            }
+            try {
+              await mainDb.close();
+              await miningDb.close();
+              await utxoDb.close();
+              await walletDb.close();
+              await votingDb.close();
+              await consensus.shutdown();
+              await auditManager.shutdown();
+              await auditStorage.close();
+              await cache.close();
+              await shardManager.shutdown();
+              await mempool.shutdown();
+              await blockchainSync.shutdown();
+              await node.shutdown();
+              await peerDiscovery.shutdown();
+              await blockchain.shutdown();
+              await pow.shutdown();
+              await directVoting.shutdown();
+            } catch (dbError) {
+              Logger.error('Error during resource shutdown:', dbError);
+            }
             process.exit(0);
           };
       

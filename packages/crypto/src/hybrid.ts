@@ -447,6 +447,18 @@ export class HybridCrypto {
     }
   }
 
+  /**
+   * Hashes a given string using a hybrid approach.
+   * The function generates keypairs first, then hashes the data using:
+   * - Dilithium quantum signature
+   * - Kyber encapsulation
+   * - SHA-256 hash of the data
+   *
+   * The function returns the SHA-3 hash of the combined hashes.
+   *
+   * @param data - The string to hash
+   * @returns A Promise<string> containing the hybrid hash
+   */
   public static async hash(data: string): Promise<string> {
     try {
       // Traditional hash.

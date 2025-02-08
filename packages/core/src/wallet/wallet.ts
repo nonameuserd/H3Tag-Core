@@ -306,9 +306,11 @@ export class Wallet {
         );
       }
 
+      // Convert private key to a hex string for a stable hash
+      const pkHex = Buffer.from(derived.privateKey).toString('hex');
       // Generate HybridKeyPair using the derived private key
       const keyPair = await HybridCrypto.generateKeyPair(
-        HashUtils.sha256(derived.privateKey.toString()),
+        HashUtils.sha256(pkHex),
       );
 
       const address = await KeyManager.deriveAddress(keyPair.publicKey);
@@ -337,8 +339,10 @@ export class Wallet {
 
       if (!derived.privateKey) return false;
 
+      // Convert private key to hex string
+      const pkHex = Buffer.from(derived.privateKey).toString('hex');
       const keyPair = await HybridCrypto.generateKeyPair(
-        HashUtils.sha256(derived.privateKey.toString()),
+        HashUtils.sha256(pkHex),
       );
       const address = await KeyManager.deriveAddress(keyPair.publicKey);
 
@@ -523,9 +527,14 @@ export class Wallet {
 
     // Add explicit check for mnemonic availability
     if (!this.keystore.mnemonic) {
-      throw new WalletError('Mnemonic is not available for HD wallet derivation', WalletErrorCode.KEYSTORE_ERROR);
+      throw new WalletError(
+        'Mnemonic is not available for HD wallet derivation',
+        WalletErrorCode.KEYSTORE_ERROR,
+      );
     }
 
+    // Acquire the mutex to guard the new address derivation section
+    const release = await this.lockMutex.acquire();
     try {
       // Get the next available index from the database
       const walletDb = new WalletDatabase(databaseConfig.databases.wallet.path);
@@ -545,9 +554,11 @@ export class Wallet {
         );
       }
 
+      // Convert derived private key to hex string
+      const pkHex = Buffer.from(derived.privateKey).toString('hex');
       // Generate new key pair and address
       const keyPair = await HybridCrypto.generateKeyPair(
-        HashUtils.sha256(derived.privateKey.toString()),
+        HashUtils.sha256(pkHex),
       );
       const newAddress = await KeyManager.deriveAddress(keyPair.publicKey);
 
@@ -561,6 +572,8 @@ export class Wallet {
         'Failed to generate new address',
         WalletErrorCode.INITIALIZATION_ERROR,
       );
+    } finally {
+      release();
     }
   }
 

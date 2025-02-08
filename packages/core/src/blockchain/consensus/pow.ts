@@ -326,7 +326,9 @@ export class ProofOfWork {
     ttl: BLOCKCHAIN_CONSTANTS.MINING.CACHE_TTL,
     onEvict: async (key, block) => {
       try {
-        await this.persistBlock(block);
+        if (block) {
+          await this.persistBlock(block);
+        }
       } catch (error) {
         Logger.error(`Failed to persist evicted block ${key}:`, error);
       }
@@ -421,6 +423,8 @@ export class ProofOfWork {
       thresholds: {
         minPowHashrate: 1000000,
         minPowNodes: 3,
+        minTagDistribution: 0.5,
+        maxTagConcentration: 0.8,
       },
     });
 
@@ -981,6 +985,7 @@ export class ProofOfWork {
           previousHash: block.header.previousHash,
           merkleRoot: calculatedMerkleRoot,
           validatorMerkleRoot: block.header.validatorMerkleRoot || '',
+          votesMerkleRoot: block.header.votesMerkleRoot || '',
           difficulty: block.header.difficulty,
           locator: block.header.locator || [],
           hashStop: block.header.hashStop || '',
@@ -1077,6 +1082,7 @@ export class ProofOfWork {
           previousHash: block.header.previousHash,
           merkleRoot: block.header.merkleRoot,
           validatorMerkleRoot: block.header.validatorMerkleRoot || '',
+          votesMerkleRoot: block.header.votesMerkleRoot || '',
           difficulty: block.header.difficulty,
           locator: block.header.locator || [],
           hashStop: block.header.hashStop || '',
@@ -1886,7 +1892,7 @@ export class ProofOfWork {
         return await this.verifyCoinbaseTransaction(tx);
       },
       toHex: () => JSON.stringify(tx),
-      getSize: () => tx.getSize(),
+      getSize: () => JSON.stringify(tx).length,
     };
 
     // Generate hash and ID
@@ -2041,9 +2047,7 @@ export class ProofOfWork {
 
         performance: {
           averageBlockTime,
-          successRate:
-            (this.metrics?.successfulBlocks ||
-              0 / Math.max(this.metrics?.totalBlocks || 1, 1)) * 100,
+          successRate: ((this.metrics?.successfulBlocks || 0) / Math.max(this.metrics?.totalBlocks || 1, 1)) * 100,
           cacheHitRate: this.blockCache.getHitRate(),
         },
 

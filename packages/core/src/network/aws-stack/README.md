@@ -25,7 +25,7 @@
 
 ### Health Checks
 
-- TCP health checks on port 8333
+- TCP health checks on port 2333
 - HTTP health checks on `/health` endpoint
 - CloudWatch metrics and alarms
 - Route53 health checks for DNS failover

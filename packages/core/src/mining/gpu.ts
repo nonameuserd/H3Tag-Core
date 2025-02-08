@@ -88,17 +88,26 @@ export class GPUMiner {
     });
 
     try {
+      // Updated shader using a 12-byte buffer layout.
       const shader = `
+                struct MiningData {
+                    hash: u32,
+                    found: atomic<u32>,
+                    nonce: u32,
+                };
+
+                @group(0) @binding(0) var<storage, read_write> miningData: MiningData;
+                @group(0) @binding(1) var<storage, read> target: u32;
+
                 @compute @workgroup_size(256)
-                fn main(
-                    @builtin(global_invocation_id) global_id: vec3<u32>,
-                    @binding(0) data: array<u32>,
-                    @binding(1) target: u32
-                ) {
-                    let nonce = global_id.x;
-                    let hash = sha3_256(data[0], nonce);
-                    if (hash <= target) {
-                        atomicStore(&data[1], nonce);
+                fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+                    let currentNonce = global_id.x;
+                    let computedHash = sha3_256(miningData.hash, currentNonce);
+                    if (computedHash <= target) {
+                        // Only one thread may claim the result.
+                        if (atomicCompareExchangeWeak(&miningData.found, 0u, 1u).exchanged) {
+                           miningData.nonce = currentNonce;
+                        }
                     }
                 }
             `;
@@ -146,39 +155,77 @@ export class GPUMiner {
     if (!this.device || !this.pipeline) {
       throw new Error('GPU not initialized');
     }
+    
+    // Use provided batchSize or default to 256.
+    const effectiveBatchSize = batchSize ?? 256;
+    
+    // If a custom batchSize is provided, recompile the pipeline with the new workgroup size.
+    if (batchSize !== undefined && batchSize !== 256) {
+      const shader = `
+          override const WORKGROUP_SIZE: u32 = ${effectiveBatchSize};
+          struct MiningData {
+              hash: u32,
+              found: atomic<u32>,
+              nonce: u32,
+          };
 
-    // Use provided batch size or default to 256
-    const effectiveBatchSize = batchSize || 256;
+          @group(0) @binding(0) var<storage, read_write> miningData: MiningData;
+          @group(0) @binding(1) var<storage, read> target: u32;
 
-    // Create a storage buffer for the block data and mining result.
-    // We only need 8 bytes: 2 x uint32 (4 bytes each)
+          @compute @workgroup_size(WORKGROUP_SIZE)
+          fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
+              let currentNonce = global_id.x;
+              let computedHash = sha3_256(miningData.hash, currentNonce);
+              if (computedHash <= target) {
+                  if (atomicCompareExchangeWeak(&miningData.found, 0u, 1u).exchanged) {
+                      miningData.nonce = currentNonce;
+                  }
+              }
+          }
+      `;
+      this.pipeline = this.device.createComputePipeline({
+        layout: 'auto',
+        compute: {
+          module: this.device.createShaderModule({ code: shader }),
+          entryPoint: 'main',
+        },
+      });
+    }
+    
+    // Compute dispatch count based on effectiveBatchSize.
+    const maxWorkgroups = this.device.limits.maxComputeWorkgroupsPerDimension;
+    const dispatchCount = Math.min(
+      Math.ceil(this.MAX_NONCE / effectiveBatchSize),
+      maxWorkgroups,
+    );
+    
+    // Updated: Create a storage buffer with 12 bytes.
+    // Layout: [blockHeaderHash (uint32), found flag (uint32), nonce (uint32)]
     const buffer = this.device.createBuffer({
-      size: 8, // 2 * 4 bytes for two uint32 values.
-      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
+      size: 12, // 3 * 4 bytes
+      usage:
+        GPUBufferUsage.STORAGE |
+        GPUBufferUsage.COPY_SRC |
+        GPUBufferUsage.COPY_DST, // Added COPY_DST for writeBuffer allowance.
     });
 
-    // Initialize the storage buffer with:
-    //  - data[0] = block header hash (computed from the block)
-    //  - data[1] = sentinel value 0xffffffff indicating "not found"
     const initialData = new Uint32Array([
-      this.hashBlockHeader(block),
-      0xffffffff,
+      this.hashBlockHeader(block), // block header hash goes to data[0]
+      0,                           // found flag (0 means "not found")
+      0,                           // nonce placeholder (unused until found)
     ]);
     this.device.queue.writeBuffer(buffer, 0, initialData);
 
-    // Create a target buffer, holding the mining target as a 32-bit unsigned integer.
+    // Create target buffer (same as before).
     const targetBuffer = this.device.createBuffer({
-      size: 4, // 4 bytes for a single uint32 value.
+      size: 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-    // Convert the bigint target to number (ensure target is in 32-bit range)
     const targetNumber = Number(target);
     const targetData = new Uint32Array([targetNumber]);
     this.device.queue.writeBuffer(targetBuffer, 0, targetData);
 
-    // Create bind group with the expected layout:
-    // Bind group slot 0: the data buffer (block header and nonce result)
-    // Bind group slot 1: the target buffer
+    // Create bind group 
     this.bindGroup = this.device.createBindGroup({
       layout: this.pipeline.getBindGroupLayout(0),
       entries: [
@@ -187,50 +234,40 @@ export class GPUMiner {
       ],
     });
 
-    // Create command encoder and compute pass.
     const commandEncoder = this.device.createCommandEncoder();
     const pass = commandEncoder.beginComputePass();
     pass.setPipeline(this.pipeline);
     pass.setBindGroup(0, this.bindGroup);
 
-    // IMPORTANT: Limit the dispatch count to what the GPU supports.
-    // Instead of dispatching Math.ceil(MAX_NONCE / effectiveBatchSize) workgroups (which would be huge),
-    // we clip it to the device limit.
-    const maxWorkgroups = this.device.limits.maxComputeWorkgroupsPerDimension;
-    const dispatchCount = Math.min(
-      Math.ceil(this.MAX_NONCE / effectiveBatchSize),
-      maxWorkgroups,
-    );
     pass.dispatchWorkgroups(dispatchCount);
     pass.end();
 
-    // Create a read-buffer to extract only the nonce result (stored in data[1], i.e. offset of 4 bytes).
+    // Updated: Read back the full 12 bytes to get both the found flag and nonce.
     const readBuffer = this.device.createBuffer({
-      size: 4, // Only 4 bytes are needed.
+      size: 12,
       usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ,
     });
-    // Copy from offset 4 of our storage buffer.
-    commandEncoder.copyBufferToBuffer(buffer, 4, readBuffer, 0, 4);
+    commandEncoder.copyBufferToBuffer(buffer, 0, readBuffer, 0, 12);
 
-    // Submit the GPU commands.
     this.device.queue.submit([commandEncoder.finish()]);
     await readBuffer.mapAsync(GPUMapMode.READ);
-    const result = new Uint32Array(readBuffer.getMappedRange())[0];
+    const resultArray = new Uint32Array(readBuffer.getMappedRange());
+    const foundFlag = resultArray[1];
+    const nonce = resultArray[2];
 
     readBuffer.unmap();
     buffer.destroy();
     targetBuffer.destroy();
     readBuffer.destroy();
 
-    // Determine if a valid nonce was found. If the result still equals the sentinel then nothing was found.
-    const found = result !== 0xffffffff;
+    const found = foundFlag !== 0; // found flag is 1 if a valid nonce was set
 
     return {
       found,
-      nonce: result,
+      nonce,
       hash: found
-        ? HashUtils.sha3(this.getBlockHeaderString(block, result)).slice(0, 8)
-        : '', // Return an empty hash if not found.
+        ? HashUtils.sha3(this.getBlockHeaderString(block, nonce)).slice(0, 8)
+        : '',
     };
   }
 

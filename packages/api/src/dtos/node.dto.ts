@@ -113,7 +113,7 @@ export class PeerDiscoveryResponseDto {
 export class ConnectPeerDto {
   @ApiProperty({
     description: 'Peer address to connect to',
-    example: '127.0.0.1:8333',
+    example: '127.0.0.1:2333',
   })
   @IsString()
   address: string = '';
@@ -128,7 +128,7 @@ export class PeerConnectionResponseDto {
 
   @ApiProperty({
     description: 'Connected peer address',
-    example: '127.0.0.1:8333',
+    example: '127.0.0.1:2333',
   })
   address: string = '';
 

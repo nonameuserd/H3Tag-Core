@@ -23,7 +23,6 @@ import { Block } from '../../models/block.model';
 import { retry } from '../../utils/retry';
 import { Validator } from '../../models/validator';
 import { Cache } from '../../scaling/cache';
-import { CircuitBreaker } from '../../network/circuit-breaker';
 
 /**
  * @fileoverview DirectVoting implements a quadratic voting-based consensus mechanism for blockchain governance
@@ -212,7 +211,7 @@ import { CircuitBreaker } from '../../network/circuit-breaker';
  * @property {number} startTime
  * @property {number} endTime
  * @property {'active' | 'completed'} status
- * @property {Map<string, Vote>} votes
+ * @property {Record<string, Vote>} votes
  * @property {boolean} isAudited
  * @property {string} votesMerkleRoot
  * @property {string} [type]        // Optional type identifier
@@ -252,7 +251,6 @@ export class DirectVoting {
   private voteMutex = new Mutex();
   private periodMutex = new Mutex();
   private validators: Validator[] = [];
-  private circuitBreaker: CircuitBreaker | null = null;
   private readonly VOTE_BATCH_SIZE = 100; // Batch size for vote processing
   private readonly VOTE_CACHE_SIZE = 10000; // Cache size for vote data
   private readonly VALIDATOR_CACHE_TTL = 300000; // 5 minutes
@@ -292,9 +290,11 @@ export class DirectVoting {
       },
     );
 
+    // Initialize BackupManager so that state recovery and cleanup work correctly
+    this.backupManager = new BackupManager(db.getPath());
+
     // periodic cache cleanup
     this.cacheCleanupTimer = setInterval(() => this.cleanupCache(), 3600000); // Clean every hour
-    // this.backupManager = new BackupManager(databaseConfig.path);
 
     // error handler for event emitter
     this.eventEmitter.on('error', (error) => {
@@ -898,7 +898,7 @@ export class DirectVoting {
 
       // 3. Merkle root validation
       const votesMerkleRoot = await this.createVoteMerkleRoot(block.votes);
-      if (votesMerkleRoot !== block.header.validatorMerkleRoot) {
+      if (votesMerkleRoot !== block.header.votesMerkleRoot) {
         Logger.error('Invalid votes merkle root');
         return false;
       }
@@ -1319,24 +1319,6 @@ export class DirectVoting {
     }, BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.PERIOD_CHECK_INTERVAL);
   }
 
-  private async acquireLocks<T>(operation: () => Promise<T>): Promise<T> {
-    // Always acquire locks in the same order
-    const lock1 = this.voteMutex;
-    const lock2 = this.periodMutex;
-
-    const release1 = await lock1.acquire();
-    try {
-      const release2 = await lock2.acquire();
-      try {
-        return await operation();
-      } finally {
-        release2();
-      }
-    } finally {
-      release1();
-    }
-  }
-
   /**
    * Updates voting state atomically
    * @param operation Function that receives current state and returns updated state
@@ -1394,11 +1376,19 @@ export class DirectVoting {
       throw new VotingError('INVALID_VOTE_AMOUNT', 'Vote amount is not a valid number');
     }
     const quadraticPower = BigInt(Math.floor(Math.sqrt(voteAmount)));
+    
+    // Instead of overwriting the original vote.timestamp,
+    // add a new processingTime field
     const enrichedVote = {
       ...vote,
       votingPower: quadraticPower.toString(),
-      timestamp: Date.now(),
+      processingTime: Date.now(), // new field to record processing time
     };
+
+    // Add the enriched vote to the current voting period's votes record
+    if (this.currentPeriod) {
+      this.currentPeriod.votes[enrichedVote.voteId] = enrichedVote;
+    }
 
     await this.votingDb.storeVote(enrichedVote, tx);
     await this.updateMerkleTree(enrichedVote, tx);

@@ -154,15 +154,13 @@ export class Peer {
   private blockchainSync: BlockchainSync | undefined;
   public readonly eventEmitter = new EventEmitter();
   private readonly circuitBreaker: CircuitBreaker;
-  private readonly peerId: string = crypto.randomUUID();
+  private id: string;
 
   private readonly latencyWindow: number[] = [];
   private static readonly MAX_LATENCY_SAMPLES = 10;
   private static readonly LATENCY_WINDOW_MS = 60000; // 1 minute
 
   private lastVoteTime: number | null = null;
-
-  private id: string;
 
   private peerState: { banScore: number } = { banScore: 0 };
 
@@ -183,6 +181,7 @@ export class Peer {
   private height: number = 0;
 
   private messageTimestamps: number[] = [];
+  private messageByteRecords: { timestamp: number; bytes: number }[] = [];
   private lastBytesReceived: number = 0;
 
   constructor(
@@ -375,9 +374,7 @@ export class Peer {
         await this.handleInventory(message.payload.inventory || []);
         break;
       case PeerMessageType.TX:
-        if (message.payload.transaction) {
-          await this.handleTransactionMessage(message.payload.transaction);
-        }
+        await this.handleTransactionMessage(message.payload as { transaction: Transaction; timestamp: number });
         break;
       case PeerMessageType.BLOCK:
         if (message.payload.block) {
@@ -501,40 +498,33 @@ export class Peer {
 
   private checkRateLimits(): boolean {
     const now = Date.now();
-    const window = now - this.config.rateLimits.interval;
+    const interval = this.config.rateLimits.interval;
 
-    try {
-      // Clean up old metrics outside the window
-      while (
-        this.messageTimestamps.length > 0 &&
-        this.messageTimestamps[0] < window
-      ) {
-        this.messageTimestamps.shift();
-      }
+    // Clean up old message count timestamps.
+    while (this.messageTimestamps.length > 0 && this.messageTimestamps[0] < now - interval) {
+      this.messageTimestamps.shift();
+    }
+    // Clean up old byte records.
+    this.messageByteRecords = this.messageByteRecords.filter(record => record.timestamp >= now - interval);
 
-      // Check message count limit
-      if (this.messageTimestamps.length >= this.config.rateLimits.messages) {
-        Logger.warn(`Peer ${this.address} exceeded message rate limit`);
-        this.adjustPeerScore(1);
-        return false;
-      }
-
-      // Check bandwidth limit
-      const recentBytes = this.bytesReceived - this.lastBytesReceived;
-      if (recentBytes > this.config.rateLimits.bytes) {
-        Logger.warn(`Peer ${this.address} exceeded bandwidth limit`);
-        this.adjustPeerScore(1);
-        return false;
-      }
-
-      // Update metrics
-      this.messageTimestamps.push(now);
-      this.lastBytesReceived = this.bytesReceived;
-      return true;
-    } catch (error) {
-      Logger.error('Rate limit check failed:', error);
+    // Check message count limit.
+    if (this.messageTimestamps.length >= this.config.rateLimits.messages) {
+      Logger.warn(`Peer ${this.address} exceeded message rate limit`);
+      this.adjustPeerScore(1);
       return false;
     }
+    
+    // SUM the bytes received in the interval.
+    const totalBytes = this.messageByteRecords.reduce((sum, record) => sum + record.bytes, 0);
+    if (totalBytes > this.config.rateLimits.bytes) {
+      Logger.warn(`Peer ${this.address} exceeded bandwidth limit`);
+      this.adjustPeerScore(1);
+      return false;
+    }
+    
+    // Record the new message timestamp.
+    this.messageTimestamps.push(now);
+    return true;
   }
 
   private updateMessageMetrics(data: WebSocket.Data): void {
@@ -544,13 +534,15 @@ export class Peer {
     } else if (data instanceof Buffer) {
       messageBuffer = data;
     } else {
-      // If data is of some other type (or ArrayBuffer) then convert it to Buffer
       messageBuffer = Buffer.from(data.toString());
     }
     const byteCount = messageBuffer.byteLength;
     this.bytesReceived += byteCount;
     this.metrics.increment('bytes_received', byteCount);
     this.metrics.increment('messages_received');
+
+    // NEW: Record the size and timestamp for bandwidth tracking.
+    this.messageByteRecords.push({ timestamp: Date.now(), bytes: byteCount });
   }
 
   private updateSendMetrics(message: PeerMessage): void {
@@ -629,7 +621,7 @@ export class Peer {
 
   public async getInfo(): Promise<PeerInfo> {
     return {
-      id: this.peerId,
+      id: this.id,
       url: `${this.address}:${this.port}`,
       timestamp: Date.now(),
       version: this.version?.toString() || '1',
@@ -1075,7 +1067,7 @@ export class Peer {
    * Handle incoming transaction message
    * @param payload Transaction message payload
    */
-  private async handleTransactionMessage(payload: Transaction): Promise<void> {
+  private async handleTransactionMessage(payload: { transaction: Transaction; timestamp: number }): Promise<void> {
     try {
       const { transaction, timestamp } = payload;
 
@@ -1368,7 +1360,7 @@ export class Peer {
       : 0;
 
     return {
-      id: this.peerId,
+      id: this.id,
       address: this.address,
       port: this.port,
       version: this.version?.toString() || 'unknown',
@@ -1416,20 +1408,20 @@ export class Peer {
 
     if (!isPeerInWhitelist && status) {
       Logger.warn(
-        `Cannot whitelist peer ${this.peerId} - not in configured whitelist`,
+        `Cannot whitelist peer ${this.id} - not in configured whitelist`,
       );
       return;
     }
 
     this.isWhitelisted = status;
     this.metrics.gauge('whitelisted', status ? 1 : 0);
-    Logger.info(`Peer ${this.peerId} whitelist status set to ${status}`);
+    Logger.info(`Peer ${this.id} whitelist status set to ${status}`);
   }
 
   public setBlacklisted(status: boolean): void {
     this.isBlacklisted = status;
     this.metrics.gauge('blacklisted', status ? 1 : 0);
-    Logger.info(`Peer ${this.peerId} blacklist status set to ${status}`);
+    Logger.info(`Peer ${this.id} blacklist status set to ${status}`);
 
     if (status) {
       // Automatically disconnect blacklisted peers
@@ -1458,14 +1450,14 @@ export class Peer {
     const release = await this.mutex.acquire();
     try {
       // Check cache first
-      const cacheKey = `votingPower:${this.peerId}`;
+      const cacheKey = `votingPower:${this.id}`;
       const cached = this.database.cache.get(cacheKey);
       if (cached && typeof cached === 'object' && 'balance' in cached) {
         return BigInt(cached.balance);
       }
 
       // Get balance from database
-      const stored = await this.database.get(`peer:${this.peerId}:balance`);
+      const stored = await this.database.get(`peer:${this.id}:balance`);
       if (stored) {
         const balance = BigInt(stored);
         const votingPower = BigInt(Math.floor(Math.sqrt(Number(balance))));
@@ -1485,7 +1477,7 @@ export class Peer {
 
       // Store in database and cache
       await this.database.put(
-        `peer:${this.peerId}:balance`,
+        `peer:${this.id}:balance`,
         balance.toString(),
       );
       this.database.cache.set(cacheKey, {
@@ -1574,10 +1566,72 @@ export class Peer {
     }
   }
 
+   /**
+   * Retrieve the local node's public key (production code should fetch it from the wallet or key management service)
+   */
+   private async getPublicKey(): Promise<string> {
+    // First, check if a public key is configured.
+    const configuredPublicKey = process.env.NODE_PUBLIC_KEY || (this.configService.get('NODE_PUBLIC_KEY') as string);
+    if (configuredPublicKey) {
+      return configuredPublicKey;
+    }
+    
+    // If not, derive the public key from the provided private key.
+    const privateKey = process.env.NODE_PRIVATE_KEY || (this.configService.get('NODE_PRIVATE_KEY') as string);
+    if (!privateKey) {
+      throw new Error('NODE_PRIVATE_KEY is not configured');
+    }
+
+    // Use the ECC curve to generate the public key from the private key.
+    const publicKey = HybridCrypto.TRADITIONAL_CURVE
+      .keyFromPrivate(privateKey, 'hex')
+      .getPublic('hex');
+    return publicKey;
+  }
+  
+  /**
+   * Retrieve the local node's signature
+   */
+  private async getSignature(): Promise<string> {
+    const privateKey = process.env.NODE_PRIVATE_KEY || (this.configService.get('NODE_PRIVATE_KEY') as string);
+    if (!privateKey) {
+      throw new Error('NODE_PRIVATE_KEY is not configured');
+    }
+    const message = 'node_info';
+    // Retrieve the raw key pair.
+    const rawKeyPair = HybridCrypto.TRADITIONAL_CURVE.keyFromPrivate(privateKey, 'hex');
+    // Wrap the raw key pair into the expected HybridKeyPair type
+    const hybridKeyPair = {
+        address: rawKeyPair.getPublic('hex'),   // You may derive the address properly if needed
+        privateKey: rawKeyPair.getPrivate('hex'),
+        publicKey: rawKeyPair.getPublic('hex'),
+    };
+    const sign = await HybridCrypto.sign(message, hybridKeyPair);
+    return sign;
+  }
+
   private async handleGetNodeInfo(): Promise<void> {
     try {
-      const nodeInfo = await this.getNodeInfo();
-      await this.send(PeerMessageType.GET_NODE_INFO, nodeInfo);
+      const publicKey = await this.getPublicKey();
+      const signature = await this.getSignature();
+      const minedBlocks = await this.getMinedBlocks();
+      const voteParticipation = await this.getVoteParticipation();
+      const lastVoteHeight = await this.getBlockHeight();
+      const votingPower = await this.getVotingPower();
+      const isMiner = (this.configService.get('IS_MINER') as string) === 'true';
+
+      const localNodeInfo = {
+        publicKey,
+        signature,
+        tagInfo: {
+          minedBlocks,
+          voteParticipation,
+          lastVoteHeight,
+          votingPower,
+        },
+        isMiner,
+      };
+      await this.send(PeerMessageType.GET_NODE_INFO, localNodeInfo);
     } catch (error) {
       Logger.error('Get node info handling failed:', error);
     }

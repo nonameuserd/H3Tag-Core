@@ -16,6 +16,7 @@ import { Logger } from '@h3tag-blockchain/shared';
 import { ConfigService } from '@h3tag-blockchain/shared';
 import { DiscoveryError } from './discovery-error';
 import { BlockchainSchema } from '../database/blockchain-schema';
+import { isIP } from 'net';
 
 export enum DiscoveryState {
   INITIALIZING = 'INITIALIZING',
@@ -351,8 +352,13 @@ export class PeerDiscovery {
     // Construct a list of removal promises to await together
     const removalPromises = [];
     for (const [url, peer] of this.peers.entries()) {
-      const info = await peer.getInfo();
-      if (now - info.lastSeen > PeerDiscovery.MAX_PEER_AGE) {
+      try {
+        const info = await peer.getInfo();
+        if (now - info.lastSeen > PeerDiscovery.MAX_PEER_AGE) {
+          removalPromises.push(this.removePeer(url));
+        }
+      } catch {
+        // If getInfo() fails, consider the peer stale and schedule it for removal.
         removalPromises.push(this.removePeer(url));
       }
     }
@@ -507,10 +513,15 @@ export class PeerDiscovery {
       const peerList = await peer.getPeers();
       return peerList.map((p) => p.url);
     } catch (error) {
-      Logger.warn(
-        `Failed to get peers from ${(await peer.getInfo()).url}:`,
-        error,
-      );
+      let peerUrl = 'unknown';
+      try {
+        const peerInfo = await peer.getInfo();
+        peerUrl = peerInfo.url;
+      } catch {
+        // Could not get peer info; defaulting to 'unknown'
+        peerUrl = 'unknown';
+      }
+      Logger.warn(`Failed to get peers from ${peerUrl}:`, error);
       return [];
     }
   }
@@ -586,52 +597,9 @@ export class PeerDiscovery {
 
   private isValidAddress(address: string): boolean {
     try {
-      // Check if address is empty or too long
-      if (!address || address.length > 45) return false;
-
-      // IPv4 validation
-      if (address.includes('.')) {
-        const parts = address.split('.');
-        if (parts.length !== 4) return false;
-
-        return parts.every((part) => {
-          const num = parseInt(part);
-          return (
-            !isNaN(num) && num >= 0 && num <= 255 && part === num.toString()
-          ); // Ensures no leading zeros
-        });
-      }
-
-      // IPv6 validation
-      if (address.includes(':')) {
-        // Remove IPv6 zone index if present
-        const zoneIndex = address.indexOf('%');
-        if (zoneIndex !== -1) {
-          address = address.substring(0, zoneIndex);
-        }
-
-        const parts = address.split(':');
-        if (parts.length > 8) return false;
-
-        // Handle :: compression
-        const emptyGroupsCount = parts.filter((p) => p === '').length;
-        if (
-          emptyGroupsCount > 1 &&
-          !(emptyGroupsCount === 2 && parts[0] === '' && parts[1] === '')
-        ) {
-          return false;
-        }
-
-        // Validate each hextet
-        return parts.every((part) => {
-          if (part === '') return true; // Allow empty parts for ::
-          if (part.length > 4) return false;
-          const num = parseInt(part, 16);
-          return !isNaN(num) && num >= 0 && num <= 0xffff;
-        });
-      }
-
-      return false; // Neither IPv4 nor IPv6
+      // Use Node's built-in isIP. Returns 0 for invalid,
+      // 4 for IPv4, and 6 for IPv6.
+      return isIP(address) !== 0;
     } catch {
       return false;
     }

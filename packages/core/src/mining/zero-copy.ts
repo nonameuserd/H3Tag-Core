@@ -22,10 +22,6 @@
  * const compressed = await compressor.compress(data);
  */
 
-interface MappableGPUBuffer extends GPUBuffer {
-  _mapped?: boolean;
-}
-
 export class ZeroCopyCompression {
   private device!: GPUDevice; // will be provided after async initialization
   private sharedBuffers: Map<string, SharedArrayBuffer>;
@@ -82,7 +78,6 @@ export class ZeroCopyCompression {
         .catch((error) => {
           throw new Error(`Failed to map buffer: ${error.message}`);
         });
-      // Use getMappedRange() to obtain the underlying ArrayBuffer.
       const mappedRange = buffer.getMappedRange();
       sharedView.set(new Uint8Array(mappedRange));
 
@@ -97,10 +92,9 @@ export class ZeroCopyCompression {
       computePass.end();
       this.device.queue.submit([commandEncoder.finish()]);
 
-      // Ensure proper cleanup by unmapping the buffer if still mapped.
-      if ((buffer as MappableGPUBuffer)._mapped) {
-        (buffer as MappableGPUBuffer).unmap();
-      }
+      // --- Updated: Unmap and wait for GPU commands to complete ---
+      buffer.unmap();
+      await this.device.queue.onSubmittedWorkDone();
     } catch (error) {
       // In the catch block, attempt to unmap buffer if mapped.
       try {
@@ -258,7 +252,7 @@ export class ZeroCopyCompression {
 
                         fn find_match_length(current: u32, previous: u32) -> u32 {
                             var length = 0u;
-                            let max_len = min(258u, arrayLength(&data) - current); 
+                            var max_len = min(258u, arrayLength(&data) - current); 
                             
                             if (previous + max_len > arrayLength(&data)) {
                                 max_len = arrayLength(&data) - previous;
@@ -399,6 +393,9 @@ export class ZeroCopyCompression {
 
       computePass.end();
       this.device.queue.submit([commandEncoder.finish()]);
+
+      // --- Updated: Wait for GPU commands to complete ---
+      await this.device.queue.onSubmittedWorkDone();
     } catch (error: unknown) {
       if (error instanceof Error) {
         throw new Error(`Shared memory compression failed: ${error.message}`);
@@ -417,6 +414,5 @@ export class ZeroCopyCompression {
 
   public async dispose(): Promise<void> {
     this.sharedBuffers.clear();
-    this.device?.destroy();
   }
 }

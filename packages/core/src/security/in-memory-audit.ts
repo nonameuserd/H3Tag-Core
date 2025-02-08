@@ -13,6 +13,10 @@ export class InMemoryAuditStorage implements IAuditStorage {
     if (!data || typeof data !== 'string') {
       throw new Error('Invalid audit data');
     }
+    // If the log already exists, remove it to refresh its insertion order.
+    if (this.auditLogs.has(filename)) {
+      this.auditLogs.delete(filename);
+    }
     // Add cleanup when reaching capacity
     if (this.auditLogs.size >= this.MAX_LOG_ENTRIES) {
       const oldestKey = this.auditLogs.keys().next().value;

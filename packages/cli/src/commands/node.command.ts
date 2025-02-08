@@ -38,7 +38,7 @@ nodeCommand
   .description('Create a new mainnet node')
   .option('-r, --region <region>', 'Region for node deployment')
   .option('-t, --type <type>', 'Node type (full, light, archive)', 'full')
-  .option('-p, --port <port>', 'Port number', '8333')
+  .option('-p, --port <port>', 'Port number', '2333')
   .option('-h, --host <host>', 'Host address', 'localhost')
   .action(async (options) => {
     try {
@@ -152,7 +152,7 @@ nodeCommand
   .requiredOption('-n, --node-id <string>', 'Node identifier')
   .requiredOption(
     '-a, --address <string>',
-    'Peer address (e.g., 127.0.0.1:8333)',
+    'Peer address (e.g., 127.0.0.1:2333)',
   )
   .action(async (options) => {
     try {

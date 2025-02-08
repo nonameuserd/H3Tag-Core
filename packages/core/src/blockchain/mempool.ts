@@ -14,6 +14,7 @@ import { TransactionBuilder } from '../models/transaction.model';
 import { BLOCKCHAIN_CONSTANTS } from './utils/constants';
 import { DDoSProtection } from '../security/ddos';
 import { Node } from '../network/node';
+import { performance } from 'perf_hooks';
 
 /**
  * @fileoverview Mempool manages unconfirmed transactions before they are included in blocks.
@@ -288,7 +289,8 @@ export class Mempool {
   private readonly cache = new Cache<Map<string, number>>({
     ttl: 300000, // 5 minutes
     maxSize: 1000,
-    onEvict: (key: string, value: Map<string, number>) => {
+    onEvict: (key: string, value: Map<string, number> | undefined) => {
+      if (!value) return;
       try {
         // Clear the map
         value.clear();
@@ -415,6 +417,8 @@ export class Mempool {
     OP_CHECKSIG: 0xac,
     OP_CHECKMULTISIG: 0xae,
   } as const;
+
+  private inputIndex: Map<string, string> = new Map(); // Key: `${txId}-${outputIndex}`, Value: Transaction hash
 
   constructor(blockchain: Blockchain) {
     this.blockchain = blockchain;
@@ -568,7 +572,7 @@ export class Mempool {
       return result;
     } catch (error) {
       Logger.error('Transaction processing failed', {
-        txId: transaction.id,
+        txId: transaction.hash,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
@@ -590,14 +594,14 @@ export class Mempool {
 
     // Validate transaction size and fees
     if (!this.validateTransactionSize(transaction)) {
-      Logger.warn(`Transaction ${transaction.id} failed size validation`);
+      Logger.warn(`Transaction ${transaction.hash} failed size validation`);
       return false;
     }
 
     // Validate UTXO inputs for double-spending
     const inputsValid = await this.validateTransactionInputs(transaction);
     if (!inputsValid) {
-      Logger.warn(`Transaction ${transaction.id} failed UTXO validation`);
+      Logger.warn(`Transaction ${transaction.hash} failed UTXO validation`);
       return false;
     }
 
@@ -644,7 +648,8 @@ export class Mempool {
   }
 
   private async addToMempool(transaction: Transaction): Promise<void> {
-    this.transactions.set(transaction.id, transaction);
+    this.transactions.set(transaction.hash, transaction);
+    this.updateInputIndex(transaction);
     this.updateAncestryMaps(transaction);
     await this.updateFeeBuckets(transaction);
   }
@@ -660,12 +665,9 @@ export class Mempool {
 
     const sender = vote.sender;
 
-    // Check rate limits for the sender
+    // Check rate limits for the sender.
     const currentVoteCount = this.voteCounter.get(sender) || 0;
-    if (
-      currentVoteCount >=
-      BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW
-    ) {
+    if (currentVoteCount >= BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTES_PER_WINDOW) {
       Logger.warn(`Vote rate limit exceeded for ${sender}`);
       return;
     }
@@ -676,49 +678,40 @@ export class Mempool {
       return;
     }
 
-    // Retrieve UTXO set only once
+    // Retrieve UTXO set and eligible voting UTXOs only once.
     const utxoSet = await this.blockchain.getUTXOSet();
     const votingUtxos = await utxoSet.findUtxosForVoting(sender);
-
     if (!votingUtxos || votingUtxos.length === 0) {
       Logger.warn('No eligible UTXOs for voting', { sender });
       return;
     }
 
-    // Calculate voting power using quadratic voting logic once
+    // Calculate voting power using quadratic voting logic.
     const votingPower = utxoSet.calculateVotingPower(votingUtxos);
     if (votingPower <= BigInt(0)) {
       Logger.warn('Invalid or insufficient voting power', { sender });
       return;
     }
 
-    // Update vote counter for rate limiting before proceeding
+    // Update vote counter for rate limiting.
     this.voteCounter.set(sender, currentVoteCount + 1);
 
-    const voteTransaction: Transaction = {
-      ...vote,
-      voteData: {
-        proposal: vote.id,
-        vote: true,
-        weight: Number(votingPower),
-      },
+    // Update the vote transaction with vote data.
+    voteTx.voteData = {
+      proposal: vote.id,
+      vote: true,
+      weight: Number(votingPower),
     };
 
     try {
-      // Add vote transaction to the mempool
-      const success = await this.addTransaction(voteTransaction);
-      if (success) {
-        await this.auditManager.log(AuditEventType.VOTE_TRANSACTION_ADDED, {
-          sender,
-          votingPower: votingPower.toString(),
-          utxoCount: votingUtxos.length,
-          severity: AuditSeverity.INFO,
-        });
-      } else {
-        Logger.warn(
-          `Failed to add vote transaction ${vote.id} for sender ${sender}`,
-        );
-      }
+      // Directly add the processed vote transaction to the mempool to avoid recursive processing.
+      await this.addToMempool(voteTx);
+      await this.auditManager.log(AuditEventType.VOTE_TRANSACTION_ADDED, {
+        sender,
+        votingPower: votingPower.toString(),
+        utxoCount: votingUtxos.length,
+        severity: AuditSeverity.INFO,
+      });
     } catch (error: unknown) {
       Logger.error('Error handling vote transaction:', error);
       await this.auditManager.log(AuditEventType.VOTE_TRANSACTION_FAILED, {
@@ -926,57 +919,68 @@ export class Mempool {
     buckets.forEach((rate) => this.feeRateBuckets.set(rate, new Set()));
   }
 
-  private async handleRBF(newTx: Transaction): Promise<boolean> {
-    // Find conflicting transactions
-    const conflicts = this.findConflictingTransactions(newTx);
-    if (conflicts.size === 0) return true;
+  private async handleRBF(transaction: Transaction): Promise<boolean> {
+    // Retrieve the IDs of conflicting transactions (with overlapping inputs)
+    const conflictingTransactionIds = this.findConflictingTransactions(transaction);
+    if (conflictingTransactionIds.size === 0) return true;
 
-    // Check if new transaction pays sufficient fee
-    const newFeeRate = this.calculateFeePerByte(newTx);
-    let oldFeeRate = 0;
-
-    Array.from(conflicts).forEach((txId) => {
-      const oldTx = this.transactions.get(txId);
-      if (oldTx) {
-        oldFeeRate += this.calculateFeePerByte(oldTx);
-      }
+    // Map each conflicting transaction ID to its fee rate from the mempool
+    const conflictingFeeRates = Array.from(conflictingTransactionIds).map(txId => {
+      const conflictingTx = this.transactions.get(txId);
+      return conflictingTx ? this.calculateFeePerByte(conflictingTx) : 0;
     });
 
-    // Require higher fee rate for replacement
-    if (newFeeRate > oldFeeRate * this.RBF_INCREMENT) {
-      // Remove replaced transactions
-      Array.from(conflicts).forEach((txId) => this.removeTransaction(txId));
-      return true;
-    }
+    // Use the highest fee rate among the conflicting transactions as basis for RBF check
+    const maxOldFeeRate = Math.max(...conflictingFeeRates);
 
-    return false;
+    // Compute the fee rate for the new (replacement) transaction
+    const newFeeRate = this.calculateFeePerByte(transaction);
+
+    Logger.debug('RBF check', { 
+      newFeeRate, 
+      maxOldFeeRate, 
+      requiredFeeRate: maxOldFeeRate * this.RBF_INCREMENT 
+    });
+
+    // Ensure the new transaction's fee rate exceeds the highest conflicting fee rate by the required multiplier
+    return newFeeRate > maxOldFeeRate * this.RBF_INCREMENT;
   }
 
   private findConflictingTransactions(tx: Transaction): Set<string> {
     const conflicts = new Set<string>();
-    // Create UTXO tracking set
-    const spentUTXOs = new Set<string>();
-
-    // Check for conflicts in the new transaction
-    tx.inputs.forEach((input) => {
-      const utxoKey = `${input.txId}:${input.outputIndex}`;
-      if (spentUTXOs.has(utxoKey)) {
-        conflicts.add(tx.id); // Self-conflict
-        return;
+    
+    // Build a set of input keys used by the new transaction.
+    const newTxInputKeys = new Set<string>();
+    for (const input of tx.inputs) {
+      const key = `${input.txId}:${input.outputIndex}`;
+      newTxInputKeys.add(key);
+    }
+    
+    // Check for duplicate inputs within the new transaction (self-conflict).
+    const seenKeys = new Set<string>();
+    for (const key of newTxInputKeys) {
+      if (seenKeys.has(key)) {
+        conflicts.add(tx.id);
+        break;
       }
-      spentUTXOs.add(utxoKey);
-
-      // Check against existing mempool transactions
-      Array.from(this.transactions.entries()).forEach(([txId, memTx]) => {
-        if (
-          memTx.inputs.some(
-            (i) => i.txId === input.txId && i.outputIndex === input.outputIndex,
-          )
-        ) {
-          conflicts.add(txId);
+      seenKeys.add(key);
+    }
+    
+    // Iterate over all mempool transactions and check for overlapping inputs.
+    for (const [, memTx] of this.transactions) {
+      // Skip the new transaction if somehow present.
+      if (memTx.id === tx.id) continue;
+      
+      for (const input of memTx.inputs) {
+        const key = `${input.txId}:${input.outputIndex}`;
+        if (newTxInputKeys.has(key)) {
+          conflicts.add(memTx.id);
+          // Break out early once a conflict is found for this mempool tx.
+          break;
         }
-      });
-    });
+      }
+    }
+    
     return conflicts;
   }
 
@@ -1028,7 +1032,7 @@ export class Mempool {
       );
     } catch (error) {
       Logger.error('Fee calculation error', {
-        txId: transaction.id,
+        txId: transaction.hash,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
@@ -1056,14 +1060,14 @@ export class Mempool {
   private updateAncestryMaps(transaction: Transaction): void {
     // Update ancestor map
     const ancestors = this.getAncestors(transaction);
-    this.ancestorMap.set(transaction.id, ancestors);
+    this.ancestorMap.set(transaction.hash, ancestors);
 
     // Update descendant map
     transaction.inputs.forEach((input) => {
       const parentTx = this.transactions.get(input.txId);
       if (parentTx) {
         const descendants = this.descendantMap.get(parentTx.id) || new Set();
-        descendants.add(transaction.id);
+        descendants.add(transaction.hash);
         this.descendantMap.set(parentTx.id, descendants);
       }
     });
@@ -1073,17 +1077,17 @@ export class Mempool {
     try {
       const oldBucket = this.findFeeBucket(transaction);
       if (oldBucket) {
-        oldBucket.delete(transaction.id);
+        oldBucket.delete(transaction.hash);
       }
 
       const feeRate = this.calculateFeePerByte(transaction);
       const newBucket = this.getOrCreateFeeBucket(feeRate);
-      newBucket.add(transaction.id);
+      newBucket.add(transaction.hash);
     } catch (error: unknown) {
       // Add cleanup
       Logger.error('Fee bucket update failed:', error);
       await this.auditManager?.log(AuditEventType.FEE_BUCKET_UPDATE_FAILED, {
-        txId: transaction.id,
+        txId: transaction.hash,
         error: (error as Error).message,
         severity: AuditSeverity.ERROR,
       });
@@ -1093,18 +1097,44 @@ export class Mempool {
   public removeTransaction(txId: string): void {
     try {
       const tx = this.transactions.get(txId);
-      if (tx) {
-        this.transactions.delete(txId);
-        // Clean up from fee buckets
-        Array.from(this.feeRateBuckets.values()).forEach((txs) =>
-          txs.delete(txId),
-        );
-        // Clean up ancestry maps
-        this.ancestorMap.delete(txId);
-        this.descendantMap.delete(txId);
-
-        Logger.debug(`Transaction ${txId} removed from mempool`);
+      if (!tx) {
+        Logger.warn(`Transaction ${txId} not found in mempool`);
+        return;
       }
+
+      // Remove transaction from the main transactions map
+      this.transactions.delete(txId);
+
+      // Remove transaction from all fee rate buckets
+      for (const bucket of this.feeRateBuckets.values()) {
+        bucket.delete(txId);
+      }
+
+      // Remove associated input index entries for this transaction
+      for (const [key, value] of this.inputIndex.entries()) {
+        if (value === tx.hash) {
+          this.inputIndex.delete(key);
+        }
+      }
+
+      // Remove the transaction mutex if it exists
+      if (this.transactionMutexes.has(tx.hash)) {
+        this.transactionMutexes.delete(tx.hash);
+      }
+
+      // Remove the transaction's ID from all ancestor and descendant sets in other transactions
+      this.ancestorMap.forEach((ancestors) => {
+        ancestors.delete(txId);
+      });
+      this.descendantMap.forEach((descendants) => {
+        descendants.delete(txId);
+      });
+
+      // Remove the entry for this transaction from the ancestry maps
+      this.ancestorMap.delete(txId);
+      this.descendantMap.delete(txId);
+
+      Logger.debug(`Transaction ${txId} removed from mempool and cleaned up.`);
     } catch (error) {
       Logger.error(`Failed to remove transaction ${txId}:`, error);
     }
@@ -1126,9 +1156,9 @@ export class Mempool {
       const maxSize = await this.blockchain.getMaxTransactionSize();
       if (txSize > maxSize) {
         Logger.warn('Transaction exceeds size limit', {
-          txId: transaction.id,
+          txId: transaction.hash,
           size: txSize,
-          maxAllowed: maxSize,
+          maxAllowed: maxSize,  
         });
         return false;
       }
@@ -1137,7 +1167,7 @@ export class Mempool {
         transaction.version !== BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION
       ) {
         Logger.warn('Invalid transaction version', {
-          txId: transaction.id,
+          txId: transaction.hash,
           version: transaction.version,
           required: BLOCKCHAIN_CONSTANTS.TRANSACTION.CURRENT_VERSION,
         });
@@ -1148,7 +1178,7 @@ export class Mempool {
       if (transaction.timestamp > now + 7200000) {
         // 2 hours in future
         Logger.warn('Transaction timestamp too far in future', {
-          txId: transaction.id,
+          txId: transaction.hash,
           timestamp: transaction.timestamp,
           currentTime: now,
         });
@@ -1157,7 +1187,7 @@ export class Mempool {
 
       if (!(await TransactionBuilder.verify(transaction))) {
         Logger.warn('Core transaction verification failed', {
-          txId: transaction.id,
+          txId: transaction.hash,
         });
         return false;
       }
@@ -1179,7 +1209,7 @@ export class Mempool {
         // Check coinbase maturity (100 blocks)
         if (currentHeight < BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCKS_MINED) {
           Logger.warn('Coinbase not yet mature', {
-            txId: transaction.id,
+            txId: transaction.hash,
             currentHeight,
             requiredMaturity: BLOCKCHAIN_CONSTANTS.MINING.MIN_BLOCKS_MINED,
           });
@@ -1187,7 +1217,7 @@ export class Mempool {
         }
 
         if (powContribution <= 0) {
-          Logger.warn('Invalid PoW contribution', { txId: transaction.id });
+          Logger.warn('Invalid PoW contribution', { txId: transaction.hash });
           return false;
         }
       }
@@ -1197,13 +1227,13 @@ export class Mempool {
           transaction.sender,
         );
         if (votingWeight <= 0) {
-          Logger.warn('Invalid voting weight', { txId: transaction.id });
+          Logger.warn('Invalid voting weight', { txId: transaction.hash });
           return false;
         }
       }
 
       Logger.debug('Transaction validation successful', {
-        txId: transaction.id,
+        txId: transaction.hash,
         size: txSize,
         inputs: transaction.inputs.length,
         outputs: transaction.outputs.length,
@@ -1219,7 +1249,7 @@ export class Mempool {
       await this.auditManager.log(
         AuditEventType.TRANSACTION_VALIDATION_FAILED,
         {
-          txId: transaction?.id,
+          txId: transaction?.hash,
           error: (error as Error).message,
           severity: AuditSeverity.ERROR,
         },
@@ -1235,7 +1265,7 @@ export class Mempool {
   private validateBasicStructure(tx: Transaction): boolean {
     return !!(
       tx &&
-      tx.id &&
+      tx.hash && // updated to use hash
       tx.version &&
       Array.isArray(tx.inputs) &&
       Array.isArray(tx.outputs) &&
@@ -1304,7 +1334,7 @@ export class Mempool {
 
       if (feeRate < minFeeRate) {
         Logger.warn('Insufficient fee rate', {
-          txId: transaction.id,
+          txId: transaction.hash,
           feeRate: feeRate.toString(),
           minRequired: minFeeRate.toString(),
           size: txSize,
@@ -1320,7 +1350,7 @@ export class Mempool {
         const dynamicMinFee = await this.calculateDynamicMinFee();
         if (feeRate < dynamicMinFee) {
           Logger.warn('Fee too low during high congestion', {
-            txId: transaction.id,
+            txId: transaction.hash,
             feeRate: feeRate.toString(),
             requiredRate: dynamicMinFee.toString(),
           });
@@ -1341,7 +1371,7 @@ export class Mempool {
 
           if (isDoubleSpend) {
             Logger.warn('Double-spend detected in mempool', {
-              txId: transaction.id,
+              txId: transaction.hash,
             });
             return false;
           }
@@ -1357,7 +1387,7 @@ export class Mempool {
 
         if (txFeeRate < minFeeRate) {
           Logger.warn('Fee too low for full mempool', {
-            txId: transaction.id,
+            txId: transaction.hash,
             feeRate: txFeeRate,
             minFeeRate,
           });
@@ -1368,7 +1398,7 @@ export class Mempool {
       // 3. Check ancestry limits
       if (!this.checkAncestryLimits(transaction)) {
         Logger.warn('Transaction exceeds ancestry limits', {
-          txId: transaction.id,
+          txId: transaction.hash,
         });
         return false;
       }
@@ -1379,7 +1409,7 @@ export class Mempool {
           const utxo = await utxoSet.get(input.txId, input.outputIndex);
           if (!utxo || utxo.spent) {
             Logger.warn('UTXO not found or spent', {
-              txId: transaction.id,
+              txId: transaction.hash,
               inputTxId: input.txId,
             });
             return false;
@@ -1392,8 +1422,17 @@ export class Mempool {
 
       // 5. Check transaction age
       if (Date.now() - transaction.timestamp > this.maxTransactionAge) {
-        Logger.warn('Transaction too old', { txId: transaction.id });
+        Logger.warn('Transaction too old', { txId: transaction.hash });
         return false;
+      }
+
+      // Double Spend Check using index
+      for (const input of transaction.inputs) {
+        const key = `${input.txId}-${input.outputIndex}`;
+        if (this.inputIndex.has(key)) {
+          Logger.warn('Double-spend detected in mempool', { txId: transaction.hash });
+          return false;
+        }
       }
 
       return true;
@@ -2385,7 +2424,7 @@ export class Mempool {
 
       if (matchingBucket) {
         Logger.debug('Found fee bucket', {
-          txId: transaction.id,
+          txId: transaction.hash,
           feeRate,
           bucketRate: matchingBucket[0],
         });
@@ -2395,7 +2434,7 @@ export class Mempool {
       // Create new bucket if none found
       if (!this.feeRateBuckets.has(feeRate)) {
         Logger.debug('Creating new fee bucket', {
-          txId: transaction.id,
+          txId: transaction.hash,
           feeRate,
         });
         this.feeRateBuckets.set(feeRate, new Set());
@@ -2562,7 +2601,7 @@ export class Mempool {
 
     if (size > (await this.getMaxSize())) {
       Logger.warn('Transaction exceeds maximum size', {
-        txId: transaction.id,
+        txId: transaction.hash, // use hash consistently
         size,
         maxSize: await this.getMaxSize(),
       });
@@ -2575,7 +2614,7 @@ export class Mempool {
 
     if (transaction.fee < minFee) {
       Logger.warn('Transaction fee too low for size', {
-        txId: transaction.id,
+        txId: transaction.hash, // use hash consistently
         fee: transaction.fee.toString(),
         minFee: minFee.toString(),
       });
@@ -2587,7 +2626,8 @@ export class Mempool {
 
   private updateMetrics(tx: Transaction) {
     this.size = this.transactions.size;
-    this.bytes += tx.getSize();
+    // Use the local helper for consistent size calculation
+    this.bytes += this.calculateTransactionSize(tx);
     this.usage = this.calculateUsage();
   }
 
@@ -2973,5 +3013,13 @@ export class Mempool {
   // Add a method to set consensus after initialization
   public setConsensus(consensus: HybridDirectConsensus): void {
     this.consensus = consensus;
+  }
+
+  // Then, in updateAncestryMaps (or immediately in addToMempool), update the index:
+  private updateInputIndex(tx: Transaction): void {
+    for (const input of tx.inputs) {
+      const key = `${input.txId}-${input.outputIndex}`;
+      this.inputIndex.set(key, tx.hash);
+    }
   }
 }

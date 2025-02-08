@@ -611,6 +611,9 @@ export class HybridDirectConsensus {
   private async calculatePowScore(block: Block): Promise<number> {
     const difficulty = block.header.difficulty;
     const networkDifficulty = await this.pow.getNetworkDifficulty();
+    if (networkDifficulty === 0) {
+      throw new Error('Network difficulty is 0, cannot calculate PoW score');
+    }
     return difficulty / networkDifficulty;
   }
 
@@ -1016,7 +1019,7 @@ export class HybridDirectConsensus {
       // Correctly average the participation rate
       const votingRate = await this.directVoting?.getParticipationRate();
       const powRate = await this.pow.getParticipationRate();
-      const hybridRate = (votingRate || 0 + powRate || 0) / 2;
+      const hybridRate = ((votingRate || 0) + (powRate || 0)) / 2;
 
       // Safely perform BigInt operations with bounds checking
       const safeMultiply = (a: bigint, b: bigint): bigint => {

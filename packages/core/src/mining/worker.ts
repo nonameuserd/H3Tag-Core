@@ -153,7 +153,7 @@ export class MiningWorker {
   public calculateHashRate(): number {
     const elapsedSeconds = (Date.now() - this.startTime) / 1000;
     if (elapsedSeconds <= 0) return 0;
-    return Number(this.hashesProcessed / BigInt(Math.ceil(elapsedSeconds)));
+    return Number(this.hashesProcessed) / elapsedSeconds;
   }
 
   private shouldReportProgress(): boolean {
@@ -191,14 +191,9 @@ export class MiningWorker {
       const targetBigInt = BigInt(target);
 
       for (let nonce = start; nonce < end; nonce += batchSize) {
-        // Prevent overflow
-        const headerWithNonce = `${headerBase}${nonce}`;
-
-        // Use SIMD for parallel hash computation
-        const hashes = await SIMD.batchHashSHA3(headerWithNonce);
+        const hashes = await SIMD.batchHashSHA3(headerBase, nonce, batchSize);
         this.hashesProcessed += BigInt(hashes.length);
 
-        // Check each hash in the batch
         for (let i = 0; i < hashes.length; i++) {
           const currentNonce = nonce + i;
           if (currentNonce >= end) break; // Prevent overflow

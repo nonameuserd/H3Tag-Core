@@ -123,7 +123,6 @@ export class DDoSProtection {
     this.blockedIPs = new Set(this.config.blacklist);
     this.initializeMetrics();
     this.startCleanupInterval();
-    this.initialize();
   }
 
   private validateConfig(config: Partial<DDoSConfig>): void {
@@ -212,7 +211,7 @@ export class DDoSProtection {
           });
         }
 
-        await this.recordRequest(ip, requestType);
+        await this.recordRequest(ip);
         next();
       } catch (error: unknown) {
         this.handleFailure();
@@ -237,22 +236,11 @@ export class DDoSProtection {
     return 'default';
   }
 
-  private async recordRequest(ip: string, type: string): Promise<void> {
-    const bucket = this.rateLimitBuckets.get(type);
-    if (!bucket) return;
-
-    const record = bucket.get(ip) || {
-      ip,
-      count: 0,
-      firstRequest: Date.now(),
-      lastRequest: Date.now(),
-      blocked: false,
-      violations: 0,
-    };
-
+  private async recordRequest(ip: string): Promise<void> {
+    const record = await this.getRequestRecord(ip);
     record.count++;
     record.lastRequest = Date.now();
-    bucket.set(ip, record);
+    this.requests.set(ip, record);
   }
 
   public async shouldBlock(ip: string, type: string): Promise<boolean> {

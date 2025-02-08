@@ -1,12 +1,17 @@
 import { Logger } from '@h3tag-blockchain/shared';
-export class ErrorMonitor {
+import { EventEmitter } from 'events';
+
+export class ErrorMonitor extends EventEmitter {
   private readonly errorCounts: Map<string, number> = new Map();
   private readonly errorThresholds: Map<string, number> = new Map();
   private readonly alertCallbacks: ((type: string, count: number) => void)[] =
     [];
+  private readonly alertedErrorTypes: Set<string> = new Set();
+  private readonly cleanupInterval: NodeJS.Timeout;
 
   constructor(private readonly windowSize: number = 3600000) {
-    setInterval(() => this.cleanup(), this.windowSize);
+    super();
+    this.cleanupInterval = setInterval(() => this.cleanup(), this.windowSize);
   }
 
   record(type: string, error: Error): void {
@@ -14,8 +19,15 @@ export class ErrorMonitor {
     this.errorCounts.set(type, count);
 
     const threshold = this.errorThresholds.get(type);
-    if (threshold && count >= threshold) {
-      this.alertCallbacks.forEach((cb) => cb(type, count));
+    if (threshold && count >= threshold && !this.alertedErrorTypes.has(type)) {
+      this.alertCallbacks.forEach((cb) => {
+        try {
+          cb(type, count);
+        } catch (callbackError) {
+          Logger.error('Alert callback error:', callbackError);
+        }
+      });
+      this.alertedErrorTypes.add(type);
     }
 
     Logger.error(`[${type}] ${error.message}`, {
@@ -35,5 +47,10 @@ export class ErrorMonitor {
 
   private cleanup(): void {
     this.errorCounts.clear();
+    this.alertedErrorTypes.clear();
+  }
+
+  public dispose(): void {
+    clearInterval(this.cleanupInterval);
   }
 }

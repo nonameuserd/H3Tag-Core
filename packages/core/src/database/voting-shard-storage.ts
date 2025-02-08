@@ -36,6 +36,7 @@ export class VotingShardStorage {
   private readonly mutex: Mutex;
   private readonly CACHE_TTL = 3600; // 1 hour
   private initialized = false;
+  private readonly initPromise: Promise<void>;
 
   constructor(db: BlockchainSchema) {
     if (!db) throw new Error('Database instance is required');
@@ -48,10 +49,7 @@ export class VotingShardStorage {
       compression: true,
     });
 
-    this.initialize().catch((err) => {
-      Logger.error('Failed to initialize voting shard storage:', err);
-      throw err;
-    });
+    this.initPromise = this.initialize();
   }
 
   private async initialize(): Promise<void> {
@@ -84,7 +82,8 @@ export class VotingShardStorage {
     shardId: string,
     hash: string,
   ): Promise<Transaction | undefined> {
-    if (!this.initialized) throw new Error('Storage not initialized');
+    await this.initPromise;
+
     if (!shardId || !hash) throw new Error('Shard ID and hash are required');
 
     const cacheKey = `tx:${shardId}:${hash}`;
@@ -235,25 +234,24 @@ export class VotingShardStorage {
     shardId: string,
     transactions: Transaction[],
   ): Promise<void> {
-    if (!this.initialized) throw new Error('Storage not initialized');
+    await this.initPromise;
+
     if (!shardId || !transactions)
       throw new Error('Shard ID and transactions are required');
 
-    return await this.mutex.runExclusive(async () => {
-      try {
-        await Promise.all(
-          transactions.map(async (tx) => {
-            await this.saveTransaction(shardId, tx);
-          }),
-        );
-        Logger.info(
-          `Shard ${shardId} replicated with ${transactions.length} transactions`,
-        );
-      } catch (error) {
-        Logger.error(`Failed to replicate shard ${shardId}:`, error);
-        throw error;
-      }
-    });
+    try {
+      await Promise.all(
+        transactions.map(async (tx) => {
+          await this.saveTransaction(shardId, tx);
+        })
+      );
+      Logger.info(
+        `Shard ${shardId} replicated with ${transactions.length} transactions`,
+      );
+    } catch (error) {
+      Logger.error(`Failed to replicate shard ${shardId}:`, error);
+      throw error;
+    }
   }
 
   /**

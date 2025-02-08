@@ -22,6 +22,7 @@ import { HashUtils } from '@h3tag-blockchain/crypto';
  * @property {GPUBuffer} blockBuffer - Buffer for block data
  * @property {GPUBuffer} resultBuffer - Buffer for mining results
  * @property {Object} CURRENCY_CONSTANTS - Currency-specific constants
+ * @property {GPUBuffer} offsetBuffer - Buffer for nonce offset
  *
  * @example
  * const miner = new AdvancedGPUMiner();
@@ -36,12 +37,13 @@ interface MiningResult {
 }
 
 export class AdvancedGPUMiner extends GPUMiner {
-  protected readonly MAX_NONCE = Math.pow(2, 32);
+  protected readonly MAX_NONCE = Math.pow(2, 32) - 1;
   private workgroupSize = 256;
   private maxComputeUnits: number = 0;
   private shaderCache: Map<string, GPUComputePipeline> = new Map();
   private blockBuffer: GPUBuffer | null = null;
   private resultBuffer: GPUBuffer | null = null;
+  private offsetBuffer: GPUBuffer | null = null;
   private deviceLostHandler: (info: GPUDeviceLostInfo) => void;
 
   // Add currency constants
@@ -90,6 +92,11 @@ export class AdvancedGPUMiner extends GPUMiner {
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC,
     });
 
+    this.offsetBuffer = this.device.createBuffer({
+      size: 4, // 4 bytes for a single u32 offset
+      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    });
+
     // Add null check for adapter
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error('No GPU adapter found');
@@ -132,9 +139,7 @@ export class AdvancedGPUMiner extends GPUMiner {
   private async createOptimizedPipeline(
     target: bigint,
   ): Promise<GPUComputePipeline> {
-    const cacheKey = `pipeline_${target}`;
-
-    // Add double-check locking pattern
+    const cacheKey = target.toString();
     if (this.shaderCache.has(cacheKey)) {
       return this.shaderCache.get(cacheKey)!;
     }
@@ -144,7 +149,6 @@ export class AdvancedGPUMiner extends GPUMiner {
       this.shaderCache.set(cacheKey, pipeline);
       return pipeline;
     } catch (error) {
-      // Clean up failed pipeline
       this.shaderCache.delete(cacheKey);
       throw error;
     }
@@ -155,7 +159,7 @@ export class AdvancedGPUMiner extends GPUMiner {
   ): Promise<GPUComputePipeline> {
     const shader = `
                 @group(0) @binding(0) var<storage, read> blockData: array<u32>;
-                @group(0) @binding(1) var<storage, read_write> result: array<u32>;
+                @group(0) @binding(1) var<storage, read_write> result: array<atomic<u32>>;
                 @group(0) @binding(2) var<uniform> offset: u32;
 
                 const REWARD_PRECISION: u32 = ${
@@ -221,16 +225,11 @@ export class AdvancedGPUMiner extends GPUMiner {
     );
     const commands: GPUCommandBuffer[] = [];
 
-    // Get difficulty directly from the blockBuffer data
-    const difficultyView = new DataView(await this.readBufferData(blockBuffer));
-    const difficulty = difficultyView.getUint32(0);
-
     // Build a pipeline key and retrieve (or create) the pipeline
-    const pipelineKey = `${difficulty}_${target}`;
+    const pipelineKey = target.toString();
     let pipeline = this.shaderCache.get(pipelineKey);
     if (!pipeline) {
       pipeline = await this.createOptimizedPipeline(BigInt(target));
-      // Cache under the pipelineKey for multiple chunks of the same work
       this.shaderCache.set(pipelineKey, pipeline);
     }
 
@@ -275,7 +274,7 @@ export class AdvancedGPUMiner extends GPUMiner {
           binding: 0,
           resource: {
             buffer: blockBuffer,
-            offset: offset * 4, // Assuming 4 bytes per uint32
+            offset: offset * 4,
             size: blockBuffer.size - offset * 4,
           },
         },
@@ -290,9 +289,9 @@ export class AdvancedGPUMiner extends GPUMiner {
         {
           binding: 2,
           resource: {
-            buffer: this.blockBuffer!,
+            buffer: this.offsetBuffer!,
             offset: 0,
-            size: this.blockBuffer!.size,
+            size: this.offsetBuffer!.size,
           },
         },
       ],

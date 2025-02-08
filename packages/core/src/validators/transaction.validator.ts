@@ -52,10 +52,12 @@ export class TransactionValidator {
       );
     }
 
-    // Add type validation
+    // Updated type validation:
     if (
       typeof tx.type !== 'number' ||
-      !Object.values(TransactionType).includes(tx.type)
+      !Object.values(TransactionType)
+        .filter((value) => typeof value === 'number')
+        .includes(tx.type)
     ) {
       throw new TransactionValidationError(
         'Invalid transaction type',
@@ -240,7 +242,7 @@ export class TransactionValidator {
       const verificationPromises = tx.inputs.map((input) => {
         return Promise.race([
           this.verifyInputSignature(input, tx.id),
-          new Promise((_, reject) =>
+          new Promise<boolean>((_, reject) =>
             setTimeout(
               () => reject(new Error('Signature verification timeout')),
               5000,
@@ -249,7 +251,14 @@ export class TransactionValidator {
         ]);
       });
 
-      await Promise.all(verificationPromises);
+      const results = await Promise.all(verificationPromises);
+      // If any verification did not return true, throw error.
+      if (results.some((verified) => !verified)) {
+        throw new TransactionValidationError(
+          'Signature verification failed',
+          'INVALID_SIGNATURE',
+        );
+      }
     } catch (error) {
       Logger.error('Signature validation failed:', error);
       if (error instanceof TransactionValidationError) {
@@ -581,7 +590,7 @@ export class TransactionValidator {
    */
   public static validateTransactionVersion(tx: Transaction): boolean {
     try {
-      if (!tx.version) {
+      if (tx.version === undefined || tx.version === null) {
         throw new TransactionValidationError(
           'Missing transaction version',
           'MISSING_VERSION',

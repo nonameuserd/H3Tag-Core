@@ -1,7 +1,7 @@
 export async function loadWasmModule(
   path: string,
 ): Promise<WebAssembly.Module> {
-  const response = await fetch(path);
+  let response = await fetch(path);
 
   // Validate that the response is successful.
   if (!response.ok) {
@@ -19,6 +19,8 @@ export async function loadWasmModule(
       console.warn(
         `instantiateStreaming failed for "${path}" due to: ${e}. Falling back to ArrayBuffer compilation.`,
       );
+      // Clone the response to reuse in the fallback, as the original may be consumed
+      response = response.clone();
     }
   }
 

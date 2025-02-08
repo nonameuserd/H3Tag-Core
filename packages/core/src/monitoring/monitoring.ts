@@ -54,6 +54,7 @@ export class Monitoring {
     blockTime: prometheus.Histogram<string>;
     networkDifficulty: prometheus.Gauge<string>;
     powNodeCount: prometheus.Gauge<string>;
+    voterParticipation: prometheus.Gauge<string>;
   };
 
   public logger: winston.Logger;
@@ -61,9 +62,10 @@ export class Monitoring {
   private timers: Map<string, number> = new Map();
 
   private responseTimeHistogram = new prometheus.Histogram({
-    name: 'http_request_duration_ms',
-    help: 'HTTP request duration in milliseconds',
+    name: 'http_request_duration_seconds',
+    help: 'HTTP request duration in seconds',
     labelNames: ['method', 'path'],
+    buckets: [0.05, 0.1, 0.25, 0.5, 1, 2.5, 5],
   });
 
   private readonly mutex = new Mutex();
@@ -94,6 +96,11 @@ export class Monitoring {
         name: 'pow_node_count',
         help: 'Number of PoW mining nodes',
         labelNames: ['status'],
+      }),
+      voterParticipation: new prometheus.Gauge({
+        name: 'voter_participation',
+        help: 'Voter participation rate as a percentage',
+        labelNames: [],
       }),
     };
 
@@ -174,6 +181,9 @@ export class Monitoring {
           data.difficulty,
         );
       }
+      if (typeof data.voterParticipation === 'number' && data.voterParticipation >= 0) {
+        this.metrics.voterParticipation.set(data.voterParticipation);
+      }
     } catch (error) {
       this.logger.error('Failed to update metrics:', error);
       throw new MonitoringError('Metrics update failed');
@@ -249,7 +259,9 @@ export class Monitoring {
         return;
       }
 
-      this.responseTimeHistogram.labels(method, path).observe(duration);
+      // Convert duration from milliseconds to seconds before recording.
+      const durationInSeconds = duration / 1000;
+      this.responseTimeHistogram.labels(method, path).observe(durationInSeconds);
     } catch (error) {
       this.logger.error('Failed to record response time:', error);
     }
@@ -260,7 +272,7 @@ export class Monitoring {
    * @param {number} count - Number of active nodes
    */
   public updateActiveNodes(count: number): void {
-    this.metrics.activeNodes.set({ type: 'total' }, count);
+    this.metrics.activeNodes.set({ type: 'total', status: 'active' }, count);
   }
 
   /**

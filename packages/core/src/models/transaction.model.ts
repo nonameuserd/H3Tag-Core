@@ -481,7 +481,7 @@ export class TransactionBuilder {
     if (confirmations < 0) {
       throw new TransactionError('Invalid confirmations');
     }
-    if (amount <= 0) {
+    if (amount <= BigInt(0)) {
       throw new TransactionError('Invalid amount');
     }
     if (this.outputs.length >= TransactionBuilder.MAX_OUTPUTS) {
@@ -906,15 +906,14 @@ export class TransactionBuilder {
           const isValid = await HybridCrypto.verify(
             tx.hash,
             input.signature,
-            TransactionBuilder.safeJsonParse(input.publicKey),
+            input.publicKey,
           );
-          // Add null check and explicit false return
-          if (!isValid || isValid === null) {
+          if (!isValid) {
             Logger.warn('Invalid signature detected', { txId: tx.hash });
             return false;
           }
         } catch (error) {
-          Logger.error('Signature verification failed', { error });
+          Logger.error('Error during signature verification', { error });
           return false;
         }
       }
