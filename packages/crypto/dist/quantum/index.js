@@ -151,6 +151,7 @@ class QuantumCrypto {
     }
     static async dilithiumHash(data) {
         try {
+            this.checkInitialization();
             return await this.nativeQuantum.dilithiumHash(data);
         }
         catch (error) {
@@ -160,6 +161,7 @@ class QuantumCrypto {
     }
     static async kyberEncapsulate(data) {
         try {
+            this.checkInitialization();
             if (!Buffer.isBuffer(data)) {
                 throw new QuantumError('Invalid input: data must be a Buffer');
             }
@@ -177,6 +179,7 @@ class QuantumCrypto {
     }
     static async kyberHash(data) {
         try {
+            this.checkInitialization();
             return Buffer.from(await kyber_1.Kyber.hash(data), 'base64');
         }
         catch (error) {

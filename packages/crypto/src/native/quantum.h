@@ -50,6 +50,8 @@ namespace quantum
     class QuantumCrypto
     {
     public:
+        // Note: The singleton design in QuantumCrypto::getInstance uses the parameters
+        // from the first call. Subsequent calls with different parameters will be ignored.
         // Singleton access
         static QuantumCrypto &getInstance(const SecurityParams &params = SecurityParams::DEFAULT);
 

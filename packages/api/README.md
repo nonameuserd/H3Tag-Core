@@ -1,17 +1,32 @@
 # H3TAG Blockchain API
 
-A RESTful API service for interacting with the H3TAG blockchain network. This API provides comprehensive endpoints for blockchain operations, transaction management, peer networking, mining operations, and voting functionality.
+H3TAG Blockchain API is an extensible RESTful service for interacting with the H3TAG blockchain network. The API is designed with a clear folder structure that separates concerns into controllers, DTOs, middleware, services, and routes. Whether you're managing blockchain operations, mining, node networking, peer management, voting, or wallet functionalities—the API covers it all.
+
+## Table of Contents
+
+- [Features](#features)
+- [Project Structure](#project-structure)
+- [Installation](#installation)
+- [Usage](#usage)
+- [API Endpoints](#api-endpoints)
+- [API Documentation](#api-documentation)
+- [Environment Variables](#environment-variables)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
-- Complete blockchain operations (blocks, transactions, mempool)
-- Peer-to-peer network management
-- Mining operations and block templates
-- Transaction validation and signing
-- Voting system integration
-- Swagger/OpenAPI documentation
-- Error handling and logging
-- RESTful architecture
+- **Comprehensive Blockchain Operations:** Retrieve blockchain stats, blocks, height, version, difficulty, and more.
+- **Modular Design:** Clear separation into controllers, DTOs, services, and middleware for easy maintenance and scalability.
+- **Peer and Node Management:** Create and manage nodes and peers with built-in support for connection, banning, and status monitoring.
+- **Secure Transactions:** Built-in endpoints for transaction handling, including raw transaction processing, decoding, fee estimation, and cryptographic message signing/verification.
+- **Voting and Wallet Support:** Manage voting processes and wallet operations such as creation, signing, sending funds, and key management.
+- **Swagger/OpenAPI Documentation:** Automatically generated interactive API docs for quick exploration and integration.
+- **Robust Middleware:** Security headers, rate limiting, logging, and error handling are integrated to ensure reliable operations.
+
+## Project Structure
+
+The project follows a modular structure:
 
 ## Installation
 
@@ -24,7 +39,7 @@ yarn add @h3tag-blockchain/api
 ### Starting the API Server
 
 ```typescript
-import app from "@h3tag-blockchain/api";
+import app from '@h3tag-blockchain/api';
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
@@ -92,4 +107,4 @@ Contributions are welcome! Please feel free to submit pull requests.
 
 ## License
 
-[MIT](LICENSE)
+This project is licensed under the [MIT License](LICENSE).

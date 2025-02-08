@@ -176,7 +176,7 @@ class HybridCrypto {
             const kyberPair = await kyber_1.Kyber.generateKeyPair();
             const { sharedSecret: quantumSecret } = await kyber_1.Kyber.encapsulate(kyberPair.publicKey);
             // Generate classical shared secret.
-            const classicalSecret = this.TRADITIONAL_CURVE.genKeyPair().derive(this.TRADITIONAL_CURVE.keyFromPublic(hash_1.HashUtils.sha256(input.toString()), 'hex').getPublic());
+            const classicalSecret = this.TRADITIONAL_CURVE.genKeyPair().derive(this.TRADITIONAL_CURVE.keyFromPublic(hash_1.HashUtils.sha256(input.toString('hex')), 'hex').getPublic());
             // Combine secrets.
             return hash_1.HashUtils.sha3(quantumSecret + classicalSecret.toString('hex'));
         }
@@ -213,7 +213,7 @@ class HybridCrypto {
     }
     static async combineHashes(classicalHash, quantumHash) {
         try {
-            return hash_1.HashUtils.sha3(classicalHash + quantumHash);
+            return hash_1.HashUtils.sha3(`${classicalHash}:${quantumHash}`);
         }
         catch (error) {
             shared_1.Logger.error('Hash combination failed:', error);
@@ -236,8 +236,8 @@ class HybridCrypto {
                 case 'dilithium':
                     return await dilithium_1.Dilithium.verify(data, signature, publicKey);
                 case 'kyber': {
-                    const { ciphertext } = await kyber_1.Kyber.encapsulate(publicKey);
-                    return ciphertext === signature;
+                    const { sharedSecret } = await kyber_1.Kyber.encapsulate(publicKey);
+                    return sharedSecret === signature;
                 }
                 default:
                     return await dilithium_1.Dilithium.verify(data, signature, publicKey); // Default to Dilithium

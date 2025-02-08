@@ -1,16 +1,27 @@
 # H3TAG Blockchain Shared Package
 
-Core utilities and configurations shared across the H3TAG blockchain packages.
+This package acts as the backbone of the H3TAG blockchain projects by providing core utilities and configurations that are shared across various packages. The shared module contains centralized configuration management, logging, status codes for common HTTP responses, and utility functions for currencies and other type definitions. It reduces redundancy and ensures consistency across the project.
 
 ## Features
 
-- Configuration management
-- Logging utilities
-- Status codes and messages
-- Currency constants and utilities
-- Common type definitions
+- **Configuration Management**
+  - Robust configuration service (`ConfigService`) for handling environment variables and default configurations in a type-safe manner.
+  - Built-in validation and caching of configuration values.
+- **Logging Utilities**
+  - Integrated [Winston](https://github.com/winstonjs/winston) logging framework with daily rotation and support for Express request logging.
+- **Status Codes & Messages**
+  - Predefined sets of HTTP status codes and descriptive messages for success and error responses.
+- **Currency Constants & Utilities**
+
+  - Define currency details such as name, symbol, decimals, and unit conversions.
+  - Utility functions for conversion between TAG units and smallest currency units (wei).
+
+- **Common Type Definitions**
+  - Shared interfaces and types used across the blockchain ecosystem.
 
 ## Installation
+
+To install the package, run:
 
 ```bash
 yarn add @h3tag-blockchain/shared
@@ -18,40 +29,67 @@ yarn add @h3tag-blockchain/shared
 
 ## Usage
 
-## Configuration Options
+### Importing Shared Utilities
 
-### Network Configuration
+For example, to use the configuration service:
 
-- `type`: Network type (MAINNET, TESTNET, DEVNET)
-- `port`: Network port
-- `host`: Network host
-- `seedDomains`: List of seed nodes
+```typescript
+import { ConfigService } from '@h3tag-blockchain/shared';
 
-### Blockchain Configuration
+// Get the global configuration instance
+const configService = ConfigService.getInstance();
+const host = configService.get<string>('network.host');
+console.log('Network Host:', host);
+```
 
-- `maxSupply`: Maximum token supply
-- `initialSupply`: Initial token supply
-- `blockTime`: Target block time
-- `halvingInterval`: Blocks between reward halvings
+To use the currency utilities:
 
-### Consensus Configuration
+```typescript
+import { CurrencyUtils } from '@h3tag-blockchain/shared';
 
-- `powWeight`: Proof of Work weight
-- `voteWeight`: Voting weight
-- `minPowHashrate`: Minimum hashrate requirement
-- `votingPeriod`: Voting period duration
+const weiValue = CurrencyUtils.toWei(1);
+console.log('1 TAG in wei:', weiValue);
 
-### Currency Configuration
+const tagValue = CurrencyUtils.fromWei(weiValue);
+console.log('Wei to TAG:', tagValue);
+```
 
-- `name`: Currency name
-- `symbol`: Currency symbol
-- `decimals`: Decimal places
-- `units`: Currency unit definitions
+To log messages:
+
+```typescript
+import { Logger } from '@h3tag-blockchain/shared';
+
+Logger.info('Application has started...');
+```
+
+### Configuration Options
+
+Detailed configuration options are available in the [`src/utils/config.ts`](./src/utils/config.ts) file. Key configuration areas include:
+
+- **Network Configuration**
+
+  - `type`: Network type (MAINNET, TESTNET, DEVNET)
+  - `port`: Specific ports for each network type
+  - `host`: Domain names for respective network types
+  - `seedDomains`: Lists of seed domains for node discovery
+
+- **Blockchain & Mining Configuration**
+
+  - Token supply limits, block timing, mining rewards, and difficulty settings
+
+- **Consensus & Voting Configuration**
+
+  - Proof of Work parameters and voting settings to ensure network consensus
+
+- **Currency Configuration**
+  - Currency details like name, symbol, decimals, and unit conversion factors
+
+For advanced customization, refer directly to the source code to see how configuration parameters are validated and merged with default settings.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests.
+Contributions are welcome! Please feel free to submit pull requests or open an issue if you have ideas for improvements or encounter any bugs.
 
 ## License
 
-[MIT](LICENSE)
+This project is licensed under the [MIT License](LICENSE).

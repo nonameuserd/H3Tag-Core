@@ -50,6 +50,11 @@ class SIMD {
         if (!this.wasmSIMD) {
             throw new Error('SIMD not supported or not initialized');
         }
+        // New check: Ensure 'batch_hash_sha3_256' export exists.
+        const batchHashFunction = this.wasmSIMD.exports.batch_hash_sha3_256;
+        if (typeof batchHashFunction !== 'function') {
+            throw new Error('WASM module does not export batch_hash_sha3_256 function');
+        }
         // Construct batch input array.
         const inputs = Array.from({ length: batchSize }, (_, i) => `${headerBase}${startNonce + i}`);
         const jsonData = JSON.stringify(inputs);
@@ -62,18 +67,39 @@ class SIMD {
             const allocate = this.wasmSIMD.exports.allocate;
             const deallocate = this.wasmSIMD.exports.deallocate;
             const inputPtr = allocate(input.length);
+            if (!inputPtr) { // New check for allocation pointer validity.
+                throw new Error('WASM allocate returned an invalid pointer.');
+            }
             try {
                 const memoryBuffer = new Uint8Array(memory.buffer);
                 memoryBuffer.set(input, inputPtr);
                 // Call the WASM function passing pointer and length.
-                const outputPtr = this.wasmSIMD.exports.batch_hash_sha3_256(inputPtr, input.length);
-                const outputJSON = SIMD.decodeWasmString(outputPtr, memory);
+                const outputPtr = batchHashFunction(inputPtr, input.length);
+                if (!outputPtr) { // New check: Verify valid non-null output pointer.
+                    throw new Error('WASM function returned an invalid output pointer.');
+                }
+                let result;
                 try {
-                    return JSON.parse(outputJSON);
+                    const outputJSON = SIMD.decodeWasmString(outputPtr, memory);
+                    try {
+                        result = JSON.parse(outputJSON);
+                    }
+                    catch (parseError) {
+                        throw new Error(`Failed to parse output JSON from WASM: ${parseError}`);
+                    }
                 }
-                catch (parseError) {
-                    throw new Error(`Failed to parse output JSON from WASM: ${parseError}`);
+                finally {
+                    // Calculate the length of the output string (including the null terminator)
+                    const memoryBuffer = new Uint8Array(memory.buffer);
+                    let end = outputPtr;
+                    const max = memoryBuffer.length;
+                    while (end < max && memoryBuffer[end] !== 0) {
+                        end++;
+                    }
+                    const outputSize = end - outputPtr + 1;
+                    deallocate(outputPtr, outputSize);
                 }
+                return result;
             }
             finally {
                 deallocate(inputPtr, input.length);
@@ -81,7 +107,7 @@ class SIMD {
         }
         else {
             // Fallback: if manual memory management is not provided
-            return this.wasmSIMD.exports.batch_hash_sha3_256(input);
+            return batchHashFunction(input);
         }
     }
     /**

@@ -1,3 +1,5 @@
+import { DilithiumKeyPair } from './quantum/dilithium';
+import { KyberKeyPair } from './quantum/kyber';
 export declare class KeyError extends Error {
     constructor(message: string);
 }
@@ -5,11 +7,16 @@ export interface HybridKeyPair {
     address: string;
     privateKey: string | (() => Promise<string>);
     publicKey: string | (() => Promise<string>);
+    quantumKeys?: {
+        dilithium: DilithiumKeyPair;
+        kyber: KyberKeyPair;
+    };
 }
 export declare class KeyManager {
     private static readonly MIN_ENTROPY_LENGTH;
     private static readonly DEFAULT_ENTROPY_LENGTH;
     private static initialized;
+    private static initializationPromise;
     static initialize(): Promise<void>;
     /**
      * Generate a hybrid key pair with optional entropy
@@ -38,7 +45,7 @@ export declare class KeyManager {
     private static getVersionByte;
     /**
      * Shuts down the key manager.
-     * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, use it.
+     * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, we use that.
      */
     static shutdown(): Promise<void>;
     /**

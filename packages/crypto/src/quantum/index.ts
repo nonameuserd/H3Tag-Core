@@ -174,6 +174,7 @@ export class QuantumCrypto {
 
   public static async dilithiumHash(data: Buffer): Promise<Buffer> {
     try {
+      this.checkInitialization();
       return await this.nativeQuantum.dilithiumHash(data);
     } catch (error) {
       Logger.error('Dilithium hashing failed:', error);
@@ -187,6 +188,8 @@ export class QuantumCrypto {
     data: Buffer,
   ): Promise<{ ciphertext: Buffer; sharedSecret: Buffer }> {
     try {
+      this.checkInitialization();
+
       if (!Buffer.isBuffer(data)) {
         throw new QuantumError('Invalid input: data must be a Buffer');
       }
@@ -207,6 +210,7 @@ export class QuantumCrypto {
 
   public static async kyberHash(data: Buffer): Promise<Buffer> {
     try {
+      this.checkInitialization();
       return Buffer.from(await Kyber.hash(data), 'base64');
     } catch (error) {
       Logger.error('Kyber hashing failed:', error);

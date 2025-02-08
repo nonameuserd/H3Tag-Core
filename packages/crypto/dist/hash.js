@@ -71,15 +71,12 @@ class HashUtils {
      */
     static async calculateHash(data) {
         try {
-            // Serialize input data
-            const content = JSON.stringify(data);
-            const contentBuffer = Buffer.from(content, 'utf8');
-            // Generate classical hash
-            const classicHash = (0, crypto_1.createHash)('sha256').update(content).digest('hex');
-            // Generate quantum-resistant hashes
+            // Use the raw buffer data for classical hash calculation
+            const classicHash = (0, crypto_1.createHash)('sha256').update(data).digest('hex');
+            // Generate quantum-resistant hashes using the raw binary data
             const [dilithiumHash, kyberHash] = await Promise.all([
-                dilithium_1.Dilithium.hash(contentBuffer),
-                kyber_1.Kyber.hash(contentBuffer),
+                dilithium_1.Dilithium.hash(data),
+                kyber_1.Kyber.hash(data),
             ]);
             // Combine all hashes using a structured approach
             const combined = JSON.stringify({
@@ -91,7 +88,7 @@ class HashUtils {
             return this.sha3(combined);
         }
         catch (error) {
-            throw new Error(`Hybrid hash calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            throw new Error(`Hybrid quantum hash calculation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
     }
     /**
@@ -122,14 +119,17 @@ class HashUtils {
      */
     static async hybridHash(data) {
         try {
-            const dataBuffer = Buffer.from(data);
+            // Convert the string consistently to a buffer for quantum-resistant hashing
+            const dataBuffer = Buffer.from(data, 'utf8');
             const [dilithiumHash, kyberHash] = await Promise.all([
                 dilithium_1.Dilithium.hash(dataBuffer),
                 kyber_1.Kyber.hash(dataBuffer),
             ]);
+            // Use the raw data (the original string) for classical double SHA256 hashing
+            const classicalHash = this.doubleSha256(data);
             // Combine hash components using a structured object to avoid ambiguity
             const combined = JSON.stringify({
-                classical: this.doubleSha256(dataBuffer.toString('hex')),
+                classical: classicalHash,
                 dilithium: dilithiumHash,
                 kyber: kyberHash,
             });

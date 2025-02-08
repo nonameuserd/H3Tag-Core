@@ -44,6 +44,9 @@ class Kyber {
             if (!keyPair?.publicKey || !keyPair?.privateKey) {
                 throw new KyberError('Failed to generate key pair');
             }
+            if (!Buffer.isBuffer(keyPair.publicKey) || !Buffer.isBuffer(keyPair.privateKey)) {
+                throw new KyberError('Invalid key pair: expected keys to be Buffers');
+            }
             if (keyPair.publicKey.length !== this.PUBLIC_KEY_SIZE) {
                 throw new KyberError(`Invalid public key size: ${keyPair.publicKey.length}`);
             }
@@ -75,12 +78,14 @@ class Kyber {
                 throw new KyberError('Invalid public key size');
             }
             const result = await _1.QuantumCrypto.nativeQuantum.kyberEncapsulate(publicKeyBuffer);
-            if (!result?.ciphertext ||
-                result.ciphertext.length !== this.CIPHERTEXT_SIZE) {
+            if (!Buffer.isBuffer(result.ciphertext) ||
+                !Buffer.isBuffer(result.sharedSecret)) {
+                throw new KyberError('Invalid result from kyberEncapsulate: expected ciphertext and sharedSecret as Buffers');
+            }
+            if (result.ciphertext.length !== this.CIPHERTEXT_SIZE) {
                 throw new KyberError('Invalid ciphertext generated');
             }
-            if (!result?.sharedSecret ||
-                result.sharedSecret.length !== this.SHARED_SECRET_SIZE) {
+            if (result.sharedSecret.length !== this.SHARED_SECRET_SIZE) {
                 throw new KyberError('Invalid shared secret generated');
             }
             return {
@@ -115,6 +120,9 @@ class Kyber {
                 throw new KyberError('Invalid private key size');
             }
             const sharedSecret = await _1.QuantumCrypto.nativeQuantum.kyberDecapsulate(ciphertextBuffer, privateKeyBuffer);
+            if (!Buffer.isBuffer(sharedSecret)) {
+                throw new KyberError('Invalid shared secret type returned');
+            }
             if (sharedSecret.length !== this.SHARED_SECRET_SIZE) {
                 throw new KyberError('Invalid shared secret size');
             }
@@ -171,6 +179,9 @@ class Kyber {
             await this.initialize();
         try {
             const hashBuffer = await _1.QuantumCrypto.nativeQuantum.kyberHash(data);
+            if (!Buffer.isBuffer(hashBuffer)) {
+                throw new KyberError('Invalid hash type returned from kyberHash');
+            }
             return hashBuffer.toString('base64');
         }
         catch (error) {

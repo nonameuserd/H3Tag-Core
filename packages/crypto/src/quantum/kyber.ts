@@ -70,6 +70,10 @@ export class Kyber {
         throw new KyberError('Failed to generate key pair');
       }
 
+      if (!Buffer.isBuffer(keyPair.publicKey) || !Buffer.isBuffer(keyPair.privateKey)) {
+        throw new KyberError('Invalid key pair: expected keys to be Buffers');
+      }
+
       if (keyPair.publicKey.length !== this.PUBLIC_KEY_SIZE) {
         throw new KyberError(
           `Invalid public key size: ${keyPair.publicKey.length}`,
@@ -119,16 +123,19 @@ export class Kyber {
         await QuantumCrypto.nativeQuantum.kyberEncapsulate(publicKeyBuffer);
 
       if (
-        !result?.ciphertext ||
-        result.ciphertext.length !== this.CIPHERTEXT_SIZE
+        !Buffer.isBuffer(result.ciphertext) ||
+        !Buffer.isBuffer(result.sharedSecret)
       ) {
+        throw new KyberError(
+          'Invalid result from kyberEncapsulate: expected ciphertext and sharedSecret as Buffers',
+        );
+      }
+
+      if (result.ciphertext.length !== this.CIPHERTEXT_SIZE) {
         throw new KyberError('Invalid ciphertext generated');
       }
 
-      if (
-        !result?.sharedSecret ||
-        result.sharedSecret.length !== this.SHARED_SECRET_SIZE
-      ) {
+      if (result.sharedSecret.length !== this.SHARED_SECRET_SIZE) {
         throw new KyberError('Invalid shared secret generated');
       }
 
@@ -181,6 +188,10 @@ export class Kyber {
         ciphertextBuffer,
         privateKeyBuffer,
       );
+
+      if (!Buffer.isBuffer(sharedSecret)) {
+        throw new KyberError('Invalid shared secret type returned');
+      }
 
       if (sharedSecret.length !== this.SHARED_SECRET_SIZE) {
         throw new KyberError('Invalid shared secret size');
@@ -243,6 +254,11 @@ export class Kyber {
 
     try {
       const hashBuffer = await QuantumCrypto.nativeQuantum.kyberHash(data);
+      
+      if (!Buffer.isBuffer(hashBuffer)) {
+        throw new KyberError('Invalid hash type returned from kyberHash');
+      }
+      
       return hashBuffer.toString('base64');
     } catch (error) {
       Logger.error('Kyber hashing failed:', error);

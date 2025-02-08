@@ -26,18 +26,54 @@ yarn build
 
 ### Basic Hash Operations
 
-The library supports three security levels:
+The library includes a range of hashing utilities. For example, to generate a SHA3-512 hash:
 
-- NORMAL (1): Standard security level
-- HIGH (2): Enhanced security for sensitive operations
-- PARANOID (3): Maximum security for critical operations
+```typescript
+import { HashUtils } from '@h3tag-blockchain/crypto';
+const data = 'Hello, blockchain!';
+const hashHex = HashUtils.sha3(data);
+console.log('SHA3-512 Hash:', hashHex);
+```
 
-The library includes built-in performance monitoring:
+### Hybrid Cryptography (Signing & Verification)
+
+Use the `HybridCrypto` class to sign messages using a combination of classical and quantum-resistant methods, and verify them accordingly:
+
+```typescript
+import { HybridCrypto } from '@h3tag-blockchain/crypto';
+const message = 'Secure transaction data';
+const keyPair = await HybridCrypto.generateKeyPair();
+const signature = await HybridCrypto.sign(message, keyPair);
+const isValid = await HybridCrypto.verify(
+  message,
+  signature,
+  keyPair.publicKey,
+);
+console.log('Signature valid?', isValid);
+```
+
+### Advanced Quantum Operations
+
+For advanced use cases, you can directly interact with quantum-resistant primitives such as those in the `Dilithium` and `Kyber` modules—or use the unified interface provided by the `QuantumWrapper` for:
+
+- Quantum-resistant key generation
+- Signing and verification
+- Hybrid hash generation
+
+## API Reference
+
+Detailed API documentation is available in the source code and generated TypeScript declaration files. Major modules include:
+
+- **HybridCrypto:** Handles hybrid encryption, decryption, signing, and verification.
+- **HashUtils:** Provides classical and hybrid hash functions.
+- **KeyManager:** Manages generation, serialization, and validation of key pairs.
+- **QuantumCrypto & QuantumWrapper:** Native implementations and wrappers exposing quantum-resistant cryptographic operations.
+- **SIMD:** WebAssembly-based SIMD functions for accelerated batch hashing.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit pull requests.
+Contributions are welcome! Please review the contribution guidelines before submitting pull requests.
 
 ## License
 
-[MIT](LICENSE)
+This project is licensed under the [MIT License](LICENSE).

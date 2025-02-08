@@ -86,17 +86,13 @@ export class HashUtils {
    */
   public static async calculateHash(data: Buffer): Promise<string> {
     try {
-      // Serialize input data
-      const content = JSON.stringify(data);
-      const contentBuffer = Buffer.from(content, 'utf8');
+      // Use the raw buffer data for classical hash calculation
+      const classicHash = createHash('sha256').update(data).digest('hex');
 
-      // Generate classical hash
-      const classicHash = createHash('sha256').update(content).digest('hex');
-
-      // Generate quantum-resistant hashes
+      // Generate quantum-resistant hashes using the raw binary data
       const [dilithiumHash, kyberHash] = await Promise.all([
-        Dilithium.hash(contentBuffer),
-        Kyber.hash(contentBuffer),
+        Dilithium.hash(data),
+        Kyber.hash(data),
       ]);
 
       // Combine all hashes using a structured approach
@@ -110,7 +106,7 @@ export class HashUtils {
       return this.sha3(combined);
     } catch (error) {
       throw new Error(
-        `Hybrid hash calculation failed: ${
+        `Hybrid quantum hash calculation failed: ${
           error instanceof Error ? error.message : 'Unknown error'
         }`,
       );
@@ -153,15 +149,19 @@ export class HashUtils {
    */
   public static async hybridHash(data: string): Promise<string> {
     try {
-      const dataBuffer = Buffer.from(data);
+      // Convert the string consistently to a buffer for quantum-resistant hashing
+      const dataBuffer = Buffer.from(data, 'utf8');
       const [dilithiumHash, kyberHash] = await Promise.all([
         Dilithium.hash(dataBuffer),
         Kyber.hash(dataBuffer),
       ]);
 
+      // Use the raw data (the original string) for classical double SHA256 hashing
+      const classicalHash = this.doubleSha256(data);
+
       // Combine hash components using a structured object to avoid ambiguity
       const combined = JSON.stringify({
-        classical: this.doubleSha256(dataBuffer.toString('hex')),
+        classical: classicalHash,
         dilithium: dilithiumHash,
         kyber: kyberHash,
       });

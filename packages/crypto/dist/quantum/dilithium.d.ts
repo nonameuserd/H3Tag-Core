@@ -10,7 +10,8 @@ export interface DilithiumKeyPair {
 export declare class Dilithium {
     private static initialized;
     private static initPromise;
-    private static readonly KEY_SIZE;
+    private static readonly PUBLIC_KEY_SIZE;
+    private static readonly PRIVATE_KEY_SIZE;
     private static readonly SIGNATURE_SIZE;
     private static readonly DEFAULT_SECURITY_LEVEL;
     static initialize(): Promise<void>;

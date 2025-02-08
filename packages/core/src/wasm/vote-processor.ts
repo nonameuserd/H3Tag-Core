@@ -15,8 +15,8 @@ export interface VoteData {
 }
 
 interface ChunkResult {
-  approved: number;
-  rejected: number;
+  approved: bigint;
+  rejected: bigint;
   voters: string[];
 }
 
@@ -59,11 +59,20 @@ export class WasmVoteProcessor {
         },
       };
 
-      // Instantiate the wasm module.
-      const wasmModule = await WebAssembly.instantiateStreaming(
-        fetch('./vote_processor_bg.wasm'),
-        importObject,
-      );
+      let wasmModule;
+      try {
+        // Attempt to instantiate via streaming
+        wasmModule = await WebAssembly.instantiateStreaming(
+          fetch('./pkg/vote_processor_bg.wasm'),
+          importObject,
+        );
+      } catch (streamingError) {
+        // Fallback: instantiate from ArrayBuffer if streaming fails
+        console.warn('instantiateStreaming failed, falling back to ArrayBuffer instantiation', streamingError);
+        const response = await fetch('./pkg/vote_processor_bg.wasm');
+        const buffer = await response.arrayBuffer();
+        wasmModule = await WebAssembly.instantiate(buffer, importObject);
+      }
 
       this.wasmModule = wasmModule.instance;
       this.memory = memory;
@@ -88,11 +97,22 @@ export class WasmVoteProcessor {
       );
     }
 
+    // Guard: if there are no votes, return a default chunk result.
+    if (votes.length === 0) {
+      return {
+        approved: 0n,
+        rejected: 0n,
+        voters: [],
+      };
+    }
+
     try {
       const serializedVotes = this.serializeVotes(votes);
-      const result = (
-        this.wasmModule.exports as unknown as WasmExports
-      ).process_vote_chunk(serializedVotes);
+      const wasmExports = this.wasmModule.exports as unknown as WasmExports;
+      if (typeof wasmExports.process_vote_chunk !== 'function') {
+        throw new WasmError('WASM export "process_vote_chunk" is missing');
+      }
+      const result = wasmExports.process_vote_chunk(serializedVotes);
       return this.deserializeResult(result);
     } catch (error) {
       throw new WasmError('Vote processing failed', error);
@@ -148,12 +168,11 @@ export class WasmVoteProcessor {
   /**
    * Deserializes the result coming from WASM.
    *
-   * Note: Converting bigints to numbers might lead to precision loss if the values are large.
    */
   private deserializeResult(rawResult: WasmVoteResult): ChunkResult {
     return {
-      approved: Number(rawResult.approved),
-      rejected: Number(rawResult.rejected),
+      approved: rawResult.approved,
+      rejected: rawResult.rejected,
       voters: Array.from(rawResult.voters),
     };
   }

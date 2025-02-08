@@ -64,20 +64,23 @@ The vote processor is implemented in three main parts:
    - Manages async operations
 
 3. **Build Configuration** (`Cargo.toml`):
-   toml
-   [package]
-   name = "vote-processor"
-   version = "0.1.0"
-   edition = "2021"
-   [dependencies]
-   wasm-bindgen = "0.2"
+
+```toml
+[package]
+name = "vote-processor"
+version = "0.1.0"
+edition = "2021"
+[dependencies]
+wasm-bindgen = "0.2.84"
    serde = { version = "1.0", features = ["derive"] }
    serde-wasm-bindgen = "0.5"
-   rayon = "1.7"
+   rayon = { version = "1.7", default-features = false }
    web-sys = "0.3"
    js-sys = "0.3"
    [lib]
    crate-type = ["cdylib"]
+   lto = true
+```
 
 ## Usage
 

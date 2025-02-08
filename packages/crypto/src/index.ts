@@ -7,6 +7,4 @@ export * from './hash';
 export * from './quantum';
 export * from './simd';
 export * from './wasm-loader';
-export * from './x509';
-export * from './sha3';
 export * from './hybrid';

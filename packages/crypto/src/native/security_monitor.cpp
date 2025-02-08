@@ -28,9 +28,17 @@ void SecurityMonitor::logFailure(const std::string &operation, const std::string
     auto now = std::chrono::system_clock::now();
     auto now_time_t = std::chrono::system_clock::to_time_t(now);
 
+    // Use a thread-safe version of localtime
+    std::tm timeInfo;
+#ifdef _WIN32
+    localtime_s(&timeInfo, &now_time_t);
+#else
+    localtime_r(&now_time_t, &timeInfo);
+#endif
+
     // Format the log message
     std::stringstream logMessage;
-    logMessage << "[" << std::put_time(std::localtime(&now_time_t), "%Y-%m-%d %H:%M:%S") << "] "
+    logMessage << "[" << std::put_time(&timeInfo, "%Y-%m-%d %H:%M:%S") << "] "
                << "Security Failure - Operation: " << operation
                << ", Error: " << error << "\n";
 

@@ -25,6 +25,9 @@ export enum KeystoreErrorCode {
   NOT_FOUND = 'NOT_FOUND',
   BACKUP_ERROR = 'BACKUP_ERROR',
   RESTORE_ERROR = 'RESTORE_ERROR',
+  INVALID_ADDRESS = 'INVALID_ADDRESS',
+  INVALID_KEYPAIR = 'INVALID_KEYPAIR',
+  INVALID_MAC = 'INVALID_MAC',
 }
 
 export class KeystoreError extends Error {
@@ -693,9 +696,15 @@ export class Keystore {
         throw new KeystoreError('Keystore not found', 'NOT_FOUND');
       }
 
-      const creationTime = keystore.createdAt || 0;
-      const keyAge = Date.now() - creationTime;
-      return keyAge >= this.MAX_KEY_AGE;
+      // Use the last rotation time if available; otherwise, fallback to creation time.
+      let referenceTime = keystore.createdAt;
+      const metadata = await this.database.getRotationMetadata(address);
+      if (metadata && metadata.lastRotation) {
+        referenceTime = metadata.lastRotation;
+      }
+
+      const keyAge = Date.now() - referenceTime;
+      return keyAge >= this.ROTATION_PERIOD;
     } catch (error) {
       Logger.error('Key rotation check failed:', error);
       return false;
@@ -780,15 +789,18 @@ export class Keystore {
 
       const testKey = await this.generateSecureSalt();
       const testData = testKey.toString('hex');
+      const iv = await this.generateSecureIV();
+
       const encrypted = await HybridCrypto.encrypt(
         testData,
         testKey.toString('base64'),
+        iv.toString('base64'),
       );
 
-      // Verify encryption worked by attempting decryption
       const decrypted = await HybridCrypto.decrypt(
         encrypted,
         testKey.toString('base64'),
+        iv.toString('base64'),
       );
 
       return decrypted === testData;

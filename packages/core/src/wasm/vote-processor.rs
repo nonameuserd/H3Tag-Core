@@ -36,32 +36,33 @@ impl WasmVoteProcessor {
         // Parse input votes
         let votes: Vec<VoteData> = serde_wasm_bindgen::from_value(votes_js)?;
         
-        // Use parallel iterator for processing
-        let mut unique_voters: HashSet<String> = HashSet::new();
+        // Use parallel iterator for processing, propagating parse errors
         let (approved, rejected) = votes.par_iter()
-            .fold(
-                || (0.0, 0.0),
-                |(mut app, mut rej), vote| {
-                    let balance = vote.balance.parse::<f64>().unwrap_or(0.0);
+            .try_fold(
+                || Ok((0.0, 0.0)),
+                |(app, rej), vote| -> Result<(f64, f64), String> {
+                    let balance = vote.balance.parse::<f64>()
+                        .map_err(|e| format!("Balance parse error for voter {}: {:?}", vote.voter, e))?;
                     if vote.approved > 0 {
-                        app += balance;
+                        Ok((app + balance, rej))
                     } else {
-                        rej += balance;
+                        Ok((app, rej + balance))
                     }
-                    (app, rej)
                 }
             )
-            .reduce(
-                || (0.0, 0.0),
-                |a, b| (a.0 + b.0, a.1 + b.1)
-            );
+            .try_reduce(
+                || Ok((0.0, 0.0)),
+                |left, right| {
+                    let (a1, r1) = left?;
+                    let (a2, r2) = right?;
+                    Ok((a1 + a2, r1 + r2))
+                }
+            )
+            .map_err(|e| JsValue::from_str(&e))?;
 
-        // Collect unique voters
-        votes.iter().for_each(|vote| {
-            unique_voters.insert(vote.voter.clone());
-        });
+        // Collect unique voters (order is arbitrary)
+        let unique_voters: HashSet<String> = votes.iter().map(|vote| vote.voter.clone()).collect();
 
-        // Prepare result
         let result = ChunkResult {
             approved,
             rejected,

@@ -4,7 +4,7 @@ import { Worker } from 'worker_threads';
 import { cpus } from 'os';
 import { Logger } from '@h3tag-blockchain/shared';
 import { HybridKeyPair, HybridCrypto } from '@h3tag-blockchain/crypto';
-import { WasmSHA3, SIMD } from '@h3tag-blockchain/crypto';
+import { SIMD } from '@h3tag-blockchain/crypto';
 import { Block, BlockHeader } from '../../models/block.model';
 import { BlockchainSchema } from '../../database/blockchain-schema';
 import { Mempool } from '../mempool';
@@ -460,7 +460,7 @@ export class ProofOfWork {
    */
   async initialize(): Promise<void> {
     try {
-      await Promise.all([WasmSHA3.initialize(), SIMD.initialize()]);
+      await SIMD.initialize();
 
       // Initialize worker pool
       this.workers = await Promise.all(

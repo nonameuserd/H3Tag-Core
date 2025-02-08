@@ -22,20 +22,30 @@ class KeyManager {
     static async initialize() {
         if (this.initialized)
             return;
-        await quantum_wrapper_1.QuantumWrapper.initialize();
-        this.initialized = true;
+        if (!this.initializationPromise) {
+            this.initializationPromise = quantum_wrapper_1.QuantumWrapper.initialize().then(() => {
+                this.initialized = true;
+            }).catch((error) => {
+                this.initializationPromise = null;
+                throw error;
+            });
+        }
+        return this.initializationPromise;
     }
     /**
      * Generate a hybrid key pair with optional entropy
      */
     static async generateHybridKeyPair(entropy) {
         try {
-            if (entropy && entropy.length < this.MIN_ENTROPY_LENGTH) {
-                throw new KeyError('Insufficient entropy length');
+            if (entropy) {
+                if (entropy.length < this.MIN_ENTROPY_LENGTH) {
+                    throw new KeyError('Insufficient entropy length');
+                }
+                if (!/^[0-9A-Fa-f]+$/.test(entropy)) {
+                    throw new KeyError('Provided entropy must be a valid hex string');
+                }
             }
             // Generate quantum-resistant keys in parallel.
-            // NOTE: These keys are currently only used for verification.
-            // If you intend to incorporate them into the final key pair, then combine their properties accordingly.
             const [dilithiumKeys, kyberKeys] = await Promise.all([
                 dilithium_1.Dilithium.generateKeyPair(),
                 kyber_1.Kyber.generateKeyPair(),
@@ -43,13 +53,14 @@ class KeyManager {
             if (!dilithiumKeys || !kyberKeys) {
                 throw new KeyError('Failed to generate quantum keys');
             }
-            // Generate or use provided entropy
+            // Generate or use provided entropy.
             const traditionalEntropy = entropy ||
                 crypto_js_1.default.lib.WordArray.random(this.DEFAULT_ENTROPY_LENGTH).toString();
             const keyPair = {
                 address: '',
                 publicKey: traditionalEntropy,
                 privateKey: traditionalEntropy,
+                quantumKeys: { dilithium: dilithiumKeys, kyber: kyberKeys },
             };
             // Await the asynchronous validation.
             if (!(await this.validateKeyPair(keyPair))) {
@@ -204,15 +215,14 @@ class KeyManager {
     }
     /**
      * Shuts down the key manager.
-     * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, use it.
+     * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, we use that.
      */
     static async shutdown() {
         this.initialized = false;
-        // If QuantumWrapper provides a `shutdown` or `reset` method, use that.
-        if (quantum_wrapper_1.QuantumWrapper.shutdown) {
+        // Ensure that QuantumWrapper.shutdown exists and is a function.
+        if (quantum_wrapper_1.QuantumWrapper.shutdown && typeof quantum_wrapper_1.QuantumWrapper.shutdown === 'function') {
             await quantum_wrapper_1.QuantumWrapper.shutdown();
         }
-        // Otherwise, consider whether reinitializing is appropriate.
     }
     /**
      * Convert address to public key hash
@@ -222,7 +232,7 @@ class KeyManager {
             // Remove prefix and decode from base58
             const decoded = hash_1.HashUtils.fromBase58(address);
             // Extract the public key hash (remove version byte and checksum)
-            const pubKeyHash = decoded.slice(1, -4);
+            const pubKeyHash = Buffer.from(decoded.subarray(1, decoded.length - 4));
             return pubKeyHash.toString('hex');
         }
         catch (error) {
@@ -248,3 +258,4 @@ exports.KeyManager = KeyManager;
 KeyManager.MIN_ENTROPY_LENGTH = 32;
 KeyManager.DEFAULT_ENTROPY_LENGTH = 64;
 KeyManager.initialized = false;
+KeyManager.initializationPromise = null;

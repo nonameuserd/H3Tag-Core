@@ -1,5 +1,5 @@
 import { parentPort } from 'worker_threads';
-import { WasmSHA3, SIMD } from '@h3tag-blockchain/crypto';
+import { SIMD } from '@h3tag-blockchain/crypto';
 
 interface MiningTask {
   start: number;
@@ -135,7 +135,6 @@ export class MiningWorker {
 
   private async initialize(): Promise<void> {
     try {
-      await WasmSHA3.initialize();
       await SIMD.initialize();
       this.isInitialized = true;
     } catch (error) {

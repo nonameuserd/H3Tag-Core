@@ -12,6 +12,7 @@ export declare class QuantumCrypto {
         healthCheckInterval: NodeJS.Timeout | undefined;
         isInitialized: boolean;
         HEALTH_CHECK_INTERVAL: number;
+        healthCheckFailures: number;
         clearHealthChecks(): void;
         initializeHealthChecks(): void;
         performHealthCheck(): Promise<void>;

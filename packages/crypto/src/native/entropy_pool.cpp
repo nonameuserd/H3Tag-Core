@@ -4,6 +4,7 @@
 #include <mutex>
 #include <atomic>
 #include <vector>
+#include <limits>
 
 struct EntropyPool::Implementation
 {
@@ -28,6 +29,11 @@ EntropyPool::~EntropyPool() = default;
 
 std::vector<uint8_t> EntropyPool::getBytes(size_t length)
 {
+    if (length > static_cast<size_t>(std::numeric_limits<int>::max()))
+    {
+        throw std::runtime_error("Requested length exceeds maximum allowable size");
+    }
+
     std::lock_guard<std::mutex> lock(pImpl->mutex);
     std::vector<uint8_t> bytes(length);
 

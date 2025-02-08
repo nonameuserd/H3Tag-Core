@@ -1,5 +1,5 @@
-import { Dilithium } from './quantum/dilithium';
-import { Kyber } from './quantum/kyber';
+import { Dilithium, DilithiumKeyPair } from './quantum/dilithium';
+import { Kyber, KyberKeyPair } from './quantum/kyber';
 import CryptoJS from 'crypto-js';
 import { Logger } from '@h3tag-blockchain/shared';
 import { HashUtils } from './hash';
@@ -17,17 +17,29 @@ export interface HybridKeyPair {
   address: string;
   privateKey: string | (() => Promise<string>);
   publicKey: string | (() => Promise<string>);
+  quantumKeys?: {
+    dilithium: DilithiumKeyPair;
+    kyber: KyberKeyPair;
+  };
 }
 
 export class KeyManager {
   private static readonly MIN_ENTROPY_LENGTH = 32;
   private static readonly DEFAULT_ENTROPY_LENGTH = 64;
   private static initialized = false;
+  private static initializationPromise: Promise<void> | null = null;
 
   static async initialize(): Promise<void> {
     if (this.initialized) return;
-    await QuantumWrapper.initialize();
-    this.initialized = true;
+    if (!this.initializationPromise) {
+      this.initializationPromise = QuantumWrapper.initialize().then(() => {
+        this.initialized = true;
+      }).catch((error) => {
+        this.initializationPromise = null;
+        throw error;
+      });
+    }
+    return this.initializationPromise;
   }
 
   /**
@@ -35,13 +47,16 @@ export class KeyManager {
    */
   static async generateHybridKeyPair(entropy?: string): Promise<HybridKeyPair> {
     try {
-      if (entropy && entropy.length < this.MIN_ENTROPY_LENGTH) {
-        throw new KeyError('Insufficient entropy length');
+      if (entropy) {
+        if (entropy.length < this.MIN_ENTROPY_LENGTH) {
+          throw new KeyError('Insufficient entropy length');
+        }
+        if (!/^[0-9A-Fa-f]+$/.test(entropy)) {
+          throw new KeyError('Provided entropy must be a valid hex string');
+        }
       }
 
       // Generate quantum-resistant keys in parallel.
-      // NOTE: These keys are currently only used for verification.
-      // If you intend to incorporate them into the final key pair, then combine their properties accordingly.
       const [dilithiumKeys, kyberKeys] = await Promise.all([
         Dilithium.generateKeyPair(),
         Kyber.generateKeyPair(),
@@ -51,7 +66,7 @@ export class KeyManager {
         throw new KeyError('Failed to generate quantum keys');
       }
 
-      // Generate or use provided entropy
+      // Generate or use provided entropy.
       const traditionalEntropy =
         entropy ||
         CryptoJS.lib.WordArray.random(this.DEFAULT_ENTROPY_LENGTH).toString();
@@ -60,6 +75,7 @@ export class KeyManager {
         address: '',
         publicKey: traditionalEntropy,
         privateKey: traditionalEntropy,
+        quantumKeys: { dilithium: dilithiumKeys, kyber: kyberKeys },
       };
 
       // Await the asynchronous validation.
@@ -248,15 +264,14 @@ export class KeyManager {
 
   /**
    * Shuts down the key manager.
-   * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, use it.
+   * NOTE: Instead of reinitializing the QuantumWrapper, if a shutdown operation exists, we use that.
    */
   static async shutdown(): Promise<void> {
     this.initialized = false;
-    // If QuantumWrapper provides a `shutdown` or `reset` method, use that.
-    if (QuantumWrapper.shutdown) {
+    // Ensure that QuantumWrapper.shutdown exists and is a function.
+    if (QuantumWrapper.shutdown && typeof QuantumWrapper.shutdown === 'function') {
       await QuantumWrapper.shutdown();
     }
-    // Otherwise, consider whether reinitializing is appropriate.
   }
 
   /**
@@ -268,7 +283,7 @@ export class KeyManager {
       const decoded = HashUtils.fromBase58(address);
 
       // Extract the public key hash (remove version byte and checksum)
-      const pubKeyHash = decoded.slice(1, -4);
+      const pubKeyHash = Buffer.from(decoded.subarray(1, decoded.length - 4));
 
       return pubKeyHash.toString('hex');
     } catch (error) {

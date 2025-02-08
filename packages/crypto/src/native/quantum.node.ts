@@ -21,6 +21,7 @@ class QuantumNative {
   public healthCheckInterval: NodeJS.Timeout | undefined;
   public isInitialized = false;
   public HEALTH_CHECK_INTERVAL = 60000; // 1 minute in ms
+  public healthCheckFailures = 0;
 
   private constructor() {
     try {
@@ -100,10 +101,19 @@ class QuantumNative {
 
       const duration = performance.now() - start;
       Logger.debug(`Quantum health check completed in ${duration}ms`);
+
+      // Reset failure counter on success
+      this.healthCheckFailures = 0;
     } catch (error) {
+      this.healthCheckFailures++;
       Logger.error('Quantum health check failed:', error);
-      this.clearHealthChecks();
-      throw error;
+      // Shutdown only after 3 consecutive failures
+      if (this.healthCheckFailures >= 3) {
+        this.clearHealthChecks();
+        await this.shutdown();
+        throw error;
+      }
+      // Otherwise, continue and wait for the next interval (transient error)
     }
   }
 

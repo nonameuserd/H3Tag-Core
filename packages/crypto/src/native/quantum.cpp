@@ -150,6 +150,10 @@ namespace quantum
             {
                 throw QuantumError("Signing failed");
             }
+            if (sigLen != pImpl->dilithium->length_signature)
+            {
+                throw QuantumError("Unexpected signature length from signing operation");
+            }
 
             return Signature(signature.data(), sigLen);
         }

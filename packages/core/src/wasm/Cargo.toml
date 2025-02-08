@@ -2,14 +2,21 @@
 name = "vote-processor"
 version = "0.1.0"
 edition = "2021"
+description = "A WebAssembly powered vote processor"
+repository = "https://github.com/nonameuserd/H3Tag-Core"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
-wasm-bindgen = "0.2"
+wasm-bindgen = "0.2.84"
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.5"
-rayon = "1.7"
+rayon = { version = "1.7", default-features = false }
 web-sys = "0.3"
 js-sys = "0.3"
 
 [lib]
 crate-type = ["cdylib"]
+
+[profile.release]
+# Enable Link Time Optimization and reduce binary size for WASM targets
+lto = true

@@ -18,6 +18,7 @@ import { Mutex } from 'async-mutex';
 import { WalletDatabase } from '../database/wallet-schema';
 import { databaseConfig } from '../database/config.database';
 import { UTXO, UTXOSet } from '../models/utxo.model';
+import { randomUUID } from 'crypto';
 
 export class WalletError extends Error {
   constructor(
@@ -80,6 +81,8 @@ export class Wallet {
       this.keyPair.privateKey = '';
       this.keyPair.publicKey = '';
     }
+    // Clear cached master HD key as well
+    this.masterHDKey = undefined;
   }
 
   static async create(password: string): Promise<Wallet> {
@@ -239,13 +242,15 @@ export class Wallet {
       if (newKeystore.mnemonic) {
         this.keystore.mnemonic = newKeystore.mnemonic;
       }
+      // Persist the updated keystore to the database so it stays in sync.
+      const walletDb = new WalletDatabase(databaseConfig.databases.wallet.path);
+      await walletDb.saveKeystore(this.address, this.keystore);
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        throw new WalletError(
-          'Failed to rotate keys',
-          WalletErrorCode.KEYSTORE_ERROR,
-        );
-      }
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new WalletError(
+        `Failed to rotate keys: ${errorMessage}`,
+        WalletErrorCode.KEYSTORE_ERROR,
+      );
     }
   }
 
@@ -365,7 +370,7 @@ export class Wallet {
   }
 
   generateId(): string {
-    return HashUtils.sha256(Date.now().toString());
+    return randomUUID();
   }
 
   async sendToAddress(
@@ -422,7 +427,18 @@ export class Wallet {
       // Sign the transaction
       const signature = await this.signTransaction(transaction, password);
 
-      return signature;
+      // Update the transaction object with the generated signature
+      transaction.signature = signature;
+      transaction.transaction.signature = signature;
+
+      // Compute the transaction hash with the updated signature
+      const txHex = transaction.toHex();
+      const txHash = await HashUtils.hybridHash(txHex);
+      transaction.hash = txHash;
+      transaction.transaction.hash = txHash;
+
+      // Return the fully signed transaction as a hex string.
+      return transaction.toHex();
     } catch (error) {
       Logger.error('Send to address failed:', error);
       throw new WalletError(
@@ -543,8 +559,14 @@ export class Wallet {
 
       // Derive new key pair using HD wallet path with next index
       const hdPath = `m/44'/60'/0'/0/${nextIndex}`;
-      const seed = await bip39.mnemonicToSeed(this.keystore.mnemonic);
-      const hdKey = HDKey.fromMasterSeed(seed);
+      let hdKey: HDKey;
+      if (this.masterHDKey) {
+        hdKey = this.masterHDKey;
+      } else {
+        const seed = await bip39.mnemonicToSeed(this.keystore.mnemonic);
+        hdKey = HDKey.fromMasterSeed(seed);
+        this.masterHDKey = hdKey; // Cache for future derivations
+      }
       const derived = hdKey.derive(hdPath);
 
       if (!derived.privateKey) {
@@ -553,7 +575,6 @@ export class Wallet {
           WalletErrorCode.INITIALIZATION_ERROR,
         );
       }
-
       // Convert derived private key to hex string
       const pkHex = Buffer.from(derived.privateKey).toString('hex');
       // Generate new key pair and address

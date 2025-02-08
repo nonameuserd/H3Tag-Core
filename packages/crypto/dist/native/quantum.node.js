@@ -17,6 +17,7 @@ class QuantumNative {
     constructor() {
         this.isInitialized = false;
         this.HEALTH_CHECK_INTERVAL = 60000; // 1 minute in ms
+        this.healthCheckFailures = 0;
         try {
             this.native = (0, bindings_1.default)('../../src/native/quantum.node');
             this.initializeHealthChecks();
@@ -78,11 +79,19 @@ class QuantumNative {
             }
             const duration = perf_hooks_1.performance.now() - start;
             shared_1.Logger.debug(`Quantum health check completed in ${duration}ms`);
+            // Reset failure counter on success
+            this.healthCheckFailures = 0;
         }
         catch (error) {
+            this.healthCheckFailures++;
             shared_1.Logger.error('Quantum health check failed:', error);
-            this.clearHealthChecks();
-            throw error;
+            // Shutdown only after 3 consecutive failures
+            if (this.healthCheckFailures >= 3) {
+                this.clearHealthChecks();
+                await this.shutdown();
+                throw error;
+            }
+            // Otherwise, continue and wait for the next interval (transient error)
         }
     }
     async shutdown() {

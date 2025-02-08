@@ -235,7 +235,7 @@ export class HybridCrypto {
       // Generate classical shared secret.
       const classicalSecret = this.TRADITIONAL_CURVE.genKeyPair().derive(
         this.TRADITIONAL_CURVE.keyFromPublic(
-          HashUtils.sha256(input.toString()),
+          HashUtils.sha256(input.toString('hex')),
           'hex',
         ).getPublic(),
       );
@@ -293,7 +293,7 @@ export class HybridCrypto {
     quantumHash: string,
   ): Promise<string> {
     try {
-      return HashUtils.sha3(classicalHash + quantumHash);
+      return HashUtils.sha3(`${classicalHash}:${quantumHash}`);
     } catch (error) {
       Logger.error('Hash combination failed:', error);
       throw new HybridError(
@@ -327,8 +327,8 @@ export class HybridCrypto {
         case 'dilithium':
           return await Dilithium.verify(data, signature, publicKey);
         case 'kyber': {
-          const { ciphertext } = await Kyber.encapsulate(publicKey);
-          return ciphertext === signature;
+          const { sharedSecret } = await Kyber.encapsulate(publicKey);
+          return sharedSecret === signature;
         }
         default:
           return await Dilithium.verify(data, signature, publicKey); // Default to Dilithium
