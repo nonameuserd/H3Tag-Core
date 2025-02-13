@@ -1289,7 +1289,7 @@ export class Blockchain {
   /**
    * Get circulating supply (excluding burned/locked tokens)
    */
-  private getCirculatingSupply(): number {
+  public getCirculatingSupply(): number {
     return Number(this.utxoSet.getTotalValue());
   }
 

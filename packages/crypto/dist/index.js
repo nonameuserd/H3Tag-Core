@@ -24,3 +24,4 @@ __exportStar(require("./quantum"), exports);
 __exportStar(require("./simd"), exports);
 __exportStar(require("./wasm-loader"), exports);
 __exportStar(require("./hybrid"), exports);
+__exportStar(require("./native/quantum.node"), exports);

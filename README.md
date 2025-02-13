@@ -40,9 +40,15 @@ H3TAG Blockchain is an open-source blockchain implementation designed to be secu
 
 ## Testing
 
+To run the tests, use the following command:
+
+```bash
+yarn test
+```
+
 Each package includes tests relevant to its functionality:
 
-- **Core Package Tests:** Block validation, consensus mechanism, and network synchronization (not yet implemented).
+- **Core Package Tests:** Block validation, consensus mechanism, and network synchronization (in progress).
 - **API & CLI Tests:** Integration and command-specific tests (not yet implemented).
 - **Crypto Package Tests:** Quantum-resistant cryptographic operations and key management (not yet implemented).
 - **CLI Tests:** Command-line interface tests (not yet implemented).

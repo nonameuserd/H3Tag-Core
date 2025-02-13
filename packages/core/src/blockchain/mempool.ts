@@ -500,7 +500,7 @@ export class Mempool {
     // Reset vote counters periodically
     setInterval(() => {
       this.voteCounter.clear();
-    }, BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.RATE_LIMIT_WINDOW * 1000);
+    }, BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.RATE_LIMIT_WINDOW * 1000).unref();
   }
 
   private async validateVoteEligibility(address: string): Promise<boolean> {
@@ -2280,7 +2280,7 @@ export class Mempool {
       } catch (error) {
         Logger.error('Cleanup interval failed:', error);
       }
-    }, BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.CLEANUP_INTERVAL);
+    }, BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.CLEANUP_INTERVAL).unref();
   }
 
   private calculateTransactionSize(transaction: Transaction): number {

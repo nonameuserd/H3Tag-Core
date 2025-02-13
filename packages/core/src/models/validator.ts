@@ -32,6 +32,7 @@ import { createHash } from 'crypto';
  * @property {number} metrics.voteParticipation - Voting participation rate
  * @property {number} metrics.blockProduction - Block production rate
  * @property {string} validationData - Validation-specific data
+ * @property {string} votingPower - Validator's voting power
  */
 export interface Validator {
   id: string;
@@ -53,6 +54,7 @@ export interface Validator {
     blockProduction: number;
   };
   validationData: string;
+  votingPower: string;
 }
 
 /**
@@ -88,8 +90,8 @@ export class ValidatorSet {
     // Set up periodic cache cleanup and store the interval id
     this.cacheCleanupInterval = setInterval(
       () => this.cleanExpiredCache(),
-      this.CACHE_EXPIRY,
-    );
+      this.CACHE_EXPIRY
+    ).unref();
   }
 
   /**
@@ -200,7 +202,8 @@ export class ValidatorSet {
       validator.metrics &&
       typeof validator.metrics.uptime === 'number' &&
       typeof validator.metrics.voteParticipation === 'number' &&
-      typeof validator.metrics.blockProduction === 'number'
+      typeof validator.metrics.blockProduction === 'number' &&
+      validator.votingPower
     );
   }
 
@@ -235,6 +238,7 @@ export class ValidatorSet {
       metrics: validator.metrics,
       validationData: validator.validationData,
       powHashRate: validator.powHashRate,
+      votingPower: validator.votingPower,
     };
     // Sort keys to ensure deterministic serialization (like in serializeValidatorForSignature)
     const sortedKeys = Object.keys(signableData).sort();
@@ -274,6 +278,7 @@ export class ValidatorSet {
       metrics: validator.metrics,
       validationData: validator.validationData,
       powHashRate: validator.powHashRate,
+      votingPower: validator.votingPower,
     };
 
     // Use sorted keys in JSON to ensure deterministic serialization

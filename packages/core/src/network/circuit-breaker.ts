@@ -29,7 +29,7 @@ export class CircuitBreaker {
     this.monitorInterval = setInterval(
       () => this.monitor(),
       this.config.monitorInterval,
-    );
+    ).unref();
   }
 
   public get failureThreshold(): number {

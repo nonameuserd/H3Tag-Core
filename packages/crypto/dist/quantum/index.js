@@ -50,7 +50,7 @@ class QuantumCrypto {
         }
     }
     static initializeHealthChecks() {
-        this.healthCheckInterval = setInterval(() => this.performHealthCheck(), 60000);
+        this.healthCheckInterval = setInterval(() => this.performHealthCheck(), 60000).unref();
     }
     static async performHealthCheck() {
         if (this.isHealthCheckRunning) {

@@ -8,3 +8,4 @@ export * from './quantum';
 export * from './simd';
 export * from './wasm-loader';
 export * from './hybrid';
+export * from './native/quantum.node';

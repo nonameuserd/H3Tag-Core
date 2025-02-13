@@ -55,7 +55,7 @@ export class MetricsCollector {
 
     this.flushInterval = setInterval(() => {
       void this.flush();
-    }, flushIntervalMs);
+    }, flushIntervalMs).unref();
   }
 
   /**

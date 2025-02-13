@@ -45,6 +45,7 @@
     "elliptic": "^6.5.4",
     "express-rate-limit": "^7.4.1",
     "express": "^4.21.2",
+    "fp-ts": "^2.16.2",
     "helmet": "^8.0.0",
     "install": "^0.13.0",
     "level": "^9.0.0",

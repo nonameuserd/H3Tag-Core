@@ -10,7 +10,7 @@ export class CacheError extends Error {
   }
 }
 
-interface CacheOptions<T> {
+export interface CacheOptions<T> {
   ttl?: number;
   maxSize?: number;
   checkPeriod?: number;

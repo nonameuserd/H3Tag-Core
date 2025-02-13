@@ -204,7 +204,7 @@ export class ShardManager {
     this.syncTimer = setInterval(
       () => this.syncShards(),
       this.config.syncInterval,
-    );
+    ).unref();
   }
 
   /**
@@ -214,7 +214,11 @@ export class ShardManager {
     const release = await this.mutex.acquire();
     try {
       for (const [shardId, shard] of this.shards) {
-        await this.db.syncShard(shardId, Array.from(shard));
+        if (typeof this.db.syncShard === 'function') {
+          await this.db.syncShard(shardId, Array.from(shard));
+        } else {
+          Logger.warn(`syncShard is not available on this.db. Skipping sync for shardId ${shardId}`);
+        }
       }
     } catch (error) {
       Logger.error('Shard sync failed:', error);
@@ -432,6 +436,6 @@ export class ShardManager {
       } catch (error) {
         Logger.error('Shard maintenance failed:', error);
       }
-    }, this.MAINTENANCE_INTERVAL);
+    }, this.MAINTENANCE_INTERVAL).unref();
   }
 }

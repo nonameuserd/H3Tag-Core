@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.nativeQuantum = void 0;
+exports.nativeQuantum = exports.QuantumNative = void 0;
 const perf_hooks_1 = require("perf_hooks");
 const bindings_1 = __importDefault(require("bindings"));
 const shared_1 = require("@h3tag-blockchain/shared");
@@ -59,6 +59,10 @@ class QuantumNative {
                     this.shutdown().catch((err) => shared_1.Logger.error('Failed to shutdown after health check error:', err));
                 }
             }, this.HEALTH_CHECK_INTERVAL);
+            // Unref the interval so that it does not keep the Node.js event loop alive
+            if (this.healthCheckInterval && typeof this.healthCheckInterval.unref === 'function') {
+                this.healthCheckInterval.unref();
+            }
             shared_1.Logger.debug('Health checks initialized');
         }
         catch (error) {
@@ -235,6 +239,7 @@ class QuantumNative {
         }
     }
 }
+exports.QuantumNative = QuantumNative;
 // Export singleton instance
 exports.nativeQuantum = QuantumNative.getInstance();
 exports.default = exports.nativeQuantum;

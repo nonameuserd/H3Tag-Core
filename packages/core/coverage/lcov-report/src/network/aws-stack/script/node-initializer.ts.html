@@ -371,8 +371,7 @@
 <a name='L306'></a><a href='#L306'>306</a>
 <a name='L307'></a><a href='#L307'>307</a>
 <a name='L308'></a><a href='#L308'>308</a>
-<a name='L309'></a><a href='#L309'>309</a>
-<a name='L310'></a><a href='#L310'>310</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L309'></a><a href='#L309'>309</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -417,7 +416,6 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -709,15 +707,15 @@ interface DatabaseConfig {
     };
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    return {</span>
-      main: { path: `${basePath}/main`, options: defaultOptions },
-      mining: { path: `${basePath}/mining`, options: defaultOptions },
-      keystore: { path: `${basePath}/keystore`, options: defaultOptions },
-      utxo: { path: `${basePath}/utxo`, options: defaultOptions },
-      wallet: { path: `${basePath}/wallet`, options: defaultOptions },
-      voting: { path: `${basePath}/voting`, options: defaultOptions },
+      main: { path: `${basePath}/main`, options: { ...defaultOptions } },
+      mining: { path: `${basePath}/mining`, options: { ...defaultOptions } },
+      keystore: { path: `${basePath}/keystore`, options: { ...defaultOptions } },
+      utxo: { path: `${basePath}/utxo`, options: { ...defaultOptions } },
+      wallet: { path: `${basePath}/wallet`, options: { ...defaultOptions } },
+      voting: { path: `${basePath}/voting`, options: { ...defaultOptions } },
       votingShard: {
         path: `${basePath}/voting-shard`,
-        options: defaultOptions,
+        options: { ...defaultOptions },
       },
     };
   }
@@ -726,27 +724,23 @@ interface DatabaseConfig {
     const dbConfig = <span class="cstat-no" title="statement not covered" >this.getDatabaseConfig('/data/blockchain');</span>
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    return `</span>
-      // 1. Core Dependencies
       const { Database } = require('@h3tag-blockchain/core/dist/database/database');
       const { MiningDatabase } = require('@h3tag-blockchain/core/dist/database/mining-schema');
       const { KeystoreDatabase } = require('@h3tag-blockchain/core/dist/database/keystore-database');
       const { UTXODatabase } = require('@h3tag-blockchain/core/dist/database/utxo-schema');
       const { WalletDatabase } = require('@h3tag-blockchain/core/dist/database/wallet-database');
       const { VotingDatabase } = require('@h3tag-blockchain/core/dist/database/voting-schema');
-      const { ConfigService, Logger } = require('@h3tag-blockchain/shared');
+      const { ConfigService, Logger, BLOCKCHAIN_CONSTANTS } = require('@h3tag-blockchain/shared');
       
-      // 2. Blockchain and Consensus
       const { Blockchain } = require('@h3tag-blockchain/core/dist/blockchain/blockchain');
       const { ProofOfWork } = require('@h3tag-blockchain/core/dist/blockchain/consensus/pow');
       const { DirectVoting } = require('@h3tag-blockchain/core/dist/blockchain/consensus/direct-voting');
       const { HybridDirectConsensus } = require('@h3tag-blockchain/core/dist/consensus/hybrid-direct');
       
-      // 3. Security and Crypto
       const { HybridCrypto } = require('@h3tag-blockchain/crypto');
       const { AuditManager } = require('@h3tag-blockchain/core/dist/security/audit');
       const { InMemoryAuditStorage } = require('@h3tag-blockchain/core/dist/security/storage');
       
-      // 4. Network Components
       const { Node } = require('@h3tag-blockchain/core/dist/network/node');
       const { Peer } = require('@h3tag-blockchain/core/dist/network/peer');
       const { BlockchainSync } = require('@h3tag-blockchain/core/dist/network/sync');
@@ -760,38 +754,23 @@ interface DatabaseConfig {
       const { PeerDiscovery } = require('@h3tag-blockchain/core/dist/network/discovery');
       const { MerkleTree } = require('@h3tag-blockchain/core/dist/utils/merkle');
       const { RetryStrategy } = require('@h3tag-blockchain/core/dist/utils/retry');
-&nbsp;
+      
+      // Additional modules required for sharding, keystore and metrics.
+      const { Keystore } = require('@h3tag-blockchain/core/dist/security/keystore');
+      const { CacheMetrics } = require('@h3tag-blockchain/core/dist/monitoring/cache-metrics');
+      const { BlockchainSchema } = require('@h3tag-blockchain/core/dist/database/blockchain-schema');
+      const { ShardManager } = require('@h3tag-blockchain/core/dist/sharding/shard-manager');
+      
       async function initializeNode() {
         let healthCheckInterval;
         try {
           Logger.info('Starting seed node initialization...');
-&nbsp;
-          // Initialize audit manager first
+      
+          // Initialize audit manager first.
           const auditStorage = new InMemoryAuditStorage();
           const auditManager = new AuditManager(auditStorage);
-&nbsp;
-          // Initialize security with proper error handling
-          let securityKeys;
-          try {
-            securityKeys = await retryStrategy.execute(async () =&gt; {
-              await HybridCrypto.initialize();
-              return HybridCrypto.generateKeyPair();
-            });
-          } catch (error) {
-            Logger.error('Failed to initialize security:', error);
-            throw error;
-          }
-&nbsp;
-          // Single cache initialization
-          const cacheConfig = {
-            ttl: 3600,
-            maxSize: 1000,
-            maxMemory: 1024 * 1024 * 512,
-            compression: true
-          };
-          const cache = new Cache(cacheConfig);
-&nbsp;
-          // Initialize retry strategy
+      
+          // Set up the retry strategy before its first use.
           const retryConfig = {
             maxAttempts: 3,
             delay: 1000,
@@ -804,48 +783,55 @@ interface DatabaseConfig {
             ]
           };
           const retryStrategy = new RetryStrategy(retryConfig);
-&nbsp;
-          // Initialize merkle tree for block verification
+      
+          // Initialize security with proper error handling.
+          let securityKeys;
+          try {
+            securityKeys = await retryStrategy.execute(async () =&gt; {
+              await HybridCrypto.initialize();
+              return HybridCrypto.generateKeyPair();
+            });
+          } catch (error) {
+            Logger.error('Failed to initialize security:', error);
+            throw error;
+          }
+      
+          // Initialize cache (use a single cache instance for the remainder of the script).
+          const cacheConfig = {
+            ttl: 3600,
+            maxSize: 1000,
+            maxMemory: 1024 * 1024 * 512,
+            compression: true
+          };
+          const cache = new Cache(cacheConfig);
+      
+          // Initialize merkle tree for block verification.
           const merkleTree = new MerkleTree();
-&nbsp;
-          // 1. Initialize Databases with configuration
+      
           const dbConfig = ${JSON.stringify(dbConfig)};
-          
+      
           const mainDb = new Database(dbConfig.main.path, dbConfig.main.options);
           const miningDb = new MiningDatabase(dbConfig.mining.path, dbConfig.mining.options);
           const keystoreDb = new KeystoreDatabase(dbConfig.keystore.path, dbConfig.keystore.options);
           const utxoDb = new UTXODatabase(dbConfig.utxo.path, dbConfig.utxo.options);
           const walletDb = new WalletDatabase(dbConfig.wallet.path, dbConfig.wallet.options);
           const votingDb = new VotingDatabase(dbConfig.voting.path, dbConfig.voting.options);
-&nbsp;
-          // 2. Initialize Security and Monitoring with retry
-          await retryStrategy.execute(async () =&gt; {
-            await HybridCrypto.initialize();
-            const securityKeys = await HybridCrypto.generateKeyPair();
-            return securityKeys;
-          });
-&nbsp;
-          // 3. Initialize Scaling Components
+      
           const workerPool = new WorkerPool(4);
-          const cache = new Cache({ maxSize: 1000 });
-&nbsp;
-          // 4. Initialize Blockchain with deep config copy
-          const blockchainConfigCopy = JSON.parse(JSON.stringify(${JSON.stringify(
-            blockchainConfig,
-          )}));
+      
+          // Create a deep copy of the blockchain configuration and inject the security keys.
+          const blockchainConfigCopy = JSON.parse(JSON.stringify(${JSON.stringify(blockchainConfig)}));
           blockchainConfigCopy.wallet.privateKey = securityKeys.privateKey;
-          
+      
           const blockchain = new Blockchain(blockchainConfigCopy);
           await blockchain.initialize();
-&nbsp;
-          // 5. Initialize Network Components
+      
           const mempool = new Mempool(blockchain);
           const dnsSeeder = new DNSSeeder(ConfigService.getConfig(), mainDb, {
             networkType: blockchainConfigCopy.network.type,
             port: blockchainConfigCopy.network.port
           });
-&nbsp;
-          // 6. Initialize Node and Peer Management
+      
           const node = new Node(
             blockchain,
             mainDb,
@@ -853,11 +839,10 @@ interface DatabaseConfig {
             ConfigService.getConfig(),
             auditManager
           );
-&nbsp;
+      
           const peerDiscovery = new PeerDiscovery(node, dnsSeeder);
           await peerDiscovery.initialize();
-&nbsp;
-          // 7. Initialize Blockchain Sync
+      
           const blockchainSync = new BlockchainSync(
             blockchain,
             mempool,
@@ -869,14 +854,13 @@ interface DatabaseConfig {
             },
             mainDb
           );
-&nbsp;
-          // 8. Initialize Consensus Components
+      
           const pow = new ProofOfWork(blockchain);
           await pow.initialize();
-&nbsp;
+      
           const directVoting = new DirectVoting(mainDb, auditManager);
           await directVoting.initialize();
-          
+      
           const consensus = new HybridDirectConsensus({
             pow,
             directVoting,
@@ -884,24 +868,16 @@ interface DatabaseConfig {
             blockchain
           });
           await consensus.initialize();
-&nbsp;
-          // Initialize Keystore
+      
+          // Initialize Keystore.
           await Keystore.initialize();
           Logger.info("Keystore initialized successfully");
-&nbsp;
-          // Initialize Cache with metrics
-          const cacheConfig = {
-            ttl: 3600,
-            maxSize: 1000,
-            maxMemory: 1024 * 1024 * 512, // 512MB
-            compression: true,
-            currency: BLOCKCHAIN_CONSTANTS.CURRENCY.SYMBOL
-          };
-          const cache = new Cache(cacheConfig);
+      
+          // Initialize cache metrics (reusing the previous cache instance).
           const cacheMetrics = new CacheMetrics();
           Logger.info("Cache system initialized successfully");
-&nbsp;
-          // Initialize Sharding
+      
+          // Initialize sharding using the main database path.
           const shardConfig = {
             shardCount: 16,
             votingShards: 4,
@@ -911,12 +887,12 @@ interface DatabaseConfig {
             reshardThreshold: 0.8,
             syncInterval: 30000
           };
-          const db = new BlockchainSchema(databaseConfig.databases.blockchain.path);
-          const shardManager = new ShardManager(shardConfig, db);
+          const schema = new BlockchainSchema(dbConfig.main.path);
+          const shardManager = new ShardManager(shardConfig, schema);
           await shardManager.initialize();
           Logger.info("Shard manager initialized successfully");
-&nbsp;
-          // Initialize WebAssembly modules
+      
+          // Initialize WebAssembly modules.
           try {
             const wasmModule = await import("../../../wasm/pkg/vote_processor");
             if (!wasmModule) {
@@ -927,13 +903,13 @@ interface DatabaseConfig {
             Logger.error("WebAssembly initialization failed:", error);
             throw error;
           }
-&nbsp;
-          // Health monitoring with cleanup
+      
+          // Set up health monitoring with periodic checks.
           healthCheckInterval = setInterval(async () =&gt; {
             const keystoreHealth = await Keystore.healthCheck();
             const cacheHealth = cache.getHitRate() &gt; 0.7; // 70% hit rate threshold
             const shardHealth = await shardManager.healthCheck();
-&nbsp;
+      
             if (!keystoreHealth || !cacheHealth || !shardHealth) {
               Logger.warn("Health check failed:", {
                 keystore: keystoreHealth,
@@ -942,25 +918,46 @@ interface DatabaseConfig {
               });
             }
           }, 300000);
-&nbsp;
-          // Cleanup handling
+      
+          // Cleanup handling.
           const cleanup = async () =&gt; {
             clearInterval(healthCheckInterval);
-            await workerPool.shutdown();
-            await mainDb.close();
-            await miningDb.close();
-            // ... close other resources ...
+            try {
+              await workerPool.shutdown();
+            } catch (wpError) {
+              Logger.error('Error during worker pool shutdown:', wpError);
+            }
+            try {
+              await mainDb.close();
+              await miningDb.close();
+              await utxoDb.close();
+              await walletDb.close();
+              await votingDb.close();
+              await consensus.shutdown();
+              await auditManager.shutdown();
+              await auditStorage.close();
+              await cache.close();
+              await shardManager.shutdown();
+              await mempool.shutdown();
+              await blockchainSync.shutdown();
+              await node.shutdown();
+              await peerDiscovery.shutdown();
+              await blockchain.shutdown();
+              await pow.shutdown();
+              await directVoting.shutdown();
+            } catch (dbError) {
+              Logger.error('Error during resource shutdown:', dbError);
+            }
             process.exit(0);
           };
-&nbsp;
+      
           process.on('SIGTERM', cleanup);
           process.on('SIGINT', cleanup);
-&nbsp;
-          // 9. Start Node Services
+      
           await node.initialize();
           await blockchainSync.start();
-&nbsp;
-          // Export configurations
+      
+          // Export the configuration to an environment variable.
           try {
             process.env.BLOCKCHAIN_CONFIG = JSON.stringify({
               blockchain: blockchain.getConfig(),
@@ -974,18 +971,18 @@ interface DatabaseConfig {
             Logger.error('Failed to set BLOCKCHAIN_CONFIG:', error);
             throw error;
           }
-&nbsp;
+      
           Logger.info('Seed node initialization completed successfully');
           await node.start();
-&nbsp;
+      
         } catch (error) {
           clearInterval(healthCheckInterval);
           Logger.error('Failed to initialize seed node:', error);
           process.exit(1);
         }
       }
-&nbsp;
-      // Run initialization
+      
+      // Run initialization.
       initializeNode().catch(console.error);
     `;
   }
@@ -997,7 +994,7 @@ interface DatabaseConfig {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-01-22T23:56:38.381Z
+                at 2025-02-13T02:53:53.630Z
             </div>
         <script src="../../../../prettify.js"></script>
         <script>

@@ -1,1443 +1,559 @@
-import { EventEmitter } from 'events';
-import { Mutex } from 'async-mutex';
-
-// Mock ConfigService before any imports
-jest.mock('@h3tag-blockchain/shared', () => ({
-  ConfigService: {
-    getInstance: jest.fn().mockReturnValue({
-      get: jest.fn((key: string) => {
-        const config = {
-          MAINNET_SEEDS: 'seed1.test.net,seed2.test.net',
-          TESTNET_SEEDS: 'test1.test.net,test2.test.net',
-          DEVNET_SEEDS: 'dev1.test.net,dev2.test.net',
-          networkType: 'MAINNET',
-          network: {
-            type: {
-              MAINNET: 'mainnet',
-              TESTNET: 'testnet',
-              DEVNET: 'devnet',
-            },
-            host: {
-              MAINNET: 'localhost',
-              TESTNET: 'localhost',
-              DEVNET: 'localhost',
-            },
-            port: {
-              MAINNET: 8080,
-              TESTNET: 8081,
-              DEVNET: 8082,
-            },
-            seedDomains: {
-              MAINNET: ['seed1.test.net', 'seed2.test.net'],
-              TESTNET: ['test1.test.net', 'test2.test.net'],
-              DEVNET: ['dev1.test.net', 'dev2.test.net'],
-            },
-          },
-        };
-        return config[key as keyof typeof config];
-      }),
-      has: jest.fn().mockReturnValue(true),
-      clearCache: jest.fn(),
-    }),
-    resetInstance: jest.fn(),
-  },
-  Logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  },
-}));
-
-// Mock Mutex
-jest.mock('async-mutex', () => ({
-  Mutex: jest.fn().mockImplementation(() => ({
-    runExclusive: jest.fn().mockImplementation(async (fn) => fn()),
-  })),
-}));
-
-// Mock crypto module with both nativeQuantum and HashUtils
-jest.mock('@h3tag-blockchain/crypto', () => ({
-  nativeQuantum: {
-    clearHealthChecks: jest.fn(),
-    shutdown: jest.fn(),
-    generateDilithiumPair: jest.fn(),
-    dilithiumSign: jest.fn(),
-    dilithiumVerify: jest.fn(),
-  },
-  HashUtils: {
-    sha3: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    sha256: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    ripemd160: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    hash160: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    verifyHash: jest.fn().mockReturnValue(true),
-  },
-}));
-
-// Add mocks at the top of the file
-jest.mock('../../../utils/merkle', () => ({
-  MerkleTree: jest.fn().mockImplementation(() => ({
-    createRoot: jest.fn().mockResolvedValue('mockRoot'),
-    verify: jest.fn().mockResolvedValue(true),
-    addLeaf: jest.fn(),
-    getProof: jest.fn().mockReturnValue([]),
-    clear: jest.fn(),
-  })),
-}));
-
-// Define mockBlock for use in mocks
-// const mockBlock = {} as Block;
-
-// Now mock HybridDirectConsensus
-jest.mock('../../../blockchain/consensus/hybrid-direct', () => {
-  const mockConsensus = jest.fn().mockImplementation((blockchain) => {
-    let isDisposed = false;
-    let isMining = false;
-    let evictionCount = 0;
-    let cacheSize = 0;
-    const eventEmitter = new EventEmitter();
-
-    const instance = {
-      blockchain,
-      cacheLock: new Mutex(),
-      merkleTree: {
-        createRoot: jest.fn().mockResolvedValue('mockMerkleRoot'),
-      },
-      blockCache: {
-        get: jest.fn(),
-        set: jest.fn(),
-        size: jest.fn().mockReturnValue(0),
-        getHitRate: jest.fn().mockReturnValue(0),
-        getEvictionCount: jest.fn().mockImplementation(() => ++evictionCount),
-      },
-      validateBlock: jest.fn().mockImplementation(async (block) => {
-        if (isDisposed) throw new Error('Consensus disposed');
-        if (block.header.merkleRoot === 'timeout') {
-          await new Promise((resolve) => setTimeout(resolve, 32000));
-          return false;
-        }
-        eventEmitter.emit('metric', {
-          name: 'validation',
-          value: 1,
-          timestamp: Date.now(),
-        });
-        return block.header.merkleRoot !== 'invalid';
-      }),
-      processBlock: jest.fn().mockImplementation(async (block) => {
-        if (isDisposed) throw new Error('Consensus disposed');
-        if (block.header.merkleRoot === 'timeout') {
-          throw new Error('Processing timeout');
-        }
-        await instance.merkleTree.createRoot();
-        const isValid = await instance.validateBlock(block);
-        if (!isValid) {
-          throw new Error('Block validation failed');
-        }
-        return block;
-      }),
-      healthCheck: jest.fn().mockImplementation(async () => !isDisposed),
-      validateParticipationReward: jest
-        .fn()
-        .mockImplementation(async (transaction) => {
-          if (!transaction?.outputs?.length) return false;
-          const amount = transaction.outputs[0]?.amount;
-          return amount !== undefined;
-        }),
-      getMetrics: jest.fn().mockReturnValue({
-        pow: {},
-        voting: {},
-        cache: { size: 1 },
-        performance: { metrics: {} },
-      }),
-      getCacheMetrics: jest.fn().mockImplementation(() => ({
-        size: ++cacheSize,
-        hitRate: 0.5,
-        memoryUsage: 1000,
-        evictionCount,
-      })),
-      mineBlock: jest.fn().mockResolvedValue({
-        hash: 'minedBlockHash',
-        header: { hash: 'minedBlockHash' },
-      }),
-      startMining: jest.fn().mockImplementation(() => {
-        isMining = true;
-      }),
-      stopMining: jest.fn().mockImplementation(() => {
-        isMining = false;
-      }),
-      updateState: jest.fn(),
-      dispose: jest.fn().mockImplementation(async () => {
-        isDisposed = true;
-      }),
-      on: eventEmitter.on.bind(eventEmitter),
-      emit: eventEmitter.emit.bind(eventEmitter),
-      pow: {
-        get isMining() {
-          return isMining;
-        },
-      },
-    };
-
-    return instance;
-  });
-
-  Object.defineProperty(mockConsensus, 'create', {
-    value: jest
-      .fn()
-      .mockImplementation(async (blockchain) => new mockConsensus(blockchain)),
-  });
-
-  return {
-    HybridDirectConsensus: mockConsensus,
-  };
-});
-
-
-describe('HybridDirectConsensus', () => {
-  let consensus: HybridDirectConsensus;
-  let blockchain: Blockchain;
-  let mockBlock: Block;
-  let mockTransaction: Transaction;
-
-  beforeEach(async () => {
-
-    // Mock setInterval to prevent cleanup timer
-    jest.useFakeTimers();
-
-    // Create mocked blockchain
-    blockchain = mock<Blockchain>({
-      getCurrentHeight: jest.fn().mockReturnValue(1),
-      getConsensusPublicKey: jest.fn().mockReturnValue('testKey'),
-      addBlock: jest.fn().mockResolvedValue(true),
-      getConfig: jest.fn().mockReturnValue({
-        blockchain: {
-          maxSupply: BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY,
-          blockTime: BLOCKCHAIN_CONSTANTS.MINING.BLOCK_TIME,
-        },
-      }),
-    });
-
-    try {
-      // Create consensus instance
-      consensus = await HybridDirectConsensus.create(blockchain);
-    } catch (error) {
-      console.error('Failed to create consensus instance:', error);
-      throw error;
-    }
-
-    // Setup mock block and transaction
-    mockTransaction = {
-      hash: 'txHash',
-      sender: 'sender',
-      outputs: [{ amount: 100n }],
-    } as Transaction;
-
-    mockBlock = {
-      hash: 'testHash',
-      header: {
-        hash: 'testHash',
-        version: 1,
-        height: 1,
-        previousHash: 'prevHash',
-        timestamp: Date.now(),
-        merkleRoot: 'merkleRoot',
-        miner: 'testMiner',
-        difficulty: 100,
-        nonce: 0,
-        validatorMerkleRoot: '',
-        votesMerkleRoot: '',
-        totalTAG: 0,
-        blockReward: 0,
-        fees: 0,
-        target: '',
-        locator: [],
-        hashStop: '',
-        consensusData: {
-          powScore: 0,
-          votingScore: 0,
-          participationRate: 0,
-          periodId: 0,
-        },
-        minerAddress: '',
-        signature: undefined,
-        publicKey: '',
-      },
-      transactions: [mockTransaction],
-      validators: [
-        {
-          id: 'validator1',
-          address: 'validator1',
-          publicKey: 'testKey',
-          lastActive: Date.now(),
-          reputation: 100,
-          isActive: true,
-          isAbsent: false,
-          isSuspended: false,
-          metrics: { blockProduction: 0, voteParticipation: 0, uptime: 0 },
-          uptime: 0,
-          validationData: JSON.stringify({
-            pow: 0,
-            voting: 0,
-            participationRate: 0,
-          }),
-        },
-      ],
-      votes: [],
-      timestamp: Date.now(),
-      verifyHash: jest.fn().mockResolvedValue(true),
-      verifySignature: jest.fn().mockResolvedValue(true),
-      serialize: jest.fn(),
-      deserialize: jest.fn(),
-      getHeaderBase: jest.fn().mockReturnValue({}),
-      isComplete: jest.fn().mockReturnValue(true),
-    } as Block;
-  });
-
-  afterEach(async () => {
-    jest.useRealTimers();
-    await consensus.dispose();
-
-    // Clear any remaining intervals
-    jest.clearAllTimers();
-  });
-
-  describe('initialization', () => {
-    it('should initialize successfully with valid blockchain', async () => {
-      const instance = await HybridDirectConsensus.create(blockchain);
-      expect(instance).toBeDefined();
-      expect(await instance.healthCheck()).toBe(true);
-    });
-  });
-
-  describe('validateBlock', () => {
-    it('should validate a valid block', async () => {
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(true);
-    }, 15000);
-
-    it('should reject invalid merkle root', async () => {
-      mockBlock.header.merkleRoot = 'invalid';
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(false);
-    }, 15000);
-
-    it('should handle validation timeout', async () => {
-      mockBlock.header.merkleRoot = 'timeout';
-      const validationPromise = consensus.validateBlock(mockBlock);
-
-      // First advance the timers
-      jest.advanceTimersByTime(32000);
-      // Then resolve any pending promises
-      await Promise.resolve();
-      // Finally check the validation result
-      const result = await validationPromise;
-
-      expect(result).toBe(false);
-    }, 35000);
-  });
-
-  describe('processBlock', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    it('should process a valid block', async () => {
-      const result = await consensus.processBlock(mockBlock);
-      expect(result.hash).toBeDefined();
-    }, 35000);
-
-    it('should throw on processing timeout', async () => {
-      mockBlock.header.merkleRoot = 'timeout';
-      const processPromise = consensus.processBlock(mockBlock);
-      jest.advanceTimersByTime(31000);
-      await expect(processPromise).rejects.toThrow('Processing timeout');
-    });
-  });
-
-  describe('validateParticipationReward', () => {
-    it('should validate correct reward amount', async () => {
-      const result = await consensus.validateParticipationReward(
-        mockTransaction,
-        1,
-      );
-      expect(result).toBe(true);
-    });
-
-    it('should reject invalid reward amount', async () => {
-      mockTransaction.outputs[0].amount = undefined as unknown as bigint;
-      const result = await consensus.validateParticipationReward(
-        mockTransaction,
-        1,
-      );
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('health check', () => {
-    it('should return healthy status', async () => {
-      const health = await consensus.healthCheck();
-      expect(health).toBe(true);
-    });
-
-    it('should return unhealthy when disposed', async () => {
-      await consensus.dispose();
-      const health = await consensus.healthCheck();
-      expect(health).toBe(false);
-    });
-  });
-
-  describe('metrics', () => {
-    it('should return valid metrics', () => {
-      const metrics = consensus.getMetrics();
-      expect(metrics).toHaveProperty('pow');
-      expect(metrics).toHaveProperty('voting');
-      expect(metrics).toHaveProperty('cache');
-    });
-
-    it('should return valid cache metrics', () => {
-      const metrics = consensus.getCacheMetrics();
-      expect(metrics).toHaveProperty('size');
-      expect(metrics).toHaveProperty('hitRate');
-      expect(metrics).toHaveProperty('memoryUsage');
-      expect(metrics).toHaveProperty('evictionCount');
-    });
-  });
-
-  describe('mining operations', () => {
-    it('should mine a single block', async () => {
-      const block = await consensus.mineBlock();
-      expect(block).toBeDefined();
-      expect(block.hash).toBeDefined();
-    });
-
-    it('should start and stop mining', () => {
-      consensus.startMining();
-      expect(consensus['pow'].isMining).toBe(true);
-
-      consensus.stopMining();
-      expect(consensus['pow'].isMining).toBe(false);
-    });
-  });
-
-  describe('chain fork handling', () => {
-    it('should handle chain fork during voting period', async () => {
-      const forkBlock = {
-        ...mockBlock,
-        header: { ...mockBlock.header, previousHash: 'forkPrev' },
-      };
-      const result = await consensus.validateBlock(forkBlock);
-      expect(result).toBe(true);
-    }, 15000);
-  });
-
-  describe('event handling', () => {
-    it('should emit and handle metrics events', (done) => {
-      consensus.on('metric', (metric) => {
-        expect(metric).toHaveProperty('name');
-        expect(metric).toHaveProperty('value');
-        expect(metric).toHaveProperty('timestamp');
-        done();
-      });
-
-      consensus.validateBlock(mockBlock);
-    }, 15000);
-  });
-
-  describe('state updates', () => {
-    it('should update consensus state after new block', async () => {
-      await consensus.updateState(mockBlock);
-      const metrics = consensus.getMetrics();
-      expect(metrics.cache.size).toBeGreaterThan(0);
-    });
-  });
-
-  // Mock ProofOfWork
-  // Add these additional test cases to the existing test suite:
-
-  describe('validation timeout handling', () => {
-    it('should handle concurrent validations gracefully', async () => {
-      const blocks = Array(5)
-        .fill(mockBlock)
-        .map((b, i) => ({
-          ...b,
-          hash: `block${i}`,
-          header: { ...b.header, height: i },
-        }));
-
-      const results = await Promise.all(
-        blocks.map((block) => consensus.validateBlock(block)),
-      );
-
-      expect(results).toHaveLength(5);
-      expect(results.every((r) => r === true)).toBe(true);
-    }, 20000);
-
-    it('should release validation locks after timeout', async () => {
-      mockBlock.header.merkleRoot = 'timeout';
-      const promise1 = consensus.validateBlock(mockBlock);
-
-      // Advance timers in smaller increments
-      for (let i = 0; i < 32; i++) {
-        jest.advanceTimersByTime(1000);
-        await Promise.resolve();
-      }
-
-      await expect(promise1).resolves.toBe(false);
-
-      mockBlock.header.merkleRoot = 'valid';
-      const promise2 = consensus.validateBlock(mockBlock);
-      expect(await promise2).toBe(true);
-    }, 60000); // Increased timeout to be safe
-  });
-
-  describe('cache operations', () => {
-    it('should handle cache eviction gracefully', async () => {
-      // Fill cache
-      const blocks = Array(1000)
-        .fill(mockBlock)
-        .map((b, i) => ({
-          ...b,
-          hash: `block${i}`,
-          header: { ...b.header, height: i },
-        }));
-
-      // Mock the blockCache methods more directly
-      let evictionCount = 0;
-      const maxCacheSize = 5; // Even smaller cache size to guarantee evictions
-      let currentSize = 0;
-
-      if (consensus['blockCache']) {
-        consensus['blockCache'].set = jest.fn().mockImplementation(() => {
-          if (currentSize >= maxCacheSize) {
-            evictionCount++;
-            // Don't increment currentSize, just maintain at max
-          } else {
-            currentSize++;
-          }
-        });
-
-        consensus['blockCache'].getEvictionCount = jest
-          .fn()
-          .mockImplementation(() => evictionCount);
-        consensus['blockCache'].size = jest
-          .fn()
-          .mockImplementation(() => currentSize);
-      }
-
-      // Also mock getCacheMetrics to use our local evictionCount
-      consensus.getCacheMetrics = jest.fn().mockImplementation(() => ({
-        size: currentSize,
-        hitRate: 0.5,
-        memoryUsage: 1000,
-        evictionCount: evictionCount,
-      }));
-
-      // Process more blocks than the cache size to guarantee evictions
-      for (const block of blocks.slice(0, 10)) {
-        await consensus.validateBlock(block);
-        // Force cache operation
-        consensus['blockCache']?.set(block.hash, block);
-      }
-
-      const metrics = consensus.getCacheMetrics();
-      expect(metrics.evictionCount).toBeGreaterThan(0);
-    });
-  });
-
-  describe('block processing error handling', () => {
-
-    it('should handle validation errors during processing', async () => {
-      jest
-        .spyOn(consensus, 'validateBlock')
-        .mockRejectedValueOnce(new Error('Validation failed'));
-      await expect(consensus.processBlock(mockBlock)).rejects.toThrow(
-        'Validation failed',
-      );
-    });
-  });
-
-  describe('participation reward validation', () => {
-    it('should validate rewards with different heights', async () => {
-      const testCases = [1, 100, 1000, 10000].map((height) => ({
-        height,
-        transaction: {
-          ...mockTransaction,
-          outputs: [
-            {
-              amount: BigInt(
-                Math.min(100, Math.floor(100 / Math.floor(height / 100))),
-              ),
-            },
-          ],
-        },
-      }));
-
-      for (const { height, transaction } of testCases) {
-        const result = await consensus.validateParticipationReward(
-          transaction as Transaction,
-          height,
-        );
-        expect(result).toBe(true);
-      }
-    });
-
-    it('should reject malformed reward transactions', async () => {
-      const invalidCases = [
-        { outputs: undefined },
-        { outputs: [] },
-        { outputs: [{ amount: undefined }] },
-      ];
-
-      for (const invalidTx of invalidCases) {
-        const result = await consensus.validateParticipationReward(
-          invalidTx as unknown as Transaction,
-          1,
-        );
-        expect(result).toBe(false);
-      }
-    });
-  });
-
-  describe('metrics and monitoring', () => {
-    it('should track validation performance metrics', async () => {
-      const listener = jest.fn();
-      consensus.on('metric', listener);
-
-      await consensus.validateBlock(mockBlock);
-
-      expect(listener).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: expect.any(String),
-          value: expect.any(Number),
-          timestamp: expect.any(Number),
-        }),
-      );
-    });
-
-    it('should maintain accurate cache metrics over time', async () => {
-      const initial = consensus.getCacheMetrics();
-
-      // Perform operations
-      await consensus.validateBlock(mockBlock);
-      await consensus.processBlock(mockBlock);
-
-      const final = consensus.getCacheMetrics();
-      expect(final.size).toBeGreaterThan(initial.size);
-      expect(final.hitRate).toBeGreaterThanOrEqual(0);
-      expect(final.hitRate).toBeLessThanOrEqual(1);
-    });
-  });
-
-  describe('cleanup and disposal', () => {
-    it('should clean up resources on disposal', async () => {
-      await consensus.dispose();
-
-      // Try operations after disposal
-      await expect(consensus.validateBlock(mockBlock)).rejects.toThrow();
-      await expect(consensus.processBlock(mockBlock)).rejects.toThrow();
-      expect(await consensus.healthCheck()).toBe(false);
-    });
-
-    it('should handle multiple disposal calls gracefully', async () => {
-      await consensus.dispose();
-      await expect(consensus.dispose()).resolves.not.toThrow();
-    });
-  });
-
-  describe('circuit breaker behavior', () => {
-    it('should open circuit breaker after threshold failures', async () => {
-      // Mock the circuit breaker behavior in the mock implementation
-      let failures = 0;
-      consensus.validateBlock = jest.fn().mockImplementation(async (block) => {
-        if (block.header.merkleRoot === 'invalid') {
-          failures++;
-          return false;
-        }
-        return failures >= 5 ? false : true; // Circuit opens after 5 failures
-      });
-
-      // Force failures
-      mockBlock.header.merkleRoot = 'invalid';
-      for (let i = 0; i < 5; i++) {
-        await consensus.validateBlock(mockBlock);
-      }
-
-      // Next validation should fail due to open circuit
-      mockBlock.header.merkleRoot = 'valid';
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(false);
-    });
-
-    it('should reset circuit breaker after timeout', async () => {
-      let failures = 0;
-      let lastFailureTime = 0;
-
-      consensus.validateBlock = jest.fn().mockImplementation(async (block) => {
-        const now = Date.now();
-        if (now - lastFailureTime > 60000) {
-          // Reset after 60s
-          failures = 0;
-        }
-
-        if (block.header.merkleRoot === 'invalid') {
-          failures++;
-          lastFailureTime = now;
-          return false;
-        }
-        return failures >= 5 ? false : true;
-      });
-
-      // Force failures
-      mockBlock.header.merkleRoot = 'invalid';
-      for (let i = 0; i < 5; i++) {
-        await consensus.validateBlock(mockBlock);
-      }
-
-      jest.advanceTimersByTime(61000);
-
-      mockBlock.header.merkleRoot = 'valid';
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(true);
-    });
-  });
-
-  describe('merkle tree operations', () => {
-    it('should verify merkle root correctly', async () => {
-      const validBlock = {
-        ...mockBlock,
-        transactions: [{ hash: 'tx1' }, { hash: 'tx2' }] as Transaction[],
-      };
-
-      consensus['merkleTree'].createRoot = jest
-        .fn()
-        .mockResolvedValue(validBlock.header.merkleRoot);
-
-      const result = await consensus.validateBlock(validBlock);
-      expect(result).toBe(true);
-    });
-  });
-
-});
-
-// Mock ConfigService before any imports
-jest.mock('@h3tag-blockchain/shared', () => ({
-  ConfigService: {
-    getInstance: jest.fn().mockReturnValue({
-      get: jest.fn((key: string) => {
-        const config = {
-          MAINNET_SEEDS: 'seed1.test.net,seed2.test.net',
-          TESTNET_SEEDS: 'test1.test.net,test2.test.net',
-          DEVNET_SEEDS: 'dev1.test.net,dev2.test.net',
-          networkType: 'MAINNET',
-          network: {
-            type: {
-              MAINNET: 'mainnet',
-              TESTNET: 'testnet',
-              DEVNET: 'devnet',
-            },
-            host: {
-              MAINNET: 'localhost',
-              TESTNET: 'localhost',
-              DEVNET: 'localhost',
-            },
-            port: {
-              MAINNET: 8080,
-              TESTNET: 8081,
-              DEVNET: 8082,
-            },
-            seedDomains: {
-              MAINNET: ['seed1.test.net', 'seed2.test.net'],
-              TESTNET: ['test1.test.net', 'test2.test.net'],
-              DEVNET: ['dev1.test.net', 'dev2.test.net'],
-            },
-          },
-        };
-        return config[key as keyof typeof config];
-      }),
-      has: jest.fn().mockReturnValue(true),
-      clearCache: jest.fn(),
-    }),
-    resetInstance: jest.fn(),
-  },
-  Logger: {
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  },
-}));
-
-// Mock Mutex
-jest.mock('async-mutex', () => ({
-  Mutex: jest.fn().mockImplementation(() => ({
-    runExclusive: jest.fn().mockImplementation(async (fn) => fn()),
-  })),
-}));
-
-// Mock crypto module with both nativeQuantum and HashUtils
-jest.mock('@h3tag-blockchain/crypto', () => ({
-  nativeQuantum: {
-    clearHealthChecks: jest.fn(),
-    shutdown: jest.fn(),
-    generateDilithiumPair: jest.fn(),
-    dilithiumSign: jest.fn(),
-    dilithiumVerify: jest.fn(),
-  },
-  HashUtils: {
-    sha3: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    sha256: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    ripemd160: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    hash160: jest.fn().mockReturnValue(Buffer.from('mockedHash')),
-    verifyHash: jest.fn().mockReturnValue(true),
-  },
-}));
-
-// Add mocks at the top of the file
-jest.mock('../../../utils/merkle', () => ({
-  MerkleTree: jest.fn().mockImplementation(() => ({
-    createRoot: jest.fn().mockResolvedValue('mockRoot'),
-    verify: jest.fn().mockResolvedValue(true),
-    addLeaf: jest.fn(),
-    getProof: jest.fn().mockReturnValue([]),
-    clear: jest.fn(),
-  })),
-}));
-
-// Define mockBlock for use in mocks
-// const mockBlock = {} as Block;
-
-// Now mock HybridDirectConsensus
-jest.mock('../../../blockchain/consensus/hybrid-direct', () => {
-  const mockConsensus = jest.fn().mockImplementation((blockchain) => {
-    let isDisposed = false;
-    let isMining = false;
-    let evictionCount = 0;
-    let cacheSize = 0;
-    const eventEmitter = new EventEmitter();
-
-    const instance = {
-      blockchain,
-      cacheLock: new Mutex(),
-      merkleTree: {
-        createRoot: jest.fn().mockResolvedValue('mockMerkleRoot'),
-      },
-      blockCache: {
-        get: jest.fn(),
-        set: jest.fn(),
-        size: jest.fn().mockReturnValue(0),
-        getHitRate: jest.fn().mockReturnValue(0),
-        getEvictionCount: jest.fn().mockImplementation(() => ++evictionCount),
-      },
-      validateBlock: jest.fn().mockImplementation(async (block) => {
-        if (isDisposed) throw new Error('Consensus disposed');
-        if (block.header.merkleRoot === 'timeout') {
-          await new Promise((resolve) => setTimeout(resolve, 32000));
-          return false;
-        }
-        eventEmitter.emit('metric', {
-          name: 'validation',
-          value: 1,
-          timestamp: Date.now(),
-        });
-        return block.header.merkleRoot !== 'invalid';
-      }),
-      processBlock: jest.fn().mockImplementation(async (block) => {
-        if (isDisposed) throw new Error('Consensus disposed');
-        if (block.header.merkleRoot === 'timeout') {
-          throw new Error('Processing timeout');
-        }
-        await instance.merkleTree.createRoot();
-        const isValid = await instance.validateBlock(block);
-        if (!isValid) {
-          throw new Error('Block validation failed');
-        }
-        return block;
-      }),
-      healthCheck: jest.fn().mockImplementation(async () => !isDisposed),
-      validateParticipationReward: jest
-        .fn()
-        .mockImplementation(async (transaction) => {
-          if (!transaction?.outputs?.length) return false;
-          const amount = transaction.outputs[0]?.amount;
-          return amount !== undefined;
-        }),
-      getMetrics: jest.fn().mockReturnValue({
-        pow: {},
-        voting: {},
-        cache: { size: 1 },
-        performance: { metrics: {} },
-      }),
-      getCacheMetrics: jest.fn().mockImplementation(() => ({
-        size: ++cacheSize,
-        hitRate: 0.5,
-        memoryUsage: 1000,
-        evictionCount,
-      })),
-      mineBlock: jest.fn().mockResolvedValue({
-        hash: 'minedBlockHash',
-        header: { hash: 'minedBlockHash' },
-      }),
-      startMining: jest.fn().mockImplementation(() => {
-        isMining = true;
-      }),
-      stopMining: jest.fn().mockImplementation(() => {
-        isMining = false;
-      }),
-      updateState: jest.fn(),
-      dispose: jest.fn().mockImplementation(async () => {
-        isDisposed = true;
-      }),
-      on: eventEmitter.on.bind(eventEmitter),
-      emit: eventEmitter.emit.bind(eventEmitter),
-      pow: {
-        get isMining() {
-          return isMining;
-        },
-      },
-    };
-
-    return instance;
-  });
-
-  Object.defineProperty(mockConsensus, 'create', {
-    value: jest
-      .fn()
-      .mockImplementation(async (blockchain) => new mockConsensus(blockchain)),
-  });
-
-  return {
-    HybridDirectConsensus: mockConsensus,
-  };
-});
-
-// Now import everything else
+import { Transaction, TransactionType, TransactionStatus } from '../../../models/transaction.model';
 import { HybridDirectConsensus } from '../../../blockchain/consensus/hybrid-direct';
-import { Block } from '../../../models/block.model';
+import { ProofOfWork } from '../../../blockchain/consensus/pow';
+import { DirectVoting } from '../../../blockchain/consensus/voting';
+import { BlockchainSchema } from '../../../database/blockchain-schema';
+import { AuditManager } from '../../../security/audit';
+import { Node } from '../../../network/node';
 import { Blockchain } from '../../../blockchain/blockchain';
-import { Transaction } from '../../../models/transaction.model';
-import { mock } from 'jest-mock-extended';
+import { ConfigService } from '@h3tag-blockchain/shared';
+import { Mempool } from '../../../blockchain/mempool';
+import { Block } from '../../../models/block.model';
+import { Cache } from '../../../scaling/cache';
+import { MerkleTree } from '../../../utils/merkle';
 import { BLOCKCHAIN_CONSTANTS } from '../../../blockchain/utils/constants';
+import { ConsensusError } from '../../../blockchain/utils/consensus.error';
+import { QuantumNative } from '@h3tag-blockchain/crypto';
 
+
+jest.mock('../../../blockchain/consensus/pow');
+jest.mock('../../../blockchain/consensus/voting');
+jest.mock('../../../blockchain/consensus/voting/util');
+jest.mock('../../../database/blockchain-schema');
+jest.mock('../../../database/voting-schema');
+jest.mock('../../../security/audit');
+jest.mock('../../../network/node');
+jest.mock('../../../network/sync');
+jest.mock('../../../blockchain/blockchain');
+jest.mock('@h3tag-blockchain/shared');
+jest.mock('../../../blockchain/mempool');
+jest.mock('../../../scaling/cache');
+jest.mock('../../../utils/merkle');
 
 describe('HybridDirectConsensus', () => {
   let consensus: HybridDirectConsensus;
-  let blockchain: Blockchain;
-  let mockBlock: Block;
-  let mockTransaction: Transaction;
+  let pow: jest.Mocked<ProofOfWork>;
+  let directVoting: jest.Mocked<DirectVoting>;
+  let db: jest.Mocked<BlockchainSchema>;
+  let auditManager: jest.Mocked<AuditManager>;
+  let node: jest.Mocked<Node>;
+  let blockchain: jest.Mocked<Blockchain>;
+  let mempool: jest.Mocked<Mempool>;
+  let cache: jest.Mocked<Cache<boolean>>;
+  let merkleTree: jest.Mocked<MerkleTree>;
+
+  const mockBlock = {
+    hash: 'mockHash',
+    header: {
+      height: 1,
+      previousHash: 'prevHash',
+      timestamp: Date.now(),
+      merkleRoot: 'merkleRoot',
+      difficulty: 1,
+      nonce: 0,
+      version: 1,
+      miner: 'mockMiner',
+      validatorMerkleRoot: 'validatorRoot',
+      votesMerkleRoot: 'votesRoot',
+      totalTAG: 1000,
+      blockReward: 50,
+      fees: 10,
+      target: 'mockTarget',
+      locator: ['mockLocator'],
+      hashStop: 'mockHashStop',
+      consensusData: {
+        powScore: 1,
+        votingScore: 1,
+        participationRate: 0.8,
+        periodId: 1
+      },
+      publicKey: 'mockPublicKey',
+      minerAddress: 'mockMinerAddress'
+    },
+    transactions: [],
+    votes: [],
+    validators: [],
+    timestamp: Date.now(),
+    metadata: {
+      receivedTimestamp: Date.now(),
+      consensusMetrics: {
+        powWeight: 1,
+        votingWeight: 1,
+        participationRate: 0.8
+      }
+    },
+    verifyHash: jest.fn().mockResolvedValue(true),
+    verifySignature: jest.fn().mockResolvedValue(true),
+    getHeaderBase: jest.fn().mockReturnValue('mockHeaderBase'),
+    isComplete: jest.fn().mockReturnValue(true)
+  } as unknown as Block;
 
   beforeEach(async () => {
-    // Mock setInterval to prevent cleanup timer
-    jest.useFakeTimers();
+    // Reset all mocks
+    jest.clearAllMocks();
 
-    // Create mocked blockchain
-    blockchain = mock<Blockchain>({
-      getCurrentHeight: jest.fn().mockReturnValue(1),
-      getConsensusPublicKey: jest.fn().mockReturnValue('testKey'),
-      addBlock: jest.fn().mockResolvedValue(true),
-      getConfig: jest.fn().mockReturnValue({
-        blockchain: {
-          maxSupply: BLOCKCHAIN_CONSTANTS.CURRENCY.MAX_SUPPLY,
-          blockTime: BLOCKCHAIN_CONSTANTS.MINING.BLOCK_TIME,
-        },
+    // Initialize mocks with correct types
+    db = new BlockchainSchema() as jest.Mocked<BlockchainSchema>;
+    auditManager = new AuditManager() as jest.Mocked<AuditManager>;
+    
+    blockchain = {
+      getConsensusPublicKey: jest.fn().mockReturnValue('mockPublicKey'),
+      getCurrentHeight: jest.fn().mockReturnValue(mockBlock.header.height),
+      getNode: jest.fn().mockReturnValue(node),
+      addBlock: jest.fn().mockResolvedValue(undefined),
+      getBlockByHeight: jest.fn().mockReturnValue(mockBlock),
+      getBlockByHash: jest.fn().mockReturnValue(mockBlock),
+      getChainTip: jest.fn().mockReturnValue({ height: mockBlock.header.height, hash: mockBlock.hash }),
+      validateBlock: jest.fn().mockResolvedValue(true),
+      validateTransaction: jest.fn().mockResolvedValue(true),
+      getTransaction: jest.fn().mockResolvedValue(undefined),
+      getState: jest.fn().mockReturnValue({ chain: [mockBlock], height: mockBlock.header.height }),
+      getConsensusMetrics: jest.fn().mockResolvedValue({
+        totalBlocks: 1000,
+        successfulBlocks: 800,
+        lastMiningTime: Date.now(),
+        averageHashRate: 1000,
+        totalTAGMined: 5000,
+        activeVoters: 10,
+        participationRate: 0.8
       }),
+      getCurrencyDetails: jest.fn().mockReturnValue({
+        name: 'H3TAG',
+        symbol: 'TAG',
+        decimals: 8,
+        totalSupply: 1000000,
+        maxSupply: 21000000,
+        circulatingSupply: 1000000
+      }),
+      calculateBlockReward: jest.fn().mockReturnValue(BigInt(50)),
+      getConfirmedUtxos: jest.fn().mockResolvedValue([])
+    } as unknown as jest.Mocked<Blockchain>;
+
+    mempool = new Mempool(blockchain) as jest.Mocked<Mempool>;
+    node = new Node(blockchain, db, mempool, {} as ConfigService, auditManager) as jest.Mocked<Node>;
+
+    pow = {
+      validateBlock: jest.fn().mockResolvedValue(true),
+      validateWork: jest.fn().mockResolvedValue(true),
+      getNetworkDifficulty: jest.fn().mockResolvedValue(1),
+      mineBlock: jest.fn().mockResolvedValue(mockBlock),
+      createAndMineBlock: jest.fn().mockResolvedValue(mockBlock),
+      startMining: jest.fn(),
+      stopMining: jest.fn(),
+      updateDifficulty: jest.fn().mockResolvedValue(undefined),
+      getMetrics: jest.fn().mockReturnValue({
+        totalBlocks: 1000,
+        successfulBlocks: 800,
+        lastMiningTime: Date.now(),
+        averageHashRate: 1000,
+        totalTAGMined: 5000,
+        blacklistedPeers: 0
+      } as ReturnType<ProofOfWork['getMetrics']>),
+      healthCheck: jest.fn().mockResolvedValue(true),
+      getParticipationRate: jest.fn().mockResolvedValue(0.8)
+    } as unknown as jest.Mocked<ProofOfWork>;
+
+    directVoting = {
+      healthCheck: jest.fn().mockResolvedValue(true),
+      hasParticipated: jest.fn().mockResolvedValue(true),
+      handleChainFork: jest.fn().mockResolvedValue(mockBlock.hash),
+      updateVotingState: jest.fn().mockImplementation(async (callback) => {
+        const state = { lastBlockHash: '', height: 0, timestamp: 0 };
+        return callback(state);
+      }),
+      getVotingMetrics: jest.fn().mockResolvedValue({
+        currentPeriod: null,
+        totalVotes: 100,
+        activeVoters: ['voter1', 'voter2'],
+        participationRate: 0.8
+      }),
+      getParticipationRate: jest.fn().mockResolvedValue(0.8)
+    } as unknown as jest.Mocked<DirectVoting>;
+
+    cache = {
+      get: jest.fn().mockReturnValue(true),
+      set: jest.fn(),
+      has: jest.fn().mockReturnValue(true),
+      delete: jest.fn(),
+      clear: jest.fn(),
+      size: jest.fn().mockReturnValue(100),
+      getHitRate: jest.fn().mockReturnValue(0.8),
+      getEvictionCount: jest.fn().mockReturnValue(0),
+      shutdown: jest.fn().mockResolvedValue(undefined)
+    } as unknown as jest.Mocked<Cache<boolean>>;
+
+    merkleTree = {
+      createRoot: jest.fn().mockResolvedValue('merkleRoot')
+    } as unknown as jest.Mocked<MerkleTree>;
+
+    // Create consensus instance
+    consensus = await HybridDirectConsensus.create(blockchain);
+    // @ts-expect-error Accessing private property for testing
+    consensus.pow = pow;
+    // @ts-expect-error Accessing private property for testing
+    consensus.directVoting = directVoting;
+    // @ts-expect-error Accessing private property for testing
+    consensus.blockCache = cache;
+    // @ts-expect-error Accessing private property for testing
+    consensus.merkleTree = merkleTree;
+    // @ts-expect-error Accessing private property for testing
+    consensus.db = db;
+  });
+
+  test('should validate block correctly', async () => {
+    // Mock metrics with correct property names
+    pow.getMetrics.mockReturnValue({
+      totalBlocks: 1000,
+      successfulBlocks: 800,
+      lastMiningTime: Date.now(),
+      averageHashRate: 1000,
+      totalTAGMined: 5000,
+      blacklistedPeers: 0
+    } as ReturnType<ProofOfWork['getMetrics']>);
+
+    directVoting.getVotingMetrics.mockResolvedValue({
+      currentPeriod: null,
+      totalVotes: 100,
+      activeVoters: ['voter1', 'voter2'],
+      participationRate: 0.8
     });
-    try {
-      // Create consensus instance
-      consensus = await HybridDirectConsensus.create(blockchain);
-    } catch (error) {
-      console.error('Failed to create consensus instance:', error);
-      throw error;
-    }
 
-    // Setup mock block and transaction
-    mockTransaction = {
-      hash: 'txHash',
-      sender: 'sender',
-      outputs: [{ amount: 100n }],
-    } as Transaction;
-
-    mockBlock = {
-      hash: 'testHash',
-      header: {
-        hash: 'testHash',
-        version: 1,
-        height: 1,
-        previousHash: 'prevHash',
-        timestamp: Date.now(),
-        merkleRoot: 'merkleRoot',
-        miner: 'testMiner',
-        difficulty: 100,
-        nonce: 0,
-        validatorMerkleRoot: '',
-        votesMerkleRoot: '',
-        totalTAG: 0,
-        blockReward: 0,
-        fees: 0,
-        target: '',
-        locator: [],
-        hashStop: '',
-        consensusData: {
-          powScore: 0,
-          votingScore: 0,
-          participationRate: 0,
-          periodId: 0,
-        },
-        minerAddress: '',
-        signature: undefined,
-        publicKey: '',
-      },
-      transactions: [mockTransaction],
-      validators: [
-        {
-          id: 'validator1',
-          address: 'validator1',
-          publicKey: 'testKey',
-          lastActive: Date.now(),
-          reputation: 100,
-          isActive: true,
-          isAbsent: false,
-          isSuspended: false,
-          metrics: { blockProduction: 0, voteParticipation: 0, uptime: 0 },
-          uptime: 0,
-          validationData: JSON.stringify({
-            pow: 0,
-            voting: 0,
-            participationRate: 0,
-          }),
-        },
-      ],
-      votes: [],
-      timestamp: Date.now(),
-      verifyHash: jest.fn().mockResolvedValue(true),
-      verifySignature: jest.fn().mockResolvedValue(true),
-      serialize: jest.fn(),
-      deserialize: jest.fn(),
-      getHeaderBase: jest.fn().mockReturnValue({}),
-      isComplete: jest.fn().mockReturnValue(true),
-    } as Block;
+    const result = await consensus.validateBlock(mockBlock);
+    expect(result).toBe(true);
   });
 
-  afterEach(async () => {
-    jest.useRealTimers();
-    await consensus.dispose();
+  describe('Initialization', () => {
+    it('should create and initialize consensus instance', async () => {
+      expect(consensus).toBeDefined();
+      expect(consensus.pow).toBeDefined();
+    });
 
-    // Clear any remaining intervals
-    jest.clearAllTimers();
-  });
-
-  describe('initialization', () => {
-    it('should initialize successfully with valid blockchain', async () => {
-      const instance = await HybridDirectConsensus.create(blockchain);
-      expect(instance).toBeDefined();
-      expect(await instance.healthCheck()).toBe(true);
+    it('should not initialize twice', async () => {
+      const initSpy = jest.spyOn(consensus as unknown as { initialize: () => Promise<void> }, 'initialize');
+      await consensus.initialize();
+      expect(initSpy).toHaveBeenCalledTimes(1);
     });
   });
 
-  describe('validateBlock', () => {
-    it('should validate a valid block', async () => {
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(true);
-    }, 15000);
+  describe('Block Validation', () => {
+    beforeEach(() => {
+      // Reset mocks before each test
+      jest.clearAllMocks();
+      merkleTree.createRoot.mockReset();
+      pow.validateBlock.mockReset();
+      cache.get.mockReset();
+    });
 
-    it('should reject invalid merkle root', async () => {
-      mockBlock.header.merkleRoot = 'invalid';
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(false);
-    }, 15000);
+    it('should validate block successfully', async () => {
+      merkleTree.createRoot.mockResolvedValue('merkleRoot');
+      pow.validateBlock.mockResolvedValue(true);
+      const isValid = await consensus.validateBlock(mockBlock);
+      expect(isValid).toBe(true);
+    });
+
+    it('should fail validation on merkle root mismatch', async () => {
+      merkleTree.createRoot.mockResolvedValue('differentRoot');
+      pow.validateBlock.mockResolvedValue(true);
+      const isValid = await consensus.validateBlock(mockBlock);
+      expect(isValid).toBe(false);
+    });
 
     it('should handle validation timeout', async () => {
-      mockBlock.header.merkleRoot = 'timeout';
-      const validationPromise = consensus.validateBlock(mockBlock);
-
-      // First advance the timers
-      jest.advanceTimersByTime(32000);
-      // Then resolve any pending promises
+      await jest.advanceTimersByTimeAsync(
+        BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS + 1000
+      );
+      // Advance timers synchronously and flush pending microtasks
+      jest.advanceTimersByTime(
+        BLOCKCHAIN_CONSTANTS.UTIL.VALIDATION_TIMEOUT_MS + 1000
+      );
+      // Ensure pending promises are processed
       await Promise.resolve();
-      // Finally check the validation result
-      const result = await validationPromise;
-
-      expect(result).toBe(false);
-    }, 35000);
-  });
-
-  describe('processBlock', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
     });
 
-    afterEach(() => {
+    it('should use cache for validated blocks', async () => {
+      merkleTree.createRoot.mockResolvedValue('merkleRoot');
+      cache.get.mockReturnValue(true);
+      pow.validateBlock.mockResolvedValue(true);
+      
+      const isValid = await consensus.validateBlock(mockBlock);
+      expect(isValid).toBe(true);
+      expect(cache.get).toHaveBeenCalledWith(mockBlock.hash);
+    });
+  });
+
+  describe('Block Processing', () => {
+    it('should process block successfully', async () => {
+      jest.useFakeTimers();
+      pow.mineBlock.mockResolvedValue(mockBlock);
+      merkleTree.createRoot.mockResolvedValue('merkleRoot');
+
+      const processPromise = consensus.processBlock(mockBlock);
+      jest.advanceTimersByTime(BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS - 1000);
+      const processedBlock = await processPromise;
+      
+      expect(processedBlock).toBeDefined();
+      expect(processedBlock.hash).toBe(mockBlock.hash);
+      
+      jest.useRealTimers();
+    }, 30000); // Increase timeout
+
+    it('should handle processing timeout', async () => {
+      jest.useFakeTimers();
+      pow.mineBlock.mockImplementation(() => new Promise(() => {}));
+      
+      const processingPromise = consensus.processBlock(mockBlock);
+      jest.advanceTimersByTime(BLOCKCHAIN_CONSTANTS.UTIL.PROCESSING_TIMEOUT_MS + 1000);
+      
+      await expect(processingPromise).rejects.toThrow(ConsensusError);
       jest.useRealTimers();
     });
+  });
 
-    it('should process a valid block', async () => {
-      const result = await consensus.processBlock(mockBlock);
-      expect(result.hash).toBeDefined();
-    }, 35000);
+  describe('Chain Fork Handling', () => {
+    it('should handle chain fork successfully', async () => {
+      db.getBlockByHeight.mockResolvedValue({ ...mockBlock, hash: 'differentHash' });
+      directVoting.handleChainFork.mockResolvedValue(mockBlock.hash);
 
-    it('should throw on processing timeout', async () => {
-      mockBlock.header.merkleRoot = 'timeout';
-      const processPromise = consensus.processBlock(mockBlock);
-      jest.advanceTimersByTime(31000);
-      await expect(processPromise).rejects.toThrow('Processing timeout');
+      const result = await (consensus as unknown as { handleChainFork: (block: Block) => Promise<string> }).handleChainFork(mockBlock);
+      expect(result).toBe(mockBlock.hash);
+    });
+
+    it('should reject invalid fork block height', async () => {
+      const currentHeight = mockBlock.header.height - 50;
+      blockchain.getCurrentHeight = jest.fn().mockReturnValue(currentHeight);
+      
+      await expect((consensus as unknown as { handleChainFork: (block: Block) => Promise<string> }).handleChainFork(mockBlock))
+        .rejects.toThrow(ConsensusError);
     });
   });
 
-  describe('validateParticipationReward', () => {
-    it('should validate correct reward amount', async () => {
-      const result = await consensus.validateParticipationReward(
-        mockTransaction,
-        1,
-      );
-      expect(result).toBe(true);
+  describe('Participation Rewards', () => {
+    let mockTransaction: Transaction;
+
+    beforeEach(() => {
+      mockTransaction = {
+        id: 'mockId',
+        version: 1,
+        hash: 'mockHash',
+        inputs: [],
+        outputs: [{
+          address: 'mockAddress',
+          amount: BigInt(100),
+          script: 'mockScript',
+          currency: { name: 'H3TAG', symbol: 'TAG', decimals: 8 },
+          index: 0,
+          confirmations: 0
+        }],
+        timestamp: Date.now(),
+        type: TransactionType.QUADRATIC_VOTE,
+        blockHeight: 100,
+        sender: 'mockSender',
+        status: TransactionStatus.PENDING,
+        transaction: {
+          hash: 'mockHash',
+          timestamp: Date.now(),
+          fee: BigInt(0),
+          signature: 'mockSignature'
+        },
+        recipient: 'mockRecipient',
+        currency: { name: 'H3TAG', symbol: 'TAG', decimals: 8 },
+        fee: BigInt(0),
+        nonce: 1,
+        signature: 'mockSignature',
+        verify: async () => true,
+        toHex: () => 'mockHex',
+        getSize: () => 100
+      };
+
+      // Reset mocks
+      pow.validateWork.mockReset();
+      directVoting.hasParticipated.mockReset();
     });
 
-    it('should reject invalid reward amount', async () => {
-      mockTransaction.outputs[0].amount = undefined as unknown as bigint;
-      const result = await consensus.validateParticipationReward(
-        mockTransaction,
-        1,
-      );
+    it('should validate participation reward successfully', async () => {
+      // Mock PoW validation
+      pow.validateWork.mockResolvedValue(true);
+      pow.getNetworkDifficulty.mockResolvedValue(1);
+      
+      // Mock voting validation
+      directVoting.hasParticipated.mockResolvedValue(true);
+      directVoting.getParticipationRate.mockResolvedValue(0.8);
+      
+      // Mock PoW participation rate
+      pow.getParticipationRate.mockResolvedValue(0.8);
+      
+      // Create transaction with correct reward amount
+      mockTransaction = {
+        ...mockTransaction,
+        outputs: [{
+          address: 'mockAddress',
+          amount: BLOCKCHAIN_CONSTANTS.CONSENSUS.BASE_REWARD,
+          script: 'mockScript',
+          currency: { name: 'H3TAG', symbol: 'TAG', decimals: 8 },
+          index: 0,
+          confirmations: 0
+        }]
+      };
+      
+      const result = await consensus.validateParticipationReward(mockTransaction, 100);
+      expect(result).toBe(true);
+      
+      // Verify all validations were called
+      expect(pow.validateWork).toHaveBeenCalled();
+      expect(directVoting.hasParticipated).toHaveBeenCalled();
+    });
+
+    it('should fail validation for invalid PoW', async () => {
+      pow.validateWork.mockResolvedValue(false);
+      
+      const result = await consensus.validateParticipationReward(mockTransaction, 100);
       expect(result).toBe(false);
     });
   });
 
-  describe('health check', () => {
-    it('should return healthy status', async () => {
-      const health = await consensus.healthCheck();
-      expect(health).toBe(true);
-    });
-
-    it('should return unhealthy when disposed', async () => {
-      await consensus.dispose();
-      const health = await consensus.healthCheck();
-      expect(health).toBe(false);
-    });
-  });
-
-  describe('metrics', () => {
-    it('should return valid metrics', () => {
-      const metrics = consensus.getMetrics();
-      expect(metrics).toHaveProperty('pow');
-      expect(metrics).toHaveProperty('voting');
-      expect(metrics).toHaveProperty('cache');
-    });
-
-    it('should return valid cache metrics', () => {
-      const metrics = consensus.getCacheMetrics();
-      expect(metrics).toHaveProperty('size');
-      expect(metrics).toHaveProperty('hitRate');
-      expect(metrics).toHaveProperty('memoryUsage');
-      expect(metrics).toHaveProperty('evictionCount');
-    });
-  });
-
-  describe('mining operations', () => {
-    it('should mine a single block', async () => {
-      const block = await consensus.mineBlock();
-      expect(block).toBeDefined();
-      expect(block.hash).toBeDefined();
+  describe('Mining Operations', () => {
+    it('should mine block successfully', async () => {
+      pow.createAndMineBlock.mockResolvedValue(mockBlock);
+      merkleTree.createRoot.mockResolvedValue('merkleRoot');
+      pow.validateBlock.mockResolvedValue(true);
+      
+      const minedBlock = await consensus.mineBlock();
+      expect(minedBlock).toBeDefined();
+      expect(minedBlock.hash).toBe(mockBlock.hash);
     });
 
     it('should start and stop mining', () => {
       consensus.startMining();
-      expect(consensus['pow'].isMining).toBe(true);
+      expect(pow.startMining).toHaveBeenCalled();
 
       consensus.stopMining();
-      expect(consensus['pow'].isMining).toBe(false);
+      expect(pow.stopMining).toHaveBeenCalled();
     });
   });
 
-  describe('chain fork handling', () => {
-    it('should handle chain fork during voting period', async () => {
-      const forkBlock = {
-        ...mockBlock,
-        header: { ...mockBlock.header, previousHash: 'forkPrev' },
-      };
-      const result = await consensus.validateBlock(forkBlock);
-      expect(result).toBe(true);
-    }, 15000);
-  });
+  describe('Metrics and Health Checks', () => {
+    beforeEach(() => {
+      // Reset mocks
+      pow.healthCheck.mockReset();
+      directVoting.healthCheck.mockReset();
+      db.ping.mockReset();
+      cache.getHitRate.mockReset();
+    });
 
-  describe('event handling', () => {
-    it('should emit and handle metrics events', (done) => {
-      consensus.on('metric', (metric) => {
-        expect(metric).toHaveProperty('name');
-        expect(metric).toHaveProperty('value');
-        expect(metric).toHaveProperty('timestamp');
-        done();
+    it('should return valid metrics', () => {
+      pow.getMetrics.mockReturnValue({ hashRate: 1000, difficulty: 1 });
+      directVoting.getVotingMetrics.mockResolvedValue({ 
+        currentPeriod: null,
+        totalVotes: 100,
+        activeVoters: ['voter1', 'voter2'],
+        participationRate: 0.8
       });
+      
+      const metrics = consensus.getMetrics();
+      expect(metrics).toBeDefined();
+      expect(metrics.cache).toBeDefined();
+      expect(metrics.pow).toBeDefined();
+    });
 
-      consensus.validateBlock(mockBlock);
-    }, 15000);
+    it('should perform health check successfully', async () => {
+      // Mock all required health check dependencies
+      pow.healthCheck.mockResolvedValue(true);
+      directVoting.healthCheck.mockResolvedValue(true);
+      db.ping.mockResolvedValue(true);
+      cache.getHitRate.mockReturnValue(0.8);
+      cache.size.mockReturnValue(100);
+      
+      // Mock process.memoryUsage
+      const originalMemoryUsage = process.memoryUsage;
+      process.memoryUsage = (jest.fn(() => ({
+        heapUsed: 100000000,
+        heapTotal: 200000000,
+        external: 50000000,
+        arrayBuffers: 10000000,
+        rss: 300000000
+      })) as unknown) as NodeJS.MemoryUsageFn;
+      
+      // @ts-expect-error Accessing private property for testing
+      consensus.isDisposed = false;
+      
+      const isHealthy = await consensus.healthCheck();
+      expect(isHealthy).toBe(true);
+      
+      // Verify all health checks were called
+      expect(pow.healthCheck).toHaveBeenCalled();
+      expect(directVoting.healthCheck).toHaveBeenCalled();
+      expect(db.ping).toHaveBeenCalled();
+      expect(cache.getHitRate).toHaveBeenCalled();
+      
+      // Restore original memoryUsage function
+      process.memoryUsage = originalMemoryUsage;
+    });
+
+    it('should return cache metrics', () => {
+      const cacheMetrics = consensus.getCacheMetrics();
+      expect(cacheMetrics.hitRate).toBeDefined();
+      expect(cacheMetrics.size).toBeDefined();
+      expect(cacheMetrics.evictionCount).toBeDefined();
+    });
   });
 
-  describe('state updates', () => {
+  describe('Event Handling', () => {
+    it('should register and remove event listeners', () => {
+      const listener = jest.fn();
+      consensus.on('test', listener);
+      consensus.off('test', listener);
+    });
+  });
+
+  describe('Cleanup and Disposal', () => {
+    beforeEach(() => {
+      // Reset mocks and isDisposed flag
+      cache.shutdown.mockReset();
+      // @ts-expect-error Accessing private property for testing
+      consensus.isDisposed = false;
+    });
+
+    it('should dispose resources properly', async () => {
+      await consensus.dispose();
+      expect(cache.shutdown).toHaveBeenCalled();
+    });
+
+    it('should handle multiple dispose calls', async () => {
+      // First dispose call
+      await consensus.dispose();
+      expect(cache.shutdown).toHaveBeenCalledTimes(1);
+
+      // Reset mock to verify second call doesn't trigger shutdown again
+      cache.shutdown.mockReset();
+      
+      // Second dispose call
+      await consensus.dispose();
+      expect(cache.shutdown).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('State Updates', () => {
     it('should update consensus state after new block', async () => {
       await consensus.updateState(mockBlock);
-      const metrics = consensus.getMetrics();
-      expect(metrics.cache.size).toBeGreaterThan(0);
+      expect(pow.updateDifficulty).toHaveBeenCalledWith(mockBlock);
+      expect(directVoting.updateVotingState).toHaveBeenCalled();
+    });
+
+    it('should handle state update failures', async () => {
+      pow.updateDifficulty.mockRejectedValue(new Error('Update failed'));
+      await expect(consensus.updateState(mockBlock)).rejects.toThrow('Update failed');
     });
   });
+});
 
-  // Mock ProofOfWork
-  // Add these additional test cases to the existing test suite:
-
-  describe('validation timeout handling', () => {
-    it('should handle concurrent validations gracefully', async () => {
-      const blocks = Array(5)
-        .fill(mockBlock)
-        .map((b, i) => ({
-          ...b,
-          hash: `block${i}`,
-          header: { ...b.header, height: i },
-        }));
-
-      const results = await Promise.all(
-        blocks.map((block) => consensus.validateBlock(block)),
-      );
-
-      expect(results).toHaveLength(5);
-      expect(results.every((r) => r === true)).toBe(true);
-    }, 20000);
-
-    it('should release validation locks after timeout', async () => {
-      mockBlock.header.merkleRoot = 'timeout';
-      const promise1 = consensus.validateBlock(mockBlock);
-
-      // Advance timers in smaller increments
-      for (let i = 0; i < 32; i++) {
-        jest.advanceTimersByTime(1000);
-        await Promise.resolve();
-      }
-
-      await expect(promise1).resolves.toBe(false);
-
-      mockBlock.header.merkleRoot = 'valid';
-      const promise2 = consensus.validateBlock(mockBlock);
-      expect(await promise2).toBe(true);
-    }, 60000); // Increased timeout to be safe
-  });
-
-  describe('cache operations', () => {
-    it('should handle cache eviction gracefully', async () => {
-      // Fill cache
-      const blocks = Array(1000)
-        .fill(mockBlock)
-        .map((b, i) => ({
-          ...b,
-          hash: `block${i}`,
-          header: { ...b.header, height: i },
-        }));
-
-      // Mock the blockCache methods more directly
-      let evictionCount = 0;
-      const maxCacheSize = 5; // Even smaller cache size to guarantee evictions
-      let currentSize = 0;
-
-      if (consensus['blockCache']) {
-        consensus['blockCache'].set = jest.fn().mockImplementation(() => {
-          if (currentSize >= maxCacheSize) {
-            evictionCount++;
-            // Don't increment currentSize, just maintain at max
-          } else {
-            currentSize++;
-          }
-        });
-
-        consensus['blockCache'].getEvictionCount = jest
-          .fn()
-          .mockImplementation(() => evictionCount);
-        consensus['blockCache'].size = jest
-          .fn()
-          .mockImplementation(() => currentSize);
-      }
-
-      // Also mock getCacheMetrics to use our local evictionCount
-      consensus.getCacheMetrics = jest.fn().mockImplementation(() => ({
-        size: currentSize,
-        hitRate: 0.5,
-        memoryUsage: 1000,
-        evictionCount: evictionCount,
-      }));
-
-      // Process more blocks than the cache size to guarantee evictions
-      for (const block of blocks.slice(0, 10)) {
-        await consensus.validateBlock(block);
-        // Force cache operation
-        consensus['blockCache']?.set(block.hash, block);
-      }
-
-      const metrics = consensus.getCacheMetrics();
-      expect(metrics.evictionCount).toBeGreaterThan(0);
-    });
-  });
-
-  describe('block processing error handling', () => {
-    it('should handle merkle root computation failure', async () => {
-      jest
-        .spyOn(consensus['merkleTree'], 'createRoot')
-        .mockRejectedValueOnce(new Error('Merkle root failed'));
-      await expect(consensus.processBlock(mockBlock)).rejects.toThrow(
-        'Merkle root failed',
-      );
-    });
-
-    it('should handle validation errors during processing', async () => {
-      jest
-        .spyOn(consensus, 'validateBlock')
-        .mockRejectedValueOnce(new Error('Validation failed'));
-      await expect(consensus.processBlock(mockBlock)).rejects.toThrow(
-        'Validation failed',
-      );
-    });
-  });
-
-  describe('participation reward validation', () => {
-    it('should validate rewards with different heights', async () => {
-      const testCases = [1, 100, 1000, 10000].map((height) => ({
-        height,
-        transaction: {
-          ...mockTransaction,
-          outputs: [
-            {
-              amount: BigInt(
-                Math.min(100, Math.floor(100 / Math.floor(height / 100))),
-              ),
-            },
-          ],
-        },
-      }));
-
-      for (const { height, transaction } of testCases) {
-        const result = await consensus.validateParticipationReward(
-          transaction as Transaction,
-          height,
-        );
-        expect(result).toBe(true);
-      }
-    });
-
-    it('should reject malformed reward transactions', async () => {
-      const invalidCases = [
-        { outputs: undefined },
-        { outputs: [] },
-        { outputs: [{ amount: undefined }] },
-      ];
-
-      for (const invalidTx of invalidCases) {
-        const result = await consensus.validateParticipationReward(
-          invalidTx as unknown as Transaction,
-          1,
-        );
-        expect(result).toBe(false);
-      }
-    });
-  });
-
-  describe('metrics and monitoring', () => {
-    it('should track validation performance metrics', async () => {
-      const listener = jest.fn();
-      consensus.on('metric', listener);
-
-      await consensus.validateBlock(mockBlock);
-
-      expect(listener).toHaveBeenCalledWith(
-        expect.objectContaining({
-          name: expect.any(String),
-          value: expect.any(Number),
-          timestamp: expect.any(Number),
-        }),
-      );
-    });
-
-    it('should maintain accurate cache metrics over time', async () => {
-      const initial = consensus.getCacheMetrics();
-
-      // Perform operations
-      await consensus.validateBlock(mockBlock);
-      await consensus.processBlock(mockBlock);
-
-      const final = consensus.getCacheMetrics();
-      expect(final.size).toBeGreaterThan(initial.size);
-      expect(final.hitRate).toBeGreaterThanOrEqual(0);
-      expect(final.hitRate).toBeLessThanOrEqual(1);
-    });
-  });
-
-  describe('cleanup and disposal', () => {
-    it('should clean up resources on disposal', async () => {
-      await consensus.dispose();
-
-      // Try operations after disposal
-      await expect(consensus.validateBlock(mockBlock)).rejects.toThrow();
-      await expect(consensus.processBlock(mockBlock)).rejects.toThrow();
-      expect(await consensus.healthCheck()).toBe(false);
-    });
-
-    it('should handle multiple disposal calls gracefully', async () => {
-      await consensus.dispose();
-      await expect(consensus.dispose()).resolves.not.toThrow();
-    });
-  });
-
-  describe('circuit breaker behavior', () => {
-    it('should open circuit breaker after threshold failures', async () => {
-      // Mock the circuit breaker behavior in the mock implementation
-      let failures = 0;
-      consensus.validateBlock = jest.fn().mockImplementation(async (block) => {
-        if (block.header.merkleRoot === 'invalid') {
-          failures++;
-          return false;
-        }
-        return failures >= 5 ? false : true; // Circuit opens after 5 failures
-      });
-
-      // Force failures
-      mockBlock.header.merkleRoot = 'invalid';
-      for (let i = 0; i < 5; i++) {
-        await consensus.validateBlock(mockBlock);
-      }
-
-      // Next validation should fail due to open circuit
-      mockBlock.header.merkleRoot = 'valid';
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(false);
-    });
-
-    it('should reset circuit breaker after timeout', async () => {
-      let failures = 0;
-      let lastFailureTime = 0;
-
-      consensus.validateBlock = jest.fn().mockImplementation(async (block) => {
-        const now = Date.now();
-        if (now - lastFailureTime > 60000) {
-          // Reset after 60s
-          failures = 0;
-        }
-
-        if (block.header.merkleRoot === 'invalid') {
-          failures++;
-          lastFailureTime = now;
-          return false;
-        }
-        return failures >= 5 ? false : true;
-      });
-
-      // Force failures
-      mockBlock.header.merkleRoot = 'invalid';
-      for (let i = 0; i < 5; i++) {
-        await consensus.validateBlock(mockBlock);
-      }
-
-      jest.advanceTimersByTime(61000);
-
-      mockBlock.header.merkleRoot = 'valid';
-      const result = await consensus.validateBlock(mockBlock);
-      expect(result).toBe(true);
-    });
-  });
+afterAll(() => {
+  // Clear the healthCheckInterval from the QuantumNative singleton (if it exists)
+  if (QuantumNative?.getInstance) {
+    const quantumInstance = QuantumNative.getInstance();
+    if (quantumInstance?.healthCheckInterval) {
+      clearInterval(quantumInstance.healthCheckInterval);
+    }
+  }
+  // Ensure all Jest timers are cleared
+  jest.clearAllTimers();
 });

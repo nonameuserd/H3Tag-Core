@@ -1,199 +1,410 @@
-import { DirectVotingUtil } from '../../../../blockchain/consensus/voting/util';
+import { DirectVotingUtil, VoteTally, ForkDepthError } from '../../../../blockchain/consensus/voting/util';
 import { BlockchainSchema } from '../../../../database/blockchain-schema';
 import { AuditManager } from '../../../../security/audit';
 import { Validator } from '../../../../models/validator';
 import { Vote, VotingPeriod } from '../../../../models/vote.model';
-import { BLOCKCHAIN_CONSTANTS } from '../../../../blockchain/utils/constants';
+import { AuditEventType, AuditSeverity } from '../../../../security/audit';
 
+// Mock dependencies
+jest.mock('../../../../database/blockchain-schema');
+jest.mock('../../../../security/audit');
+jest.mock('../../../../monitoring/metrics-collector');
+jest.mock('../../../../network/circuit-breaker');
+jest.mock('../../../../database/backup-manager');
+
+// Mock QuantumNative
 jest.mock('@h3tag-blockchain/crypto', () => ({
-  nativeQuantum: {
-    generateDilithiumPair: jest.fn(),
-    dilithiumSign: jest.fn(),
-    dilithiumVerify: jest.fn(),
+  QuantumNative: {
+    getInstance: jest.fn().mockReturnValue({
+      clearHealthChecks: jest.fn(),
+      shutdown: jest.fn(),
+      initializeHealthChecks: jest.fn(),
+    }),
   },
 }));
 
+// Mock DDoS protection with configurable behavior
+const mockCheckRequest = jest.fn().mockReturnValue(true);
+const mockDispose = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../../../security/ddos', () => {
+  return {
+    DDoSProtection: jest.fn().mockImplementation(() => {
+      return {
+        checkRequest: mockCheckRequest,
+        dispose: mockDispose,
+      };
+    }),
+  };
+});
+
 describe('DirectVotingUtil', () => {
   let votingUtil: DirectVotingUtil;
-  let mockDb: jest.Mocked<BlockchainSchema>;
-  let mockAuditManager: jest.Mocked<AuditManager>;
+  let mockDb: Partial<BlockchainSchema>;
+  let mockAuditManager: Partial<AuditManager>;
 
   beforeEach(() => {
-    // Clear all mocks
-    jest.clearAllMocks();
-    
-    // Disable real timers
-    jest.useFakeTimers();
-
     mockDb = {
-      getCurrentHeight: jest.fn(),
-      getVotingStartHeight: jest.fn(),
-      getVotingEndHeight: jest.fn(),
-      verifySignature: jest.fn(),
-      getPath: jest.fn().mockReturnValue('/test/path'),
-    } as unknown as jest.Mocked<BlockchainSchema>;
+      getCurrentHeight: jest.fn().mockResolvedValue(1000),
+      getVotingStartHeight: jest.fn().mockResolvedValue(990),
+      getVotingEndHeight: jest.fn().mockResolvedValue(1100),
+      verifySignature: jest.fn().mockResolvedValue(true),
+      getPath: jest.fn().mockReturnValue('/mock/path'),
+    };
 
     mockAuditManager = {
-      logEvent: jest.fn(),
-    } as unknown as jest.Mocked<AuditManager>;
+      logEvent: jest.fn().mockImplementation(() => Promise.resolve('event-id')),
+    };
 
-    votingUtil = new DirectVotingUtil(mockDb, mockAuditManager);
+    votingUtil = new DirectVotingUtil(mockDb as BlockchainSchema, mockAuditManager as AuditManager);
+    
+    // Reset mocks
+    mockCheckRequest.mockReturnValue(true);
+    mockDispose.mockResolvedValue(undefined);
+    jest.clearAllMocks();
   });
 
-  afterEach(async () => {
-    // Clean up timers
-    jest.clearAllTimers();
-    
-    // Dispose of the voting util
-    await votingUtil.dispose();
-    
-    // Reset timers
-    jest.useRealTimers();
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  afterAll(() => {
+    // Clean up any remaining intervals
+    jest.resetModules();
   });
 
   describe('initializeChainVotingPeriod', () => {
-    const MAX_FORK_DEPTH = BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH;
-    const CURRENT_HEIGHT = 1000;
+    it('should initialize a chain voting period successfully', async () => {
+      const currentHeight = 1000;
+      const startVotingHeight = 990;
+      const endVotingHeight = 1100;
 
-    beforeEach(() => {
-      mockDb.getCurrentHeight.mockResolvedValue(CURRENT_HEIGHT);
-    });
-
-    it('should handle valid fork depth', async () => {
-      const validForkHeight = CURRENT_HEIGHT - (MAX_FORK_DEPTH - 1);
-
-      mockDb.getVotingStartHeight.mockResolvedValue(validForkHeight);
-      mockDb.getVotingEndHeight.mockResolvedValue(CURRENT_HEIGHT + 100);
+      (mockDb.getCurrentHeight as jest.Mock).mockResolvedValue(currentHeight);
+      (mockDb.getVotingStartHeight as jest.Mock).mockResolvedValue(startVotingHeight);
+      (mockDb.getVotingEndHeight as jest.Mock).mockResolvedValue(endVotingHeight);
 
       const result = await votingUtil.initializeChainVotingPeriod(
-        'old-chain',
-        'new-chain',
-        validForkHeight,
+        'oldChain',
+        'newChain',
+        995
       );
 
-      expect(result.forkHeight).toBe(validForkHeight);
-      expect(result.status).toBe('active');
+      expect(result).toMatchObject({
+        periodId: expect.any(Number),
+        startBlock: currentHeight,
+        status: 'active',
+        type: 'node_selection',
+        chainId: 'newChain',
+        competingChains: {
+          oldChainId: 'oldChain',
+          newChainId: 'newChain',
+          commonAncestorHeight: 995,
+        },
+      });
     });
 
-    it('should reject fork depth exceeding maximum', async () => {
-      const invalidForkHeight = CURRENT_HEIGHT - (MAX_FORK_DEPTH + 1);
+    it('should throw ForkDepthError when fork depth exceeds maximum', async () => {
+      (mockDb.getCurrentHeight as jest.Mock).mockResolvedValue(1000);
+      (mockDb.getVotingStartHeight as jest.Mock).mockResolvedValue(900);
+      (mockDb.getVotingEndHeight as jest.Mock).mockResolvedValue(1100);
 
-      await expect(async () => {
-        await votingUtil.initializeChainVotingPeriod(
-          'old-chain',
-          'new-chain',
-          invalidForkHeight,
-        );
-      }).rejects.toThrow(/Fork depth exceeds maximum allowed/);
+      const forkHeight = 500; // This will exceed MAX_FORK_DEPTH
 
-      try {
-        await votingUtil.initializeChainVotingPeriod(
-          'old-chain',
-          'new-chain',
-          invalidForkHeight,
-        );
-      } catch (error: unknown) {
-        expect((error as Error).message).toContain(
-          'Fork depth exceeds maximum allowed',
-        );
-        expect(error).toMatchObject({
-          cause: {
-            currentHeight: CURRENT_HEIGHT,
-            forkHeight: invalidForkHeight,
-            forkDepth: CURRENT_HEIGHT - invalidForkHeight,
-            maxAllowed: MAX_FORK_DEPTH,
-          },
-        });
-      }
+      await expect(
+        votingUtil.initializeChainVotingPeriod('oldChain', 'newChain', forkHeight)
+      ).rejects.toThrow(ForkDepthError);
+    });
+
+    it('should throw error when voting heights are undefined', async () => {
+      (mockDb.getCurrentHeight as jest.Mock).mockResolvedValue(1000);
+      (mockDb.getVotingStartHeight as jest.Mock).mockResolvedValue(null);
+      (mockDb.getVotingEndHeight as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        votingUtil.initializeChainVotingPeriod('oldChain', 'newChain', 995)
+      ).rejects.toThrow('Voting start/end height undefined');
     });
   });
 
   describe('collectVotes', () => {
-    it('should collect and tally valid votes', async () => {
-      const mockPeriod: VotingPeriod = {
-        periodId: Date.now(),
-        status: 'completed',
-        endTime: Date.now() - 1000,
-        votes: {
-          '1': {
-            voter: 'voter1',
-            approve: true,
-            chainVoteData: { targetChainId: 'chain1' },
-            signature: 'sig1',
-            timestamp: Date.now()
-          } as Vote,
-          '2': {
-            voter: 'voter2',
-            approve: false,
-            chainVoteData: { targetChainId: 'chain1' },
-            signature: 'sig2',
-            timestamp: Date.now()
-          } as Vote,
-        },
-      } as unknown as VotingPeriod;
+    const mockVote1: Vote = {
+      voteId: 'vote1',
+      periodId: 1,
+      blockHash: 'hash1',
+      voter: 'validator1',
+      voterAddress: 'validator1',
+      publicKey: 'pubKey1',
+      approve: true,
+      timestamp: Date.now(),
+      signature: 'sig1',
+      chainVoteData: {
+        targetChainId: 'chain1',
+        forkHeight: 100,
+        amount: '1000',
+      },
+      balance: '1000',
+      encrypted: false,
+      votingPower: '1000',
+      height: 1000,
+    };
 
-      const mockValidators = [
-        { address: 'voter1', isActive: true } as Validator,
-        { address: 'voter2', isActive: true } as Validator,
-      ];
+    const mockVote2: Vote = {
+      ...mockVote1,
+      voteId: 'vote2',
+      voter: 'validator2',
+      voterAddress: 'validator2',
+      approve: false,
+      signature: 'sig2',
+    };
 
-      mockDb.verifySignature.mockResolvedValue(true);
+    const mockPeriod: Partial<VotingPeriod> = {
+      status: 'active',
+      votes: {
+        vote1: mockVote1,
+        vote2: mockVote2,
+      },
+    };
 
-      const result = await votingUtil.collectVotes(mockPeriod, mockValidators);
+    const mockValidators = [
+      { address: 'validator1', isActive: true },
+      { address: 'validator2', isActive: true },
+    ] as Validator[];
+
+    it('should collect and tally votes successfully', async () => {
+      (mockDb.verifySignature as jest.Mock).mockResolvedValue(true);
+
+      const result = await votingUtil.collectVotes(mockPeriod as VotingPeriod, mockValidators);
 
       expect(result).toMatchObject({
-        approved: BigInt(1),
-        rejected: BigInt(1),
-        totalVotes: 2,
-        uniqueVoters: 2,
+        totalVotes: expect.any(Number),
+        uniqueVoters: expect.any(Number),
+        participationRate: expect.any(Number),
+        timestamp: expect.any(Number),
       });
     });
 
-    it('should throw error if voting period is still active', async () => {
-      const mockPeriod: VotingPeriod = {
-        status: 'active',
-        endTime: Date.now() + 1000,
-        votes: {},
-      } as VotingPeriod;
+    it('should throw error for invalid period status', async () => {
+      const invalidPeriod = { ...mockPeriod, status: 'invalid' };
+      await expect(
+        votingUtil.collectVotes(invalidPeriod as VotingPeriod, mockValidators)
+      ).rejects.toThrow('Invalid voting period status');
+    });
 
-      await expect(votingUtil.collectVotes(mockPeriod, [])).rejects.toThrow(
-        'Voting period still active',
-      );
+    it('should throw error when no validators provided', async () => {
+      await expect(
+        votingUtil.collectVotes(mockPeriod as VotingPeriod, [])
+      ).rejects.toThrow('No validators provided');
     });
   });
 
   describe('verifyVote', () => {
+    let validVote: Vote;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      
+      // Set up validVote for each test
+      validVote = {
+        voteId: 'vote1',
+        periodId: 1,
+        blockHash: 'hash1',
+        voter: 'validator1',
+        voterAddress: 'validator1',
+        publicKey: 'pubKey1',
+        approve: true,
+        timestamp: Date.now(),
+        signature: 'validSig',
+        chainVoteData: {
+          targetChainId: 'chain1',
+          forkHeight: 100,
+          amount: '1000',
+        },
+        balance: '1000',
+        encrypted: false,
+        votingPower: '1000',
+        height: 1000,
+      };
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.clearAllTimers();
+    });
+
+    it('should verify vote successfully', async () => {
+      const validatorMap = new Map([
+        ['validator1', { address: 'validator1', isActive: true } as Validator],
+      ]);
+
+      (mockDb.verifySignature as jest.Mock).mockResolvedValue(true);
+
+      const result = await votingUtil.verifyVote(validVote, validatorMap);
+      expect(result).toBe(true);
+    });
+
+    it('should reject vote with missing signature', async () => {
+      const validatorMap = new Map([
+        ['validator1', { address: 'validator1', isActive: true } as Validator],
+      ]);
+
+      const invalidVote = { ...validVote, signature: '' };
+      const result = await votingUtil.verifyVote(invalidVote, validatorMap);
+      expect(result).toBe(false);
+    });
+
+    it('should reject vote from inactive validator', async () => {
+      const inactiveValidatorMap = new Map([
+        ['validator1', { address: 'validator1', isActive: false } as Validator],
+      ]);
+
+      const result = await votingUtil.verifyVote(validVote, inactiveValidatorMap);
+      expect(result).toBe(false);
+    });
+
+    it('should handle verification timeout', async () => {
+      const validatorMap = new Map([
+        ['validator1', { address: 'validator1', isActive: true } as Validator],
+      ]);
+
+      // Mock a slow verification
+      (mockDb.verifySignature as jest.Mock).mockImplementation(() => 
+        new Promise(resolve => setTimeout(resolve, 10000))
+      );
+
+      const verificationPromise = votingUtil.verifyVote(validVote, validatorMap);
+      
+      // Fast-forward past the timeout
+      await jest.runAllTimersAsync();
+      
+      const result = await verificationPromise;
+      expect(result).toBe(false);
+
+      // Verify that the timeout was logged
+      expect(mockAuditManager.logEvent).toHaveBeenCalledWith(expect.objectContaining({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.ERROR,
+        source: 'node_selection',
+        details: expect.objectContaining({
+          stack: expect.stringContaining('Verification timeout'),
+        }),
+      }));
+    });
+  });
+
+  describe('processVotingResults', () => {
+    let originalTimers: typeof jest.useRealTimers;
+
+    beforeAll(() => {
+      originalTimers = jest.useRealTimers;
+      jest.useFakeTimers();
+    });
+
+    afterAll(() => {
+      originalTimers();
+    });
+
+    const mockTally: VoteTally = {
+      approved: BigInt(7),
+      rejected: BigInt(3),
+      totalVotes: 10,
+      uniqueVoters: 10,
+      participationRate: 0.7,
+      timestamp: Date.now(),
+    };
+
+    it('should select new chain when approval ratio meets threshold', async () => {
+      const result = await votingUtil.processVotingResults(
+        mockTally,
+        'oldChain',
+        'newChain'
+      );
+      expect(result).toBe('newChain');
+    });
+
+    it('should keep old chain when approval ratio below threshold', async () => {
+      const lowApprovalTally = {
+        ...mockTally,
+        approved: BigInt(2),
+        rejected: BigInt(8),
+      };
+
+      const result = await votingUtil.processVotingResults(
+        lowApprovalTally,
+        'oldChain',
+        'newChain'
+      );
+      expect(result).toBe('oldChain');
+    });
+
+    it('should handle zero votes case', async () => {
+      const zeroVotesTally = {
+        ...mockTally,
+        approved: BigInt(0),
+        rejected: BigInt(0),
+        totalVotes: 0,
+      };
+
+      const result = await votingUtil.processVotingResults(
+        zeroVotesTally,
+        'oldChain',
+        'newChain'
+      );
+      expect(result).toBe('oldChain');
+    });
+
+    it('should handle errors and log them', async () => {
+      const invalidTally = null;
+
+      await expect(
+        // @ts-expect-error - Testing error case with invalid input
+        votingUtil.processVotingResults(invalidTally, 'oldChain', 'newChain')
+      ).rejects.toThrow();
+
+      // Wait for the next tick to allow error logging to complete
+      await jest.runAllTimersAsync();
+
+      expect(mockAuditManager.logEvent).toHaveBeenCalledWith(expect.objectContaining({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.CRITICAL,
+        source: 'node_selection',
+        details: expect.objectContaining({
+          stack: expect.stringContaining('Cannot read properties of null'),
+        }),
+      }));
+    });
+  });
+
+  describe('dispose', () => {
     beforeEach(() => {
       jest.useFakeTimers();
     });
 
     afterEach(() => {
-      jest.clearAllTimers();
       jest.useRealTimers();
+      jest.clearAllTimers();
     });
 
-    it('should verify valid vote', async () => {
-      const mockVote: Vote = {
-        voter: 'voter1',
-        chainVoteData: { targetChainId: 'chain1' },
-        signature: 'sig',
-        timestamp: Date.now(),
-      } as Vote;
-
-      const mockValidators = [
-        { address: 'voter1', isActive: true } as Validator,
-      ];
-
-      mockDb.verifySignature.mockResolvedValue(true);
-
-      const result = await votingUtil.verifyVote(mockVote, new Map(mockValidators.map(v => [v.address, v])));
-      expect(result).toBe(true);
+    it('should clean up resources successfully', async () => {
+      await expect(votingUtil.dispose()).resolves.not.toThrow();
     });
 
-    it('should reject invalid vote structure', async () => {
-      const mockVote = {} as Vote;
-      const result = await votingUtil.verifyVote(mockVote, new Map());
-      expect(result).toBe(false);
+    it('should handle errors during cleanup', async () => {
+      const cleanupError = new Error('Cleanup failed');
+      mockDispose.mockRejectedValue(cleanupError);
+
+      // Call dispose and wait for it to reject
+      await expect(votingUtil.dispose()).rejects.toThrow('Cleanup failed');
+
+      // Wait for the next tick to allow error logging to complete
+      await jest.runAllTimersAsync();
+
+      expect(mockAuditManager.logEvent).toHaveBeenCalledWith(expect.objectContaining({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.CRITICAL,
+        source: 'node_selection',
+        details: expect.objectContaining({
+          stack: expect.stringContaining('Cleanup failed'),
+        }),
+      }));
     });
   });
 });

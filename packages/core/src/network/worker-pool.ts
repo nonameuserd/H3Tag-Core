@@ -32,7 +32,7 @@ export class WorkerPool {
   private startHealthCheck(): void {
     this.healthCheckIntervalId = setInterval(() => {
       this.checkWorkerHealth();
-    }, this.healthCheckInterval);
+    }, this.healthCheckInterval).unref();
   }
 
   private async checkWorkerHealth(): Promise<void> {

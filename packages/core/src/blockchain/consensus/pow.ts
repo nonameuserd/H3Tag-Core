@@ -1388,6 +1388,11 @@ export class ProofOfWork {
         BLOCKCHAIN_CONSTANTS.MINING.DIFFICULTY_ADJUSTMENT_INTERVAL,
       ); // ~2 weeks of blocks
 
+      if (!recentBlocks[0] || !recentBlocks[0].header) {
+        Logger.warn('No valid recent block or block header found. Using minimum difficulty.');
+        return this.getMinDifficulty();
+      }
+
       // Calculate average block time
       const averageBlockTime = this.calculateAverageBlockTime(recentBlocks);
 
@@ -1896,7 +1901,7 @@ export class ProofOfWork {
     };
 
     // Generate hash and ID
-    tx.hash = await HybridCrypto.hash(JSON.stringify(tx));
+    tx.hash = await HybridCrypto.hash(JSON.stringify(tx, (key, value) => typeof value === 'bigint' ? value.toString() : value));
     tx.id = tx.hash;
 
     // Sign the transaction
@@ -2192,9 +2197,18 @@ export class ProofOfWork {
       const selectedTransactions = await this.selectTransactions(
         pendingTransactions || [],
         maxBlockSize,
-        coinbaseTransaction,
+        coinbaseTransaction
       );
-
+      // Ensure the coinbase transaction uses the provided minerAddress using an immutable update
+      if (selectedTransactions.length > 0 && Array.isArray(selectedTransactions[0].outputs)) {
+        selectedTransactions[0] = {
+          ...selectedTransactions[0],
+          outputs: selectedTransactions[0].outputs.map(output => ({
+            ...output,
+            address: minerAddress
+          }))
+        };
+      }
       // Calculate merkle root
       const merkleRoot = await this.merkleTree.createRoot(
         selectedTransactions.map((tx) => tx.hash),
@@ -2225,8 +2239,8 @@ export class ProofOfWork {
       };
 
       // Cache template for validation
-      const templateHash = await HybridCrypto.hash(JSON.stringify(template));
-      this.templateCache.set(templateHash, template);
+      const templateHash = await HybridCrypto.hash(JSON.stringify(template, (key, value) => typeof value === 'bigint' ? value.toString() : value));
+      this.templateCache.set(templateHash, JSON.parse(JSON.stringify(template, (key, value) => typeof value === 'bigint' ? value.toString() : value)));
 
       return template;
     });

@@ -763,7 +763,7 @@ export class Peer {
       } catch (error) {
         Logger.error('Ping failed:', error);
       }
-    }, this.config.minPingInterval);
+    }, this.config.minPingInterval).unref();
   }
 
   private handleConnectionError(error: Error): void {

@@ -2,7 +2,7 @@
 /// <reference types="node" />
 /// <reference types="node" />
 import { NativeQuantum, QuantumKeyPair, KyberEncapsulation, SecurityLevel } from './types';
-declare class QuantumNative {
+export declare class QuantumNative {
     static instance: QuantumNative;
     native: NativeQuantum;
     healthCheckInterval: NodeJS.Timeout | undefined;

@@ -196,7 +196,7 @@ export class Node {
       this.maintenanceTimer = setInterval(
         () => this.performMaintenance(),
         this.config.pruneInterval,
-      );
+      ).unref();
 
       Logger.info('Node started successfully', {
         network: this.config.networkType,

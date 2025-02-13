@@ -46,7 +46,7 @@ export class Performance {
       this.cleanupOldMetrics().catch((err) =>
         Logger.error('Metrics cleanup failed:', err),
       );
-    }, Performance.CLEANUP_INTERVAL);
+    }, Performance.CLEANUP_INTERVAL).unref();
   }
 
   public static getInstance(): Performance {

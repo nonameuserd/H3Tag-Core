@@ -307,7 +307,7 @@ export class DirectVotingUtil {
         approvalRatio >= BLOCKCHAIN_CONSTANTS.MINING.NODE_SELECTION_THRESHOLD
       ) {
         await this.auditManager.logEvent({
-          type: AuditEventType.TYPE,
+          type: AuditEventType.SECURITY,
           severity: AuditSeverity.INFO,
           source: 'node_selection',
           details: {
@@ -322,11 +322,13 @@ export class DirectVotingUtil {
       return oldChainId;
     } catch (error: unknown) {
       Logger.error('Processing voting results failed:', error);
-      this.auditManager.logEvent({
-        type: AuditEventType.TYPE,
+      await this.auditManager.logEvent({
+        type: AuditEventType.SECURITY,
         severity: AuditSeverity.CRITICAL,
         source: 'node_selection',
-        details: { error: (error as Error).message || 'Unknown error' }
+        details: {
+          stack: error instanceof Error ? error.stack || error.message : String(error)
+        }
       });
       throw error;
     } finally {
@@ -384,8 +386,18 @@ export class DirectVotingUtil {
       new Promise<boolean>((_, reject) =>
         setTimeout(() => reject(new Error('Verification timeout')), 5000),
       ),
-    ]).catch((error) => {
+    ]).catch(async (error: Error) => {
       Logger.error('Vote verification failed:', error);
+      await this.auditManager.logEvent({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.ERROR,
+        source: 'node_selection',
+        details: {
+          stack: error.stack || error.message,
+          voter: vote.voter,
+          timestamp: now
+        }
+      });
       return false;
     });
 
@@ -452,8 +464,16 @@ export class DirectVotingUtil {
       if (this.ddosProtection) {
         await this.ddosProtection.dispose();
       }
-    } catch (error) {
+    } catch (error: unknown) {
       Logger.error('Disposal failed:', error);
+      await this.auditManager.logEvent({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.CRITICAL,
+        source: 'node_selection',
+        details: {
+          stack: error instanceof Error ? error.stack || error.message : String(error)
+        }
+      });
       throw error;
     }
   }

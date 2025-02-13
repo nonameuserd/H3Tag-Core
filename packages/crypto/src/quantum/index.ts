@@ -44,7 +44,7 @@ export class QuantumCrypto {
     this.healthCheckInterval = setInterval(
       () => this.performHealthCheck(),
       60000,
-    );
+    ).unref();
   }
 
   static async performHealthCheck(): Promise<void> {

@@ -70,7 +70,7 @@ export class PerformanceMetrics {
       this.cleanupOldMetrics(Date.now()).catch((err) =>
         Logger.error('Periodic cleanup failed:', err),
       );
-    }, this.CLEANUP_INTERVAL);
+    }, this.CLEANUP_INTERVAL).unref();
   }
 
   /**

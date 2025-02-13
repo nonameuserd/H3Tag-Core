@@ -7,27 +7,7 @@ export declare class QuantumError extends Error {
 }
 export declare class QuantumCrypto {
     static isModuleInitialized: boolean;
-    static readonly nativeQuantum: {
-        native: import("../native/types").NativeQuantum;
-        healthCheckInterval: NodeJS.Timeout | undefined;
-        isInitialized: boolean;
-        HEALTH_CHECK_INTERVAL: number;
-        healthCheckFailures: number;
-        clearHealthChecks(): void;
-        initializeHealthChecks(): void;
-        performHealthCheck(): Promise<void>;
-        shutdown(): Promise<void>;
-        checkInitialization(): void;
-        generateDilithiumKeyPair(entropy?: Buffer | undefined): Promise<QuantumKeyPair>;
-        kyberGenerateKeyPair(): Promise<QuantumKeyPair>;
-        dilithiumSign(message: Buffer, privateKey: Buffer): Promise<Buffer>;
-        dilithiumVerify(message: Buffer, signature: Buffer, publicKey: Buffer): Promise<boolean>;
-        kyberEncapsulate(publicKey: Buffer): Promise<import("../native/types").KyberEncapsulation>;
-        kyberDecapsulate(ciphertext: Buffer, privateKey: Buffer): Promise<Buffer>;
-        dilithiumHash(data: Buffer): Promise<Buffer>;
-        kyberHash(data: Buffer): Promise<Buffer>;
-        setSecurityLevel(level: SecurityLevel): Promise<void>;
-    };
+    static readonly nativeQuantum: import("../native/quantum.node").QuantumNative;
     static healthCheckInterval: NodeJS.Timeout;
     private static isHealthCheckRunning;
     static initialize(): Promise<void>;

@@ -15,7 +15,7 @@ class QuantumError extends Error {
   }
 }
 
-class QuantumNative {
+export class QuantumNative {
   public static instance: QuantumNative;
   public native: NativeQuantum;
   public healthCheckInterval: NodeJS.Timeout | undefined;
@@ -69,6 +69,11 @@ class QuantumNative {
           );
         }
       }, this.HEALTH_CHECK_INTERVAL);
+
+      // Unref the interval so that it does not keep the Node.js event loop alive
+      if (this.healthCheckInterval && typeof this.healthCheckInterval.unref === 'function') {
+        this.healthCheckInterval.unref();
+      }
 
       Logger.debug('Health checks initialized');
     } catch (error) {

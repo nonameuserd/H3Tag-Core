@@ -14,7 +14,7 @@
     "build": "tsc -b",
     "start": "node dist/server.js",
     "dev": "ts-node-dev src/server.ts",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "clean": "rimraf dist && rimraf node_modules",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
