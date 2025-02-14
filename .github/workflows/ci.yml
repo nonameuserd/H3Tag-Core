@@ -98,10 +98,20 @@ jobs:
           # Build core and ensure its artifacts are available
           yarn nx build @h3tag-blockchain/core --verbose
 
+          # Ensure core build exists and is not empty
+          if [ ! -d "packages/core/dist" ] || [ -z "$(ls -A packages/core/dist)" ]; then
+            echo "Core dist directory is missing or empty. Forcing rebuild..."
+            yarn nx build @h3tag-blockchain/core --verbose --skip-nx-cache
+          fi
+
           # Copy core types to node_modules for proper resolution
           rm -rf node_modules/@h3tag-blockchain/core/dist
           mkdir -p node_modules/@h3tag-blockchain/core/dist
-          cp -r packages/core/dist/* node_modules/@h3tag-blockchain/core/dist/
+          cp -r packages/core/dist/* node_modules/@h3tag-blockchain/core/dist/ || {
+            echo "Failed to copy core dist files. Directory contents:"
+            ls -la packages/core/dist/
+            exit 1
+          }
 
           # Set TypeScript to use project references
           export TS_NODE_PROJECT="tsconfig.json"
