@@ -1,5 +1,4 @@
 node_modules/
-package-lock.json
 .yarn/cache
 *.env
 *.pem 
@@ -81,7 +80,6 @@ vite.config.*.timestamp*
 build/*
 dist/*
 .DS_Store
-yarn.lock
 packages/.DS_Store
 packages/core/audit-logs/
 packages/core/audit-logs/*
