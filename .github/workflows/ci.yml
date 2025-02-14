@@ -95,14 +95,23 @@ jobs:
           yarn nx build @h3tag-blockchain/shared --verbose
           yarn nx build @h3tag-blockchain/crypto --verbose
 
-          # Build core and ensure its artifacts are available
-          yarn nx build @h3tag-blockchain/core --verbose
+          # Clear NX cache for core and rebuild
+          yarn nx reset
 
-          # Ensure core build exists and is not empty
-          if [ ! -d "packages/core/dist" ] || [ -z "$(ls -A packages/core/dist)" ]; then
-            echo "Core dist directory is missing or empty. Forcing rebuild..."
-            yarn nx build @h3tag-blockchain/core --verbose --skip-nx-cache
-          fi
+          # Build core with explicit output path
+          yarn nx build @h3tag-blockchain/core --verbose --skip-nx-cache
+
+          # Debug core build output
+          echo "Checking core build output..."
+          ls -la packages/core/
+          ls -la packages/core/dist/ || echo "dist directory is empty"
+
+          # Ensure core package is built correctly
+          yarn tsc -p packages/core/tsconfig.json --outDir packages/core/dist
+
+          # Debug after direct TypeScript build
+          echo "Core build output after tsc:"
+          ls -la packages/core/dist/
 
           # Copy core types to node_modules for proper resolution
           rm -rf node_modules/@h3tag-blockchain/core/dist
