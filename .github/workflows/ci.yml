@@ -1,4 +1,4 @@
-name: CI
+name: CI for H3Tag
 
 on:
   push:
@@ -19,8 +19,22 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Cache liboqs build
+      - name: Cache liboqs
+        id: cache-liboqs
+        uses: actions/cache@v3
+        with:
+          path: |
+            /usr/local/lib/liboqs*
+            /usr/local/include/oqs
+            /usr/local/lib/cmake/liboqs
+          key: ${{ runner.os }}-liboqs-${{ hashFiles('liboqs/**') }}
+          restore-keys: |
+            ${{ runner.os }}-liboqs-
+
       # Install system dependencies including liboqs
       - name: Install system dependencies
+        if: steps.cache-liboqs.outputs.cache-hit != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build
@@ -31,6 +45,11 @@ jobs:
           ninja
           sudo ninja install
           sudo ldconfig
+
+      # Update ldconfig if using cached version
+      - name: Update ldconfig for cached liboqs
+        if: steps.cache-liboqs.outputs.cache-hit == 'true'
+        run: sudo ldconfig
 
       - name: Use Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v4
@@ -69,5 +88,20 @@ jobs:
       - name: Build affected projects
         run: yarn nx affected:build --parallel=3
 
-      - name: Test affected projects
+      # Run affected tests first
+      - name: Run affected tests
         run: yarn nx affected:test --parallel=3 --coverage
+
+      # Then run all tests
+      - name: Run all tests
+        run: yarn nx run-many --target=test --all --parallel=3 --coverage
+
+      # Upload coverage reports
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-reports
+          path: |
+            **/coverage
+            **/lcov.info
+          retention-days: 14
