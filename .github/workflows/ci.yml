@@ -106,8 +106,11 @@ jobs:
           ls -la packages/core/
           ls -la packages/core/dist/ || echo "dist directory is empty"
 
-          # Ensure core package is built correctly
-          yarn tsc -p packages/core/tsconfig.json --outDir packages/core/dist
+          # Ensure core package is built correctly with source files
+          echo "Building core package with TypeScript..."
+          cd packages/core
+          yarn tsc --project tsconfig.json --rootDir src --outDir dist
+          cd ../..
 
           # Debug after direct TypeScript build
           echo "Core build output after tsc:"
