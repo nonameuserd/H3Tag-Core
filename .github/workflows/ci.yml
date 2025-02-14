@@ -3,11 +3,10 @@ name: CI for H3Tag Blockchain
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
 
 jobs:
   build:
+    name: Build & Test H3Tag Blockchain
     runs-on: ubuntu-latest
 
     strategy:
@@ -82,11 +81,17 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile --ignore-engines
 
+      - name: Build shared package first
+        run: yarn nx build @h3tag-blockchain/shared
+
+      - name: Build crypto package
+        run: yarn nx build @h3tag-blockchain/crypto
+
+      - name: Build remaining packages
+        run: yarn nx run-many --target=build --projects=@h3tag-blockchain/core,@h3tag-blockchain/api,@h3tag-blockchain/cli --parallel=false
+
       - name: Lint affected projects
         run: yarn nx affected:lint --parallel=3
-
-      - name: Build affected projects
-        run: yarn nx affected:build --parallel=3
 
       # Run affected tests first
       - name: Run affected tests
