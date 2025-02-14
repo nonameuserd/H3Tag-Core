@@ -531,10 +531,15 @@ export class DirectVoting {
         }
         const isValid = await this.validateVoteBatch([vote]);
         if (!isValid) return false;
-        return await this.votingDb.transaction(async (tx) => {
-          await this.processVote(vote, tx);
-          return true;
-        });
+        try {
+          return await this.votingDb.transaction(async (tx) => {
+            await this.processVote(vote, tx);
+            return true;
+          });
+        } catch (error) {
+          Logger.error('Vote processing failed:', error);
+          return false;
+        }
       } finally {
         this.performanceMonitor.end(perfMarker);
       }
@@ -585,8 +590,12 @@ export class DirectVoting {
       );
     }
 
+    // Use a replacer to convert BigInt values to strings to avoid JSON.stringify errors
+    const voteString = JSON.stringify(vote, (_, value) =>
+      typeof value === 'bigint' ? value.toString() : value,
+    );
     if (
-      Buffer.from(JSON.stringify(vote)).length >
+      Buffer.from(voteString).length >
       BLOCKCHAIN_CONSTANTS.VOTING_CONSTANTS.MAX_VOTE_SIZE_BYTES
     ) {
       throw new VotingError(

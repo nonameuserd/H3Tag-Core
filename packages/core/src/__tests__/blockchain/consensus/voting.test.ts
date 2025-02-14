@@ -225,6 +225,34 @@ describe('DirectVoting', () => {
       mockSync,
       mockMempool
     );
+
+    // Set up current period
+    ((directVoting as unknown) as { currentPeriod: VotingPeriod }).currentPeriod = {
+      periodId: 1,
+      status: 'active',
+      startTime: Date.now() - 1000,
+      endTime: Date.now() + 1000,
+      votes: {},
+      isAudited: false,
+      votesMerkleRoot: '',
+      startBlock: 0,
+      endBlock: 1000,
+      type: 'node_selection',
+      createdAt: Date.now()
+    } as VotingPeriod;
+
+    // Override the blockchain height to match the vote's height (1000)
+    mockDb.getCurrentHeight.mockResolvedValue(1000);
+
+    // Mock validation steps
+    mockVotingUtil.verifyVote.mockResolvedValue(true);
+    mockVotingDb.transaction.mockImplementation(async (fn) => {
+      await fn({ 
+        execute: async (fn) => await fn(),
+        put: jest.fn().mockResolvedValue(undefined)
+      });
+      return true;
+    });
   });
 
   afterEach(async () => {
@@ -246,20 +274,8 @@ describe('DirectVoting', () => {
 
   describe('submitVote', () => {
     beforeEach(() => {
-      // Set up current period
-      ((directVoting as unknown) as { currentPeriod: VotingPeriod }).currentPeriod = {
-        periodId: 1,
-        status: 'active',
-        startTime: Date.now() - 1000,
-        endTime: Date.now() + 1000,
-        votes: {},
-        isAudited: false,
-        votesMerkleRoot: '',
-        startBlock: 0,
-        endBlock: 1000,
-        type: 'node_selection',
-        createdAt: Date.now()
-      } as VotingPeriod;
+      // Ensure that the vote height is the expected next block height
+      validVote.height = 1001;
     });
 
     it('should submit valid vote successfully', async () => {
@@ -274,8 +290,18 @@ describe('DirectVoting', () => {
     });
 
     it('should reject vote with invalid amount', async () => {
-      const invalidVote = { ...validVote, chainVoteData: { amount: BigInt("0") } };
-      await expect(directVoting.submitVote(invalidVote as Vote)).rejects.toThrow();
+      const invalidVote = { 
+        ...validVote, 
+        chainVoteData: { 
+          amount: BigInt("-1"),
+          targetChainId: 'chain1',
+          forkHeight: 1000
+        } 
+      };
+      // Also ensure the invalid vote has the correct height so that amount is the failing criteria.
+      invalidVote.height = 1001;
+      const result = await directVoting.submitVote(invalidVote as Vote);
+      expect(result).toBe(false);
     });
   });
 

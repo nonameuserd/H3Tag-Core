@@ -78,6 +78,19 @@ jobs:
             ${{ runner.os }}-nx-${{ hashFiles('**/yarn.lock') }}-
             ${{ runner.os }}-nx-
 
+      - name: Clean all caches
+        run: |
+          echo "Forcing a fresh build by cleaning all caches..."
+          # Reset Nx state
+          yarn nx reset
+          # Remove liboqs related directories
+          sudo rm -rf /usr/local/lib/liboqs* /usr/local/include/oqs /usr/local/lib/cmake/liboqs
+          # Remove build caches and node modules
+          rm -rf dist build .nx/cache node_modules
+          # Clean Yarn cache
+          yarn cache clean
+          echo "All caches have been cleaned."
+
       - name: Install dependencies
         run: yarn install --frozen-lockfile --ignore-engines
 
