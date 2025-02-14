@@ -822,7 +822,7 @@ describe('Blockchain', () => {
         publicKey: 'mockPublicKey',
         encrypted: false,
         votingPower: '100',
-        balance: '1000'
+        balance: BigInt(1000)
       };
       await expect(blockchain.processVote(vote)).resolves.not.toThrow();
     });
@@ -841,7 +841,7 @@ describe('Blockchain', () => {
         publicKey: 'mockPublicKey',
         encrypted: false,
         votingPower: '100',
-        balance: '1000'
+        balance: BigInt(1000)
       };
       await expect(blockchain.processVote(vote)).rejects.toThrow('Invalid vote signature');
     });

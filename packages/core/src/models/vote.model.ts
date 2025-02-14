@@ -53,10 +53,10 @@ export interface Vote {
   chainVoteData?: {
     targetChainId: string;
     forkHeight: number;
-    amount: string;
+    amount: bigint;
   };
   height: number;
-  balance: string;
+  balance: bigint;
 }
 
 /**

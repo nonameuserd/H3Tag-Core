@@ -1371,11 +1371,11 @@ export class DirectVoting {
     if (!amountStr) {
       throw new VotingError('INVALID_VOTE_AMOUNT', 'Vote amount is not provided');
     }
-    const voteAmount = parseFloat(amountStr);
-    if (isNaN(voteAmount)) {
-      throw new VotingError('INVALID_VOTE_AMOUNT', 'Vote amount is not a valid number');
+    const voteAmount = BigInt(amountStr);
+    if (voteAmount < 0n || voteAmount === 0n) {
+      throw new VotingError('INVALID_VOTE_AMOUNT', 'Vote amount must be positive');
     }
-    const quadraticPower = BigInt(Math.floor(Math.sqrt(voteAmount)));
+    const quadraticPower = BigInt(Math.floor(Math.sqrt(Number(voteAmount))));
     
     // Instead of overwriting the original vote.timestamp,
     // add a new processingTime field

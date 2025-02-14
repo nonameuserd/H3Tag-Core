@@ -195,10 +195,10 @@ describe('DirectVoting', () => {
       chainVoteData: {
         targetChainId: 'chain1',
         forkHeight: 1000,
-        amount: '1000'
+        amount: BigInt(1000)
       },
       height: 1000,
-      balance: '1000'
+      balance: BigInt(1000)
     };
 
     validBlock = {
@@ -274,7 +274,7 @@ describe('DirectVoting', () => {
     });
 
     it('should reject vote with invalid amount', async () => {
-      const invalidVote = { ...validVote, chainVoteData: { amount: 'invalid' } };
+      const invalidVote = { ...validVote, chainVoteData: { amount: BigInt("0") } };
       await expect(directVoting.submitVote(invalidVote as Vote)).rejects.toThrow();
     });
   });
@@ -351,7 +351,7 @@ describe('DirectVoting', () => {
         publicKey: mockValidator.publicKey,
         chainVoteData: {
           targetChainId: 'chain1',
-          amount: '1000',
+          amount: BigInt(1000),
           forkHeight: 1000
         }
       };

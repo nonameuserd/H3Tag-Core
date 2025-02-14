@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
 import { TransactionDto } from './transaction.dto';
 import { HybridKeyPair } from '@h3tag-blockchain/crypto';
-import { Transaction } from 'packages/core/dist/models/transaction.model';
+import { Transaction } from '@h3tag-blockchain/core';
 
 export class MiningInfoDto {
   @ApiProperty({ description: 'Current blockchain height' })

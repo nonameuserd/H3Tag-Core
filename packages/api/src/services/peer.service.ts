@@ -473,17 +473,17 @@ export class PeerService {
 
   async getNetworkInfo(): Promise<NetworkInfoDto> {
     try {
-      const info = this.networkStats.getNetworkInfo();
+      const info = await this.networkStats.getNetworkInfo();
 
       // Create NetworkInfoDto with proper type checking
       const networkInfoDto: NetworkInfoDto = {
-        version: info.version || undefined,
-        protocolVersion: info.protocolVersion || undefined,
-        connections: info.connections?.total || undefined,
-        inbound: info.connections?.inbound || undefined,
-        outbound: info.connections?.outbound || undefined,
-        networkActive: info.connections?.total > 0 || undefined,
-        localAddresses: info.localAddresses || undefined,
+        version: info.version,
+        protocolVersion: info.protocolVersion,
+        connections: info.connections?.total,
+        inbound: info.connections?.inbound,
+        outbound: info.connections?.outbound,
+        networkActive: info.connections?.total > 0,
+        localAddresses: info.localAddresses,
       };
 
       return networkInfoDto;

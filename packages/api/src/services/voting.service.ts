@@ -30,17 +30,17 @@ export class VotingService {
         blockHash: '',
         approve: voteDto.choice || false,
         chainVoteData: {
-          amount: voteDto.chainVoteData?.amount || BigInt(0),
+          amount: BigInt(voteDto.chainVoteData?.amount || 0),
           targetChainId: voteDto.chainVoteData?.targetChainId || '',
           forkHeight: voteDto.chainVoteData?.forkHeight || 0,
         },
         votingPower: BigInt(
           Math.floor(Math.sqrt(Number(voteDto.chainVoteData?.amount || 0))),
-        ),
+        ).toString(),
         publicKey: voteDto.voterAddress || '',
         encrypted: false,
         height: voteDto.height || 0,
-        balance: voteDto.balance || BigInt(0),
+        balance: BigInt(voteDto.balance || 0),
       };
 
       const validators = await this.directVoting.getValidators();
@@ -56,23 +56,17 @@ export class VotingService {
 
   async getVotingMetrics(): Promise<VotingMetricsDto> {
     try {
-      const metricsPromise = this.directVoting.getVotingMetrics();
-      const [totalVotes, participationRate, activeVoters, currentPeriod] = await Promise.all([
-        metricsPromise.totalVotes,
-        metricsPromise.participationRate,
-        metricsPromise.activeVoters,
-        metricsPromise.currentPeriod
-      ]);
+      const metrics = await this.directVoting.getVotingMetrics();
       
       return {
-        totalVotes,
-        participationRate,
-        activeVoters: activeVoters.length,
-        currentPeriod: currentPeriod ? {
-          periodId: currentPeriod.periodId.toString(),
-          startHeight: Number(currentPeriod.startHeight),
-          endHeight: Number(currentPeriod.endHeight),
-        } : undefined,
+        totalVotes: Number(metrics.totalVotes),
+        participationRate: Number(metrics.participationRate),
+        activeVoters: (await metrics.activeVoters).length,
+        currentPeriod: metrics.currentPeriod ? {
+          periodId: metrics.currentPeriod.periodId.toString(),
+          startHeight: metrics.currentPeriod.startHeight,
+          endHeight: metrics.currentPeriod.endHeight,
+        } : undefined
       };
     } catch (error) {
       Logger.error('Failed to get voting metrics:', error);

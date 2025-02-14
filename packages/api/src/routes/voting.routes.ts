@@ -42,10 +42,10 @@ const peers = new Map<string, Peer>();
 // Initialize sync with correct parameter order
 const sync = new BlockchainSync(
   blockchain,
-  mempool,
   peers,
   { publicKey: configService.get('CONSENSUS_PUBLIC_KEY', '') },
   db,
+  mempool
 );
 
 // Connect peer and add to peers map after handshake
@@ -70,7 +70,8 @@ const directVoting = new DirectVoting(
   auditManager,
   votingUtil,
   node,
-  sync
+  sync,
+  mempool
 );
 
 const votingService = new VotingService(directVoting);

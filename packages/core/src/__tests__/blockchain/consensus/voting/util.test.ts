@@ -139,9 +139,9 @@ describe('DirectVotingUtil', () => {
       chainVoteData: {
         targetChainId: 'chain1',
         forkHeight: 100,
-        amount: '1000',
+        amount: BigInt(1000),
       },
-      balance: '1000',
+      balance: BigInt(1000),
       encrypted: false,
       votingPower: '1000',
       height: 1000,
@@ -216,9 +216,9 @@ describe('DirectVotingUtil', () => {
         chainVoteData: {
           targetChainId: 'chain1',
           forkHeight: 100,
-          amount: '1000',
+          amount: BigInt(1000),
         },
-        balance: '1000',
+        balance: BigInt(1000),
         encrypted: false,
         votingPower: '1000',
         height: 1000,

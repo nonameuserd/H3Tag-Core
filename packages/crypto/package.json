@@ -8,7 +8,10 @@
     "packages/*"
   ],
   "exports": {
-    ".": "./dist/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
   },
   "scripts": {
     "build": "tsc",
@@ -19,6 +22,7 @@
     "prettier:fix": "prettier --write src"
   },
   "dependencies": {
+    "@h3tag-blockchain/shared": "0.1.0",
     "asn1": "^0.2.6",
     "asn1.js": "^5.4.1",
     "bin-pack": "^1.0.0",
