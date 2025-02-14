@@ -135,7 +135,7 @@ jobs:
           # Copy core types to node_modules for proper resolution
           rm -rf node_modules/@h3tag-blockchain/core/dist
           mkdir -p node_modules/@h3tag-blockchain/core/dist
-          cp -r packages/core/dist/* node_modules/@h3tag-blockchain/core/dist/ || {
+          cp -r packages/core/dist/. node_modules/@h3tag-blockchain/core/dist/ || {
             echo "Failed to copy core dist files. Directory contents:"
             ls -la packages/core/dist/
             exit 1
