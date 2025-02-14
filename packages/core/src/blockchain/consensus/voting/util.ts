@@ -97,9 +97,16 @@ export class DirectVotingUtil {
 
     // Validate that start/end voting heights were retrieved successfully.
     if (startVotingHeight == null || endVotingHeight == null) {
-      Logger.error('Voting start or end height is undefined', {
+      const metadata = {
         startVotingHeight,
         endVotingHeight,
+      };
+      Logger.error('Voting start or end height is undefined', metadata);
+      await this.auditManager.logEvent({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.ERROR,
+        source: 'node_selection',
+        details: metadata
       });
       throw new Error('Voting start/end height undefined');
     }
@@ -114,6 +121,12 @@ export class DirectVotingUtil {
         maxAllowed: BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH,
       };
       Logger.error('Fork depth exceeds maximum allowed', metadata);
+      await this.auditManager.logEvent({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.ERROR,
+        source: 'node_selection',
+        details: metadata
+      });
       throw new ForkDepthError(
         `Fork depth exceeds maximum allowed: current depth ${forkDepth} exceeds max allowed ${BLOCKCHAIN_CONSTANTS.MINING.MAX_FORK_DEPTH}`,
         metadata,

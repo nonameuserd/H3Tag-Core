@@ -25,7 +25,7 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/858</span>
+                <span class='fraction'>0/857</span>
             </div>
         
             
@@ -39,14 +39,14 @@
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/177</span>
+                <span class='fraction'>0/175</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
                 <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/831</span>
+                <span class='fraction'>0/830</span>
             </div>
         
             
@@ -2985,11 +2985,7 @@
 <a name='L2920'></a><a href='#L2920'>2920</a>
 <a name='L2921'></a><a href='#L2921'>2921</a>
 <a name='L2922'></a><a href='#L2922'>2922</a>
-<a name='L2923'></a><a href='#L2923'>2923</a>
-<a name='L2924'></a><a href='#L2924'>2924</a>
-<a name='L2925'></a><a href='#L2925'>2925</a>
-<a name='L2926'></a><a href='#L2926'>2926</a>
-<a name='L2927'></a><a href='#L2927'>2927</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
+<a name='L2923'></a><a href='#L2923'>2923</a></td><td class="line-coverage quiet"><span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -5856,10 +5852,6 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -6162,7 +6154,7 @@ interface ExtendedMetrics {
   private consensus: HybridDirectConsensus;
   private <span class="cstat-no" title="statement not covered" >peers: Map&lt;string, Peer&gt; = new Map();</span>
   private <span class="cstat-no" title="statement not covered" >genesisBlock: Block = this.createGenesisBlock();</span>
-  private <span class="cstat-no" title="statement not covered" >totalSupply: number = 0;</span>
+  private <span class="cstat-no" title="statement not covered" >totalSupply = 0;</span>
   private config: BlockchainConfig;
   public <span class="cstat-no" title="statement not covered" >db: BlockchainSchema = new BlockchainSchema();</span>
   private <span class="cstat-no" title="statement not covered" >shardManager: ShardManager = new ShardManager(</span>
@@ -7751,13 +7743,13 @@ interface ExtendedMetrics {
 <span class="cstat-no" title="statement not covered" >      <span class="missing-if-branch" title="if path not taken" >I</span>if (cached) <span class="cstat-no" title="statement not covered" >return cached;</span></span>
 &nbsp;
       // Query database with pagination for efficiency
-      let currentHeight = <span class="cstat-no" title="statement not covered" >this.getCurrentHeight();</span>
+      const currentHeight = <span class="cstat-no" title="statement not covered" >this.getCurrentHeight();</span>
 &nbsp;
       const MAX_TRAVERSAL_DEPTH = <span class="cstat-no" title="statement not covered" >100;</span> // Set a reasonable limit to prevent stack overflow
 &nbsp;
       const findFirstTransaction = <span class="cstat-no" title="statement not covered" ><span class="fstat-no" title="function not covered" >async </span>(</span>
         currentHeight: number,
-        depth: number = <span class="branch-0 cbranch-no" title="branch not covered" >0,</span>
+        depth = <span class="branch-0 cbranch-no" title="branch not covered" >0,</span>
       ): Promise&lt;{ blockHeight: number } | null&gt; =&gt; {
 <span class="cstat-no" title="statement not covered" >        <span class="missing-if-branch" title="if path not taken" >I</span>if (depth &gt;= MAX_TRAVERSAL_DEPTH) {</span>
 <span class="cstat-no" title="statement not covered" >          throw new Error('Max traversal depth reached');</span>
@@ -8785,10 +8777,6 @@ interface ExtendedMetrics {
 <span class="cstat-no" title="statement not covered" >    await this.updatePostBlockAdd(block);</span>
   }
 &nbsp;
-  private <span class="fstat-no" title="function not covered" >startCacheCleanup(</span>): void {
-<span class="cstat-no" title="statement not covered" >    this.cleanupIntervalId = setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {}, this.cleanupInterval);</span>
-  }
-&nbsp;
   public <span class="fstat-no" title="function not covered" >cleanup(</span>): void {
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (this.cleanupIntervalId) {</span>
 <span class="cstat-no" title="statement not covered" >      clearInterval(this.cleanupIntervalId);</span>
@@ -8848,7 +8836,7 @@ interface ExtendedMetrics {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-14T01:25:22.986Z
+                at 2025-02-14T17:08:38.069Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

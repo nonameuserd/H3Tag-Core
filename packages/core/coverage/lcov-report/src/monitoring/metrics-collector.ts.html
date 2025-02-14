@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">1.43% </span>
+                <span class="strong">7.19% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>2/139</span>
+                <span class='fraction'>10/139</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">1.96% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/51</span>
+                <span class='fraction'>1/51</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">4% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/25</span>
+                <span class='fraction'>1/25</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">1.48% </span>
+                <span class="strong">7.4% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>2/135</span>
+                <span class='fraction'>10/135</span>
             </div>
         
             
@@ -445,7 +445,7 @@
 <a name='L380'></a><a href='#L380'>380</a>
 <a name='L381'></a><a href='#L381'>381</a>
 <a name='L382'></a><a href='#L382'>382</a>
-<a name='L383'></a><a href='#L383'>383</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">1x</span>
+<a name='L383'></a><a href='#L383'>383</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -471,36 +471,36 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">10x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -858,8 +858,8 @@ export class MetricsCollector {
   private timers: Map&lt;string, number&gt;;
   private readonly namespace: string;
   private flushInterval: NodeJS.Timeout | null;
-  private readonly <span class="cstat-no" title="statement not covered" >FLUSH_INTERVAL_MS = 60000; </span>// 1 minute default
-  private <span class="cstat-no" title="statement not covered" >isFlushing: boolean = false;</span>
+  private readonly FLUSH_INTERVAL_MS = 60000; // 1 minute default
+  private isFlushing = false;
 &nbsp;
   /**
    * Creates a new MetricsCollector instance
@@ -867,22 +867,22 @@ export class MetricsCollector {
    * @param {number} [flushIntervalMs=60000] - Metrics flush interval in milliseconds
    * @throws {Error} If namespace is not provided
    */
-<span class="fstat-no" title="function not covered" >  constructor(n</span>amespace: string, flushIntervalMs: number = <span class="branch-0 cbranch-no" title="branch not covered" >60000)</span> {
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!namespace) {</span>
+  constructor(namespace: string, flushIntervalMs = 60000) {
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!namespace) {
 <span class="cstat-no" title="statement not covered" >      throw new Error('Namespace is required');</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.namespace = namespace;</span>
-<span class="cstat-no" title="statement not covered" >    this.metrics = new Map();</span>
-<span class="cstat-no" title="statement not covered" >    this.timers = new Map();</span>
+    this.namespace = namespace;
+    this.metrics = new Map();
+    this.timers = new Map();
 &nbsp;
     // Validate flush interval to be at least 1 second.
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (flushIntervalMs &lt; 1000) {</span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (flushIntervalMs &lt; 1000) {
 <span class="cstat-no" title="statement not covered" >      Logger.warn('Flush interval too low, setting to 1 second minimum');</span>
 <span class="cstat-no" title="statement not covered" >      flushIntervalMs = 1000;</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.flushInterval = setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
+    this.flushInterval = setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {
 <span class="cstat-no" title="statement not covered" >      void this.flush();</span>
     }, flushIntervalMs).unref();
   }
@@ -892,7 +892,7 @@ export class MetricsCollector {
    * @param {string} metric - Metric name
    * @param {number} [value=1] - Increment value
    */
-<span class="fstat-no" title="function not covered" >  increment(</span>metric: string, value: number = <span class="branch-0 cbranch-no" title="branch not covered" >1)</span>: void {
+<span class="fstat-no" title="function not covered" >  increment(</span>metric: string, value = <span class="branch-0 cbranch-no" title="branch not covered" >1)</span>: void {
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!metric) {</span>
 <span class="cstat-no" title="statement not covered" >      Logger.error('Invalid metric name');</span>
 <span class="cstat-no" title="statement not covered" >      return;</span>
@@ -1184,7 +1184,7 @@ export class MetricsCollector {
 <span class="fstat-no" title="function not covered" >  counter(</span>metric: string): { inc: (labels?: Record&lt;string, string&gt;) =&gt; void } {
 <span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!metric) {</span>
 <span class="cstat-no" title="statement not covered" >      Logger.error('Invalid counter metric name');</span>
-<span class="cstat-no" title="statement not covered" >      return { inc: <span class="fstat-no" title="function not covered" >() =</span>&gt; {} }; </span>// Return no-op function
+<span class="cstat-no" title="statement not covered" >      return { inc: <span class="fstat-no" title="function not covered" >() =</span>&gt; { /* no-op due to invalid metric name */ } };</span>
     }
 &nbsp;
 <span class="cstat-no" title="statement not covered" >    return {</span>
@@ -1216,7 +1216,7 @@ export class MetricsCollector {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-14T01:25:22.986Z
+                at 2025-02-14T17:08:38.069Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

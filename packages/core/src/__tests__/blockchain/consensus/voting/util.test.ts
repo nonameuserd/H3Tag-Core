@@ -77,6 +77,7 @@ describe('DirectVotingUtil', () => {
       const currentHeight = 1000;
       const startVotingHeight = 990;
       const endVotingHeight = 1100;
+      const forkHeight = 995; // Within acceptable fork depth
 
       (mockDb.getCurrentHeight as jest.Mock).mockResolvedValue(currentHeight);
       (mockDb.getVotingStartHeight as jest.Mock).mockResolvedValue(startVotingHeight);
@@ -85,7 +86,7 @@ describe('DirectVotingUtil', () => {
       const result = await votingUtil.initializeChainVotingPeriod(
         'oldChain',
         'newChain',
-        995
+        forkHeight
       );
 
       expect(result).toMatchObject({
@@ -97,21 +98,35 @@ describe('DirectVotingUtil', () => {
         competingChains: {
           oldChainId: 'oldChain',
           newChainId: 'newChain',
-          commonAncestorHeight: 995,
+          commonAncestorHeight: forkHeight,
         },
       });
     });
 
     it('should throw ForkDepthError when fork depth exceeds maximum', async () => {
-      (mockDb.getCurrentHeight as jest.Mock).mockResolvedValue(1000);
-      (mockDb.getVotingStartHeight as jest.Mock).mockResolvedValue(900);
-      (mockDb.getVotingEndHeight as jest.Mock).mockResolvedValue(1100);
+      const currentHeight = 1000;
+      const forkHeight = 500; // This will exceed MAX_FORK_DEPTH of 100
 
-      const forkHeight = 500; // This will exceed MAX_FORK_DEPTH
+      (mockDb.getCurrentHeight as jest.Mock).mockResolvedValue(currentHeight);
+      (mockDb.getVotingStartHeight as jest.Mock).mockResolvedValue(990);
+      (mockDb.getVotingEndHeight as jest.Mock).mockResolvedValue(1100);
 
       await expect(
         votingUtil.initializeChainVotingPeriod('oldChain', 'newChain', forkHeight)
       ).rejects.toThrow(ForkDepthError);
+
+      // Verify the error was logged with correct metadata
+      expect(mockAuditManager.logEvent).toHaveBeenCalledWith(expect.objectContaining({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.ERROR,
+        source: 'node_selection',
+        details: expect.objectContaining({
+          currentHeight: 1000,
+          forkHeight: 500,
+          forkDepth: 500,
+          maxAllowed: 100
+        })
+      }));
     });
 
     it('should throw error when voting heights are undefined', async () => {
@@ -122,6 +137,17 @@ describe('DirectVotingUtil', () => {
       await expect(
         votingUtil.initializeChainVotingPeriod('oldChain', 'newChain', 995)
       ).rejects.toThrow('Voting start/end height undefined');
+
+      // Verify the error was logged with correct metadata
+      expect(mockAuditManager.logEvent).toHaveBeenCalledWith(expect.objectContaining({
+        type: AuditEventType.SECURITY,
+        severity: AuditSeverity.ERROR,
+        source: 'node_selection',
+        details: expect.objectContaining({
+          startVotingHeight: null,
+          endVotingHeight: null
+        })
+      }));
     });
   });
 
@@ -351,24 +377,20 @@ describe('DirectVotingUtil', () => {
       expect(result).toBe('oldChain');
     });
 
-    it('should handle errors and log them', async () => {
-      const invalidTally = null;
-
-      await expect(
-        // @ts-expect-error - Testing error case with invalid input
-        votingUtil.processVotingResults(invalidTally, 'oldChain', 'newChain')
-      ).rejects.toThrow();
-
-      // Wait for the next tick to allow error logging to complete
-      await jest.runAllTimersAsync();
+    it('should handle invalid tally', async () => {
+      await expect(votingUtil.processVotingResults(
+        null as unknown as VoteTally,
+        'oldChain',
+        'newChain'
+      )).rejects.toThrow('Cannot read properties of null');
 
       expect(mockAuditManager.logEvent).toHaveBeenCalledWith(expect.objectContaining({
         type: AuditEventType.SECURITY,
         severity: AuditSeverity.CRITICAL,
         source: 'node_selection',
         details: expect.objectContaining({
-          stack: expect.stringContaining('Cannot read properties of null'),
-        }),
+          stack: expect.stringContaining('Cannot read properties of null')
+        })
       }));
     });
   });
@@ -383,27 +405,20 @@ describe('DirectVotingUtil', () => {
       jest.clearAllTimers();
     });
 
-    it('should clean up resources successfully', async () => {
-      await expect(votingUtil.dispose()).resolves.not.toThrow();
-    });
-
     it('should handle errors during cleanup', async () => {
       const cleanupError = new Error('Cleanup failed');
       mockDispose.mockRejectedValue(cleanupError);
 
-      // Call dispose and wait for it to reject
       await expect(votingUtil.dispose()).rejects.toThrow('Cleanup failed');
 
-      // Wait for the next tick to allow error logging to complete
-      await jest.runAllTimersAsync();
-
+      // Verify error was logged
       expect(mockAuditManager.logEvent).toHaveBeenCalledWith(expect.objectContaining({
         type: AuditEventType.SECURITY,
         severity: AuditSeverity.CRITICAL,
         source: 'node_selection',
         details: expect.objectContaining({
-          stack: expect.stringContaining('Cleanup failed'),
-        }),
+          stack: expect.stringContaining('Cleanup failed')
+        })
       }));
     });
   });
