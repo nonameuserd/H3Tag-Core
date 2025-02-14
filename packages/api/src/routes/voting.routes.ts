@@ -1,18 +1,8 @@
 import { Router } from 'express';
 import { VotingController } from '../controllers/voting.controller';
 import { VotingService } from '../services/voting.service';
-import {
-  DirectVoting,
-  BlockchainSchema,
-  AuditManager,
-  Node,
-  Mempool,
-  Blockchain,
-  DirectVotingUtil,
-  VotingDatabase,
-  BlockchainSync,
-} from '@h3tag-blockchain/core';
 import { ConfigService } from '@h3tag-blockchain/shared';
+import { VotingDatabase, DirectVoting, DirectVotingUtil, AuditManager, BlockchainSchema, Blockchain, Mempool, Node, Peer, BlockchainSync } from '@h3tag-blockchain/core';
 
 /**
  * @swagger
@@ -30,9 +20,48 @@ const auditManager = new AuditManager();
 const votingUtil = new DirectVotingUtil(db, auditManager);
 const mempool = new Mempool(blockchain);
 const node = new Node(blockchain, db, mempool, configService, auditManager);
-const sync = new BlockchainSync(blockchain, mempool, new Map(), {
-  publicKey: '',
-}, db);
+
+// Initialize peer with correct parameters
+const peerConfig = {
+  minPingInterval: 30000,
+  handshakeTimeout: 5000,
+  maxBanScore: 100,
+};
+
+const peer = new Peer(
+  configService.get('PEER_URL', 'localhost'),
+  configService.get('PEER_PORT', 3000),
+  peerConfig,
+  configService,
+  db
+);
+
+// Initialize peers map and add peer after handshake
+const peers = new Map<string, Peer>();
+
+// Initialize sync with correct parameter order
+const sync = new BlockchainSync(
+  blockchain,
+  mempool,
+  peers,
+  { publicKey: configService.get('CONSENSUS_PUBLIC_KEY', '') },
+  db,
+);
+
+// Connect peer and add to peers map after handshake
+peer.handshake().then(() => {
+  const peerId = peer.getId();
+  peers.set(peerId, peer);
+  // Update sync dependencies with new peers map
+  Object.assign(sync, { peers });
+}).catch(error => {
+  console.error('Failed to connect to peer:', error);
+});
+
+// Start sync process
+sync.startSync().catch(error => {
+  console.error('Failed to start blockchain sync:', error);
+});
 
 // Initialize DirectVoting with required dependencies
 const directVoting = new DirectVoting(
@@ -41,7 +70,7 @@ const directVoting = new DirectVoting(
   auditManager,
   votingUtil,
   node,
-  sync,
+  sync
 );
 
 const votingService = new VotingService(directVoting);

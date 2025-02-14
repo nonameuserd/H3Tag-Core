@@ -473,22 +473,23 @@ export class PeerService {
 
   async getNetworkInfo(): Promise<NetworkInfoDto> {
     try {
-      const networkInfo = this.networkStats.getNetworkInfo();
+      const info = this.networkStats.getNetworkInfo();
 
-      return {
-        version: networkInfo.version,
-        protocolVersion: networkInfo.protocolVersion,
-        connections: networkInfo.connections.total,
-        inbound: networkInfo.connections.inbound,
-        outbound: networkInfo.connections.outbound,
-        networkActive: networkInfo.connections.total > 0,
-        localAddresses: networkInfo.localAddresses,
+      // Create NetworkInfoDto with proper type checking
+      const networkInfoDto: NetworkInfoDto = {
+        version: info.version || undefined,
+        protocolVersion: info.protocolVersion || undefined,
+        connections: info.connections?.total || undefined,
+        inbound: info.connections?.inbound || undefined,
+        outbound: info.connections?.outbound || undefined,
+        networkActive: info.connections?.total > 0 || undefined,
+        localAddresses: info.localAddresses || undefined,
       };
+
+      return networkInfoDto;
     } catch (error: unknown) {
       Logger.error('Failed to get network info:', error);
-      throw new Error(
-        `Failed to get network info: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      );
+      throw error;
     }
   }
 }

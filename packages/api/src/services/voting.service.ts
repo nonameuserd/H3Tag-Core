@@ -56,15 +56,22 @@ export class VotingService {
 
   async getVotingMetrics(): Promise<VotingMetricsDto> {
     try {
-      const metrics = this.directVoting.getVotingMetrics();
+      const metricsPromise = this.directVoting.getVotingMetrics();
+      const [totalVotes, participationRate, activeVoters, currentPeriod] = await Promise.all([
+        metricsPromise.totalVotes,
+        metricsPromise.participationRate,
+        metricsPromise.activeVoters,
+        metricsPromise.currentPeriod
+      ]);
+      
       return {
-        totalVotes: await metrics.totalVotes,
-        participationRate: await metrics.participationRate,
-        activeVoters: Number(await metrics.activeVoters),
-        currentPeriod: metrics.currentPeriod ? {
-          periodId: metrics.currentPeriod.periodId.toString(),
-          startHeight: Number(metrics.currentPeriod.startHeight),
-          endHeight: Number(metrics.currentPeriod.endHeight),
+        totalVotes,
+        participationRate,
+        activeVoters: activeVoters.length,
+        currentPeriod: currentPeriod ? {
+          periodId: currentPeriod.periodId.toString(),
+          startHeight: Number(currentPeriod.startHeight),
+          endHeight: Number(currentPeriod.endHeight),
         } : undefined,
       };
     } catch (error) {
