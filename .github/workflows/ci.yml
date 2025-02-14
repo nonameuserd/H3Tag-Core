@@ -65,32 +65,6 @@ jobs:
       - name: Derive appropriate SHAs for base and head for `nx affected` commands
         uses: nrwl/nx-set-shas@v3
 
-      # NX cache
-      - name: NX Cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            dist
-            build
-            .nx/cache
-          key: ${{ runner.os }}-nx-${{ hashFiles('**/yarn.lock') }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-nx-${{ hashFiles('**/yarn.lock') }}-
-            ${{ runner.os }}-nx-
-
-      - name: Clean all caches
-        run: |
-          echo "Forcing a fresh build by cleaning all caches..."
-          # Reset Nx state
-          yarn nx reset
-          # Remove liboqs related directories
-          sudo rm -rf /usr/local/lib/liboqs* /usr/local/include/oqs /usr/local/lib/cmake/liboqs
-          # Remove build caches and node modules
-          rm -rf dist build .nx/cache node_modules
-          # Clean Yarn cache
-          yarn cache clean
-          echo "All caches have been cleaned."
-
       - name: Install dependencies
         run: yarn install --frozen-lockfile --ignore-engines
 
@@ -107,9 +81,6 @@ jobs:
           # First build shared and crypto (base packages)
           yarn nx build @h3tag-blockchain/shared --verbose
           yarn nx build @h3tag-blockchain/crypto --verbose
-
-          # Clear NX cache for core and rebuild
-          yarn nx reset
 
           # Build core with explicit output path
           yarn nx build @h3tag-blockchain/core --verbose --skip-nx-cache
@@ -183,3 +154,14 @@ jobs:
             **/coverage
             **/lcov.info
           retention-days: 14
+
+      - name: Clean all caches
+        run: |
+          echo "Forcing a fresh build by cleaning all caches..."
+          # Remove liboqs related directories
+          sudo rm -rf /usr/local/lib/liboqs* /usr/local/include/oqs /usr/local/lib/cmake/liboqs
+          # Remove build caches and node modules
+          rm -rf dist build node_modules
+          # Clean Yarn cache
+          yarn cache clean
+          echo "All caches have been cleaned."
