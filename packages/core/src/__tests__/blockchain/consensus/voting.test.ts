@@ -293,7 +293,7 @@ describe('DirectVoting', () => {
       const invalidVote = { 
         ...validVote, 
         chainVoteData: { 
-          amount: BigInt("-1"),
+          amount: BigInt('-1'),
           targetChainId: 'chain1',
           forkHeight: 1000
         } 
