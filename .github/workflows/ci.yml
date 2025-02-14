@@ -87,8 +87,14 @@ jobs:
       - name: Build crypto package
         run: yarn nx build @h3tag-blockchain/crypto
 
-      - name: Build remaining packages
-        run: yarn nx run-many --target=build --projects=@h3tag-blockchain/core,@h3tag-blockchain/api,@h3tag-blockchain/cli --parallel=false
+      - name: Build core package
+        run: yarn nx build @h3tag-blockchain/core
+
+      - name: Build api package
+        run: yarn nx build @h3tag-blockchain/api
+
+      - name: Build cli package
+        run: yarn nx build @h3tag-blockchain/cli
 
       - name: Lint affected projects
         run: yarn nx affected:lint --parallel=3
