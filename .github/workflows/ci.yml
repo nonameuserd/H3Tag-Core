@@ -132,18 +132,14 @@ jobs:
           echo "Core build output after tsc:"
           ls -la packages/core/dist/
 
-          # Copy core types to node_modules for proper resolution
-          rm -rf node_modules/@h3tag-blockchain/core/dist
-          mkdir -p node_modules/@h3tag-blockchain/core/dist
-          if [ "$(readlink -f packages/core/dist)" = "$(readlink -f node_modules/@h3tag-blockchain/core/dist)" ]; then
-            echo "Skipping copy; source and destination are the same"
-          else
-            cp -r packages/core/dist/. node_modules/@h3tag-blockchain/core/dist/ || {
-              echo "Failed to copy core dist files. Directory contents:"
-              ls -la packages/core/dist/
-              exit 1
-            }
-          fi
+          # Copy core package to node_modules for proper resolution
+          rm -rf node_modules/@h3tag-blockchain/core
+          mkdir -p node_modules/@h3tag-blockchain/core
+          cp -r packages/core/* node_modules/@h3tag-blockchain/core/ || {
+            echo "Failed to copy core package files. Directory contents:"
+            ls -la packages/core/
+            exit 1
+          }
 
           # Set TypeScript to use project references
           export TS_NODE_PROJECT="tsconfig.json"
