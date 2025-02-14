@@ -109,16 +109,28 @@ jobs:
           # Ensure core package is built correctly with source files
           echo "Building core package with TypeScript..."
           cd packages/core
-          # First build just the source files
-          yarn tsc --project tsconfig.json --rootDir src --outDir dist/src
-          # Then build the jest config
-          yarn tsc jest.config.ts --outDir dist
+
+          # Create a temporary tsconfig for building just the source files
+          echo '{
+            "extends": "./tsconfig.json",
+            "include": ["src/**/*"],
+            "exclude": ["jest.config.ts", "**/*.test.ts", "**/__tests__/**/*"],
+            "compilerOptions": {
+              "rootDir": "src",
+              "outDir": "dist"
+            }
+          }' > tsconfig.build.json
+
+          # Build using the temporary config
+          yarn tsc --project tsconfig.build.json
+
+          # Clean up
+          rm tsconfig.build.json
           cd ../..
 
           # Debug after direct TypeScript build
           echo "Core build output after tsc:"
           ls -la packages/core/dist/
-          ls -la packages/core/dist/src/ || echo "src directory is empty"
 
           # Copy core types to node_modules for proper resolution
           rm -rf node_modules/@h3tag-blockchain/core/dist
@@ -126,7 +138,6 @@ jobs:
           cp -r packages/core/dist/* node_modules/@h3tag-blockchain/core/dist/ || {
             echo "Failed to copy core dist files. Directory contents:"
             ls -la packages/core/dist/
-            ls -la packages/core/dist/src/ || echo "src directory is empty"
             exit 1
           }
 
