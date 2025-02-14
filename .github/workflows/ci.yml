@@ -81,20 +81,29 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile --ignore-engines
 
-      - name: Build shared package first
-        run: yarn nx build @h3tag-blockchain/shared
+      # Build all packages in sequence with proper module resolution
+      - name: Build all packages
+        run: |
+          # Create dist directories to ensure proper module resolution
+          mkdir -p packages/shared/dist
+          mkdir -p packages/crypto/dist
+          mkdir -p packages/core/dist
+          mkdir -p packages/api/dist
+          mkdir -p packages/cli/dist
 
-      - name: Build crypto package
-        run: yarn nx build @h3tag-blockchain/crypto
+          # First build shared and crypto (base packages)
+          yarn nx build @h3tag-blockchain/shared --verbose
+          yarn nx build @h3tag-blockchain/crypto --verbose
 
-      - name: Build core package
-        run: yarn nx build @h3tag-blockchain/core
+          # Build core with references to shared and crypto
+          yarn nx build @h3tag-blockchain/core --verbose
 
-      - name: Build api package
-        run: yarn nx build @h3tag-blockchain/api
+          # Ensure TypeScript can find the built packages
+          export TS_NODE_PROJECT="tsconfig.json"
 
-      - name: Build cli package
-        run: yarn nx build @h3tag-blockchain/cli
+          # Build API and CLI with all dependencies
+          yarn nx build @h3tag-blockchain/api --verbose
+          yarn nx build @h3tag-blockchain/cli --verbose
 
       - name: Lint affected projects
         run: yarn nx affected:lint --parallel=3
