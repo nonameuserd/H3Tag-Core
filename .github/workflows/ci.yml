@@ -95,11 +95,18 @@ jobs:
           yarn nx build @h3tag-blockchain/shared --verbose
           yarn nx build @h3tag-blockchain/crypto --verbose
 
-          # Build core with references to shared and crypto
+          # Build core and ensure its artifacts are available
           yarn nx build @h3tag-blockchain/core --verbose
 
-          # Ensure TypeScript can find the built packages
+          # Copy core types to node_modules for proper resolution
+          mkdir -p node_modules/@h3tag-blockchain/core
+          cp -r packages/core/dist/* node_modules/@h3tag-blockchain/core/
+          cp packages/core/package.json node_modules/@h3tag-blockchain/core/
+
+          # Set TypeScript to use project references
           export TS_NODE_PROJECT="tsconfig.json"
+          export TS_NODE_BASEURL="./packages"
+          export TS_NODE_PATHS="packages/**/dist"
 
           # Build API and CLI with all dependencies
           yarn nx build @h3tag-blockchain/api --verbose
