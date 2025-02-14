@@ -1,4 +1,4 @@
-name: CI for H3Tag
+name: CI for H3Tag Blockchain
 
 on:
   push:
@@ -98,7 +98,7 @@ jobs:
 
       # Upload coverage reports
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
           path: |
