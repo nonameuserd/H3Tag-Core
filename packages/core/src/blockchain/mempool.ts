@@ -396,31 +396,12 @@ export class Mempool {
   public bytes: number = 0;
   public usage: number = 0;
 
-  private readonly SCRIPT_OPCODES = {
-    // Stack operations
-    OP_0: 0x00,
-    OP_PUSHDATA1: 0x4c,
-    OP_PUSHDATA2: 0x4d,
-    OP_PUSHDATA4: 0x4e,
-    OP_1: 0x51,
-    OP_16: 0x60,
-
-    // Flow control
-    OP_IF: 0x63,
-    OP_ELSE: 0x67,
-    OP_ENDIF: 0x68,
-    OP_VERIFY: 0x69,
-    OP_RETURN: 0x6a,
-
-    // Crypto
-    OP_HASH160: 0xa9,
-    OP_CHECKSIG: 0xac,
-    OP_CHECKMULTISIG: 0xae,
-  } as const;
+  // Add a configurable property for the base fee rate.
+  private baseMinFee: number;
 
   private inputIndex: Map<string, string> = new Map(); // Key: `${txId}-${outputIndex}`, Value: Transaction hash
 
-  constructor(blockchain: Blockchain) {
+  constructor(blockchain: Blockchain, baseMinFee?: number) {
     this.blockchain = blockchain;
     this.transactions = new Map();
     this.feeRateBuckets = new Map();
@@ -429,6 +410,10 @@ export class Mempool {
     this.reputationSystem = new Map();
     this.lastVoteHeight = new Map();
     this.voteCounter = new Map();
+    // Use the provided base fee or default to the constant.
+    this.baseMinFee = baseMinFee !== undefined
+      ? Number(baseMinFee)
+      : Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE);
 
     // Initialize fee rate buckets
     this.initializeFeeRateBuckets();
@@ -1447,11 +1432,11 @@ export class Mempool {
       // Get current mempool metrics
       const currentSize = this.transactions.size;
       const maxSize = await this.getMaxSize();
-      const baseMinFee = await this.getMinFeeRate();
-
+      const baseMinFee = this.baseMinFee;
+      
       // Calculate congestion levels
       const congestionFactor = currentSize / maxSize;
-
+      
       // Progressive fee scaling based on congestion levels
       let multiplier: number;
       if (congestionFactor <= 0.5) {
@@ -1463,18 +1448,18 @@ export class Mempool {
       } else {
         multiplier = 4 + Math.pow(congestionFactor - 0.9, 2) * 16;
       }
-
+      
       // Calculate final fee rate with safety bounds
       const dynamicFee = Math.floor(baseMinFee * multiplier);
       const maxFee = baseMinFee * 20; // Cap at 20x base fee
-
+      
       Logger.debug('Dynamic fee calculation', {
         congestion: `${(congestionFactor * 100).toFixed(2)}%`,
         multiplier: multiplier.toFixed(2),
         baseFee: baseMinFee,
         dynamicFee,
       });
-
+      
       return Math.min(dynamicFee, maxFee);
     } catch (error: unknown) {
       Logger.error('Dynamic fee calculation failed:', error);
@@ -1485,9 +1470,8 @@ export class Mempool {
       });
       // Use a more reasonable fallback
       return Math.max(
-        Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE),
-        this.lastValidFee ||
-          Number(BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE) * 2,
+        this.baseMinFee,
+        this.lastValidFee || this.baseMinFee * 2,
       );
     }
   }
@@ -1519,10 +1503,51 @@ export class Mempool {
     }
   }
 
-  public dispose(): void {
-    if (this.cleanupInterval) {
-      clearInterval(this.cleanupInterval);
-      this.cleanupInterval = undefined;
+  public async dispose(): Promise<void> {
+    try {
+      // Clear cleanup interval
+      if (this.cleanupInterval) {
+        clearInterval(this.cleanupInterval);
+        this.cleanupInterval = undefined;
+      }
+
+      // Dispose of health monitor
+      if (this.healthMonitor) {
+        await this.healthMonitor.dispose();
+      }
+
+      // Dispose of audit manager
+      if (this.auditManager) {
+        await this.auditManager.dispose();
+      }
+
+      // Dispose of DDoS protection
+      if (this.ddosProtection) {
+        await this.ddosProtection.dispose();
+      }
+
+      // Clear all maps
+      this.transactions.clear();
+      this.feeRateBuckets.clear();
+      this.ancestorMap.clear();
+      this.descendantMap.clear();
+      this.reputationSystem.clear();
+      this.lastVoteHeight.clear();
+      this.voteCounter.clear();
+      this.inputIndex.clear();
+      this.transactionMutexes.clear();
+      this.mempoolStateCache.clear();
+      this.consecutiveMisses.clear();
+      this.activeValidators.clear();
+
+      // Clear caches
+      this.cache.clear();
+      this.powCache.clear();
+
+      Logger.info('Mempool disposed successfully');
+    } catch (error) {
+      Logger.error('Error disposing mempool:', error);
+      throw error;
     }
   }
 
@@ -2534,27 +2559,13 @@ export class Mempool {
   }
 
   private async validateTransactionInputs(tx: Transaction): Promise<boolean> {
-    const mutex = this.getMutexForTransaction(tx.id);
-    let release: (() => void) | undefined;
-
     try {
-      // Add timeout to prevent deadlock
-      const acquirePromise = mutex.acquire();
-      const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Mutex acquisition timeout')), 5000);
-      });
-
-      release = await Promise.race([acquirePromise, timeoutPromise]);
-
-      // Validate inputs
+      // Validate inputs without re-acquiring the transaction mutex
       const spentUTXOs = new Set<string>();
       const validationPromises = tx.inputs.map(async (input) => {
         const utxoKey = `${input.txId}:${input.outputIndex}`;
-
         if (spentUTXOs.has(utxoKey)) {
-          throw new Error(
-            `Double-spend detected within transaction: ${utxoKey}`,
-          );
+          throw new Error(`Double-spend detected within transaction: ${utxoKey}`);
         }
 
         const [utxo, isSpentInMempool] = await Promise.all([
@@ -2578,8 +2589,6 @@ export class Mempool {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
-    } finally {
-      if (release) release();
     }
   }
 
@@ -2948,7 +2957,8 @@ export class Mempool {
   public async getCongestionFactor(): Promise<number> {
     try {
       const currentSize = this.transactions.size;
-      const maxSize = await this.getMaxSize();
+      // Use the constant MAX_SIZE directly to avoid circular dependency
+      const maxSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
       return Math.min(currentSize / maxSize, 1);
     } catch (error) {
       Logger.error('Failed to get congestion factor:', error);
@@ -2968,7 +2978,9 @@ export class Mempool {
   public async getMaxSize(): Promise<number> {
     try {
       const baseMaxSize = BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MAX_SIZE;
-      const congestionFactor = await this.getCongestionFactor();
+      // Calculate congestion directly here instead of calling getCongestionFactor
+      const currentSize = this.transactions.size;
+      const congestionFactor = Math.min(currentSize / baseMaxSize, 1);
 
       // More gradual size reduction based on congestion
       const dynamicSize = Math.floor(

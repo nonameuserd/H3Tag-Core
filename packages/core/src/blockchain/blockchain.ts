@@ -346,6 +346,9 @@ export class Blockchain {
     this.auditManager = new AuditManager();
     this.merkleTree = new MerkleTree();
 
+    // Bind the createGenesisBlock method to the instance
+    this.createGenesisBlock = this.createGenesisBlock.bind(this);
+
     this.healthMonitor = new HealthMonitor({
       interval: 1000,
       thresholds: {
@@ -661,17 +664,38 @@ export class Blockchain {
    * @returns Promise<Blockchain> New blockchain instance
    */
   public static async create(config?: BlockchainConfig): Promise<Blockchain> {
-    if (!Blockchain.instance) {
-      Blockchain.instance = new Blockchain(config);
-      await Blockchain.instance.initializeAsync(config);
+    try {
+      if (!Blockchain.instance) {
+        const instance = new Blockchain(config);
+        
+        // Ensure database is connected
+        await instance.db.ping();
+
+        // Initialize the blockchain instance
+        instance.chain = [];
+        instance.genesisBlock = instance.createGenesisBlock();
+        await instance.db.saveBlock(instance.genesisBlock);
+        instance.chain.push(instance.genesisBlock);
+
+        // Initialize consensus and validate genesis block
+        await instance.consensus.pow.validateBlock(instance.genesisBlock);
+
+        // Start the blockchain
+        await instance.start();
+        
+        Blockchain.instance = instance;
+      }
+      return Blockchain.instance;
+    } catch (error) {
+      Logger.error('Failed to create blockchain instance:', error);
+      throw error;
     }
-    return Blockchain.instance;
   }
 
   /**
    * Create the genesis block
    */
-  private createGenesisBlock(): Block {
+  public createGenesisBlock(): Block {
     const timestamp = Date.now();
     const block: Block = {
       header: {
@@ -2624,9 +2648,9 @@ export class Blockchain {
     return this.consensusPublicKey.publicKey;
   }
 
-  public static getInstance(config?: BlockchainConfig): Blockchain {
+  public static getInstance(): Blockchain {
     if (!Blockchain.instance) {
-      Blockchain.instance = new Blockchain(config);
+      throw new Error('Blockchain not initialized. Call create() first.');
     }
     return Blockchain.instance;
   }
