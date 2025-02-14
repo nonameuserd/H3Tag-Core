@@ -116,7 +116,7 @@ export class ZeroCopyCompression {
    */
   private createBindGroup(
     buffer: ArrayBuffer,
-    compressionLevel: number = 1,
+    compressionLevel = 1,
   ): GPUBindGroup {
     if (!buffer || buffer.byteLength <= 0) {
       throw new Error('Invalid buffer');

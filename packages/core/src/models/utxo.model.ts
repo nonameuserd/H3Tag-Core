@@ -203,7 +203,7 @@ export class UTXOSet {
   private static readonly MAX_UTXOS = 10000;
   private utxos: Map<string, UTXO> = new Map();
   private readonly merkleTree: MerkleTree;
-  private height: number = 0;
+  private height = 0;
   private heightCache: { value: number; timestamp: number } | null = null;
   private lastOperationTimestamp = 0;
   private readonly MIN_OPERATION_INTERVAL = 100; // ms
@@ -212,7 +212,7 @@ export class UTXOSet {
   private static readonly BATCH_SIZE = 100;
   private static readonly VERIFICATION_TIMEOUT = 5000; // 5 seconds
   private readonly mutex = new Mutex();
-  private merkleRoot: string = '';
+  private merkleRoot = '';
   private readonly db: UTXODatabase;
   private cache: Map<string, UTXO[]> = new Map();
   private blockchainSchema: BlockchainSchema | null = null;
@@ -1415,7 +1415,7 @@ export class UTXOSet {
   public async getTxOut(
     txId: string,
     n: number,
-    includeMempool: boolean = true,
+    includeMempool = true,
   ): Promise<TxOutInfo | null> {
     const release = await this.mutex.acquire();
     try {

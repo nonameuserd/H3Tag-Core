@@ -358,8 +358,8 @@ export class DirectVotingUtil {
 
     // Check cache first and evict expired entry
     if (this.voteCache.has(cacheKey)) {
-      const entry = this.voteCache.get(cacheKey)!;
-      if (now - entry.timestamp < this.VOTE_CACHE_TTL) {
+      const entry = this.voteCache.get(cacheKey);
+      if (entry && now - entry.timestamp < this.VOTE_CACHE_TTL) {
         return entry.value;
       } else {
         this.voteCache.delete(cacheKey);

@@ -37,7 +37,7 @@ export class WasmVoteProcessor {
   private initialized = false;
 
   // Make the constructor private so that users create instances via the async factory.
-  private constructor() {}
+  private constructor() { /* no initialization required */ }
 
   /**
    * Asynchronously creates and initializes a new WasmVoteProcessor.

@@ -67,7 +67,7 @@ export interface IVotingSchema {
 
 export class VotingDatabase implements IVotingSchema {
   private db: Level;
-  private isInitialized: boolean = false;
+  private isInitialized = false;
   private cache: Cache<Vote | VotingPeriod>;
   private mutex: Mutex;
   private readonly BATCH_SIZE = 1000;

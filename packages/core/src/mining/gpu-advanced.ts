@@ -39,7 +39,7 @@ interface MiningResult {
 export class AdvancedGPUMiner extends GPUMiner {
   protected readonly MAX_NONCE = Math.pow(2, 32) - 1;
   private workgroupSize = 256;
-  private maxComputeUnits: number = 0;
+  private maxComputeUnits = 0;
   private shaderCache: Map<string, GPUComputePipeline> = new Map();
   private blockBuffer: GPUBuffer | null = null;
   private resultBuffer: GPUBuffer | null = null;

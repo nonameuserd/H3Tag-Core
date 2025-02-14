@@ -35,25 +35,25 @@ import { Mutex } from 'async-mutex';
  * const avgHashRate = metrics.getAverageHashRate();
  */
 export class MiningMetrics {
-  public totalBlocks: number = 0;
-  public successfulBlocks: number = 0;
-  public lastMiningTime: number = 0;
-  public averageHashRate: number = 0;
-  public totalTAGMined: number = 0;
-  public currentBlockReward: number = 0;
-  public tagTransactionsCount: number = 0;
-  public timestamp: bigint = BigInt(0);
-  public blockHeight: number = 0;
-  public hashRate: number = 0;
-  public difficulty: number = 0;
-  public blockTime: number = 0;
-  public tagVolume: number = 0;
-  public tagFees: number = 0;
+  public totalBlocks = 0;
+  public successfulBlocks = 0;
+  public lastMiningTime = 0;
+  public averageHashRate = 0;
+  public totalTAGMined = 0;
+  public currentBlockReward = 0;
+  public tagTransactionsCount = 0;
+  public timestamp = BigInt(0);
+  public blockHeight = 0;
+  public hashRate = 0;
+  public difficulty = 0;
+  public blockTime = 0;
+  public tagVolume = 0;
+  public tagFees = 0;
   public lastBlockTime: number = Date.now();
-  public syncedHeaders: number = 0;
-  public syncedBlocks: number = 0;
-  public whitelistedPeers: number = 0;
-  public blacklistedPeers: number = 0;
+  public syncedHeaders = 0;
+  public syncedBlocks = 0;
+  public whitelistedPeers = 0;
+  public blacklistedPeers = 0;
   private static instance: MiningMetrics;
   private metrics: {
     hashRate: { timestamp: bigint, value: number }[];
@@ -135,7 +135,7 @@ export class MiningMetrics {
    * @param {number} [timeWindow=3600000] - Time window in milliseconds (default: 1 hour)
    * @returns {number} Average hash rate or 0 if no data
    */
-  public getAverageHashRate(timeWindow: number = 3600000): number {
+  public getAverageHashRate(timeWindow = 3600000): number {
     try {
       const cutoff = BigInt(Date.now() - timeWindow);
       const recentData = this.metrics.hashRate.filter(m => m.timestamp > cutoff);
@@ -153,7 +153,7 @@ export class MiningMetrics {
    * @param {number} [timeWindow=3600000] - Time window in milliseconds (default: 1 hour)
    * @returns {number} Average TAG volume or 0 if no data
    */
-  getAverageTAGVolume(timeWindow: number = 3600000): number {
+  getAverageTAGVolume(timeWindow = 3600000): number {
     try {
       const cutoff = BigInt(Date.now() - timeWindow);
       const recentData = this.metrics.tagVolume.filter(m => m.timestamp > cutoff);
@@ -176,7 +176,7 @@ export class MiningMetrics {
    * @param {number} [timeWindow=3600000] - Time window in milliseconds (default: 1 hour)
    * @returns {number} Average TAG fees or 0 if no data
    */
-  getAverageTAGFees(timeWindow: number = 3600000): number {
+  getAverageTAGFees(timeWindow = 3600000): number {
     try {
       const cutoff = BigInt(Date.now() - timeWindow);
       const recentData = this.metrics.tagFees.filter(m => m.timestamp > cutoff);

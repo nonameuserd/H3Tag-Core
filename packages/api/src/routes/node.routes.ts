@@ -46,7 +46,7 @@ router.post('/testnet', async (req, res) => {
     const result = await nodeController.createTestnetNode(req.body);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', message: (error as Error).message });
   }
 });
 
@@ -77,7 +77,7 @@ router.post('/mainnet', async (req, res) => {
     const result = await nodeController.createMainnetNode(req.body);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', message: (error as Error).message });
   }
 });
 
@@ -108,7 +108,11 @@ router.get('/:nodeId/status', async (req, res) => {
     const result = await nodeController.getNodeStatus(req.params.nodeId);
     res.json(result);
   } catch (error: unknown) {
-    res.status(404).json({ error: 'Node not found' });
+    if ((error as Error).message.includes('not found')) {
+      res.status(404).json({ error: 'Node not found' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', message: (error as Error).message });
+    }
   }
 });
 
@@ -144,7 +148,7 @@ router.post('/:nodeId/stop', async (req, res) => {
     const result = await nodeController.stopNode(req.params.nodeId);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', message: (error as Error).message });
   }
 });
 
@@ -180,7 +184,7 @@ router.get('/:nodeId/validators', async (req, res) => {
     const result = await nodeController.getActiveValidators(req.params.nodeId);
     res.json(result);
   } catch (error: unknown) {
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Internal server error', message: (error as Error).message });
   }
 });
 

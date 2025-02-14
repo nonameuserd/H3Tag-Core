@@ -289,7 +289,7 @@ export class TransactionBuilder {
 
   public type: TransactionType;
   private timestamp: number;
-  private fee: bigint = BigInt(0);
+  private fee = BigInt(0);
   private static readonly MAX_INPUTS = 1500; // Bitcoin-like limit
   private static readonly MAX_OUTPUTS = 1500;
   private inputs: TxInput[] = [];
@@ -298,8 +298,8 @@ export class TransactionBuilder {
   private readonly db: BlockchainSchema;
   private static readonly blockchain = Blockchain.getInstance();
   private readonly mutex = new Mutex();
-  private signature: string = '';
-  private sender: string = '';
+  private signature = '';
+  private sender = '';
   private emitter: EventEmitter;
 
   constructor() {
@@ -1895,7 +1895,7 @@ export class TransactionBuilder {
  * @param {number} targetBlocks - Number of blocks within which the transaction should be included
  * @returns {Promise<bigint>} Estimated fee in smallest currency unit
  */
-export async function estimateFee(targetBlocks: number = 6): Promise<bigint> {
+export async function estimateFee(targetBlocks = 6): Promise<bigint> {
   try {
     // Input validation
     if (targetBlocks < 1 || targetBlocks > 1008) {

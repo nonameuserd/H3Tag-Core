@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">7.01% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>8/114</span>
+                <span class='fraction'>0/114</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">7.01% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>8/114</span>
+                <span class='fraction'>0/114</span>
             </div>
         
             
@@ -464,14 +464,14 @@
 <a name='L399'></a><a href='#L399'>399</a>
 <a name='L400'></a><a href='#L400'>400</a>
 <a name='L401'></a><a href='#L401'>401</a>
-<a name='L402'></a><a href='#L402'>402</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<a name='L402'></a><a href='#L402'>402</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -533,8 +533,8 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -543,7 +543,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">2x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -865,14 +865,14 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { EventEmitter } from 'events';
-import { Cache } from '../scaling/cache';
-import { AuditManager, AuditEventType, AuditSeverity } from './audit';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { EventEmitter } from 'events';</span>
+<span class="cstat-no" title="statement not covered" >import { Cache } from '../scaling/cache';</span>
+<span class="cstat-no" title="statement not covered" >import { AuditManager, AuditEventType, AuditSeverity } from './audit';</span>
 import { Request, Response, NextFunction } from 'express';
-import { Logger } from '@h3tag-blockchain/shared';
-import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
+<span class="cstat-no" title="statement not covered" >import { Logger } from '@h3tag-blockchain/shared';</span>
+<span class="cstat-no" title="statement not covered" >import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';</span>
 &nbsp;
-export class RateLimitError extends Error {
+<span class="cstat-no" title="statement not covered" >export class R</span>ateLimitError extends Error {
 <span class="fstat-no" title="function not covered" >  constructor(</span>
     message: string,
     public readonly <span class="cstat-no" title="statement not covered" >code: string,</span>
@@ -934,7 +934,7 @@ interface RateLimitMetrics {
   currency: string;
 }
 &nbsp;
-export class RateLimit {
+<span class="cstat-no" title="statement not covered" >export class R</span>ateLimit {
   private readonly <span class="cstat-no" title="statement not covered" >eventEmitter = new EventEmitter();</span>
   private limiter: Cache&lt;RateLimitInfo&gt;;
   private readonly config: RateLimitConfig;
@@ -944,7 +944,7 @@ export class RateLimit {
   private readonly <span class="cstat-no" title="statement not covered" >MAX_REQUESTS = 100;</span>
   private readonly <span class="cstat-no" title="statement not covered" >WINDOW_MS = 60000; </span>// 1 minute
 &nbsp;
-  private static readonly DEFAULT_CONFIG: RateLimitConfig = {
+  private static readonly <span class="cstat-no" title="statement not covered" >DEFAULT_CONFIG: RateLimitConfig = {</span>
     windowMs: 60000,
     maxRequests: {
       pow: 200,
@@ -1273,7 +1273,7 @@ export class RateLimit {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-13T02:53:53.630Z
+                at 2025-02-14T01:25:22.986Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

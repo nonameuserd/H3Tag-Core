@@ -9,7 +9,7 @@ export class ErrorMonitor extends EventEmitter {
   private readonly alertedErrorTypes: Set<string> = new Set();
   private readonly cleanupInterval: NodeJS.Timeout;
 
-  constructor(private readonly windowSize: number = 3600000) {
+  constructor(private readonly windowSize = 3600000) {
     super();
     this.cleanupInterval = setInterval(() => this.cleanup(), this.windowSize);
   }

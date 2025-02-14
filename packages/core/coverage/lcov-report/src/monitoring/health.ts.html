@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">37.83% </span>
+                <span class="strong">16.21% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>14/37</span>
+                <span class='fraction'>6/37</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">28.57% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>8/28</span>
+                <span class='fraction'>0/28</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">40% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>2/5</span>
+                <span class='fraction'>0/5</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">37.83% </span>
+                <span class="strong">16.21% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>14/37</span>
+                <span class='fraction'>6/37</span>
             </div>
         
             
@@ -247,11 +247,11 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -295,28 +295,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">6x</span>
-<span class="cline-any cline-yes">41x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">41x</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">41x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">41x</span>
-<span class="cline-any cline-yes">41x</span>
-<span class="cline-any cline-yes">41x</span>
-<span class="cline-any cline-yes">41x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">1x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -327,8 +306,29 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -473,7 +473,7 @@ export interface HealthMonitorConfig {
  * const health = await monitor.getNetworkHealth();
  */
 export class HealthMonitor {
-  private readonly eventEmitter = new EventEmitter();
+  private readonly <span class="cstat-no" title="statement not covered" >eventEmitter = new EventEmitter();</span>
   private dnsSeeder: DNSSeeder;
   readonly config: HealthMonitorConfig;
 &nbsp;
@@ -482,16 +482,16 @@ export class HealthMonitor {
    * @param {HealthMonitorConfig} config - Monitor configuration
    * @throws {Error} If configuration is invalid
    */
-  constructor(config: HealthMonitorConfig) {
-    <span class="missing-if-branch" title="if path not taken" >I</span>if (!this.isValidConfig(config)) {
+<span class="fstat-no" title="function not covered" >  constructor(c</span>onfig: HealthMonitorConfig) {
+<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!this.isValidConfig(config)) {</span>
 <span class="cstat-no" title="statement not covered" >      throw new Error('Invalid health monitor configuration');</span>
     }
-    this.config = config;
+<span class="cstat-no" title="statement not covered" >    this.config = config;</span>
 &nbsp;
-    try {
-      const configService = ConfigService.getInstance();
-      const database = new BlockchainSchema();
-      this.dnsSeeder = new DNSSeeder(configService, database);
+<span class="cstat-no" title="statement not covered" >    try {</span>
+      const configService = <span class="cstat-no" title="statement not covered" >ConfigService.getInstance();</span>
+      const database = <span class="cstat-no" title="statement not covered" >new BlockchainSchema();</span>
+<span class="cstat-no" title="statement not covered" >      this.dnsSeeder = new DNSSeeder(configService, database);</span>
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      Logger.error('Failed to initialize HealthMonitor:', error);</span>
 <span class="cstat-no" title="statement not covered" >      throw error;</span>
@@ -504,8 +504,8 @@ export class HealthMonitor {
    * @returns {boolean} True if configuration is valid
    * @private
    */
-  private isValidConfig(config: HealthMonitorConfig): boolean {
-    return !!(
+  private <span class="fstat-no" title="function not covered" >isValidConfig(</span>config: HealthMonitorConfig): boolean {
+<span class="cstat-no" title="statement not covered" >    return !!(</span>
       config &amp;&amp;
       typeof config.interval === 'number' &amp;&amp;
       config.interval &gt; 0 &amp;&amp;
@@ -601,7 +601,7 @@ export class HealthMonitor {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-13T02:53:53.630Z
+                at 2025-02-14T01:25:22.986Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

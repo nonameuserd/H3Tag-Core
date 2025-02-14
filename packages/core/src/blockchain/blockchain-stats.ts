@@ -347,7 +347,7 @@ export class BlockchainStats {
    */
   private async executeWithTimeout<T>(
     promise: Promise<T>,
-    timeoutMs: number = 5000,
+    timeoutMs = 5000,
   ): Promise<T> {
     let timer: NodeJS.Timeout;
     const timeoutPromise = new Promise<never>((_, reject) => {

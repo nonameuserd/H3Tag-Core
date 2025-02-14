@@ -22,7 +22,7 @@ export class MerkleTree {
    */
   async createRoot(
     data: string[],
-    pruneLayers: boolean = false,
+    pruneLayers = false,
   ): Promise<string> {
     try {
       if (!Array.isArray(data) || !data.length) {

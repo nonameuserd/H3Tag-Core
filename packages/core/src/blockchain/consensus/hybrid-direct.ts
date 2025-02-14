@@ -932,7 +932,7 @@ export class HybridDirectConsensus {
    * Warms up block cache with recent blocks
    * @param recentBlocks Number of recent blocks to cache
    */
-  private async warmupCache(recentBlocks: number = 100): Promise<void> {
+  private async warmupCache(recentBlocks = 100): Promise<void> {
     const retryOptions = {
       maxAttempts: 3,
       backoffMs: 1000,

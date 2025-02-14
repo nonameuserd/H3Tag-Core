@@ -245,7 +245,7 @@ export class Blockchain {
   private consensus: HybridDirectConsensus;
   private peers: Map<string, Peer> = new Map();
   private genesisBlock: Block = this.createGenesisBlock();
-  private totalSupply: number = 0;
+  private totalSupply = 0;
   private config: BlockchainConfig;
   public db: BlockchainSchema = new BlockchainSchema();
   private shardManager: ShardManager = new ShardManager(
@@ -1834,13 +1834,13 @@ export class Blockchain {
       if (cached) return cached;
 
       // Query database with pagination for efficiency
-      let currentHeight = this.getCurrentHeight();
+      const currentHeight = this.getCurrentHeight();
 
       const MAX_TRAVERSAL_DEPTH = 100; // Set a reasonable limit to prevent stack overflow
 
       const findFirstTransaction = async (
         currentHeight: number,
-        depth: number = 0,
+        depth = 0,
       ): Promise<{ blockHeight: number } | null> => {
         if (depth >= MAX_TRAVERSAL_DEPTH) {
           throw new Error('Max traversal depth reached');
@@ -2866,10 +2866,6 @@ export class Blockchain {
   })
   private async retryPostBlockAdd(block: Block): Promise<void> {
     await this.updatePostBlockAdd(block);
-  }
-
-  private startCacheCleanup(): void {
-    this.cleanupIntervalId = setInterval(() => {}, this.cleanupInterval);
   }
 
   public cleanup(): void {

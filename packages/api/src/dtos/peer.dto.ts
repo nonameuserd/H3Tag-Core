@@ -5,7 +5,7 @@ export class CreatePeerDto {
     description: 'Peer node address',
     example: 'localhost:3000',
   })
-  address: string = '';
+  address = '';
 
   @ApiProperty({
     description: 'Peer node public key',

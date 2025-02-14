@@ -31,7 +31,7 @@ export class DefaultAuditStorage implements IAuditStorage {
 
   async acquireLock(
     lockId: string,
-    lockTimeout: number = 5000,
+    lockTimeout = 5000,
   ): Promise<boolean> {
     if (this.locks.has(lockId)) return false;
 

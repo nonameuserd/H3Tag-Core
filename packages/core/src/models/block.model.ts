@@ -154,7 +154,7 @@ export class BlockBuilder {
   private readonly merkleTree: MerkleTree;
   private readonly mutex = new Mutex();
   private readonly auditManager: AuditManager;
-  private hash: string = '';
+  private hash = '';
 
   /**
    * Creates a new BlockBuilder instance

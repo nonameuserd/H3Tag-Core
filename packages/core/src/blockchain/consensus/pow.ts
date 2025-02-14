@@ -358,13 +358,13 @@ export class ProofOfWork {
   private readonly minerKeyPair?: HybridKeyPair;
   private ddosProtection?: DDoSProtection;
   private readonly templateCache: Cache<BlockTemplate>;
-  private minTime: number = 0;
+  private minTime = 0;
   private lastBlockTime: number = Date.now();
   private readonly blocksInFlight = new Map<number, BlockInFlight>();
   private readonly MAX_BLOCKS_IN_FLIGHT = 16;
   private readonly BLOCK_TIMEOUT = 60000; // 1 minute
   private readonly MAX_RETRY_ATTEMPTS = 3;
-  private miningFailures: number = 0;
+  private miningFailures = 0;
   private readonly MAX_FAILURES = 5;
   private readonly retryStrategy: RetryStrategy;
   private readonly txSelectionLock = new Mutex();
@@ -1414,7 +1414,7 @@ export class ProofOfWork {
    */
   private async getRecentBlocks(
     count: number,
-    offset: number = 0,
+    offset = 0,
   ): Promise<Block[]> {
     try {
       const currentHeight = await this.db.getCurrentHeight();
@@ -1553,7 +1553,7 @@ export class ProofOfWork {
     }
   }
 
-  private async getActiveMiners(limit: number = 1000): Promise<string[]> {
+  private async getActiveMiners(limit = 1000): Promise<string[]> {
     try {
       const activeWindow = BLOCKCHAIN_CONSTANTS.MINING.ADJUSTMENT_INTERVAL;
       const miners = new Set<string>();
@@ -2091,8 +2091,8 @@ export class ProofOfWork {
    * @returns Promise<number> Network hash rate in H/s
    */
   public async getNetworkHashPS(
-    blocks: number = 120,
-    height: number = -1,
+    blocks = 120,
+    height = -1,
   ): Promise<number> {
     try {
       // Get current height if -1

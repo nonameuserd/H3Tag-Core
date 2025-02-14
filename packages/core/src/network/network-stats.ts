@@ -20,10 +20,10 @@ type NetworkStatsEvent = {
 export class NetworkStats {
   private readonly eventEmitter = new EventEmitter();
   public blockPropagationTimes: number[] = [];
-  public globalHashRate: number = 0;
+  public globalHashRate = 0;
   public peerLatencies: Map<string, number> = new Map();
   private peers: Map<string, Peer> = new Map();
-  public currentDifficulty: number = 1;
+  public currentDifficulty = 1;
 
   private static readonly MAX_PROPAGATION_TIMES = 50;
   private static readonly MIN_HASH_RATE = 0;

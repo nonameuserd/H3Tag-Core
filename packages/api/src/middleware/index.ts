@@ -18,6 +18,7 @@ export const errorHandler = (
   res: Response,
   next: NextFunction
 ) => {
+  void next;
   Logger.error('Unhandled error:', err);
   res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
     error: 'Internal server error',
@@ -63,10 +64,10 @@ export const corsOptions = {
 export const securityHeaders = helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", 'data:', 'https:'],
+      defaultSrc: ['\'self\''],
+      scriptSrc: ['\'self\'', '\'unsafe-inline\''],
+      styleSrc: ['\'self\'', '\'unsafe-inline\''],
+      imgSrc: ['\'self\'', 'data:', 'https:'],
     },
   },
   crossOriginEmbedderPolicy: true,

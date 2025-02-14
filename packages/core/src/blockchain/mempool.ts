@@ -386,15 +386,15 @@ export class Mempool {
   // Updated transactionMutexes to include both the Mutex and its creation timestamp.
   private readonly transactionMutexes = new Map<string, { mutex: Mutex; createdAt: number }>();
 
-  private lastValidFee: number = Number(
+  private lastValidFee = Number(
     BLOCKCHAIN_CONSTANTS.TRANSACTION.MEMPOOL.MIN_FEE_RATE,
   );
 
   private ddosProtection: DDoSProtection;
 
-  public size: number = 0;
-  public bytes: number = 0;
-  public usage: number = 0;
+  public size = 0;
+  public bytes = 0;
+  public usage = 0;
 
   // Add a configurable property for the base fee rate.
   private baseMinFee: number;
@@ -2802,7 +2802,7 @@ export class Mempool {
    * @returns {Promise<Record<string, RawMempoolEntry> | string[]>} Mempool transactions
    */
   public async getRawMempool(
-    verbose: boolean = false,
+    verbose = false,
   ): Promise<Record<string, RawMempoolEntry> | string[]> {
     try {
       if (!verbose) {

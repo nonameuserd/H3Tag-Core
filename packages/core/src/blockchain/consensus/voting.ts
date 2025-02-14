@@ -231,7 +231,7 @@ import { Cache } from '../../scaling/cache';
 export class DirectVoting {
   private readonly eventEmitter = new EventEmitter();
   private currentPeriod: VotingPeriod | null = null;
-  private nextVotingHeight: number = 0;
+  private nextVotingHeight = 0;
   private readonly performanceMonitor: PerformanceMonitor;
   private isShuttingDown = false;
   private cache: Cache<Vote[]> | null = null;
@@ -245,8 +245,8 @@ export class DirectVoting {
   private networkResetTimer?: NodeJS.Timeout;
   private ddosProtection: DDoSProtection | null = null;
   private readonly sync: BlockchainSync;
-  private startVotingHeight: number = 0;
-  private endVotingHeight: number = 0;
+  private startVotingHeight = 0;
+  private endVotingHeight = 0;
   private rateCache: Cache<number> | null = null;
   private voteMutex = new Mutex();
   private periodMutex = new Mutex();

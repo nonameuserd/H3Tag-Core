@@ -143,7 +143,7 @@ export class TransactionService {
     }
   }
 
-  async estimateFee(targetBlocks: number = 6): Promise<bigint> {
+  async estimateFee(targetBlocks = 6): Promise<bigint> {
     try {
       return await estimateFee(targetBlocks);
     } catch (error: unknown) {

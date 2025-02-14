@@ -34,7 +34,7 @@ export class MempoolService {
   }
 
   async getRawMempool(
-    verbose: boolean = false,
+    verbose = false,
   ): Promise<Record<string, RawMempoolEntryDto> | string[]> {
     try {
       return await this.node.getMempool().getRawMempool(verbose);

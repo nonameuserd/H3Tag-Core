@@ -27,7 +27,7 @@ export class MetricsService {
    * @param {number} timeWindow - Time window in milliseconds (default: 1 hour)
    * @returns {Object} Metrics data including averages and current values
    */
-  getMetrics(timeWindow: number = 3600000): MetricsResponseDto {
+  getMetrics(timeWindow = 3600000): MetricsResponseDto {
     timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return {
@@ -52,7 +52,7 @@ export class MetricsService {
    * @param {number} timeWindow - Time window in milliseconds (default: 1 hour)
    * @returns {number} Average TAG fees
    */
-  getAverageTAGFeesMetrics(timeWindow: number = 3600000): number {
+  getAverageTAGFeesMetrics(timeWindow = 3600000): number {
     timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return this.metrics.getAverageTAGFees(timeWindow);
@@ -67,7 +67,7 @@ export class MetricsService {
    * @param {number} timeWindow - Time window in milliseconds (default: 1 hour)
    * @returns {number} Average TAG volume
    */
-  getAverageTAGVolumeMetrics(timeWindow: number = 3600000): number {
+  getAverageTAGVolumeMetrics(timeWindow = 3600000): number {
     timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return this.metrics.getAverageTAGVolume(timeWindow);
@@ -82,7 +82,7 @@ export class MetricsService {
    * @param {number} timeWindow - Time window in milliseconds (default: 1 hour)
    * @returns {number} Average hash rate
    */
-  getAverageHashRateMetrics(timeWindow: number = 3600000): number {
+  getAverageHashRateMetrics(timeWindow = 3600000): number {
     timeWindow = this.sanitizeTimeWindow(timeWindow);
     try {
       return this.metrics.getAverageHashRate(timeWindow);

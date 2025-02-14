@@ -60,10 +60,10 @@ export class SeedServer {
   private cloudWatch: CloudWatch;
   private route53: Route53;
   private readonly merkleTree: MerkleTree;
-  private isShuttingDown: boolean = false;
+  private isShuttingDown = false;
   private readonly httpAgent: Agent;
 
-  constructor(port: number = 2333) {
+  constructor(port = 2333) {
     if (port <= 0 || port > 65535) {
       throw new Error('Invalid port number');
     }

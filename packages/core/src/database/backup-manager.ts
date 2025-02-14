@@ -284,7 +284,7 @@ export class BackupManager {
         `Failed to compress file "${file}" from "${sourceFile}" to "${targetFile}":`,
         error,
       );
-      await fs.rm(targetFile, { force: true }).catch(() => {});
+      await fs.rm(targetFile, { force: true }).catch(() => { /* ignore error during cleanup */ });
       throw error;
     }
   }

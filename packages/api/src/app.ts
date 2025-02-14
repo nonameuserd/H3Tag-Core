@@ -79,15 +79,13 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 // or when explicitly enabled with the ENABLE_SWAGGER environment variable.
 if (!isProduction || process.env.ENABLE_SWAGGER === 'true') {
   // Swagger UI setup
-  app.use(
-    '/api-docs',
-    swaggerUi.serve as unknown as express.RequestHandler,
-    swaggerUi.setup(swaggerSpec, {
-      explorer: true,
-      customCss: '.swagger-ui .topbar { display: none }',
-      customSiteTitle: 'H3TAG Blockchain Node API Documentation',
-    }) as unknown as express.RequestHandler
-  );
+  const swaggerHandler = swaggerUi.setup(swaggerSpec, {
+    explorer: true,
+    customCss: '.swagger-ui .topbar { display: none }',
+    customSiteTitle: 'H3TAG Blockchain Node API Documentation',
+  });
+
+  app.use('/api-docs', ...(swaggerUi.serve as unknown as express.RequestHandler[]), (swaggerHandler as unknown as express.RequestHandler));
 
   // API Documentation JSON endpoint
   app.get('/api-docs.json', (req, res) => {
@@ -102,16 +100,17 @@ app.use('/api/v1', routes);
 // Global error handling middleware (in case applyMiddleware doesn't catch everything)
 app.use(
   (
-    err: any,
+    err: Error & { status?: number },
     req: express.Request,
     res: express.Response,
     next: express.NextFunction
   ) => {
+    void next;
     console.error(err);
     res.status(err.status || 500).json({
       error: {
-        message: err.message || 'Internal Server Error',
-      },
+        message: err.message || 'Internal Server Error'
+      }
     });
   }
 );

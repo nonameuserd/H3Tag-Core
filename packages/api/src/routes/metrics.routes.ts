@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { MetricsController } from '../controllers/metrics.controller';
 import { MetricsService } from '../services/metrics.service';
 
@@ -17,7 +17,7 @@ export function setupMetricsRoutes(router: Router): void {
   const metricsController = new MetricsController(new MetricsService());
 
   // Helper function to validate and extract the timeWindow parameter.
-  function getValidatedTimeWindow(req: any, res: any): number | null {
+  function getValidatedTimeWindow(req: Request, res: Response): number | null {
     const param = req.query.timeWindow;
     if (param !== undefined) {
       const parsed = Number(param);

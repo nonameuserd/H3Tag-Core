@@ -263,7 +263,7 @@ export class BlockchainSchema {
    * Constructor for Database
    * @param dbPath Path to the database
    */
-  constructor(dbPath: string = './data/blockchain') {
+  constructor(dbPath = './data/blockchain') {
     this.dbPath = dbPath;
 
     // Remove valueEncoding so that we work with string values and preserve manual JSON (de)serialization.
@@ -2561,7 +2561,7 @@ export class BlockchainSchema {
     exponentialBackoff: true,
   })
   public async getRecentTransactions(
-    limit: number = 100,
+    limit = 100,
   ): Promise<Transaction[]> {
     const perfMarker = this.performanceMonitor.start('get_recent_transactions');
 

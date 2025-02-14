@@ -8,15 +8,15 @@ interface CircuitBreakerConfig {
 }
 
 export class CircuitBreaker {
-  public failures: number = 0;
-  public lastFailure: number = 0;
+  public failures = 0;
+  public lastFailure = 0;
   private state: 'closed' | 'open' | 'half-open' = 'closed';
   private readonly config: Required<CircuitBreakerConfig>;
   private monitorInterval: NodeJS.Timeout;
   // Track when the circuit entered the half-open state.
-  private halfOpenStart: number = 0;
+  private halfOpenStart = 0;
   // NEW: Flag to ensure only one trial call in half-open state.
-  private trialCallInProgress: boolean = false;
+  private trialCallInProgress = false;
 
   constructor(config: CircuitBreakerConfig) {
     this.config = {

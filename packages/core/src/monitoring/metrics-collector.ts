@@ -30,7 +30,7 @@ export class MetricsCollector {
   private readonly namespace: string;
   private flushInterval: NodeJS.Timeout | null;
   private readonly FLUSH_INTERVAL_MS = 60000; // 1 minute default
-  private isFlushing: boolean = false;
+  private isFlushing = false;
 
   /**
    * Creates a new MetricsCollector instance
@@ -38,7 +38,7 @@ export class MetricsCollector {
    * @param {number} [flushIntervalMs=60000] - Metrics flush interval in milliseconds
    * @throws {Error} If namespace is not provided
    */
-  constructor(namespace: string, flushIntervalMs: number = 60000) {
+  constructor(namespace: string, flushIntervalMs = 60000) {
     if (!namespace) {
       throw new Error('Namespace is required');
     }
@@ -63,7 +63,7 @@ export class MetricsCollector {
    * @param {string} metric - Metric name
    * @param {number} [value=1] - Increment value
    */
-  increment(metric: string, value: number = 1): void {
+  increment(metric: string, value = 1): void {
     if (!metric) {
       Logger.error('Invalid metric name');
       return;
@@ -355,7 +355,7 @@ export class MetricsCollector {
   counter(metric: string): { inc: (labels?: Record<string, string>) => void } {
     if (!metric) {
       Logger.error('Invalid counter metric name');
-      return { inc: () => {} }; // Return no-op function
+      return { inc: () => { /* no-op due to invalid metric name */ } };
     }
 
     return {

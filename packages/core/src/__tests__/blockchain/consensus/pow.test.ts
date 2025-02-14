@@ -5,7 +5,6 @@ import { BLOCKCHAIN_CONSTANTS } from '../../../blockchain/utils/constants';
 import { Logger } from '@h3tag-blockchain/shared';
 import { QuantumNative } from '@h3tag-blockchain/crypto';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
 
 process.env.MAINNET_SEEDS = 'dummy-seeds';
 
@@ -136,15 +135,15 @@ const dummyMinerKeyPair = { address: 'dummy-address' };
 let pow: ProofOfWork;
 
 beforeEach(() => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   pow = new ProofOfWork(dummyBlockchain as any);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (pow as any).mempool = dummyMempool;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (pow as any).workerPool = dummyWorkerPool;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (pow as any).minerKeyPair = dummyMinerKeyPair;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+   
   (pow as any).ddosProtection = { checkRequest: jest.fn(() => true) };
 });
 

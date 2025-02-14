@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+
+      - name: Derive appropriate SHAs for base and head for `nx affected` commands
+        uses: nrwl/nx-set-shas@v3
+
+      # NX cache
+      - name: NX Cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            dist
+            build
+            .nx/cache
+          key: ${{ runner.os }}-nx-${{ hashFiles('**/yarn.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-nx-${{ hashFiles('**/yarn.lock') }}-
+            ${{ runner.os }}-nx-
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Lint affected projects
+        run: yarn nx affected:lint --parallel=3
+
+      - name: Build affected projects
+        run: yarn nx affected:build --parallel=3
+
+      - name: Test affected projects
+        run: yarn nx affected:test --parallel=3 --coverage

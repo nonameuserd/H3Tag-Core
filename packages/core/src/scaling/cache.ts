@@ -58,7 +58,7 @@ export class Cache<T> {
   private stats: CacheStats;
   private cleanupInterval: NodeJS.Timeout | undefined;
   readonly options: Required<CacheOptions<T>>;
-  private memoryUsage: number = 0;
+  private memoryUsage = 0;
   private memoryThreshold = 0.9; // 90% memory threshold
   private lastMemoryCheck = Date.now();
   private readonly memoryCheckInterval = 60000; // Check every minute
@@ -77,7 +77,7 @@ export class Cache<T> {
     ttl: 3600,
     maxSize: 1000,
     checkPeriod: 600,
-    onEvict: () => {},
+    onEvict: () => { /* no-op */ },
     serialize: JSON.stringify,
     deserialize: JSON.parse,
     maxMemory: 100 * 1024 * 1024,
@@ -345,7 +345,7 @@ export class Cache<T> {
     return true;
   }
 
-  public clear(onlyExpired: boolean = false): void {
+  public clear(onlyExpired = false): void {
     if (onlyExpired) {
       // Use a copy of the entries to avoid mutation issues during iteration.
       for (const [key, item] of Array.from(this.items.entries())) {

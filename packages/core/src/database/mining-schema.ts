@@ -212,7 +212,7 @@ export class MiningDatabase {
   private readonly BATCH_SIZE = 1000;
   private readonly CACHE_TTL = 3600; // 1 hour
   private readonly MAX_RETRY_ATTEMPTS = 3;
-  private initialized: boolean = false;
+  private initialized = false;
 
   constructor(dbPath: string) {
     if (!dbPath) throw new Error('Database path is required');

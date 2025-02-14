@@ -129,26 +129,26 @@ export class Peer {
     }
   >();
 
-  private lastPing: number = 0;
+  private lastPing = 0;
   private pingInterval?: NodeJS.Timeout;
   private reconnectTimer?: NodeJS.Timeout;
   private handshakeTimer?: NodeJS.Timeout;
-  private bytesReceived: number = 0;
-  private bytesSent: number = 0;
-  private messagesSent: number = 0;
-  private messagesReceived: number = 0;
-  private lastMessageTime: number = 0;
+  private bytesReceived = 0;
+  private bytesSent = 0;
+  private messagesSent = 0;
+  private messagesReceived = 0;
+  private lastMessageTime = 0;
   private version?: number;
   private services?: PeerServices[];
-  private count: number = 0;
+  private count = 0;
   private durations: number[] = [];
   private timestamps: number[] = [];
-  private totalDuration: number = 0;
-  private maxDuration: number = 0;
-  private minDuration: number = 0;
+  private totalDuration = 0;
+  private maxDuration = 0;
+  private minDuration = 0;
   private last24Hours: number[] = [];
-  private lastUpdated: number = 0;
-  private average: number = 0;
+  private lastUpdated = 0;
+  private average = 0;
   private startHeight?: number;
   private userAgent?: string;
   private blockchainSync: BlockchainSync | undefined;
@@ -167,22 +167,22 @@ export class Peer {
   private database: BlockchainSchema;
   private votingDatabase: VotingDatabase | undefined;
 
-  private inbound: boolean = false;
+  private inbound = false;
 
-  private syncedHeaders: number = 0;
-  private syncedBlocks: number = 0;
-  private isWhitelisted: boolean = false;
-  private isBlacklisted: boolean = false;
+  private syncedHeaders = 0;
+  private syncedBlocks = 0;
+  private isWhitelisted = false;
+  private isBlacklisted = false;
 
   private readonly blocksInFlight = new Map<number, BlockInFlight>();
 
   private readonly peers: Set<string> = new Set();
 
-  private height: number = 0;
+  private height = 0;
 
   private messageTimestamps: number[] = [];
   private messageByteRecords: { timestamp: number; bytes: number }[] = [];
-  private lastBytesReceived: number = 0;
+  private lastBytesReceived = 0;
 
   constructor(
     private readonly address: string,
@@ -190,7 +190,7 @@ export class Peer {
     config: Partial<PeerConfig>,
     private readonly configService: ConfigService,
     database: BlockchainSchema,
-    isInbound: boolean = false,
+    isInbound = false,
   ) {
     this.id = crypto.randomUUID();
 
@@ -1104,8 +1104,8 @@ export class Peer {
    */
   public async setBan(
     command: 'add' | 'remove',
-    banTime: number = 0,
-    reason: string = '',
+    banTime = 0,
+    reason = '',
   ): Promise<void> {
     const release = await this.mutex.acquire();
     try {

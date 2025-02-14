@@ -58,7 +58,7 @@ export class MempoolController {
     type: RawMempoolEntryDto,
   })
   async getRawMempool(
-    @Query('verbose') verbose: any = false,
+    @Query('verbose') verbose: string | boolean = false,
   ): Promise<Record<string, RawMempoolEntryDto> | string[] | undefined> {
     try {
       // Convert verbose to a boolean if necessary (handling string values)

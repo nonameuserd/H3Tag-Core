@@ -46,19 +46,19 @@ export class CreateNodeDto {
 
 export class NodeResponseDto {
   @ApiProperty()
-  nodeId: string = '';
+  nodeId = '';
 
   @ApiProperty({ enum: ['running', 'stopped'] })
   status: 'running' | 'stopped' = 'running';
 
   @ApiProperty()
-  endpoint: string = '';
+  endpoint = '';
 
   @ApiProperty()
-  networkType: string = '';
+  networkType = '';
 
   @ApiProperty()
-  peerCount: number = 0;
+  peerCount = 0;
 
   @ApiProperty({ required: false })
   region?: string;
@@ -66,19 +66,19 @@ export class NodeResponseDto {
 
 export class NodeStatusDto {
   @ApiProperty()
-  nodeId: string = '';
+  nodeId = '';
 
   @ApiProperty({ enum: ['running', 'stopped'] })
   status: 'running' | 'stopped' = 'running';
 
   @ApiProperty()
-  peerCount: number = 0;
+  peerCount = 0;
 
   @ApiProperty({ type: [String] })
   bannedPeers: string[] = [];
 
   @ApiProperty()
-  address: string = '';
+  address = '';
 }
 
 export class PeerDiscoveryResponseDto {
@@ -86,13 +86,13 @@ export class PeerDiscoveryResponseDto {
     description: 'Number of new peers discovered',
     example: 5,
   })
-  discoveredPeers: number = 0;
+  discoveredPeers = 0;
 
   @ApiProperty({
     description: 'Total number of connected peers',
     example: 12,
   })
-  totalPeers: number = 0;
+  totalPeers = 0;
 
   @ApiProperty({
     description: 'Current peer count vs minimum required peers',
@@ -116,7 +116,7 @@ export class ConnectPeerDto {
     example: '127.0.0.1:2333',
   })
   @IsString()
-  address: string = '';
+  address = '';
 }
 
 export class PeerConnectionResponseDto {
@@ -124,29 +124,29 @@ export class PeerConnectionResponseDto {
     description: 'Connection status',
     example: 'connected',
   })
-  status: string = '';
+  status = '';
 
   @ApiProperty({
     description: 'Connected peer address',
     example: '127.0.0.1:2333',
   })
-  address: string = '';
+  address = '';
 
   @ApiProperty({
     description: 'Peer version',
     example: '1.0.0',
   })
-  version: string = '';
+  version = '';
 
   @ApiProperty({
     description: 'Peer height',
     example: 780000,
   })
-  height: number = 0;
+  height = 0;
 
   @ApiProperty({
     description: 'Connection timestamp',
     example: '2024-03-21T15:30:00Z',
   })
-  connectedAt: string = '';
+  connectedAt = '';
 }

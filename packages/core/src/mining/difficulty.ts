@@ -108,7 +108,7 @@ import { Logger } from '@h3tag-blockchain/shared';
  * @returns {number} PoW-based adjustment factor
  */
 export class DifficultyAdjuster {
-  private lastHashRate: bigint = BigInt(0);
+  private lastHashRate = BigInt(0);
   readonly TARGET_BLOCK_TIME = 600_000; // 10 minutes for H3Tag blocks
   private readonly ADJUSTMENT_FACTOR = 0.25; // 25% max adjustment
   private readonly WINDOW_SIZE = 2016; // ~2 weeks of blocks
@@ -120,7 +120,7 @@ export class DifficultyAdjuster {
   private readonly MIN_VOTES_WEIGHT = 0.1; // Minimum voting participation for TAG governance
   private readonly VOTE_POWER_CAP = 0.1; // Maximum voting power per participant
   private readonly VOTE_INFLUENCE = 0.4; // Voting influence on difficulty (40%)
-  private lastOrphanRate: number = 0;
+  private lastOrphanRate = 0;
 
   constructor(
     blockchain: IBlockchainData,
