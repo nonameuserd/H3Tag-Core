@@ -137,13 +137,9 @@ jobs:
       - name: Lint affected projects
         run: yarn nx affected:lint --parallel=3
 
-      # Run affected tests first
-      - name: Run affected tests
-        run: yarn nx affected:test --parallel=3 --coverage
-
       # Then run all tests
       - name: Run all tests
-        run: yarn nx run-many --target=test --all --parallel=3 --coverage
+        run: yarn nx run-many --target=test --all --parallel=5 --coverage
 
       # Upload coverage reports
       - name: Upload coverage reports
