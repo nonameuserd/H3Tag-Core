@@ -239,6 +239,7 @@ export class MiningDatabase {
     });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private serializeForStorage(data: any): string {
     // Filter out private properties for MiningMetrics
     const toSerialize = data instanceof MiningMetrics ? {
@@ -268,6 +269,7 @@ export class MiningDatabase {
     );
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private deserializeFromStorage(data: string): any {
     const parsed = JSON.parse(data, (_, value) => {
       if (typeof value === 'string' && value.endsWith('n')) {

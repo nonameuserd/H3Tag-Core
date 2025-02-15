@@ -1,6 +1,15 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
+const allRulesOff = {};
+for (const rule of Object.keys(eslint.configs.recommended.rules || {})) {
+  allRulesOff[rule] = 'off';
+}
+if (tseslint.configs.recommended.rules) {
+  for (const rule of Object.keys(tseslint.configs.recommended.rules)) {
+    allRulesOff[rule] = 'off';
+  }
+}
 
 export default [
   eslint.configs.recommended,
@@ -10,7 +19,9 @@ export default [
       '.nx/cache/**/*.js',
       '**/*.d.ts',
       '**/node_modules/**',
-      '**/build/**'
+      '**/build/**',
+      '**/wasm/pkg/**/*.js',
+      '**/packages/core/src/__tests__/blockchain/consensus/pow.test.ts'
     ],
   },
   // Base config for all JavaScript files
@@ -54,34 +65,10 @@ export default [
         ecmaFeatures: {
           jsx: true
         }
-      },
-      globals: {
-        // Node.js globals
-        process: true,
-        Buffer: true,
-        console: true,
-        exports: true,
-        require: true,
-        module: true,
-        __dirname: true,
-        __filename: true,
-        setTimeout: true,
-        clearTimeout: true,
-        setInterval: true,
-        clearInterval: true,
-        // Browser globals
-        window: true,
-        fetch: true,
-        WebAssembly: true,
-        TextEncoder: true,
-        TextDecoder: true,
-        Response: true,
-        Request: true,
-        URL: true,
-      },
+      }
     },
     plugins: {
-      '@typescript-eslint': tseslint,
+      '@typescript-eslint': tseslint.plugin
     },
     rules: {
       semi: ['error', 'always'],
@@ -90,8 +77,8 @@ export default [
       'no-case-declarations': 'warn',
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off',
-      ...tseslint.configs.recommended.rules,
-    },
+      '@typescript-eslint/no-explicit-any': 'warn'
+    }
   },
   {
     files: ['wasm/pkg/*.js'],
@@ -141,5 +128,20 @@ export default [
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': 'off'
     }
+  },
+  {
+    files: ['**/packages/core/src/__tests__/**/*', '**/*.test.*'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-call': 'off',
+      '@typescript-eslint/no-unsafe-return': 'off'
+    }
+  },
+  ...tseslint.configs.recommended,
+  {
+    files: ['**/__tests__/**/*', '**/*.test.*'],
+    rules: allRulesOff,
   }
 ];

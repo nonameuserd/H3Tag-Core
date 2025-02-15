@@ -3,7 +3,6 @@ import { join } from 'path';
 import { BackupManager } from '../../database/backup-manager';
 import { Logger } from '@h3tag-blockchain/shared';
 import { Readable, Writable } from 'stream';
-import { createGzip, createGunzip } from 'zlib';
 import { pipeline } from 'stream/promises';
 import { createHash } from 'crypto';
 
@@ -78,12 +77,12 @@ describe('BackupManager', () => {
     (createHash as jest.Mock).mockReturnValue(mockHash);
 
     // Apply mocks
-    (jest.requireMock('fs') as any).promises = mockFs.promises;
-    (jest.requireMock('fs') as any).createReadStream = mockFs.createReadStream;
-    (jest.requireMock('fs') as any).createWriteStream = mockFs.createWriteStream;
-    (jest.requireMock('zlib') as any).createGzip = mockZlib.createGzip;
-    (jest.requireMock('zlib') as any).createGunzip = mockZlib.createGunzip;
-    (jest.requireMock('stream/promises') as any).pipeline = mockStream.pipeline;
+    (jest.requireMock('fs')).promises = mockFs.promises;
+    (jest.requireMock('fs')).createReadStream = mockFs.createReadStream;
+    (jest.requireMock('fs')).createWriteStream = mockFs.createWriteStream;
+    (jest.requireMock('zlib')).createGzip = mockZlib.createGzip;
+    (jest.requireMock('zlib')).createGunzip = mockZlib.createGunzip;
+    (jest.requireMock('stream/promises')).pipeline = mockStream.pipeline;
 
     backupManager = new BackupManager(mockDbPath, defaultConfig);
   });
@@ -92,10 +91,6 @@ describe('BackupManager', () => {
     it('should create a backup successfully', async () => {
       const mockFiles = ['file1.db', 'file2.db'];
       const mockStats = { isFile: () => true, size: 1000 };
-      const mockDirStats = [
-        { isFile: () => true, size: 1000 },
-        { isFile: () => true, size: 2000 },
-      ];
 
       (fs.readdir as jest.Mock)
         .mockImplementation((path) => {

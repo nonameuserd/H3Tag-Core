@@ -33,23 +33,23 @@ describe('KeystoreDatabase', () => {
     const dummyKeystore: EncryptedKeystore = {
       version: 1,
       address: address,
-      mnemonic: "dummy mnemonic",
+      mnemonic: 'dummy mnemonic',
       createdAt: Date.now(),
       crypto: {
-        cipher: "aes-128-ctr",
-        ciphertext: "dummy ciphertext",
+        cipher: 'aes-128-ctr',
+        ciphertext: 'dummy ciphertext',
         cipherparams: {
-          iv: "dummy iv"
+          iv: 'dummy iv'
         },
-        kdf: "scrypt",
+        kdf: 'scrypt',
         kdfparams: {
           dklen: 32,
           n: 262144,
           p: 1,
           r: 8,
-          salt: "dummy salt"
+          salt: 'dummy salt'
         },
-        mac: "dummy mac"
+        mac: 'dummy mac'
       },
     };
     await db.store(address, dummyKeystore);
@@ -69,22 +69,22 @@ describe('KeystoreDatabase', () => {
     const db = new KeystoreDatabase(tempDir);
     const dummyKeystore: EncryptedKeystore = {
       version: 1,
-      address: "test",
-      mnemonic: "dummy mnemonic",
+      address: 'test',
+      mnemonic: 'dummy mnemonic',
       createdAt: Date.now(),
       crypto: {
-        cipher: "aes-128-ctr",
-        ciphertext: "dummy ciphertext",
-        cipherparams: { iv: "dummy iv" },
-        kdf: "scrypt",
+        cipher: 'aes-128-ctr',
+        ciphertext: 'dummy ciphertext',
+        cipherparams: { iv: 'dummy iv' },
+        kdf: 'scrypt',
         kdfparams: {
           dklen: 32,
           n: 262144,
           p: 1,
           r: 8,
-          salt: "dummy salt"
+          salt: 'dummy salt'
         },
-        mac: "dummy mac"
+        mac: 'dummy mac'
       }
     };
     await expect(db.store('', dummyKeystore)).rejects.toThrow('Address is required');
@@ -93,7 +93,7 @@ describe('KeystoreDatabase', () => {
 
   test('store method throws error when keystore is missing', async () => {
     const db = new KeystoreDatabase(tempDir);
-    // Force a missing keystore by passing undefined as any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(db.store('address', undefined as any)).rejects.toThrow('Keystore is required');
     await db.close();
   });
@@ -138,24 +138,24 @@ describe('KeystoreDatabase', () => {
     // Update the dummy keystore to include all required properties
     const dummyKeystore: EncryptedKeystore = {
       version: 1,
-      address: "test",
-      mnemonic: "dummy mnemonic",
+      address: 'test',
+      mnemonic: 'dummy mnemonic',
       createdAt: Date.now(),
       crypto: {
-        cipher: "aes-128-ctr",
-        ciphertext: "dummy ciphertext",
+        cipher: 'aes-128-ctr',
+        ciphertext: 'dummy ciphertext',
         cipherparams: {
-          iv: "dummy iv"
+          iv: 'dummy iv'
         },
-        kdf: "scrypt",
+        kdf: 'scrypt',
         kdfparams: {
           dklen: 32,
           n: 262144,
           p: 1,
           r: 8,
-          salt: "dummy salt"
+          salt: 'dummy salt'
         },
-        mac: "dummy mac"
+        mac: 'dummy mac'
       },
     };
     await db.store('test', dummyKeystore);

@@ -6,7 +6,7 @@ import { Vote } from '../../models/vote.model';
 import { UTXO } from '../../models/utxo.model';
 import { Validator } from '../../models/validator';
 import { Logger } from '@h3tag-blockchain/shared';
-import { AbstractIterator, AbstractChainedBatch } from 'abstract-leveldown';
+import { AbstractChainedBatch } from 'abstract-leveldown';
 
 // Mock Level
 jest.mock('level');
@@ -39,30 +39,17 @@ jest.mock('../../blockchain/utils/constants', () => ({
 }));
 
 // Helper function to serialize data with BigInt support
-const serializeWithBigInt = (obj: any) => {
+const serializeWithBigInt = (obj: unknown): string => {
   return JSON.stringify(obj, (_, value) =>
     typeof value === 'bigint' ? value.toString() : value
   );
 };
 
-// Helper function to deserialize data with BigInt support
-const deserializeWithBigInt = (str: string) => {
-  return JSON.parse(str, (_, value) => {
-    if (typeof value === 'string' && /^\d+$/.test(value)) {
-      try {
-        return BigInt(value);
-      } catch {
-        return value;
-      }
-    }
-    return value;
-  });
-};
 
 describe('BlockchainSchema', () => {
   let blockchainSchema: BlockchainSchema;
   let mockDb: jest.Mocked<Level>;
-  let mockBatch: jest.Mocked<AbstractChainedBatch<any, any>>;
+  let mockBatch: jest.Mocked<AbstractChainedBatch<unknown, unknown>>;
   const testDbPath = './test-db';
 
   // Mock data
@@ -126,7 +113,7 @@ describe('BlockchainSchema', () => {
       clear: jest.fn().mockReturnThis(),
       write: jest.fn().mockResolvedValue(undefined),
       close: jest.fn(),
-    } as unknown as jest.Mocked<AbstractChainedBatch<any, any>>;
+    } as unknown as jest.Mocked<AbstractChainedBatch<unknown, unknown>>;
 
     // Create mock implementations
     mockDb = {
@@ -379,9 +366,10 @@ describe('BlockchainSchema', () => {
         end: jest.fn(),
         close: jest.fn(),
         getIndex: jest.fn(),
-      } as any;
+      } as unknown;
 
-      mockDb.iterator.mockReturnValue(mockIterator);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      mockDb.iterator.mockReturnValue(mockIterator as any);
 
       const utxos = await blockchainSchema.getUtxosByAddress('test-address');
       expect(utxos).toHaveLength(1);
@@ -450,7 +438,8 @@ describe('BlockchainSchema', () => {
       const periodId = Date.now();
       
       // Mock period data
-      mockDb.get.mockImplementation(async (_key: unknown, _options?: unknown) => {
+       
+      mockDb.get.mockImplementation(async (_key: unknown, ) => {
         const key = _key as string;
         if (key === `voting_period:${periodId}`) {
           return JSON.stringify(mockPeriod);
@@ -583,11 +572,13 @@ describe('BlockchainSchema', () => {
       expect(validators[1].address).toBe('other-address');
     });
 
+     
     it('should get validator performance', async () => {
       mockDb.iterator.mockReturnValue({
         [Symbol.asyncIterator]: async function* () {
           yield ['key', serializeWithBigInt({ successful: true })] as [string, string];
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } as any);
 
       const performance = await blockchainSchema.getValidatorPerformance(mockValidator.address, 100);
@@ -609,7 +600,7 @@ describe('BlockchainSchema', () => {
     }, 10000);
 
     it('should commit transaction', async () => {
-      mockBatch.write.mockImplementationOnce((callback: (error: any) => void) => {
+      mockBatch.write.mockImplementationOnce((callback: (error: unknown) => void) => {
         callback(null);
       });
       await blockchainSchema.startTransaction();

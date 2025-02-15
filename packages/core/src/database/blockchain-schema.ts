@@ -471,6 +471,7 @@ export class BlockchainSchema {
         return 0;
       }
       for await (const [, rawValue] of iterator) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const value: any = JSON.parse(rawValue);
         if (!value.spent) {
           addresses.add(value.address);
@@ -1619,6 +1620,7 @@ export class BlockchainSchema {
       return uptime;
     } catch (error) {
       // Fallback: return default value if not set
+      Logger.error('Failed to get validator uptime:', error);
       return 0;
     }
   }
@@ -1640,6 +1642,7 @@ export class BlockchainSchema {
       this.validatorMetricsCache.set(cacheKey, participation, { ttl: this.CACHE_TTL });
       return participation;
     } catch (error) {
+      Logger.error('Failed to get validator vote participation:', error);
       return 0;
     }
   }
@@ -1662,6 +1665,7 @@ export class BlockchainSchema {
       this.validatorMetricsCache.set(cacheKey, production, { ttl: this.CACHE_TTL });
       return production;
     } catch (error) {
+      Logger.error('Failed to get validator block production:', error);
       return 0;
     }
   }
@@ -3085,11 +3089,13 @@ export class BlockchainSchema {
   }
 
   /* Added helper method for JSON stringification with BigInt support */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private jsonStringify(obj: any): string {
     return JSON.stringify(obj, (key, value) => typeof value === 'bigint' ? value.toString() : value);
   }
 
   /* Added helper method for JSON parsing with BigInt support */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private jsonParse(str: string): any {
     return JSON.parse(str, (key, value) => {
       if (typeof value === 'string' && /^\d+$/.test(value)) {

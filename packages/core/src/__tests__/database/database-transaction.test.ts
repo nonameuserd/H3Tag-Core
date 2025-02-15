@@ -69,6 +69,7 @@ describe('DatabaseTransaction', () => {
   });
 
   test('should commit put operations successfully', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     await transaction.put('key1', 'value1');
     await transaction.put('key2', 'value2');
@@ -89,6 +90,7 @@ describe('DatabaseTransaction', () => {
     fakeDB.data.set('key1', 'orig1');
     fakeDB.data.set('key2', 'orig2');
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     await transaction.delete('key1');
     await transaction.delete('key2');
@@ -102,18 +104,23 @@ describe('DatabaseTransaction', () => {
   });
 
   test('should throw error for put with missing key or value', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     await expect(transaction.put('', 'value')).rejects.toThrow('Key and value must be provided');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(transaction.put('key', null as any)).rejects.toThrow('Key and value must be provided');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await expect(transaction.put('key', undefined as any)).rejects.toThrow('Key and value must be provided');
   });
 
   test('should throw error for delete with missing key', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     await expect(transaction.delete('')).rejects.toThrow('Key must be provided');
   });
 
   test('should not allow commit after already committed', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     await transaction.put('key1', 'value1');
     await transaction.commit();
@@ -122,6 +129,7 @@ describe('DatabaseTransaction', () => {
   });
 
   test('should not allow operations after rollback', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     await transaction.put('key1', 'value1');
     await transaction.rollback();
@@ -133,6 +141,7 @@ describe('DatabaseTransaction', () => {
   test('should rollback and restore original values on commit failure', async () => {
     // Pre-populate fakeDB so that the original value exists
     fakeDB.data.set('key1', 'original');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     await transaction.put('key1', 'new value');
 
@@ -149,6 +158,7 @@ describe('DatabaseTransaction', () => {
   });
 
   test('should allow rollback if no operations exist', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     // When no operations exist, rollback should simply mark as rolled back
     await transaction.rollback();
@@ -157,6 +167,7 @@ describe('DatabaseTransaction', () => {
   });
 
   test('isActive should return correct values', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transaction = new DatabaseTransaction(fakeDB as any);
     expect(transaction.isActive()).toBe(true);
     await transaction.put('key1', 'value1');

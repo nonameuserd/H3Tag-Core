@@ -141,13 +141,17 @@ describe('MiningDatabase', () => {
       ];
 
       const retrievedPublicProps = publicProps.reduce((obj, prop) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         obj[prop] = (retrieved as any)[prop];
         return obj;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }, {} as any);
 
       const expectedPublicProps = publicProps.reduce((obj, prop) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         obj[prop] = (dummyMetrics as any)[prop];
         return obj;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }, {} as any);
 
       expect(retrievedPublicProps).toEqual(expectedPublicProps);
@@ -164,13 +168,17 @@ describe('MiningDatabase', () => {
         const newMetrics = MiningMetrics.getInstance();
         Object.keys(baseMetrics).forEach(key => {
           if (key === 'blockHeight') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (newMetrics as any)[key] = baseMetrics.blockHeight + i;
           } else if (key === 'timestamp') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (newMetrics as any)[key] = BigInt(Date.now() + i * 1000);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } else if (typeof (baseMetrics as any)[key] !== 'function' && 
                      !key.startsWith('_') &&
                      key !== 'metrics' &&
                      key !== 'mutex') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (newMetrics as any)[key] = (baseMetrics as any)[key];
           }
         });
