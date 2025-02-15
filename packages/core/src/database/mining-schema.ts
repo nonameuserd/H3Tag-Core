@@ -205,9 +205,7 @@ interface ConsensusPeriod {
 
 export class MiningDatabase {
   private db: Level;
-  private cache: Cache<
-    PowSolution | MiningMetrics | ConsensusVote | ConsensusPeriod
-  >;
+  private cache: Cache<string>;
   private mutex: Mutex;
   private readonly BATCH_SIZE = 1000;
   private readonly CACHE_TTL = 3600; // 1 hour
@@ -224,36 +222,73 @@ export class MiningDatabase {
 
     this.mutex = new Mutex();
 
-    this.cache = new Cache<
-      PowSolution | MiningMetrics | ConsensusVote | ConsensusPeriod
-    >({
+    this.cache = new Cache<string>({
       ttl: this.CACHE_TTL,
       maxSize: 10000,
       compression: true,
       priorityLevels: { pow: 2, default: 1 },
     });
 
-    this.initialize().catch((error) => {
+    // Initialize immediately in constructor
+    this.db.open().then(() => {
+      this.initialized = true;
+      Logger.info('Mining database initialized successfully');
+    }).catch((error) => {
       Logger.error('Failed to initialize mining database:', error);
       throw error;
     });
   }
 
-  private async initialize(): Promise<void> {
-    if (this.initialized) return; // Prevent re-initialization
-    try {
-      await this.db.open();
-      this.initialized = true;
-      Logger.info('Mining database initialized successfully');
-    } catch (error) {
-      Logger.error('Failed to initialize mining database:', error);
-      throw error;
+  private serializeForStorage(data: any): string {
+    // Filter out private properties for MiningMetrics
+    const toSerialize = data instanceof MiningMetrics ? {
+      totalBlocks: data.totalBlocks,
+      successfulBlocks: data.successfulBlocks,
+      lastMiningTime: data.lastMiningTime,
+      averageHashRate: data.averageHashRate,
+      totalTAGMined: data.totalTAGMined,
+      currentBlockReward: data.currentBlockReward,
+      tagTransactionsCount: data.tagTransactionsCount,
+      timestamp: data.timestamp,
+      blockHeight: data.blockHeight,
+      hashRate: data.hashRate,
+      difficulty: data.difficulty,
+      blockTime: data.blockTime,
+      tagVolume: data.tagVolume,
+      tagFees: data.tagFees,
+      lastBlockTime: data.lastBlockTime,
+      syncedHeaders: data.syncedHeaders,
+      syncedBlocks: data.syncedBlocks,
+      whitelistedPeers: data.whitelistedPeers,
+      blacklistedPeers: data.blacklistedPeers
+    } : data;
+
+    return JSON.stringify(toSerialize, (_, value) =>
+      typeof value === 'bigint' ? value.toString() + 'n' : value
+    );
+  }
+
+  private deserializeFromStorage(data: string): any {
+    const parsed = JSON.parse(data, (_, value) => {
+      if (typeof value === 'string' && value.endsWith('n')) {
+        return BigInt(value.slice(0, -1));
+      }
+      return value;
+    });
+
+    // If this is a metrics object, create a new instance with the parsed data
+    if (parsed && typeof parsed === 'object' && 'blockHeight' in parsed) {
+      const metrics = MiningMetrics.getInstance();
+      Object.assign(metrics, parsed);
+      return metrics;
     }
+
+    return parsed;
   }
 
   @retry({ maxAttempts: 3, delay: 1000 })
   async storePowSolution(solution: PowSolution): Promise<void> {
-    if (!this.initialized) throw new Error('Database not initialized');
+    await this.waitForInitialization();
 
     return await this.mutex.runExclusive(async () => {
       const key = `pow:${solution.blockHash}:${solution.nonce}`;
@@ -276,7 +311,8 @@ export class MiningDatabase {
         const batch = this.db.batch();
         let opCount = 0;
 
-        batch.put(key, JSON.stringify(solution));
+        const serializedSolution = this.serializeForStorage(solution);
+        batch.put(key, serializedSolution);
         opCount++;
 
         // Index by miner address with timestamp for ordering
@@ -288,7 +324,7 @@ export class MiningDatabase {
           throw new Error('Batch size exceeds allowed limit');
         }
         await batch.write();
-        this.cache.set(key, solution, { ttl: this.CACHE_TTL });
+        this.cache.set(key, serializedSolution);
 
         Logger.debug('PoW solution stored successfully', {
           blockHash: solution.blockHash,
@@ -303,8 +339,26 @@ export class MiningDatabase {
     });
   }
 
+  private async waitForInitialization(): Promise<void> {
+    if (this.initialized) return;
+    
+    let attempts = 0;
+    const maxAttempts = 10;
+    const delay = 100;
+
+    while (!this.initialized && attempts < maxAttempts) {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      attempts++;
+    }
+
+    if (!this.initialized) {
+      throw new Error('Database failed to initialize');
+    }
+  }
+
   @retry({ maxAttempts: 3, delay: 1000 })
   async storeMiningMetrics(metrics: MiningMetrics): Promise<void> {
+    await this.waitForInitialization();
     const key = `metrics:${metrics.blockHeight}`;
     try {
       // Validate metrics
@@ -312,12 +366,13 @@ export class MiningDatabase {
         throw new Error('Invalid mining metrics');
       }
 
-      await this.db.put(key, JSON.stringify(metrics));
-      this.cache.set(key, metrics);
+      const serializedMetrics = this.serializeForStorage(metrics);
+      await this.db.put(key, serializedMetrics);
+      this.cache.set(key, serializedMetrics);
 
-      // Updated: Store the full metrics object for time-series data (not just blockHeight)
+      // Updated: Store the full metrics object for time-series data
       const timeKey = `metrics:time:${metrics.timestamp}`;
-      await this.db.put(timeKey, JSON.stringify(metrics));
+      await this.db.put(timeKey, serializedMetrics);
 
       Logger.debug('Mining metrics stored successfully', {
         blockHeight: metrics.blockHeight,
@@ -339,20 +394,23 @@ export class MiningDatabase {
           throw new Error('Invalid consensus vote');
         }
 
+        const serializedVote = this.serializeForStorage(vote);
         const batch = this.db.batch();
         let opCount = 0;
 
         // Store main record
-        batch.put(key, JSON.stringify(vote));
+        batch.put(key, serializedVote);
+        opCount++;
 
         // Update: Use the same prefix for the timestamp index as well
         batch.put(`consensus_vote:time:${vote.timestamp}`, key);
         opCount++;
+
         if (opCount > this.BATCH_SIZE) {
           throw new Error('Batch size exceeds allowed limit');
         }
         await batch.write();
-        this.cache.set(key, vote);
+        this.cache.set(key, serializedVote);
 
         Logger.debug('Consensus vote stored successfully', {
           blockHash: vote.blockHash,
@@ -374,8 +432,9 @@ export class MiningDatabase {
         throw new Error('Invalid consensus period');
       }
 
-      await this.db.put(key, JSON.stringify(period));
-      this.cache.set(key, period);
+      const serializedPeriod = this.serializeForStorage(period);
+      await this.db.put(key, serializedPeriod);
+      this.cache.set(key, serializedPeriod);
 
       Logger.debug('Consensus period stored successfully', {
         startHeight: period.startHeight,
@@ -392,25 +451,23 @@ export class MiningDatabase {
     blockHash: string,
     nonce: bigint,
   ): Promise<PowSolution | null> {
-    if (!this.initialized) throw new Error('Database not initialized');
+    await this.waitForInitialization();
 
     const key = `pow:${blockHash}:${nonce}`;
     try {
       // Try cache first
-      const cached = this.cache.get(key) as PowSolution;
+      const cached = this.cache.get(key);
       if (cached) {
         // Refresh TTL on cache hit
-        this.cache.set(key, cached, { ttl: this.CACHE_TTL });
-        return cached;
+        this.cache.set(key, cached);
+        return this.deserializeFromStorage(cached);
       }
 
       const solution = await this.db.get(key);
-      const parsed = this.safeParse<PowSolution>(solution);
-      if (!parsed) return null;
-
-      // Cache with TTL
-      this.cache.set(key, parsed, { ttl: this.CACHE_TTL });
-      return parsed;
+      if (!solution) return null;
+      
+      this.cache.set(key, solution);
+      return this.deserializeFromStorage(solution);
     } catch (error: unknown) {
       if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve PoW solution:', error);
@@ -419,18 +476,20 @@ export class MiningDatabase {
   }
 
   async getMiningMetrics(blockHeight: number): Promise<MiningMetrics | null> {
+    await this.waitForInitialization();
     const key = `metrics:${blockHeight}`;
     try {
-      const cached = this.cache.get(key) as MiningMetrics;
+      const cached = this.cache.get(key);
       if (cached) {
-        this.cache.set(key, cached, { ttl: this.CACHE_TTL });
-        return cached;
+        this.cache.set(key, cached);
+        return this.deserializeFromStorage(cached as string);
       }
 
       const metricsString = await this.db.get(key);
-      const metrics = JSON.parse(metricsString) as MiningMetrics;
-      this.cache.set(key, metrics, { ttl: this.CACHE_TTL });
-      return metrics;
+      if (!metricsString) return null;
+      
+      this.cache.set(key, metricsString);
+      return this.deserializeFromStorage(metricsString);
     } catch (error: unknown) {
       if (this.isNotFoundError(error)) return null;
       Logger.error('Failed to retrieve mining metrics:', error);
@@ -442,17 +501,20 @@ export class MiningDatabase {
     blockHash: string,
     voterAddress: string,
   ): Promise<ConsensusVote | null> {
+    await this.waitForInitialization();
     const key = `consensus_vote:${blockHash}:${voterAddress}`;
     try {
-      const cached = this.cache.get(key) as ConsensusVote;
+      const cached = this.cache.get(key);
       if (cached) {
-        this.cache.set(key, cached, { ttl: this.CACHE_TTL });
-        return cached;
+        this.cache.set(key, cached);
+        return this.deserializeFromStorage(cached as string);
       }
 
-      const vote = await this.db.get(key);
-      this.cache.set(key, JSON.parse(vote));
-      return JSON.parse(vote);
+      const voteString = await this.db.get(key);
+      if (!voteString) return null;
+      
+      this.cache.set(key, voteString);
+      return this.deserializeFromStorage(voteString);
     } catch (error: unknown) {
       if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve consensus vote:', error);
@@ -463,14 +525,19 @@ export class MiningDatabase {
   async getConsensusPeriod(
     startHeight: number,
   ): Promise<ConsensusPeriod | null> {
+    await this.waitForInitialization();
     const key = `period:${startHeight}`;
     try {
-      const cached = this.cache.get(key) as ConsensusPeriod;
-      if (cached) return cached;
+      const cached = this.cache.get(key);
+      if (cached) {
+        return this.deserializeFromStorage(cached as string);
+      }
 
-      const period = await this.db.get(key);
-      this.cache.set(key, JSON.parse(period));
-      return JSON.parse(period);
+      const periodString = await this.db.get(key);
+      if (!periodString) return null;
+      
+      this.cache.set(key, periodString);
+      return this.deserializeFromStorage(periodString);
     } catch (error: unknown) {
       if (error instanceof Error && 'notFound' in error) return null;
       Logger.error('Failed to retrieve consensus period:', error);
@@ -483,6 +550,7 @@ export class MiningDatabase {
     minerAddress: string,
     limit = 100,
   ): Promise<PowSolution[]> {
+    await this.waitForInitialization();
     const solutions: PowSolution[] = [];
     try {
       for await (const [, value] of this.db.iterator({
@@ -490,7 +558,17 @@ export class MiningDatabase {
         lte: `miner:${minerAddress}:\xFF`,
         limit,
       })) {
-        solutions.push(JSON.parse(value));
+        try {
+          const solutionKey = value as string;
+          const solutionData = await this.db.get(solutionKey);
+          if (solutionData) {
+            const solution = this.deserializeFromStorage(solutionData);
+            solutions.push(solution);
+          }
+        } catch (error) {
+          Logger.error('Error parsing miner solution:', error);
+          continue;
+        }
       }
       return solutions;
     } catch (error: unknown) {
@@ -506,6 +584,7 @@ export class MiningDatabase {
     startTime: bigint,
     endTime: bigint,
   ): Promise<MiningMetrics[]> {
+    await this.waitForInitialization();
     const metrics: MiningMetrics[] = [];
     try {
       for await (const [, value] of this.db.iterator({
@@ -513,7 +592,8 @@ export class MiningDatabase {
         lte: `metrics:time:${endTime}`,
       })) {
         try {
-          metrics.push(JSON.parse(value));
+          const metric = this.deserializeFromStorage(value);
+          metrics.push(metric);
         } catch (error) {
           if (error instanceof SyntaxError) {
             Logger.error('Invalid JSON in metrics:', error);
@@ -577,15 +657,6 @@ export class MiningDatabase {
     } catch (error) {
       Logger.error('Error during mining database disposal:', error);
       throw new Error('Failed to dispose mining database');
-    }
-  }
-
-  private safeParse<T>(value: string): T | null {
-    try {
-      return JSON.parse(value) as T;
-    } catch (error) {
-      Logger.error('Failed to parse stored value:', error);
-      return null;
     }
   }
 
