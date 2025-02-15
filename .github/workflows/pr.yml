@@ -133,6 +133,10 @@ jobs:
           yarn nx build @h3tag-blockchain/api --verbose
           yarn nx build @h3tag-blockchain/cli --verbose
 
+      # Add a step to clear ESLint cache to avoid stale results
+      - name: Clear ESLint cache
+        run: rm -f .eslintcache
+
       - name: Lint affected projects
         run: yarn nx affected:lint --parallel=3
 

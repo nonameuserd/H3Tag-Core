@@ -1,6 +1,14 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
+// Global ignore patterns to exclude configuration files
+const globalIgnorePatterns = {
+  ignores: [
+    '.eslintcache',
+    'tsconfig*.json'
+  ]
+};
+
 const allRulesOff = {};
 for (const rule of Object.keys(eslint.configs.recommended.rules || {})) {
   allRulesOff[rule] = 'off';
@@ -12,6 +20,7 @@ if (tseslint.configs.recommended.rules) {
 }
 
 export default [
+  globalIgnorePatterns,
   eslint.configs.recommended,
   {
     ignores: [
