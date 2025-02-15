@@ -10142,7 +10142,7 @@ nx@20.3.2:
     "@nx/nx-win32-arm64-msvc" "20.3.2"
     "@nx/nx-win32-x64-msvc" "20.3.2"
 
-"nx@>=17.1.2 < 21":
+nx@20.4.4, "nx@>=17.1.2 < 21":
   version "20.4.4"
   resolved "https://registry.yarnpkg.com/nx/-/nx-20.4.4.tgz#6c883e0debe7483dd582bf29841ed98ead3c66df"
   integrity sha512-gOR9YFDbDTnOQYy6oqJ60ExgCiJJnz+o1TxrmP6cRmpRVv+5RmuZWQ9fXPtaj4SA69jbNqhSVyopT8oO6I+Gaw==
