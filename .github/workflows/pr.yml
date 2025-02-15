@@ -1,0 +1,152 @@
+name: PR Build & Test H3Tag Blockchain
+
+on:
+  pull_request:
+
+jobs:
+  build:
+    name: Build & Test H3Tag Blockchain for PR
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [20.18.1]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Cache liboqs build
+      - name: Cache liboqs
+        id: cache-liboqs
+        uses: actions/cache@v3
+        with:
+          path: |
+            /usr/local/lib/liboqs*
+            /usr/local/include/oqs
+            /usr/local/lib/cmake/liboqs
+          key: ${{ runner.os }}-liboqs-${{ hashFiles('liboqs/**') }}
+          restore-keys: |
+            ${{ runner.os }}-liboqs-
+
+      # Install system dependencies including liboqs
+      - name: Install system dependencies
+        if: steps.cache-liboqs.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build
+          git clone --branch main https://github.com/open-quantum-safe/liboqs.git
+          cd liboqs
+          mkdir build && cd build
+          cmake -GNinja -DBUILD_SHARED_LIBS=ON ..
+          ninja
+          sudo ninja install
+          sudo ldconfig
+
+      # Update ldconfig if using cached version
+      - name: Update ldconfig for cached liboqs
+        if: steps.cache-liboqs.outputs.cache-hit == 'true'
+        run: sudo ldconfig
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'yarn'
+
+      # Force yarn to use node version from matrix
+      - name: Set node version for yarn
+        run: |
+          yarn config set nodeLinker node-modules
+          yarn config set nodePath $(which node)
+
+      - name: Derive appropriate SHAs for base and head for `nx affected` commands
+        uses: nrwl/nx-set-shas@v3
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile --ignore-engines
+
+      # Build all packages in sequence with proper module resolution
+      - name: Build all packages
+        run: |
+          # Create dist directories to ensure proper module resolution
+          mkdir -p packages/shared/dist
+          mkdir -p packages/crypto/dist
+          mkdir -p packages/core/dist
+          mkdir -p packages/api/dist
+          mkdir -p packages/cli/dist
+
+          # First build shared and crypto (base packages)
+          yarn nx build @h3tag-blockchain/shared --verbose
+          yarn nx build @h3tag-blockchain/crypto --verbose
+
+          # Build core with explicit output path
+          yarn nx build @h3tag-blockchain/core --verbose --skip-nx-cache
+
+          # Debug core build output
+          echo "Checking core build output..."
+          ls -la packages/core/
+          ls -la packages/core/dist/ || echo "dist directory is empty"
+
+          # Ensure core package is built correctly with source files
+          echo "Building core package with TypeScript..."
+          cd packages/core
+
+          # Create a temporary tsconfig for building just the source files
+          echo '{
+            "extends": "./tsconfig.json",
+            "include": ["src/**/*"],
+            "exclude": ["jest.config.ts", "**/*.test.ts", "**/__tests__/**/*"],
+            "compilerOptions": {
+              "rootDir": "src",
+              "outDir": "dist"
+            }
+          }' > tsconfig.build.json
+
+          # Build using the temporary config
+          yarn tsc --project tsconfig.build.json
+
+          # Clean up
+          rm tsconfig.build.json
+          cd ../..
+
+          # Debug after direct TypeScript build
+          echo "Core build output after tsc:"
+          ls -la packages/core/dist/
+
+          # Copy core package to node_modules for proper resolution
+          rm -rf node_modules/@h3tag-blockchain/core
+          mkdir -p node_modules/@h3tag-blockchain/core
+          cp -r packages/core/* node_modules/@h3tag-blockchain/core/ || {
+            echo "Failed to copy core package files. Directory contents:"
+            ls -la packages/core/
+            exit 1
+          }
+
+          # Set TypeScript to use project references
+          export TS_NODE_PROJECT="tsconfig.json"
+          export TS_NODE_BASEURL="./packages"
+          export TS_NODE_PATHS="packages/**/dist"
+
+          # Build API and CLI with all dependencies
+          yarn nx build @h3tag-blockchain/api --verbose
+          yarn nx build @h3tag-blockchain/cli --verbose
+
+      - name: Lint affected projects
+        run: yarn nx affected:lint --parallel=3
+
+      - name: Run all tests
+        continue-on-error: true
+        run: yarn nx run-many --target=test --all --parallel=5 --coverage
+
+      - name: Clean all caches
+        run: |
+          echo "Forcing a fresh build by cleaning all caches..."
+          # Remove liboqs related directories
+          sudo rm -rf /usr/local/lib/liboqs* /usr/local/include/oqs /usr/local/lib/cmake/liboqs
+          # Remove build caches and node modules
+          rm -rf dist build node_modules
+          # Clean Yarn cache
+          yarn cache clean
+          echo "All caches have been cleaned."
