@@ -15,6 +15,8 @@ import { BLOCKCHAIN_CONSTANTS } from '../../../blockchain/utils/constants';
 import { ConsensusError } from '../../../blockchain/utils/consensus.error';
 import { QuantumNative } from '@h3tag-blockchain/crypto';
 
+// Enable fake timers for tests that require timer advancement.
+jest.useFakeTimers();
 
 jest.mock('../../../blockchain/consensus/pow');
 jest.mock('../../../blockchain/consensus/voting');

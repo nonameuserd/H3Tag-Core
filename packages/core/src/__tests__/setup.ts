@@ -29,6 +29,6 @@ jest.mock('../blockchain/blockchain', () => ({
   },
 }));
 
-// Increase max listeners to avoid warning
+// Increase max listeners to suppress warnings
 import { EventEmitter } from 'events';
-EventEmitter.defaultMaxListeners = 20; 
+EventEmitter.defaultMaxListeners = 50; 

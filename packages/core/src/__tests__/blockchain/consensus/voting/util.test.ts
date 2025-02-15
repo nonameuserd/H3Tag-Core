@@ -67,9 +67,13 @@ describe('DirectVotingUtil', () => {
     jest.clearAllMocks();
   });
 
-  afterAll(() => {
-    // Clean up any remaining intervals
-    jest.resetModules();
+  afterAll(async () => {
+    try {
+      await votingUtil.dispose();
+    } catch (err) {
+      // Log a warning (or ignore) if disposal errors are expected
+      console.warn("Dispose error caught:", err);
+    }
   });
 
   describe('initializeChainVotingPeriod', () => {
