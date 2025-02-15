@@ -29,8 +29,7 @@ export default [
       '**/*.d.ts',
       '**/node_modules/**',
       '**/build/**',
-      '**/wasm/pkg/**/*.js',
-      '**/packages/core/src/__tests__/blockchain/consensus/pow.test.ts',
+      '**/wasm/pkg/**/*.js',      
       '**/*.json'
     ],
   },

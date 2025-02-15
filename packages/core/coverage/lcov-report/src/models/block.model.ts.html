@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">6.5% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/169</span>
+                <span class='fraction'>11/169</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">6.58% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/167</span>
+                <span class='fraction'>11/167</span>
             </div>
         
             
@@ -781,14 +781,29 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -798,10 +813,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -905,22 +917,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -1491,14 +1491,14 @@
  */
 &nbsp;
 import { Transaction } from './transaction.model';
-<span class="cstat-no" title="statement not covered" >import { Logger } from '@h3tag-blockchain/shared';</span>
-<span class="cstat-no" title="statement not covered" >import { MerkleTree } from '../utils/merkle';</span>
+import { Logger } from '@h3tag-blockchain/shared';
+import { MerkleTree } from '../utils/merkle';
 import { Vote } from './vote.model';
 import { Validator } from './validator';
-<span class="cstat-no" title="statement not covered" >import { Mutex } from 'async-mutex';</span>
-<span class="cstat-no" title="statement not covered" >import { AuditEventType, AuditSeverity, AuditManager } from '../security/audit';</span>
-<span class="cstat-no" title="statement not covered" >import { HybridCrypto, HybridKeyPair } from '@h3tag-blockchain/crypto';</span>
-<span class="cstat-no" title="statement not covered" >import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';</span>
+import { Mutex } from 'async-mutex';
+import { AuditEventType, AuditSeverity, AuditManager } from '../security/audit';
+import { HybridCrypto, HybridKeyPair } from '@h3tag-blockchain/crypto';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 &nbsp;
 /**
  * @class BlockError
@@ -1508,7 +1508,7 @@ import { Validator } from './validator';
  * @example
  * throw new BlockError("Invalid block structure");
  */
-<span class="cstat-no" title="statement not covered" >export class B</span>lockError extends Error {
+export class BlockError extends Error {
 <span class="fstat-no" title="function not covered" >  constructor(m</span>essage: string) {
 <span class="cstat-no" title="statement not covered" >    super(message);</span>
 <span class="cstat-no" title="statement not covered" >    this.name = 'BlockError';</span>
@@ -1627,10 +1627,10 @@ export interface Block {
  * await builder.setTransactions(transactions);
  * const block = await builder.build(minerKeyPair);
  */
-<span class="cstat-no" title="statement not covered" >export class B</span>lockBuilder {
-  private static readonly <span class="cstat-no" title="statement not covered" >CURRENT_VERSION = 1</span>;
-  private static readonly <span class="cstat-no" title="statement not covered" >MAX_TRANSACTIONS = 2</span>000;
-  private static readonly <span class="cstat-no" title="statement not covered" >MIN_DIFFICULTY = 1</span>;
+export class BlockBuilder {
+  private static readonly CURRENT_VERSION = 1;
+  private static readonly MAX_TRANSACTIONS = 2000;
+  private static readonly MIN_DIFFICULTY = 1;
   private readonly <span class="cstat-no" title="statement not covered" >maxTransactionAge: number = 72 * 60 * 60 * 1000; </span>// 72 hours
   public header: Block['header'];
   private <span class="cstat-no" title="statement not covered" >transactions: Transaction[] = [];</span>
@@ -2200,7 +2200,7 @@ export interface Block {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-15T01:29:16.766Z
+                at 2025-02-15T03:44:21.481Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

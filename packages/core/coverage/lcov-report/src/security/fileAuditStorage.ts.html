@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">12.5% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/88</span>
+                <span class='fraction'>11/88</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">12.64% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/87</span>
+                <span class='fraction'>11/87</span>
             </div>
         
             
@@ -283,18 +283,18 @@
 <a name='L218'></a><a href='#L218'>218</a>
 <a name='L219'></a><a href='#L219'>219</a>
 <a name='L220'></a><a href='#L220'>220</a>
-<a name='L221'></a><a href='#L221'>221</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<a name='L221'></a><a href='#L221'>221</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
@@ -314,14 +314,14 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">4x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -503,18 +503,18 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import fs from 'fs/promises';</span>
-<span class="cstat-no" title="statement not covered" >import path from 'path';</span>
-<span class="cstat-no" title="statement not covered" >import zlib from 'zlib';</span>
-<span class="cstat-no" title="statement not covered" >import { promisify } from 'util';</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import fs from 'fs/promises';
+import path from 'path';
+import zlib from 'zlib';
+import { promisify } from 'util';
 import { IAuditStorage } from './audit';
-<span class="cstat-no" title="statement not covered" >import { Logger } from '@h3tag-blockchain/shared';</span>
-<span class="cstat-no" title="statement not covered" >import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';</span>
+import { Logger } from '@h3tag-blockchain/shared';
+import { BLOCKCHAIN_CONSTANTS } from '../blockchain/utils/constants';
 &nbsp;
-const gzip = <span class="cstat-no" title="statement not covered" >promisify(zlib.gzip);</span>
-const gunzip = <span class="cstat-no" title="statement not covered" >promisify(zlib.gunzip);</span>
+const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export class F</span>ileAuditStorageError extends Error {
+export class FileAuditStorageError extends Error {
 <span class="fstat-no" title="function not covered" >  constructor(</span>
     message: string,
     public readonly <span class="cstat-no" title="statement not covered" >code: string,</span>
@@ -534,14 +534,14 @@ interface StorageConfig {
   maxFileSize: number;
 }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >export class F</span>ileAuditStorage implements IAuditStorage {
+export class FileAuditStorage implements IAuditStorage {
   private readonly config: StorageConfig;
   private <span class="cstat-no" title="statement not covered" >locks = new Map&lt;string, number&gt;();</span>
   private <span class="cstat-no" title="statement not covered" >activeWrites = 0;</span>
   private readonly <span class="cstat-no" title="statement not covered" >lockTimeout = 30000; </span>// 30 seconds
   private lockCleanupInterval: NodeJS.Timeout | undefined;
 &nbsp;
-  private static readonly <span class="cstat-no" title="statement not covered" >DEFAULT_CONFIG: StorageConfig = {</span>
+  private static readonly DEFAULT_CONFIG: StorageConfig = {
     baseDir: 'audit_logs',
     compression: true,
     maxRetries: 3,
@@ -730,7 +730,7 @@ interface StorageConfig {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-15T01:29:16.766Z
+                at 2025-02-15T03:44:21.481Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

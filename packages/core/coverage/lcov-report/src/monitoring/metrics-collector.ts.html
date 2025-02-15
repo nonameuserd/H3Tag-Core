@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.19% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>0/139</span>
+                <span class='fraction'>10/139</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">1.96% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/51</span>
+                <span class='fraction'>1/51</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">4% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>0/25</span>
+                <span class='fraction'>1/25</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">7.4% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>0/135</span>
+                <span class='fraction'>10/135</span>
             </div>
         
             
@@ -445,7 +445,7 @@
 <a name='L380'></a><a href='#L380'>380</a>
 <a name='L381'></a><a href='#L381'>381</a>
 <a name='L382'></a><a href='#L382'>382</a>
-<a name='L383'></a><a href='#L383'>383</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<a name='L383'></a><a href='#L383'>383</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -471,13 +471,13 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">11x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -486,21 +486,21 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">41x</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -827,7 +827,7 @@
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { Logger } from '@h3tag-blockchain/shared';</span>
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { Logger } from '@h3tag-blockchain/shared';
 import { Block, BlockHeader } from '../models/block.model';
 import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
 &nbsp;
@@ -853,13 +853,13 @@ import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
  * collector.gauge("block.size", 1024);
  * const stopTimer = collector.startTimer("block.processing");
  */
-<span class="cstat-no" title="statement not covered" >export class M</span>etricsCollector {
+export class MetricsCollector {
   private metrics: Map&lt;string, number&gt;;
   private timers: Map&lt;string, number&gt;;
   private readonly namespace: string;
   private flushInterval: NodeJS.Timeout | null;
-  private readonly <span class="cstat-no" title="statement not covered" >FLUSH_INTERVAL_MS = 60000; </span>// 1 minute default
-  private <span class="cstat-no" title="statement not covered" >isFlushing = false;</span>
+  private readonly FLUSH_INTERVAL_MS = 60000; // 1 minute default
+  private isFlushing = false;
 &nbsp;
   /**
    * Creates a new MetricsCollector instance
@@ -867,22 +867,22 @@ import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
    * @param {number} [flushIntervalMs=60000] - Metrics flush interval in milliseconds
    * @throws {Error} If namespace is not provided
    */
-<span class="fstat-no" title="function not covered" >  constructor(n</span>amespace: string, flushIntervalMs = <span class="branch-0 cbranch-no" title="branch not covered" >60000)</span> {
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (!namespace) {</span>
+  constructor(namespace: string, flushIntervalMs = 60000) {
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (!namespace) {
 <span class="cstat-no" title="statement not covered" >      throw new Error('Namespace is required');</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.namespace = namespace;</span>
-<span class="cstat-no" title="statement not covered" >    this.metrics = new Map();</span>
-<span class="cstat-no" title="statement not covered" >    this.timers = new Map();</span>
+    this.namespace = namespace;
+    this.metrics = new Map();
+    this.timers = new Map();
 &nbsp;
     // Validate flush interval to be at least 1 second.
-<span class="cstat-no" title="statement not covered" >    <span class="missing-if-branch" title="if path not taken" >I</span>if (flushIntervalMs &lt; 1000) {</span>
+    <span class="missing-if-branch" title="if path not taken" >I</span>if (flushIntervalMs &lt; 1000) {
 <span class="cstat-no" title="statement not covered" >      Logger.warn('Flush interval too low, setting to 1 second minimum');</span>
 <span class="cstat-no" title="statement not covered" >      flushIntervalMs = 1000;</span>
     }
 &nbsp;
-<span class="cstat-no" title="statement not covered" >    this.flushInterval = setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {</span>
+    this.flushInterval = setInterval(<span class="fstat-no" title="function not covered" >() =</span>&gt; {
 <span class="cstat-no" title="statement not covered" >      void this.flush();</span>
     }, flushIntervalMs).unref();
   }
@@ -1216,7 +1216,7 @@ import { Transaction, TxInput, TxOutput } from '../models/transaction.model';
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-15T01:29:16.766Z
+                at 2025-02-15T03:44:21.481Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
