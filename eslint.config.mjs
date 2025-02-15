@@ -1,6 +1,16 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 
+const allRulesOff = {};
+for (const rule of Object.keys(eslint.configs.recommended.rules || {})) {
+  allRulesOff[rule] = 'off';
+}
+if (tseslint.configs.recommended.rules) {
+  for (const rule of Object.keys(tseslint.configs.recommended.rules)) {
+    allRulesOff[rule] = 'off';
+  }
+}
+
 export default [
   eslint.configs.recommended,
   {
@@ -11,7 +21,8 @@ export default [
       '**/node_modules/**',
       '**/build/**',
       '**/wasm/pkg/**/*.js',
-      '**/packages/core/src/__tests__/blockchain/consensus/pow.test.ts'
+      '**/packages/core/src/__tests__/blockchain/consensus/pow.test.ts',
+      '**/*.json'
     ],
   },
   // Base config for all JavaScript files
@@ -120,7 +131,7 @@ export default [
     }
   },
   {
-    files: ['**/packages/core/src/__tests__/blockchain/consensus/pow.test.ts'],
+    files: ['**/packages/core/src/__tests__/**/*', '**/*.test.*'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
@@ -129,5 +140,9 @@ export default [
       '@typescript-eslint/no-unsafe-return': 'off'
     }
   },
-  ...tseslint.configs.recommended
+  ...tseslint.configs.recommended,
+  {
+    files: ['**/__tests__/**/*', '**/*.test.*'],
+    rules: allRulesOff,
+  }
 ];

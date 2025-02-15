@@ -23,9 +23,9 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">13.58% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>11/81</span>
+                <span class='fraction'>0/81</span>
             </div>
         
             
@@ -37,16 +37,16 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">8.33% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>1/12</span>
+                <span class='fraction'>0/12</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">14.1% </span>
+                <span class="strong">0% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>11/78</span>
+                <span class='fraction'>0/78</span>
             </div>
         
             
@@ -416,10 +416,10 @@
 <a name='L351'></a><a href='#L351'>351</a>
 <a name='L352'></a><a href='#L352'>352</a>
 <a name='L353'></a><a href='#L353'>353</a>
-<a name='L354'></a><a href='#L354'>354</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<a name='L354'></a><a href='#L354'>354</a></td><td class="line-coverage quiet"><span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -490,12 +490,12 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -503,10 +503,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-yes">5x</span>
+<span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -769,10 +769,10 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js">import { HybridCrypto } from '@h3tag-blockchain/crypto';
-import { MerkleTree, MerkleProof } from '../utils/merkle';
-import { Logger } from '@h3tag-blockchain/shared';
-import { createHash } from 'crypto';
+<span class="cline-any cline-neutral">&nbsp;</span></td><td class="text"><pre class="prettyprint lang-js"><span class="cstat-no" title="statement not covered" >import { HybridCrypto } from '@h3tag-blockchain/crypto';</span>
+<span class="cstat-no" title="statement not covered" >import { MerkleTree, MerkleProof } from '../utils/merkle';</span>
+<span class="cstat-no" title="statement not covered" >import { Logger } from '@h3tag-blockchain/shared';</span>
+<span class="cstat-no" title="statement not covered" >import { createHash } from 'crypto';</span>
 &nbsp;
 /**
  * @fileoverview Validator model definitions for the H3Tag blockchain. Includes validator structure,
@@ -843,23 +843,23 @@ export interface Validator {
  * await validatorSet.addValidator(validator);
  * const isValid = await validatorSet.verifyValidator(validator, merkleRoot);
  */
-export class ValidatorSet {
+<span class="cstat-no" title="statement not covered" >export class V</span>alidatorSet {
   private merkleTree: MerkleTree;
   private validators: Map&lt;string, Validator&gt;;
-  private readonly CACHE_EXPIRY = 5 * 60 * 1000; // 5 minutes
-  private validatorCache: Map&lt;string, Validator&gt; = new Map();
-  private cacheTimestamps: Map&lt;string, number&gt; = new Map();
+  private readonly <span class="cstat-no" title="statement not covered" >CACHE_EXPIRY = 5 * 60 * 1000; </span>// 5 minutes
+  private <span class="cstat-no" title="statement not covered" >validatorCache: Map&lt;string, Validator&gt; = new Map();</span>
+  private <span class="cstat-no" title="statement not covered" >cacheTimestamps: Map&lt;string, number&gt; = new Map();</span>
   private cacheCleanupInterval: NodeJS.Timeout; // Store interval id
 &nbsp;
   /**
    * Creates a new ValidatorSet instance
    * Initializes merkle tree and sets up cache cleanup
    */
-  constructor() {
-    this.merkleTree = new MerkleTree();
-    this.validators = new Map();
+<span class="fstat-no" title="function not covered" >  constructor() {</span>
+<span class="cstat-no" title="statement not covered" >    this.merkleTree = new MerkleTree();</span>
+<span class="cstat-no" title="statement not covered" >    this.validators = new Map();</span>
     // Set up periodic cache cleanup and store the interval id
-    this.cacheCleanupInterval = setInterval(
+<span class="cstat-no" title="statement not covered" >    this.cacheCleanupInterval = setInterval(</span>
 <span class="fstat-no" title="function not covered" >      () =</span>&gt; <span class="cstat-no" title="statement not covered" >this.cleanExpiredCache(),</span>
       this.CACHE_EXPIRY
     ).unref();
@@ -1129,7 +1129,7 @@ export class ValidatorSet {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-14T17:08:38.069Z
+                at 2025-02-15T01:29:16.766Z
             </div>
         <script src="../../prettify.js"></script>
         <script>
