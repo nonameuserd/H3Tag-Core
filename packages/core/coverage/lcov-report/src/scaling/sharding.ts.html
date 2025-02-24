@@ -23,30 +23,30 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">21.59% </span>
+                <span class="strong">25.56% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>38/176</span>
+                <span class='fraction'>45/176</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">0% </span>
+                <span class="strong">4% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>0/25</span>
+                <span class='fraction'>1/25</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">20% </span>
+                <span class="strong">28% </span>
                 <span class="quiet">Functions</span>
-                <span class='fraction'>5/25</span>
+                <span class='fraction'>7/25</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">21.17% </span>
+                <span class="strong">25.29% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>36/170</span>
+                <span class='fraction'>43/170</span>
             </div>
         
             
@@ -708,7 +708,7 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">64x</span>
-<span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -717,19 +717,19 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-no">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">6x</span>
+<span class="cline-any cline-yes">96x</span>
+<span class="cline-any cline-yes">96x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-no">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-yes">6x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
@@ -1149,7 +1149,7 @@ export class ShardManager {
    */
   private startSyncTimer(): void {
     this.syncTimer = setInterval(
-<span class="fstat-no" title="function not covered" >      () =</span>&gt; <span class="cstat-no" title="statement not covered" >this.syncShards(),</span>
+      () =&gt; this.syncShards(),
       this.config.syncInterval,
     ).unref();
   }
@@ -1157,20 +1157,20 @@ export class ShardManager {
   /**
    * Sync shards with database
    */
-  private <span class="fstat-no" title="function not covered" >async </span>syncShards(): Promise&lt;void&gt; {
-    const release = <span class="cstat-no" title="statement not covered" >await this.mutex.acquire();</span>
-<span class="cstat-no" title="statement not covered" >    try {</span>
-<span class="cstat-no" title="statement not covered" >      for (const [shardId, shard] of this.shards) {</span>
-<span class="cstat-no" title="statement not covered" >        if (typeof this.db.syncShard === 'function') {</span>
-<span class="cstat-no" title="statement not covered" >          await this.db.syncShard(shardId, Array.from(shard));</span>
-        } else {
+  private async syncShards(): Promise&lt;void&gt; {
+    const release = await this.mutex.acquire();
+    try {
+      for (const [shardId, shard] of this.shards) {
+        if (typeof this.db.syncShard === 'function') {
+          await this.db.syncShard(shardId, Array.from(shard));
+        } else <span class="missing-if-branch" title="else path not taken" >E</span>{
 <span class="cstat-no" title="statement not covered" >          Logger.warn(`syncShard is not available on this.db. Skipping sync for shardId ${shardId}`);</span>
         }
       }
     } catch (error) {
 <span class="cstat-no" title="statement not covered" >      Logger.error('Shard sync failed:', error);</span>
     } finally {
-<span class="cstat-no" title="statement not covered" >      release();</span>
+      release();
     }
   }
 &nbsp;
@@ -1393,7 +1393,7 @@ export class ShardManager {
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2025-02-15T03:44:21.481Z
+                at 2025-02-15T21:31:18.894Z
             </div>
         <script src="../../prettify.js"></script>
         <script>

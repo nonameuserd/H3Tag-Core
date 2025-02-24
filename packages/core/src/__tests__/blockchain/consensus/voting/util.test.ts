@@ -72,7 +72,7 @@ describe('DirectVotingUtil', () => {
       await votingUtil.dispose();
     } catch (err) {
       // Log a warning (or ignore) if disposal errors are expected
-      console.warn("Dispose error caught:", err);
+      console.warn('Dispose error caught:', err);
     }
   });
 
